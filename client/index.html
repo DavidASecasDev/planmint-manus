@@ -1,25 +1,46 @@
 <!doctype html>
 <html lang="es">
-
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>PlanMint | Organiza tareas, objetivos y equipos</title>
-    <meta name="description" content="PlanMint - Plataforma de gestión de tareas, objetivos y equipos. Kanban, calendario, recordatorios y resúmenes con IA." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <meta name="description" content="Gestiona tareas, objetivos, proyectos y equipos desde un solo lugar. Kanban, calendario, recordatorios, notificaciones e IA.">
+    <meta name="author" content="PlanMint" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#10B981" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="PlanMint" />
+    
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="PlanMint" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://planmint.app/og-image.png" />
+    <meta property="og:title" content="PlanMint | Organiza tareas, objetivos y equipos">
+    <meta property="og:description" content="Gestiona tareas, objetivos, proyectos y equipos desde un solo lugar. Kanban, calendario, recordatorios, notificaciones e IA.">
+    <meta property="og:site_name" content="PlanMint">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@planmintapp" />
+    <meta name="twitter:image" content="https://planmint.app/og-image.png" />
+    <meta name="twitter:title" content="PlanMint | Organiza tareas, objetivos y equipos">
+    <meta name="twitter:description" content="Gestiona tareas, objetivos, proyectos y equipos desde un solo lugar. Kanban, calendario, recordatorios, notificaciones e IA.">
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
   </body>
-
 </html>

@@ -1,0 +1,282 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+
+export interface TransferBroker {
+  id: string;
+  organization_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  user_id: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface CreateBrokerData {
+  name: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+interface UpdateBrokerFullData {
+  id: string;
+  name: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+interface SetupPortalAccessData {
+  brokerId: string;
+  email: string;
+}
+
+interface SetupPortalResponse {
+  success: boolean;
+  already_linked?: boolean;
+  error?: string;
+}
+
+export function useTransferBrokers() {
+  const { organization } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Realtime subscription for transfer_brokers changes
+  useEffect(() => {
+    if (!organization?.id) return;
+
+    const channel = supabase
+      .channel('transfer-brokers-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transfer_brokers',
+          filter: `organization_id=eq.${organization.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ 
+            queryKey: ['transfer-brokers'],
+            refetchType: 'active'
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: ['transfer-brokers-all'],
+            refetchType: 'active'
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organization?.id, queryClient]);
+
+  const { data: brokers = [], isLoading } = useQuery({
+    queryKey: ['transfer-brokers', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+
+      const { data, error } = await supabase
+        .from('transfer_brokers')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      return data as TransferBroker[];
+    },
+    enabled: !!organization?.id,
+  });
+
+  const { data: allBrokers = [], isLoading: isLoadingAll } = useQuery({
+    queryKey: ['transfer-brokers-all', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+
+      const { data, error } = await supabase
+        .from('transfer_brokers')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('name');
+
+      if (error) throw error;
+      return data as TransferBroker[];
+    },
+    enabled: !!organization?.id,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateBrokerData) => {
+      if (!organization?.id) throw new Error('No organization');
+
+      const { data: result, error } = await supabase
+        .from('transfer_brokers')
+        .insert({
+          organization_id: organization.id,
+          name: data.name,
+          company: data.company,
+          email: data.email,
+          phone: data.phone,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result as TransferBroker;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+      toast.success('Broker creado correctamente');
+    },
+    onError: (error: any) => {
+      if (error.code === '23505') {
+        toast.error('Ya existe un broker con ese nombre');
+      } else {
+        toast.error('Error al crear broker');
+      }
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase
+        .from('transfer_brokers')
+        .update({ name })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+      toast.success('Broker actualizado');
+    },
+    onError: (error: any) => {
+      if (error.code === '23505') {
+        toast.error('Ya existe un broker con ese nombre');
+      } else {
+        toast.error('Error al actualizar broker');
+      }
+    },
+  });
+
+  const updateFullMutation = useMutation({
+    mutationFn: async (data: UpdateBrokerFullData) => {
+      const { error } = await supabase
+        .from('transfer_brokers')
+        .update({
+          name: data.name,
+          company: data.company,
+          email: data.email,
+          phone: data.phone,
+        })
+        .eq('id', data.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+      toast.success('Broker actualizado correctamente');
+    },
+    onError: (error: any) => {
+      if (error.code === '23505') {
+        toast.error('Ya existe un broker con ese nombre');
+      } else {
+        toast.error('Error al actualizar broker');
+      }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('transfer_brokers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+      toast.success('Broker eliminado');
+    },
+    onError: () => {
+      toast.error('Error al eliminar broker');
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase
+        .from('transfer_brokers')
+        .update({ is_active })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+      toast.success(variables.is_active ? 'Broker activado' : 'Broker desactivado');
+    },
+  });
+
+  const setupPortalMutation = useMutation({
+    mutationFn: async (data: SetupPortalAccessData): Promise<SetupPortalResponse> => {
+      // Call the setup_broker_access RPC function
+      const { data: result, error } = await supabase
+        .rpc('setup_broker_access', {
+          p_broker_id: data.brokerId,
+          p_email: data.email,
+        });
+
+      if (error) throw error;
+      
+      // Handle the response - cast through unknown for type safety
+      const response = result as unknown;
+      if (typeof response === 'object' && response !== null && 'success' in response) {
+        return response as SetupPortalResponse;
+      }
+      
+      // If the RPC returns a simple boolean or other format, handle it
+      return { success: !!result };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+      if (result.success && !result.already_linked) {
+        toast.success('Acceso al portal configurado');
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al configurar acceso');
+    },
+  });
+
+  return {
+    brokers,
+    allBrokers,
+    isLoading,
+    isLoadingAll,
+    createBroker: createMutation.mutateAsync,
+    updateBroker: updateMutation.mutate,
+    updateBrokerFull: updateFullMutation.mutateAsync,
+    deleteBroker: deleteMutation.mutate,
+    toggleActive: toggleActiveMutation.mutate,
+    setupPortalAccess: setupPortalMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    isUpdating: updateFullMutation.isPending,
+    isSettingUpPortal: setupPortalMutation.isPending,
+  };
+}
