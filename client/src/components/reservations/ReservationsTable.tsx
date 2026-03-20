@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { format, isSameDay, parseISO, startOfDay, isAfter, isBefore, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
@@ -839,11 +839,10 @@ export function ReservationsTable() {
                 </div>
               ) : (
                 rowsWithDayInfo.map((row) => (
-                  <>
+                  <React.Fragment key={row.id}>
                     {/* Day header */}
                     {row.isFirstOfDay && row.dayLabel && (
                       <div 
-                        key={`day-${row.id}`}
                         className="flex items-center px-3 py-2 bg-primary/10 border-t-2 border-primary/30"
                       >
                         <span className="text-xs font-semibold text-primary capitalize">
@@ -853,7 +852,6 @@ export function ReservationsTable() {
                     )}
                     {/* Data row */}
                     <div
-                      key={row.id}
                       className={cn(
                         "flex hover:bg-muted/50 transition-colors border-b border-border/50",
                         row.dayColor,
@@ -963,7 +961,7 @@ export function ReservationsTable() {
                         </div>
                       ))}
                     </div>
-                  </>
+                  </React.Fragment>
                 ))
               )}
             </div>
