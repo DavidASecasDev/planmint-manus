@@ -1,24 +1,11 @@
 import jsPDF from 'jspdf';
-
-let cachedFontBase64: string | null = null;
-
-async function fetchFontAsBase64(url: string): Promise<string> {
-  const response = await fetch(url);
-  const buffer = await response.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
+import { ROBOTO_REGULAR_BASE64 } from './robotoBase64';
 
 export async function registerPdfFonts(pdf: jsPDF): Promise<void> {
-  if (!cachedFontBase64) {
-    cachedFontBase64 = await fetchFontAsBase64('/fonts/Roboto-Regular.ttf');
-  }
-
-  pdf.addFileToVFS('Roboto-Regular.ttf', cachedFontBase64);
+  // Use the embedded base64 font directly — no network fetch needed.
+  // This avoids issues where the SPA router intercepts /fonts/* requests
+  // and returns HTML instead of the actual TTF file.
+  pdf.addFileToVFS('Roboto-Regular.ttf', ROBOTO_REGULAR_BASE64);
   pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
   pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'bold');
   pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'italic');
