@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { LogOut, Ship, Plus, Sun, Moon, Monitor } from 'lucide-react';
+import { BrokerNotificationBell } from '@/components/broker/BrokerNotificationBell';
 
 interface BrokerLayoutProps {
   children: React.ReactNode;
@@ -129,6 +130,7 @@ function BrokerLayoutInner({ children }: BrokerLayoutProps) {
                   <span className="font-medium text-white">{broker?.name}</span>
                 </div>
 
+                <BrokerNotificationBell />
                 <ThemeToggle />
 
                 <Button

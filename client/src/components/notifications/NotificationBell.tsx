@@ -1,4 +1,4 @@
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,12 +20,14 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   mention: AtSign,
   assignment: UserCheck,
   reminder: Clock,
+  transfer_note: MessageSquare,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
   mention: 'text-blue-500',
   assignment: 'text-green-500',
   reminder: 'text-orange-500',
+  transfer_note: 'text-amber-600',
 };
 
 export function NotificationBell() {

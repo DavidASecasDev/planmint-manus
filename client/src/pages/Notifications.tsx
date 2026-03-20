@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,18 +20,21 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   mention: AtSign,
   assignment: UserCheck,
   reminder: Clock,
+  transfer_note: MessageSquare,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
   mention: 'text-blue-500 bg-blue-500/10',
   assignment: 'text-green-500 bg-green-500/10',
   reminder: 'text-orange-500 bg-orange-500/10',
+  transfer_note: 'text-amber-600 bg-amber-500/10',
 };
 
 const TYPE_LABELS: Record<NotificationType, string> = {
   mention: 'Mención',
   assignment: 'Asignación',
   reminder: 'Recordatorio',
+  transfer_note: 'Nota de Transfer',
 };
 
 export default function Notifications() {

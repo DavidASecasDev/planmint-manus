@@ -1,5 +1,5 @@
-export type NotificationType = 'mention' | 'assignment' | 'reminder';
-export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'form_response';
+export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note';
+export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response';
 
 export interface Notification {
   id: string;
