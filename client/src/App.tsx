@@ -143,20 +143,7 @@ const BrokerNewRequest = lazy(() => import("./pages/broker/BrokerNewRequest"));
 const BrokerRequestDetail = lazy(() => import("./pages/broker/BrokerRequestDetail"));
 const BrokerEditRequest = lazy(() => import("./pages/broker/BrokerEditRequest"));
 
-// Public Pages
-const Landing = lazy(() => import("./pages/public/Landing").then(m => ({ default: m.Landing })));
-const Pricing = lazy(() => import("./pages/public/Pricing").then(m => ({ default: m.Pricing })));
-const Features = lazy(() => import("./pages/public/Features").then(m => ({ default: m.Features })));
-const Security = lazy(() => import("./pages/public/Security").then(m => ({ default: m.Security })));
-const Privacy = lazy(() => import("./pages/public/Privacy").then(m => ({ default: m.Privacy })));
-const Terms = lazy(() => import("./pages/public/Terms").then(m => ({ default: m.Terms })));
-const ReferralRedirect = lazy(() => import("./pages/public/ReferralRedirect").then(m => ({ default: m.ReferralRedirect })));
-const Blog = lazy(() => import("./pages/public/Blog").then(m => ({ default: m.Blog })));
-const BlogPost = lazy(() => import("./pages/public/BlogPost").then(m => ({ default: m.BlogPost })));
-const UseCases = lazy(() => import("./pages/public/UseCases").then(m => ({ default: m.UseCases })));
-const UseCaseDetail = lazy(() => import("./pages/public/UseCaseDetail").then(m => ({ default: m.UseCaseDetail })));
-const Alternatives = lazy(() => import("./pages/public/Alternatives").then(m => ({ default: m.Alternatives })));
-const AlternativeDetail = lazy(() => import("./pages/public/AlternativeDetail").then(m => ({ default: m.AlternativeDetail })));
+// Public Pages (removed - app is now internal-only)
 
 // Non-lazy pages (always needed)
 import Index from "./pages/Index";
@@ -185,20 +172,9 @@ function MainAppRoutes() {
           <InstallPrompt />
           <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/features" element={<Features />} />
-            <Route path="/security" element={<Security />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogPost />} />
-            <Route path="/use-cases" element={<UseCases />} />
-            <Route path="/use-cases/:slug" element={<UseCaseDetail />} />
-            <Route path="/alternatives" element={<Alternatives />} />
-            <Route path="/alternatives/:slug" element={<AlternativeDetail />} />
-            <Route path="/ref/:code" element={<ReferralRedirect />} />
+            {/* Root: redirect to login or dashboard */}
+            <Route path="/" element={<Index />} />
+            {/* Public form routes */}
             <Route path="/f/:slug" element={<PublicForm />} />
             <Route path="/transfer/:slug" element={<PublicTransferForm />} />
             <Route path="/install" element={<Install />} />

@@ -1,11 +1,11 @@
 /*
  * Azul Cars Brand — Login Page
- * Split layout: navy left panel with brand | warm right panel with form
+ * Split layout: navy left panel with particle logo animation | warm right panel with form
  * Gold accent: oklch(0.72 0.10 80)
  * Headings: Montserrat | Body: Barlow
  */
 import { useState, useEffect, useRef } from 'react';
-import { Link, Navigate, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { z } from 'zod';
+import { ParticleLogos } from '@/components/effects/ParticleLogos';
 
 const brand = {
   navy: '#001321',
@@ -32,6 +33,57 @@ const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 });
+
+/* ── Shared Navy Panel with Particle Effect ── */
+function NavyPanel() {
+  return (
+    <div
+      className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden"
+      style={{ backgroundColor: brand.navy }}
+    >
+      {/* Particle canvas fills the entire panel */}
+      <ParticleLogos />
+
+      {/* Overlay content on top of particles */}
+      <div className="relative z-10 flex flex-col justify-between h-full p-12">
+        <div>
+          <span
+            className="text-3xl"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
+          >
+            AZUL<span style={{ color: brand.gold }}>.</span>
+          </span>
+        </div>
+        <div />
+        <div>
+          <p
+            className="text-sm tracking-widest uppercase mb-3"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 600,
+              color: brand.textWhiteMuted,
+              letterSpacing: '0.15em',
+            }}
+          >
+            Grupo Azul
+          </p>
+          <div style={{ height: '2px', width: '60px', background: brand.gold, marginBottom: '12px' }} />
+          <p
+            className="text-sm"
+            style={{
+              fontFamily: 'Barlow, sans-serif',
+              color: brand.textWhiteMuted,
+              lineHeight: '1.6',
+              maxWidth: '280px',
+            }}
+          >
+            Plataforma de gestión integral para las empresas del grupo.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const { signIn, signOut, user, profile, loading: authLoading, profileLoading } = useAuth();
@@ -54,11 +106,7 @@ export default function Login() {
         setAcceptingInvite(true);
         try {
           const { data, error } = await supabase.rpc('accept_invitation', { p_token: inviteToken });
-          if (error) {
-            console.error('Error accepting invitation:', error);
-            navigate('/dashboard');
-            return;
-          }
+          if (error) { navigate('/dashboard'); return; }
           const result = data as { success?: boolean; organization_name?: string; error?: string } | null;
           if (result?.success) {
             toast({ title: 'Invitación aceptada', description: `Te has unido a ${result.organization_name}` });
@@ -66,8 +114,7 @@ export default function Login() {
             toast({ title: 'Email no coincide', description: 'Tu cuenta no coincide con el email de la invitación.', variant: 'destructive' });
           }
           navigate('/dashboard');
-        } catch (err) {
-          console.error('Error accepting invitation:', err);
+        } catch {
           navigate('/dashboard');
         } finally {
           setAcceptingInvite(false);
@@ -77,6 +124,7 @@ export default function Login() {
     acceptInvitation();
   }, [user, profileLoading, inviteToken, navigate]);
 
+  /* ── Loading state ── */
   if (authLoading || profileLoading || acceptingInvite) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: brand.warmBg }}>
@@ -92,54 +140,22 @@ export default function Login() {
     );
   }
 
+  /* ── Already logged in ── */
   if (user && !profileLoading && !inviteToken) {
     const handleSignOut = async () => { await signOut(); };
     return (
       <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
-        {/* Navy left panel */}
-        <div
-          className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
-          style={{ backgroundColor: brand.navy }}
-        >
-          <div>
-            <span
-              className="text-3xl"
-              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
-            >
-              AZUL<span style={{ color: brand.gold }}>.</span>
-            </span>
-          </div>
-          <div>
-            <h2
-              className="text-4xl leading-tight mb-4"
-              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
-            >
-              Gestión integral<br />de tu flota
-            </h2>
-            <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
-              Controla reservas, vehículos, tareas y equipos desde un solo lugar.
-            </p>
-          </div>
-          <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
-        </div>
-
-        {/* Form panel */}
+        <NavyPanel />
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="w-full max-w-md">
             <div className="text-center mb-8 lg:hidden">
-              <span
-                className="text-2xl"
-                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}
-              >
+              <span className="text-2xl" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}>
                 AZUL<span style={{ color: brand.gold }}>.</span>
               </span>
             </div>
             <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
               <CardHeader className="space-y-1 text-center pb-6 pt-8">
-                <CardTitle
-                  className="text-2xl"
-                  style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
-                >
+                <CardTitle className="text-2xl" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}>
                   Ya tienes sesión activa
                 </CardTitle>
                 <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
@@ -150,12 +166,7 @@ export default function Login() {
                 <Button
                   onClick={() => navigate(redirectTo || '/dashboard')}
                   className="w-full h-12 text-base font-semibold"
-                  style={{
-                    backgroundColor: brand.gold,
-                    color: brand.navy,
-                    fontFamily: 'Montserrat, sans-serif',
-                    fontWeight: 700,
-                  }}
+                  style={{ backgroundColor: brand.gold, color: brand.navy, fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}
                 >
                   Ir al Dashboard
                 </Button>
@@ -163,11 +174,7 @@ export default function Login() {
                   variant="outline"
                   onClick={handleSignOut}
                   className="w-full h-12 text-base"
-                  style={{
-                    borderColor: brand.borderLight,
-                    color: brand.textMuted,
-                    fontFamily: 'Barlow, sans-serif',
-                  }}
+                  style={{ borderColor: brand.borderLight, color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}
                 >
                   Cerrar sesión e iniciar con otra cuenta
                 </Button>
@@ -179,6 +186,7 @@ export default function Login() {
     );
   }
 
+  /* ── Login form submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validation = loginSchema.safeParse({ email, password });
@@ -207,54 +215,25 @@ export default function Login() {
     setLoading(false);
   };
 
+  /* ── Main login view ── */
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
-      {/* Navy left panel */}
-      <div
-        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
-        style={{ backgroundColor: brand.navy }}
-      >
-        <div>
-          <span
-            className="text-3xl"
-            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
-          >
-            AZUL<span style={{ color: brand.gold }}>.</span>
-          </span>
-        </div>
-        <div>
-          <h2
-            className="text-4xl leading-tight mb-4"
-            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
-          >
-            Gestión integral<br />de tu flota
-          </h2>
-          <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
-            Controla reservas, vehículos, tareas y equipos desde un solo lugar.
-          </p>
-        </div>
-        <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
-      </div>
+      {/* Navy left panel with particle logos */}
+      <NavyPanel />
 
       {/* Form panel */}
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="text-center mb-8 lg:hidden">
-            <span
-              className="text-2xl"
-              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}
-            >
+            <span className="text-2xl" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}>
               AZUL<span style={{ color: brand.gold }}>.</span>
             </span>
           </div>
 
           <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
             <CardHeader className="space-y-1 text-center pb-6 pt-8">
-              <CardTitle
-                className="text-2xl"
-                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
-              >
+              <CardTitle className="text-2xl" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}>
                 Iniciar Sesión
               </CardTitle>
               <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
@@ -266,10 +245,7 @@ export default function Login() {
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="email"
-                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
-                  >
+                  <Label htmlFor="email" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}>
                     Email
                   </Label>
                   <div className="relative">
@@ -281,20 +257,13 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-10 h-12"
-                      style={{
-                        borderColor: brand.borderLight,
-                        fontFamily: 'Barlow, sans-serif',
-                        backgroundColor: '#FFFFFF',
-                      }}
+                      style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }}
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="password"
-                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
-                  >
+                  <Label htmlFor="password" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}>
                     Contraseña
                   </Label>
                   <div className="relative">
@@ -306,11 +275,7 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 h-12"
-                      style={{
-                        borderColor: brand.borderLight,
-                        fontFamily: 'Barlow, sans-serif',
-                        backgroundColor: '#FFFFFF',
-                      }}
+                      style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }}
                       required
                     />
                   </div>
@@ -330,12 +295,7 @@ export default function Login() {
                   type="submit"
                   className="w-full h-12 text-base shadow-sm"
                   disabled={loading}
-                  style={{
-                    backgroundColor: brand.gold,
-                    color: brand.navy,
-                    fontFamily: 'Montserrat, sans-serif',
-                    fontWeight: 700,
-                  }}
+                  style={{ backgroundColor: brand.gold, color: brand.navy, fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Iniciar Sesión
