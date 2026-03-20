@@ -485,7 +485,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
           {['presupuesto_enviado', 'confirmado', 'completado'].includes(requestStatus) && item.price_with_commission != null && item.price_with_commission > 0 && (
             <span 
               className="px-2.5 py-0.5 rounded text-sm font-bold"
-              style={{ backgroundColor: isDark ? 'rgba(163, 230, 53, 0.08)' : '#b8860b20', color: accentColor }}
+              style={{ backgroundColor: isDark ? 'rgba(163, 230, 53, 0.08)' : '#b8860b20', color: isDark ? '#A3E635' : '#b8860b' }}
             >
               {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price_with_commission)} € <span className="font-normal text-xs" style={{ opacity: 0.7 }}>(sin IVA)</span>
             </span>
