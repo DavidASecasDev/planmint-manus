@@ -168,12 +168,12 @@ export const useSyncEngine = () => {
         return { success: false, error: 'Entity no longer exists on server' };
       }
 
-      const serverData = serverResult.data;
+      const serverData = serverResult.data as Record<string, unknown>;
       const localEntity = await getFromStore<LocalEntity>('local_entities', `${entity_type}_${entity_id}`);
       
       // Check for conflict
       if (localEntity && serverData.updated_at) {
-        const serverUpdatedAt = new Date(serverData.updated_at).getTime();
+        const serverUpdatedAt = new Date(serverData.updated_at as string).getTime();
         const lastSyncedAt = localEntity.last_synced_at 
           ? new Date(localEntity.last_synced_at).getTime() 
           : 0;
@@ -187,7 +187,7 @@ export const useSyncEngine = () => {
             localData: payload,
             serverData,
             localUpdatedAt: localEntity.updated_at,
-            serverUpdatedAt: serverData.updated_at,
+            serverUpdatedAt: serverData.updated_at as string,
           };
           return { success: false, conflict };
         }
@@ -299,7 +299,7 @@ export const useSyncEngine = () => {
 
         await updateSyncItemStatus(item.id, 'syncing');
 
-        let result;
+        let result: { success: boolean; error?: string; realId?: string; conflict?: ConflictInfo };
         switch (item.action) {
           case 'create':
             result = await syncCreate(item);

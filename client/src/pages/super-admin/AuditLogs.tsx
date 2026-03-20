@@ -84,8 +84,8 @@ export default function AuditLogs() {
     a.click();
   };
 
-  const uniqueActions = [...new Set(data?.logs.map(l => l.action.split('.')[0]) || [])];
-  const uniqueEntities = [...new Set(data?.logs.map(l => l.entity_type) || [])];
+  const uniqueActions = Array.from(new Set(data?.logs.map(l => l.action.split('.')[0]) || []));
+  const uniqueEntities = Array.from(new Set(data?.logs.map(l => l.entity_type) || []));
 
   return (
     <SuperAdminLayout title="Audit Logs">

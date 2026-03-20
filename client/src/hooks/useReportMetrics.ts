@@ -201,7 +201,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
       if (numericGoals.length > 0) {
         // This would need task_updates to calculate actual progress
         // For now, estimate based on status
-        const progressValues = numericGoals.map(g => {
+        const progressValues: number[] = numericGoals.map(g => {
           if (g.status === 'completed') return 100;
           if (g.status === 'in_progress') return 50;
           return 0;

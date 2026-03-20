@@ -64,8 +64,8 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
       const entriesData = (data || []) as TimeEntryWithRelations[];
       
       // Get unique task and user IDs
-      const taskIds = [...new Set(entriesData.map(e => e.task_id).filter(Boolean))];
-      const userIds = [...new Set(entriesData.map(e => e.user_id))];
+      const taskIds = Array.from(new Set(entriesData.map(e => e.task_id).filter(Boolean)));
+      const userIds = Array.from(new Set(entriesData.map(e => e.user_id)));
 
       // Fetch tasks
       let tasksMap: Record<string, { id: string; title: string }> = {};

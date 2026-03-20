@@ -64,7 +64,7 @@ export function useDeletedTasks() {
       }
 
       // Fetch deleter profiles
-      const deleterIds = [...new Set(tasksData.map(t => t.deleted_by).filter((id): id is string => !!id))];
+      const deleterIds = Array.from(new Set(tasksData.map(t => t.deleted_by).filter((id): id is string => !!id)));
       
       let profilesMap = new Map<string, { id: string; name: string | null }>();
       

@@ -98,8 +98,8 @@ export function AuditLogsSection() {
     );
   }
 
-  const actionTypes = [...new Set(logs.map((l) => l.action))];
-  const entityTypes = [...new Set(logs.map((l) => l.entity_type))];
+  const actionTypes = Array.from(new Set(logs.map((l) => l.action)));
+  const entityTypes = Array.from(new Set(logs.map((l) => l.entity_type)));
 
   return (
     <div className="space-y-4">

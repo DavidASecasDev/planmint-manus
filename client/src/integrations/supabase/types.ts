@@ -5602,6 +5602,108 @@ export type Database = {
           },
         ]
       }
+      transfer_request_notes: {
+        Row: {
+          id: string
+          request_id: string
+          organization_id: string
+          author_type: string
+          author_id: string
+          author_name: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          organization_id: string
+          author_type: string
+          author_id: string
+          author_name: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          organization_id?: string
+          author_type?: string
+          author_id?: string
+          author_name?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_request_notes_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transfer_status_history: {
+        Row: {
+          id: string
+          request_id: string
+          organization_id: string
+          previous_status: string | null
+          new_status: string
+          changed_by_type: string
+          changed_by_id: string | null
+          changed_by_name: string | null
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          organization_id: string
+          previous_status?: string | null
+          new_status: string
+          changed_by_type: string
+          changed_by_id?: string | null
+          changed_by_name?: string | null
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          request_id?: string
+          organization_id?: string
+          previous_status?: string | null
+          new_status?: string
+          changed_by_type?: string
+          changed_by_id?: string | null
+          changed_by_name?: string | null
+          note?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_status_history_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_status_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trials: {
         Row: {
           created_at: string

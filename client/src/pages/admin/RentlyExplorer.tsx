@@ -271,8 +271,8 @@ export default function RentlyExplorer() {
           <CheckCircle2 className="h-4 w-4" />
           <AlertTitle>Conectado a Rently</AlertTitle>
           <AlertDescription>
-            Usuario: {String((connectionProfile as Record<string, unknown>)?.FullName || "N/A")} |
-            Email: {String((connectionProfile as Record<string, unknown>)?.Email || "N/A")}
+            Usuario: {String(connectionProfile?.FullName || "N/A")} |
+            Email: {String(connectionProfile?.Email || "N/A")}
           </AlertDescription>
         </Alert>
       )}

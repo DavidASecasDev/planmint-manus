@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useRef, useState, useCallback } from "react"
-import { motion, useSpring, useTransform, useMotionValue } from "framer-motion"
+import { motion, useSpring, useTransform, useMotionValue, type MotionValue } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 interface DockContainerProps {
@@ -12,7 +12,7 @@ interface DockContainerProps {
 interface DockItemProps {
   children: React.ReactNode
   className?: string
-  mouseY: ReturnType<typeof useMotionValue>
+  mouseY: MotionValue<number>
   enabled?: boolean
 }
 
@@ -22,19 +22,19 @@ const DISTANCE = 80 // px radius of effect
 function DockItem({ children, className, mouseY, enabled = true }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null)
 
-  const distance = useTransform(mouseY, (val: number) => {
+  const distance = useTransform<number, number>(mouseY, (val) => {
     if (!ref.current || val < 0) return DISTANCE + 1
     const rect = ref.current.getBoundingClientRect()
     const centerY = rect.top + rect.height / 2
     return Math.abs(val - centerY)
   })
 
-  const scaleVal = useTransform(distance, (d: number) => {
+  const scaleVal = useTransform<number, number>(distance, (d) => {
     if (!enabled) return 1
     return 1 + MAGNIFICATION * Math.max(0, 1 - d / DISTANCE)
   })
 
-  const scale = useSpring(scaleVal, {
+  const scale = useSpring(scaleVal as any, {
     stiffness: 300,
     damping: 25,
     mass: 0.5,
@@ -43,7 +43,7 @@ function DockItem({ children, className, mouseY, enabled = true }: DockItemProps
   return (
     <motion.div
       ref={ref}
-      style={{ scale }}
+      style={{ scale: scale as any }}
       className={cn("origin-center", className)}
     >
       {children}

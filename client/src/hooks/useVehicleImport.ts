@@ -43,7 +43,7 @@ export function useVehicleImport() {
       return new Map();
     }
 
-    const uniqueNames = [...new Set(locationNames.filter(Boolean))];
+    const uniqueNames = Array.from(new Set(locationNames.filter(Boolean)));
     if (uniqueNames.length === 0) return new Map();
 
     const { data, error } = await supabase

@@ -52,7 +52,7 @@ export function ModuleHistorySection({ organizationId }: ModuleHistorySectionPro
       if (error) throw error;
 
       // Fetch actor names separately
-      const actorIds = [...new Set((data || []).map(d => d.actor_user_id).filter(Boolean))];
+      const actorIds = Array.from(new Set((data || []).map(d => d.actor_user_id).filter(Boolean)));
       let profilesMap: Record<string, string> = {};
       
       if (actorIds.length > 0) {
