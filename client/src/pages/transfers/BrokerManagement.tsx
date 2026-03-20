@@ -11,7 +11,8 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { BrokerTable } from '@/components/transfers/BrokerTable';
 import { BrokerDialog } from '@/components/transfers/BrokerDialog';
 import { BrokerRegistrationList } from '@/components/transfers/BrokerRegistrationList';
-import { Users, UserCheck, KeyRound, Plus, Search, ShieldAlert, Clock } from 'lucide-react';
+import { BrokerInviteDialog } from '@/components/transfers/BrokerInviteDialog';
+import { Users, UserCheck, KeyRound, Plus, Search, ShieldAlert, Clock, Link2 } from 'lucide-react';
 
 export default function BrokerManagement() {
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
@@ -29,6 +30,7 @@ export default function BrokerManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBroker, setEditingBroker] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('brokers');
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Wait for permissions to load
   if (permissionsLoading) {
@@ -86,10 +88,16 @@ export default function BrokerManagement() {
             <h1 className="text-2xl font-bold">Gestión de Brokers</h1>
             <p className="text-muted-foreground">Administra los brokers externos y su acceso al portal</p>
           </div>
-          <Button onClick={handleCreateNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Broker
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setInviteDialogOpen(true)}>
+              <Link2 className="h-4 w-4 mr-2" />
+              Invitar Broker
+            </Button>
+            <Button onClick={handleCreateNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Broker
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -211,11 +219,15 @@ export default function BrokerManagement() {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog */}
+        {/* Dialogs */}
         <BrokerDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           broker={editingBroker}
+        />
+        <BrokerInviteDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
         />
       </div>
     </AppLayout>

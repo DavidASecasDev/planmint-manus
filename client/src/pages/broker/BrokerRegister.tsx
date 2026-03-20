@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/env';
+import { decodeBrokerInviteCode } from '@/lib/brokerInvite';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, ShieldX, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 /*
- * Azul Cars Brand – Register
+ * Azul Cars Brand – Broker Register (Invite-only)
  * Navy bg: #001321 | Gold: oklch(0.72 0.10 80) | Card: white
  * Headings: Montserrat 800 | Body: Barlow 400-500
  * Labels: Montserrat 700, uppercase, tracking 1.5px, #52555B
@@ -22,10 +22,15 @@ interface Organization {
 }
 
 export default function BrokerRegister() {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [loadingOrgs, setLoadingOrgs] = useState(true);
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite');
 
-  const [organizationId, setOrganizationId] = useState('');
+  // Invite validation state
+  const [validating, setValidating] = useState(true);
+  const [inviteValid, setInviteValid] = useState(false);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+
+  // Form state
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
@@ -38,41 +43,61 @@ export default function BrokerRegister() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // Validate invite code on mount
   useEffect(() => {
-    async function fetchOrganizations() {
+    async function validateInvite() {
+      if (!inviteCode) {
+        setValidating(false);
+        setInviteValid(false);
+        return;
+      }
+
+      const orgId = decodeBrokerInviteCode(inviteCode);
+      if (!orgId) {
+        setValidating(false);
+        setInviteValid(false);
+        return;
+      }
+
       try {
+        // Verify the organization exists and is active
         const { data, error } = await supabase
           .from('organizations')
           .select('id, name')
+          .eq('id', orgId)
           .eq('status', 'active')
-          .order('name');
+          .single();
 
-        if (error) throw error;
-        setOrganizations(data || []);
-      } catch (err) {
-        console.error('Error fetching organizations:', err);
-        toast.error('Error al cargar organizaciones');
+        if (error || !data) {
+          setInviteValid(false);
+        } else {
+          setOrganization(data);
+          setInviteValid(true);
+        }
+      } catch {
+        setInviteValid(false);
       } finally {
-        setLoadingOrgs(false);
+        setValidating(false);
       }
     }
-    fetchOrganizations();
-  }, []);
+
+    validateInvite();
+  }, [inviteCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    if (!organization) {
+      setError('Invitación no válida');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
     }
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    if (!organizationId) {
-      setError('Selecciona una organización');
       return;
     }
 
@@ -88,7 +113,7 @@ export default function BrokerRegister() {
             apikey: SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
-            organization_id: organizationId,
+            organization_id: organization.id,
             name: name.trim(),
             company: company?.trim() || null,
             email: email.trim().toLowerCase(),
@@ -121,7 +146,7 @@ export default function BrokerRegister() {
       }
 
       setIsSuccess(true);
-    } catch (err) {
+    } catch {
       setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
@@ -145,6 +170,80 @@ export default function BrokerRegister() {
     color: '#52555B',
   };
 
+  // --- Loading state ---
+  if (validating) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#001321' }}
+      >
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'oklch(0.72 0.10 80)' }} />
+      </div>
+    );
+  }
+
+  // --- Invalid or missing invite ---
+  if (!inviteValid || !organization) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center px-4"
+        style={{
+          backgroundColor: '#001321',
+          fontFamily: 'Barlow, sans-serif',
+        }}
+      >
+        <div
+          className="w-full max-w-md rounded-xl p-8 text-center"
+          style={{
+            backgroundColor: '#FFFFFF',
+            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
+            style={{ backgroundColor: '#FEF2F2' }}
+          >
+            <ShieldX className="h-8 w-8" style={{ color: '#DC2626' }} />
+          </div>
+          <h2
+            className="text-xl mb-3"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 800,
+              color: '#001321',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Invitación Requerida
+          </h2>
+          <p className="text-sm mb-2" style={{ color: '#52555B' }}>
+            Para registrarte como broker necesitas un enlace de invitación válido proporcionado por el administrador de la organización.
+          </p>
+          <p className="text-xs mb-6" style={{ color: '#9CA3AF' }}>
+            Si crees que esto es un error, contacta con tu administrador para que te envíe un nuevo enlace.
+          </p>
+          <Link to="/broker/login">
+            <Button
+              className="w-full hover:brightness-110"
+              style={{
+                backgroundColor: '#001321',
+                color: '#FFFFFF',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '12px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase' as const,
+              }}
+            >
+              Ir al Login
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Success state ---
   if (isSuccess) {
     return (
       <div
@@ -179,8 +278,8 @@ export default function BrokerRegister() {
             Solicitud Enviada
           </h2>
           <p className="text-sm mb-6" style={{ color: '#52555B' }}>
-            Tu solicitud de acceso ha sido enviada correctamente. Recibirás un email cuando sea
-            aprobada.
+            Tu solicitud de acceso a <strong>{organization.name}</strong> ha sido enviada correctamente.
+            Recibirás un email cuando sea aprobada.
           </p>
           <Link to="/broker/login">
             <Button
@@ -203,6 +302,7 @@ export default function BrokerRegister() {
     );
   }
 
+  // --- Registration form ---
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-8"
@@ -237,7 +337,7 @@ export default function BrokerRegister() {
               style={{ backgroundColor: 'oklch(0.72 0.10 80)' }}
             />
             <p className="text-sm mt-3" style={{ color: '#52555B' }}>
-              Registro para brokers externos
+              Solicitud de acceso como broker
             </p>
           </div>
 
@@ -256,23 +356,27 @@ export default function BrokerRegister() {
               </div>
             )}
 
-            {/* Organization */}
+            {/* Organization (read-only, from invite) */}
             <div className="space-y-2">
-              <Label style={labelStyle}>Organización *</Label>
-              <Select value={organizationId} onValueChange={setOrganizationId}>
-                <SelectTrigger className="h-11" style={inputStyle}>
-                  <SelectValue
-                    placeholder={loadingOrgs ? 'Cargando...' : 'Selecciona una organización'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      {org.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label style={labelStyle}>Organización</Label>
+              <div
+                className="flex items-center gap-2 h-11 px-3 rounded-md"
+                style={{
+                  backgroundColor: '#F0F1F3',
+                  border: '1px solid #E5E2DB',
+                }}
+              >
+                <Building2 className="h-4 w-4 shrink-0" style={{ color: 'oklch(0.72 0.10 80)' }} />
+                <span
+                  className="text-sm font-medium truncate"
+                  style={{
+                    fontFamily: 'Barlow, sans-serif',
+                    color: '#001321',
+                  }}
+                >
+                  {organization.name}
+                </span>
+              </div>
             </div>
 
             {/* Name */}
@@ -425,7 +529,7 @@ export default function BrokerRegister() {
             letterSpacing: '0.05em',
           }}
         >
-          © {new Date().getFullYear()} Azul Cars
+          &copy; {new Date().getFullYear()} Azul Cars
         </p>
       </div>
     </div>
