@@ -134,7 +134,6 @@ const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement")
 // Admin Pages
 const PermissionsDiagnostics = lazy(() => import("./pages/admin/PermissionsDiagnostics"));
 const TasksTrash = lazy(() => import("./pages/admin/TasksTrash"));
-const RentlyExplorer = lazy(() => import("./pages/admin/RentlyExplorer"));
 
 // Broker Portal Pages
 const BrokerLogin = lazy(() => import("./pages/broker/BrokerLogin"));
@@ -315,6 +314,14 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/tasks/calendar" 
+              element={
+                <ProtectedRoute>
+                  <Calendar />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/notifications" 
               element={
                 <ProtectedRoute>
@@ -363,7 +370,23 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/settings/enterprise" 
+              element={
+                <ProtectedRoute>
+                  <EnterpriseSettings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/billing" 
+              element={
+                <ProtectedRoute>
+                  <Billing />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings/billing" 
               element={
                 <ProtectedRoute>
                   <Billing />
@@ -427,14 +450,6 @@ function MainAppRoutes() {
               } 
             />
             <Route 
-              path="/admin/rently-explorer" 
-              element={
-                <ProtectedRoute>
-                  <RentlyExplorer />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
               path="/automations" 
               element={
                 <ProtectedRoute>
@@ -478,9 +493,51 @@ function MainAppRoutes() {
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/tasks/daily" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="daily_tasks" 
+                    moduleName="Tareas Diarias"
+                    moduleDescription="El módulo de Tareas Diarias no está habilitado para tu organización."
+                  >
+                    <DailyTasks />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
             {/* Forms */}
             <Route 
               path="/forms" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="forms" 
+                    moduleName="Formularios"
+                    moduleDescription="El módulo de Formularios no está habilitado para tu organización."
+                  >
+                    <Forms />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/transfers/forms" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="forms" 
+                    moduleName="Formularios"
+                    moduleDescription="El módulo de Formularios no está habilitado para tu organización."
+                  >
+                    <Forms />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/transfers/forms/new" 
               element={
                 <ProtectedRoute>
                   <ModuleRoute 
@@ -902,6 +959,20 @@ function MainAppRoutes() {
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="transfers" moduleName="Transfers">
                     <BrokerManagement />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/transfers/new" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="transfers" 
+                    moduleName="Transfers"
+                    moduleDescription="El módulo de Transfers no está habilitado para tu organización."
+                  >
+                    <Transfers />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 
