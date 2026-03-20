@@ -11,6 +11,16 @@ import { getVehicleInfo } from '@/lib/transferPricing';
 import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
 import type { TransferItemVehicle } from '@/types/transfers';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   ArrowLeft, 
   Loader2, 
@@ -49,6 +59,7 @@ export default function BrokerRequestDetail() {
   const { data: request, isLoading, error } = useBrokerRequestDetail(id);
   const { updateRequestStatus, isUpdatingStatus } = useBrokerRequests();
   const [statusAction, setStatusAction] = useState<'confirmado' | 'en_gestion' | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<'accept' | 'reject' | null>(null);
 
   // Paleta Nautical Luxury
   const cardBg = isDark ? '#1e293b' : '#ffffff';
@@ -203,11 +214,7 @@ export default function BrokerRequestDetail() {
 
               <div className="flex gap-3">
                 <Button
-                  onClick={async () => {
-                    setStatusAction('confirmado');
-                    await updateRequestStatus({ id: request.id, status: 'confirmado' });
-                    setStatusAction(null);
-                  }}
+                  onClick={() => setConfirmDialog('accept')}
                   disabled={isUpdatingStatus}
                   className="flex-1 gap-2"
                   style={{ backgroundColor: '#16a34a', color: 'white' }}
@@ -217,11 +224,7 @@ export default function BrokerRequestDetail() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={async () => {
-                    setStatusAction('en_gestion');
-                    await updateRequestStatus({ id: request.id, status: 'en_gestion' });
-                    setStatusAction(null);
-                  }}
+                  onClick={() => setConfirmDialog('reject')}
                   disabled={isUpdatingStatus}
                   className="flex-1 gap-2"
                   style={{ borderColor: '#dc2626', color: '#dc2626' }}
@@ -230,6 +233,60 @@ export default function BrokerRequestDetail() {
                   {statusAction === 'en_gestion' ? 'Enviando...' : 'Rechazar / Solicitar cambios'}
                 </Button>
               </div>
+
+              {/* Accept Confirmation Dialog */}
+              <AlertDialog open={confirmDialog === 'accept'} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar aceptación del presupuesto</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Vas a aceptar el presupuesto por un total de <strong>{fmt(total)} €</strong> (IVA incluido). Esta acción confirmará la solicitud y no se podrá deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        setConfirmDialog(null);
+                        setStatusAction('confirmado');
+                        await updateRequestStatus({ id: request.id, status: 'confirmado' });
+                        setStatusAction(null);
+                      }}
+                      style={{ backgroundColor: '#16a34a', color: 'white' }}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Sí, aceptar presupuesto
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Reject Confirmation Dialog */}
+              <AlertDialog open={confirmDialog === 'reject'} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Rechazar presupuesto</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Vas a rechazar el presupuesto actual. La solicitud volverá al estado "En gestión" para que podamos revisarla y enviarte una nueva propuesta.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        setConfirmDialog(null);
+                        setStatusAction('en_gestion');
+                        await updateRequestStatus({ id: request.id, status: 'en_gestion' });
+                        setStatusAction(null);
+                      }}
+                      style={{ backgroundColor: '#dc2626', color: 'white' }}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Sí, rechazar y solicitar cambios
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           );
         })()}
