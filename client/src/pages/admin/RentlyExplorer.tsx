@@ -91,7 +91,7 @@ export default function RentlyExplorer() {
   const [domains, setDomains] = useState<RentlyDomainInfo[]>([]);
   const [totalEndpoints, setTotalEndpoints] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
-  const [connectionProfile, setConnectionProfile] = useState<unknown>(null);
+  const [connectionProfile, setConnectionProfile] = useState<Record<string, unknown> | null>(null);
   const [activeTab, setActiveTab] = useState("domains");
 
   // Explorer state
@@ -126,7 +126,7 @@ export default function RentlyExplorer() {
     const result = await testConnection();
     if (result.success) {
       setConnectionStatus("ok");
-      setConnectionProfile((result as Record<string, unknown>).profile || null);
+      setConnectionProfile(((result as unknown as Record<string, unknown>).profile as Record<string, unknown>) || null);
       toast({
         title: "Conexion exitosa",
         description: "PlanMint puede comunicarse con Rently correctamente.",
