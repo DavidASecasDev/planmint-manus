@@ -1,3 +1,8 @@
+/*
+ * Azul Cars Brand — App Layout
+ * Main area bg: #F5F3EF (warm off-white) via --background
+ * Sidebar: dark navy #001321
+ */
 import { ReactNode, useState, useEffect } from 'react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
@@ -17,10 +22,8 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const { conflicts, resolveConflict } = useSyncEngine();
   const [currentConflict, setCurrentConflict] = useState<ConflictInfo | null>(null);
   
-  // Global realtime notification subscription
   useRealtimeNotifications();
 
-  // Show conflicts one at a time
   useEffect(() => {
     if (conflicts.length > 0 && !currentConflict) {
       setCurrentConflict(conflicts[0]);
@@ -36,7 +39,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background">
+      <div className="flex h-screen w-full" style={{ backgroundColor: '#F5F3EF' }}>
         <AppSidebar />
         <div className="flex flex-1 flex-col min-w-0">
           <OfflineBanner />

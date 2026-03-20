@@ -1,3 +1,9 @@
+/*
+ * Azul Cars Brand — Register Page
+ * Split layout: navy left panel with brand | warm right panel with form
+ * Gold accent: oklch(0.72 0.10 80)
+ * Headings: Montserrat | Body: Barlow
+ */
 import { useState, useEffect } from 'react';
 import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +15,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
-import logo from '@/assets/logo.png';
+
+const brand = {
+  navy: '#001321',
+  navyLight: '#0A1E30',
+  gold: 'oklch(0.72 0.10 80)',
+  warmBg: '#F5F3EF',
+  textDark: '#0F1216',
+  textMuted: '#52555B',
+  textWhite: '#FFFFFF',
+  textWhiteMuted: 'rgba(255,255,255,0.55)',
+  borderLight: 'rgba(0,19,33,0.08)',
+};
 
 const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -31,12 +48,10 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [refCode, setRefCode] = useState<string | null>(null);
 
-  // Get referral code from URL or localStorage
   useEffect(() => {
     const urlRef = searchParams.get('ref');
     const storedRef = localStorage.getItem('ref_code');
     const storedExpires = localStorage.getItem('ref_code_expires');
-    
     if (urlRef) {
       setRefCode(urlRef);
     } else if (storedRef && storedExpires && Date.now() < parseInt(storedExpires)) {
@@ -46,15 +61,13 @@ export default function Register() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: brand.warmBg }}>
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: brand.gold }} />
       </div>
     );
   }
 
-  // If user is already authenticated, redirect appropriately
   if (user) {
-    // Check if there's an invite token — redirect to invitation page instead
     const inviteToken = searchParams.get('invite');
     if (inviteToken) {
       return <Navigate to={`/auth/invitation/${inviteToken}`} replace />;
@@ -64,154 +77,177 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const validation = registerSchema.safeParse({ name, email, password, confirmPassword });
     if (!validation.success) {
-      toast({
-        title: 'Error de validación',
-        description: validation.error.errors[0].message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error de validación', description: validation.error.errors[0].message, variant: 'destructive' });
       return;
     }
-
     setLoading(true);
-
     const { error } = await signUp(email, password, name);
-
     if (error) {
       let message = 'Error al registrarse';
       if (error.message.includes('User already registered')) {
         message = 'Este email ya está registrado';
       }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: message, variant: 'destructive' });
       setLoading(false);
       return;
     }
-
-    // Track referral signup if ref code exists
     if (refCode) {
       try {
-        // Use the dedicated function to track signup
-        await supabase.rpc('track_referral_signup', { 
-          ref_code: refCode, 
-          user_email: email 
-        });
-
-        // Clear stored referral code
+        await supabase.rpc('track_referral_signup', { ref_code: refCode, user_email: email });
         localStorage.removeItem('ref_code');
         localStorage.removeItem('ref_code_expires');
       } catch (err) {
         console.error('Error tracking referral signup:', err);
       }
     }
-
-    toast({
-      title: '¡Cuenta creada!',
-      description: 'Tu cuenta ha sido creada exitosamente.',
-    });
-
+    toast({ title: '¡Cuenta creada!', description: 'Tu cuenta ha sido creada exitosamente.' });
     setLoading(false);
   };
 
+  const inputStyle = {
+    borderColor: brand.borderLight,
+    fontFamily: 'Barlow, sans-serif',
+    backgroundColor: '#FFFFFF',
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <div className="w-full max-w-md animate-in">
-        <Card className="border-border/50 shadow-xl">
-          <CardHeader className="space-y-1 text-center pb-6">
-            <img src={logo} alt="PlanMint Logo" className="mx-auto mb-4 h-14 w-14 rounded-2xl shadow-lg object-contain" />
-            <CardTitle className="text-2xl font-bold tracking-tight">Crear Cuenta</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Completa los datos para registrarte
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">Nombre completo</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Tu nombre"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="pl-10 h-11"
-                    required
-                  />
+    <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
+      {/* Navy left panel */}
+      <div
+        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
+        style={{ backgroundColor: brand.navy }}
+      >
+        <div>
+          <span
+            className="text-3xl"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
+          >
+            AZUL<span style={{ color: brand.gold }}>.</span>
+          </span>
+        </div>
+        <div>
+          <h2
+            className="text-4xl leading-tight mb-4"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
+          >
+            Únete a la<br />plataforma
+          </h2>
+          <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
+            Crea tu cuenta y comienza a gestionar tu flota de forma eficiente.
+          </p>
+        </div>
+        <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
+      </div>
+
+      {/* Form panel */}
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-md animate-in">
+          {/* Mobile logo */}
+          <div className="text-center mb-8 lg:hidden">
+            <span
+              className="text-2xl"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}
+            >
+              AZUL<span style={{ color: brand.gold }}>.</span>
+            </span>
+          </div>
+
+          <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
+            <CardHeader className="space-y-1 text-center pb-4 pt-8">
+              <CardTitle
+                className="text-2xl"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
+              >
+                Crear Cuenta
+              </CardTitle>
+              <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
+                Completa los datos para registrarte
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="name"
+                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+                  >
+                    Nombre completo
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                    <Input id="name" type="text" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} className="pl-10 h-11" style={inputStyle} required />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="tu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-11"
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="email"
+                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+                  >
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                    <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-11" style={inputStyle} required />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">Contraseña</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 h-11"
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="password"
+                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+                  >
+                    Contraseña
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                    <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-11" style={inputStyle} required />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar contraseña</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10 h-11"
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="confirmPassword"
+                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+                  >
+                    Confirmar contraseña
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                    <Input id="confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="pl-10 h-11" style={inputStyle} required />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-4 pt-2">
-              <Button type="submit" className="w-full h-11 gap-2" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    Crear Cuenta
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                ¿Ya tienes cuenta?{' '}
-                <Link to="/auth/login" className="text-primary font-medium hover:underline">
-                  Iniciar sesión
-                </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
+              </CardContent>
+              <CardFooter className="flex flex-col space-y-4 pt-2 pb-8">
+                <Button
+                  type="submit"
+                  className="w-full h-11 gap-2"
+                  disabled={loading}
+                  style={{
+                    backgroundColor: brand.gold,
+                    color: brand.navy,
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                  }}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      Crear Cuenta
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+                <p className="text-center text-sm" style={{ color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}>
+                  ¿Ya tienes cuenta?{' '}
+                  <Link to="/auth/login" className="font-semibold hover:underline" style={{ color: brand.gold }}>
+                    Iniciar sesión
+                  </Link>
+                </p>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
       </div>
     </div>
   );

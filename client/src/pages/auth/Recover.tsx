@@ -1,3 +1,7 @@
+/*
+ * Azul Cars Brand — Recover Password Page
+ * Split layout: navy left panel with brand | warm right panel with form
+ */
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +12,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
+
+const brand = {
+  navy: '#001321',
+  gold: 'oklch(0.72 0.10 80)',
+  warmBg: '#F5F3EF',
+  textDark: '#0F1216',
+  textMuted: '#52555B',
+  textWhite: '#FFFFFF',
+  textWhiteMuted: 'rgba(255,255,255,0.55)',
+  borderLight: 'rgba(0,19,33,0.08)',
+};
 
 const recoverSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -21,8 +36,8 @@ export default function Recover() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: brand.warmBg }}>
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: brand.gold }} />
       </div>
     );
   }
@@ -33,112 +48,177 @@ export default function Recover() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const validation = recoverSchema.safeParse({ email });
     if (!validation.success) {
-      toast({
-        title: 'Error de validación',
-        description: validation.error.errors[0].message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error de validación', description: validation.error.errors[0].message, variant: 'destructive' });
       return;
     }
-
     setLoading(true);
-
     const { error } = await resetPassword(email);
-
     if (error) {
-      toast({
-        title: 'Error',
-        description: 'Error al enviar el email de recuperación',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Error al enviar el email de recuperación', variant: 'destructive' });
       setLoading(false);
       return;
     }
-
     setSent(true);
     setLoading(false);
   };
 
-  if (sent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+  const AuthShell = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
+      {/* Navy left panel */}
+      <div
+        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
+        style={{ backgroundColor: brand.navy }}
+      >
+        <div>
+          <span
+            className="text-3xl"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
+          >
+            AZUL<span style={{ color: brand.gold }}>.</span>
+          </span>
+        </div>
+        <div>
+          <h2
+            className="text-4xl leading-tight mb-4"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
+          >
+            Recupera tu<br />acceso
+          </h2>
+          <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
+            Te enviaremos un enlace para restablecer tu contraseña de forma segura.
+          </p>
+        </div>
+        <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
+      </div>
+
+      {/* Form panel */}
+      <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md animate-in">
-          <Card className="border-border/50 shadow-xl">
-            <CardHeader className="space-y-1 text-center pb-6">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/10">
-                <CheckCircle2 className="h-7 w-7 text-green-500" />
-              </div>
-              <CardTitle className="text-2xl font-bold tracking-tight">Email Enviado</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Revisa tu bandeja de entrada para restablecer tu contraseña
-              </CardDescription>
-            </CardHeader>
-            <CardFooter>
-              <Link to="/auth/login" className="w-full">
-                <Button variant="outline" className="w-full h-11 gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Volver al login
-                </Button>
-              </Link>
-            </CardFooter>
-          </Card>
+          {/* Mobile logo */}
+          <div className="text-center mb-8 lg:hidden">
+            <span
+              className="text-2xl"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}
+            >
+              AZUL<span style={{ color: brand.gold }}>.</span>
+            </span>
+          </div>
+          {children}
         </div>
       </div>
+    </div>
+  );
+
+  if (sent) {
+    return (
+      <AuthShell>
+        <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
+          <CardHeader className="space-y-1 text-center pb-6 pt-8">
+            <div
+              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
+              style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}
+            >
+              <CheckCircle2 className="h-7 w-7" style={{ color: '#22C55E' }} />
+            </div>
+            <CardTitle
+              className="text-2xl"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
+            >
+              Email Enviado
+            </CardTitle>
+            <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
+              Revisa tu bandeja de entrada para restablecer tu contraseña
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="pb-8">
+            <Link to="/auth/login" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-11 gap-2"
+                style={{
+                  borderColor: brand.borderLight,
+                  color: brand.textDark,
+                  fontFamily: 'Barlow, sans-serif',
+                  fontWeight: 600,
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver al login
+              </Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <div className="w-full max-w-md animate-in">
-        <Card className="border-border/50 shadow-xl">
-          <CardHeader className="space-y-1 text-center pb-6">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
-              <span className="text-xl font-bold text-primary-foreground">AG</span>
-            </div>
-            <CardTitle className="text-2xl font-bold tracking-tight">Recuperar Contraseña</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="tu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-11"
-                    required
-                  />
-                </div>
+    <AuthShell>
+      <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
+        <CardHeader className="space-y-1 text-center pb-6 pt-8">
+          <CardTitle
+            className="text-2xl"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
+          >
+            Recuperar Contraseña
+          </CardTitle>
+          <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
+            Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="email"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+              >
+                Email
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-11"
+                  style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }}
+                  required
+                />
               </div>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-4 pt-2">
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Enviar Email'
-                )}
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4 pt-2 pb-8">
+            <Button
+              type="submit"
+              className="w-full h-11"
+              disabled={loading}
+              style={{
+                backgroundColor: brand.gold,
+                color: brand.navy,
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+              }}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enviar Email'}
+            </Button>
+            <Link to="/auth/login" className="w-full">
+              <Button
+                variant="ghost"
+                className="w-full gap-2"
+                style={{ color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver al login
               </Button>
-              <Link to="/auth/login" className="w-full">
-                <Button variant="ghost" className="w-full gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Volver al login
-                </Button>
-              </Link>
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
-    </div>
+            </Link>
+          </CardFooter>
+        </form>
+      </Card>
+    </AuthShell>
   );
 }

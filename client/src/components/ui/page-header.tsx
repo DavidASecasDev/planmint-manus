@@ -1,3 +1,9 @@
+/*
+ * Azul Cars Brand — Page Header
+ * Title: Montserrat 700, #0F1216
+ * Description: Barlow 400, #52555B
+ * Icon badge: gold oklch(0.72 0.10 80) bg with navy icon
+ */
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
@@ -21,14 +27,37 @@ export function PageHeader({
     <div className={cn('flex flex-col sm:flex-row sm:items-center justify-between gap-4', className)}>
       <div className="flex items-start gap-4">
         {Icon && (
-          <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+          <div
+            className="hidden sm:flex h-12 w-12 items-center justify-center rounded-lg shrink-0"
+            style={{
+              backgroundColor: 'rgba(201,169,110,0.12)',
+              color: 'oklch(0.72 0.10 80)',
+            }}
+          >
             <Icon className="h-6 w-6" />
           </div>
         )}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+          <h1
+            className="text-2xl tracking-tight"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              color: '#0F1216',
+            }}
+          >
+            {title}
+          </h1>
           {description && (
-            <p className="text-muted-foreground mt-1 max-w-2xl">{description}</p>
+            <p
+              className="mt-1 max-w-2xl text-sm"
+              style={{
+                fontFamily: 'Barlow, sans-serif',
+                color: '#52555B',
+              }}
+            >
+              {description}
+            </p>
           )}
         </div>
       </div>

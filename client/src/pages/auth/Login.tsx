@@ -1,3 +1,9 @@
+/*
+ * Azul Cars Brand — Login Page
+ * Split layout: navy left panel with brand | warm right panel with form
+ * Gold accent: oklch(0.72 0.10 80)
+ * Headings: Montserrat | Body: Barlow
+ */
 import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +15,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { z } from 'zod';
-import logo from '@/assets/logo.png';
+
+const brand = {
+  navy: '#001321',
+  navyLight: '#0A1E30',
+  gold: 'oklch(0.72 0.10 80)',
+  warmBg: '#F5F3EF',
+  textDark: '#0F1216',
+  textMuted: '#52555B',
+  textWhite: '#FFFFFF',
+  textWhiteMuted: 'rgba(255,255,255,0.55)',
+  borderLight: 'rgba(0,19,33,0.08)',
+};
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -27,11 +44,9 @@ export default function Login() {
   const [acceptingInvite, setAcceptingInvite] = useState(false);
   const inviteAcceptedRef = useRef(false);
 
-  // Check for invitation redirect
   const inviteToken = searchParams.get('invite');
   const redirectTo = (location.state as any)?.from?.pathname;
 
-  // Auto-accept invitation after login if token is present (runs once via ref)
   useEffect(() => {
     const acceptInvitation = async () => {
       if (user && !profileLoading && inviteToken && !inviteAcceptedRef.current) {
@@ -39,26 +54,16 @@ export default function Login() {
         setAcceptingInvite(true);
         try {
           const { data, error } = await supabase.rpc('accept_invitation', { p_token: inviteToken });
-          
           if (error) {
             console.error('Error accepting invitation:', error);
             navigate('/dashboard');
             return;
           }
-          
           const result = data as { success?: boolean; organization_name?: string; error?: string } | null;
-          
           if (result?.success) {
-            toast({ 
-              title: 'Invitación aceptada', 
-              description: `Te has unido a ${result.organization_name}` 
-            });
+            toast({ title: 'Invitación aceptada', description: `Te has unido a ${result.organization_name}` });
           } else if (result?.error === 'email_mismatch') {
-            toast({
-              title: 'Email no coincide',
-              description: 'Tu cuenta no coincide con el email de la invitación.',
-              variant: 'destructive',
-            });
+            toast({ title: 'Email no coincide', description: 'Tu cuenta no coincide con el email de la invitación.', variant: 'destructive' });
           }
           navigate('/dashboard');
         } catch (err) {
@@ -69,56 +74,107 @@ export default function Login() {
         }
       }
     };
-    
     acceptInvitation();
   }, [user, profileLoading, inviteToken, navigate]);
 
-  // Show loading while auth OR profile is loading
   if (authLoading || profileLoading || acceptingInvite) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: brand.warmBg }}>
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" style={{ color: brand.gold }} />
           {acceptingInvite && (
-            <p className="mt-4 text-muted-foreground">Aceptando invitación...</p>
+            <p className="mt-4" style={{ color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}>
+              Aceptando invitación...
+            </p>
           )}
         </div>
       </div>
     );
   }
 
-  // Show active session screen instead of auto-redirecting
   if (user && !profileLoading && !inviteToken) {
-    const handleSignOut = async () => {
-      await signOut();
-    };
-
+    const handleSignOut = async () => { await signOut(); };
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
-        <Card className="w-full max-w-md border-border/50 shadow-xl">
-          <CardHeader className="space-y-1 text-center pb-6 pt-8">
-            <img src={logo} alt="PlanMint Logo" className="mx-auto mb-6 h-14 w-14 rounded-2xl shadow-lg object-contain" />
-            <CardTitle className="text-2xl font-bold">Ya tienes sesión activa</CardTitle>
-            <CardDescription className="text-base">
-              Estás conectado como <span className="font-medium text-foreground">{user.email}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 pb-8">
-            <Button 
-              onClick={() => navigate(redirectTo || '/dashboard')} 
-              className="w-full h-12 text-base font-semibold"
+      <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
+        {/* Navy left panel */}
+        <div
+          className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
+          style={{ backgroundColor: brand.navy }}
+        >
+          <div>
+            <span
+              className="text-3xl"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
             >
-              Ir al Dashboard
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleSignOut}
-              className="w-full h-12 text-base"
+              AZUL<span style={{ color: brand.gold }}>.</span>
+            </span>
+          </div>
+          <div>
+            <h2
+              className="text-4xl leading-tight mb-4"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
             >
-              Cerrar sesión e iniciar con otra cuenta
-            </Button>
-          </CardContent>
-        </Card>
+              Gestión integral<br />de tu flota
+            </h2>
+            <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
+              Controla reservas, vehículos, tareas y equipos desde un solo lugar.
+            </p>
+          </div>
+          <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
+        </div>
+
+        {/* Form panel */}
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8 lg:hidden">
+              <span
+                className="text-2xl"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}
+              >
+                AZUL<span style={{ color: brand.gold }}>.</span>
+              </span>
+            </div>
+            <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
+              <CardHeader className="space-y-1 text-center pb-6 pt-8">
+                <CardTitle
+                  className="text-2xl"
+                  style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
+                >
+                  Ya tienes sesión activa
+                </CardTitle>
+                <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
+                  Estás conectado como <span className="font-medium" style={{ color: brand.textDark }}>{user.email}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 pb-8">
+                <Button
+                  onClick={() => navigate(redirectTo || '/dashboard')}
+                  className="w-full h-12 text-base font-semibold"
+                  style={{
+                    backgroundColor: brand.gold,
+                    color: brand.navy,
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                  }}
+                >
+                  Ir al Dashboard
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleSignOut}
+                  className="w-full h-12 text-base"
+                  style={{
+                    borderColor: brand.borderLight,
+                    color: brand.textMuted,
+                    fontFamily: 'Barlow, sans-serif',
+                  }}
+                >
+                  Cerrar sesión e iniciar con otra cuenta
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -137,8 +193,8 @@ export default function Login() {
       let description = '';
       if (error.message.includes('Invalid login credentials')) {
         message = 'Credenciales inválidas';
-        description = inviteToken 
-          ? 'Verifica que tu email esté confirmado (revisa tu bandeja) o recupera tu contraseña.' 
+        description = inviteToken
+          ? 'Verifica que tu email esté confirmado (revisa tu bandeja) o recupera tu contraseña.'
           : 'Email o contraseña incorrectos.';
       } else if (error.message.includes('Email not confirmed')) {
         message = 'Email no confirmado';
@@ -152,54 +208,153 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
-      <Card className="w-full max-w-md border-border/50 shadow-xl">
-        <CardHeader className="space-y-1 text-center pb-8 pt-8">
-          <img src={logo} alt="PlanMint Logo" className="mx-auto mb-6 h-14 w-14 rounded-2xl shadow-lg object-contain" />
-          <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
-          <CardDescription className="text-base">
-            {inviteToken 
-              ? 'Inicia sesión para aceptar tu invitación' 
-              : 'Ingresa tus credenciales para acceder a tu cuenta'}
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 h-12" required />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
-              </div>
-            </div>
-            <div className="text-right">
-              <Link to="/auth/recover" className="text-sm font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</Link>
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4 pt-2 pb-8">
-            <Button type="submit" className="w-full h-12 text-base font-semibold shadow-sm" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Iniciar Sesión
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              ¿No tienes cuenta?{' '}
-              <Link 
-                to={inviteToken ? `/auth/invitation/${inviteToken}` : "/auth/register"} 
-                className="font-medium text-primary hover:underline"
+    <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
+      {/* Navy left panel */}
+      <div
+        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
+        style={{ backgroundColor: brand.navy }}
+      >
+        <div>
+          <span
+            className="text-3xl"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
+          >
+            AZUL<span style={{ color: brand.gold }}>.</span>
+          </span>
+        </div>
+        <div>
+          <h2
+            className="text-4xl leading-tight mb-4"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
+          >
+            Gestión integral<br />de tu flota
+          </h2>
+          <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
+            Controla reservas, vehículos, tareas y equipos desde un solo lugar.
+          </p>
+        </div>
+        <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
+      </div>
+
+      {/* Form panel */}
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="text-center mb-8 lg:hidden">
+            <span
+              className="text-2xl"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textDark }}
+            >
+              AZUL<span style={{ color: brand.gold }}>.</span>
+            </span>
+          </div>
+
+          <Card className="border shadow-lg" style={{ borderColor: brand.borderLight, backgroundColor: '#FFFFFF' }}>
+            <CardHeader className="space-y-1 text-center pb-6 pt-8">
+              <CardTitle
+                className="text-2xl"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textDark }}
               >
-                {inviteToken ? 'Crear cuenta' : 'Regístrate'}
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+                Iniciar Sesión
+              </CardTitle>
+              <CardDescription style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
+                {inviteToken
+                  ? 'Inicia sesión para aceptar tu invitación'
+                  : 'Ingresa tus credenciales para acceder'}
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="email"
+                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+                  >
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="tu@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10 h-12"
+                      style={{
+                        borderColor: brand.borderLight,
+                        fontFamily: 'Barlow, sans-serif',
+                        backgroundColor: '#FFFFFF',
+                      }}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="password"
+                    style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: '12px', color: brand.textDark }}
+                  >
+                    Contraseña
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10 h-12"
+                      style={{
+                        borderColor: brand.borderLight,
+                        fontFamily: 'Barlow, sans-serif',
+                        backgroundColor: '#FFFFFF',
+                      }}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Link
+                    to="/auth/recover"
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: brand.gold, fontFamily: 'Barlow, sans-serif', fontWeight: 600 }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col space-y-4 pt-2 pb-8">
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base shadow-sm"
+                  disabled={loading}
+                  style={{
+                    backgroundColor: brand.gold,
+                    color: brand.navy,
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                  }}
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Iniciar Sesión
+                </Button>
+                <p className="text-center text-sm" style={{ color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}>
+                  ¿No tienes cuenta?{' '}
+                  <Link
+                    to={inviteToken ? `/auth/invitation/${inviteToken}` : "/auth/register"}
+                    className="font-semibold hover:underline"
+                    style={{ color: brand.gold }}
+                  >
+                    {inviteToken ? 'Crear cuenta' : 'Regístrate'}
+                  </Link>
+                </p>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
