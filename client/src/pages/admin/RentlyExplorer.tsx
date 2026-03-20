@@ -59,6 +59,7 @@ interface ExplorerResult {
   data?: unknown;
   raw?: unknown;
   error?: string;
+  errorType?: string;
   elapsed?: number;
   endpoint?: string;
   method?: string;
@@ -270,8 +271,8 @@ export default function RentlyExplorer() {
           <CheckCircle2 className="h-4 w-4" />
           <AlertTitle>Conectado a Rently</AlertTitle>
           <AlertDescription>
-            Usuario: {(connectionProfile as Record<string, unknown>)?.FullName || "N/A"} |
-            Email: {(connectionProfile as Record<string, unknown>)?.Email || "N/A"}
+            Usuario: {String((connectionProfile as Record<string, unknown>)?.FullName || "N/A")} |
+            Email: {String((connectionProfile as Record<string, unknown>)?.Email || "N/A")}
           </AlertDescription>
         </Alert>
       )}

@@ -134,6 +134,7 @@ const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement")
 // Admin Pages
 const PermissionsDiagnostics = lazy(() => import("./pages/admin/PermissionsDiagnostics"));
 const TasksTrash = lazy(() => import("./pages/admin/TasksTrash"));
+const RentlyExplorer = lazy(() => import("./pages/admin/RentlyExplorer"));
 
 // Broker Portal Pages
 const BrokerLogin = lazy(() => import("./pages/broker/BrokerLogin"));
@@ -382,6 +383,14 @@ function MainAppRoutes() {
               element={
                 <ProtectedRoute>
                   <TasksTrash />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/rently-explorer" 
+              element={
+                <ProtectedRoute>
+                  <RentlyExplorer />
                 </ProtectedRoute>
               } 
             />

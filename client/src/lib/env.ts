@@ -3,8 +3,8 @@
  * Logs warnings instead of throwing to prevent blank screens
  */
 
-const FALLBACK_SUPABASE_URL = 'https://quilsunfhfqqnibheqzl.supabase.co';
-const FALLBACK_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1aWxzdW5maGZxcW5pYmhlcXpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0MDk0OTgsImV4cCI6MjA4MDk4NTQ5OH0.dZPc_kv0qlYnGp3EvLhD2sjBAsoeRlSihfedYjDoroQ';
+const FALLBACK_SUPABASE_URL = 'https://exayzwdudssyegxjiyrk.supabase.co';
+const FALLBACK_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YXl6d2R1ZHNzeWVneGppeXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDkzNDYsImV4cCI6MjA4OTQyNTM0Nn0.GstFrSuWtj9923mHfLVfNkcH0M9MrwpPH0SW3om-WK0';
 
 function getEnvVar(key: string, fallback: string): string {
   const value = import.meta.env[key];
