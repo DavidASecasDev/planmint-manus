@@ -32,6 +32,26 @@ export interface Vehicle {
   // Service tracking fields
   service_type: ServiceType | null;
   service_notes: string | null;
+  // Fleet linkage
+  fleet_vehicle_id: string | null;
+  // Repair tracking
+  is_in_repair: boolean | null;
+  current_repair_id: string | null;
+}
+
+export interface FleetVehicleInfo {
+  id: string;
+  marca: string | null;
+  color: string | null;
+  combustible: string | null;
+  numero_bastidor: string | null;
+  numero_contrato: string | null;
+  proveedor: string | null;
+  fecha_inicio_contrato: string | null;
+  fecha_fin_contrato: string | null;
+  km_recogida: number | null;
+  km_devolucion: number | null;
+  photo_url: string | null;
 }
 
 export interface VehicleWithTasks extends Vehicle {
@@ -43,6 +63,15 @@ export interface VehicleWithTasks extends Vehicle {
   // Joined data
   location?: VehicleLocation | null;
   cleaned_by_profile?: { name: string | null } | null;
+  // Fleet data (from fleet_vehicles via fleet_vehicle_id)
+  fleet_info?: FleetVehicleInfo | null;
+  // Active repair info
+  active_repair?: {
+    id: string;
+    repair_type: string;
+    description: string | null;
+    status: string;
+  } | null;
 }
 
 export interface VehicleCleaningTask {

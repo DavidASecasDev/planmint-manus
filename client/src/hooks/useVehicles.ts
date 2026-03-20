@@ -106,28 +106,78 @@ export function useVehicles() {
         }
       }
 
+      // Fetch fleet vehicle info for linked vehicles
+      const fleetVehicleIds = vehiclesData.map(v => (v as any).fleet_vehicle_id).filter(Boolean) as string[];
+      let fleetInfoMap: Record<string, any> = {};
+
+      if (fleetVehicleIds.length > 0) {
+        const { data: fleetData } = await supabase
+          .from('fleet_vehicles')
+          .select('id, marca, color, combustible, numero_bastidor, numero_contrato, proveedor, fecha_inicio_contrato, fecha_fin_contrato, km_recogida, km_devolucion, photo_url')
+          .in('id', fleetVehicleIds);
+
+        if (fleetData) {
+          fleetInfoMap = fleetData.reduce((acc, f) => {
+            acc[f.id] = f;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+
+      // Fetch active repairs for vehicles in repair
+      const repairVehicleIds = vehiclesData
+        .filter(v => (v as any).is_in_repair && (v as any).current_repair_id)
+        .map(v => (v as any).current_repair_id) as string[];
+      let repairsMap: Record<string, any> = {};
+
+      if (repairVehicleIds.length > 0) {
+        const { data: repairsData } = await supabase
+          .from('repairs')
+          .select('id, repair_type, description, status')
+          .in('id', repairVehicleIds);
+
+        if (repairsData) {
+          repairsMap = repairsData.reduce((acc, r) => {
+            acc[r.id] = r;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+
       // Map tasks to vehicles
-      const vehiclesWithTasks: VehicleWithTasks[] = vehiclesData.map(vehicle => ({
-        ...vehicle,
-        status: vehicle.status as VehicleStatus,
-        service_type: vehicle.service_type as ServiceType | null,
-        cleaning_tasks: (tasksData || [])
-          .filter(t => t.vehicle_id === vehicle.id)
-          .map(t => ({
-            ...t,
-            task_key: t.task_key as CleaningTaskKey,
-            completed_by_profile: t.completed_by_profile || null,
-          })),
-        current_reservation: vehicle.current_reservation_id 
-          ? reservationsMap[vehicle.current_reservation_id] || null
-          : null,
-        location: vehicle.location_id 
-          ? locationsMap[vehicle.location_id] as VehicleWithTasks['location']
-          : null,
-        cleaned_by_profile: vehicle.cleaned_by
-          ? cleanedByMap[vehicle.cleaned_by] || null
-          : null,
-      }));
+      const vehiclesWithTasks: VehicleWithTasks[] = vehiclesData.map(vehicle => {
+        const v = vehicle as any;
+        return {
+          ...vehicle,
+          status: vehicle.status as VehicleStatus,
+          service_type: vehicle.service_type as ServiceType | null,
+          fleet_vehicle_id: v.fleet_vehicle_id || null,
+          is_in_repair: v.is_in_repair || false,
+          current_repair_id: v.current_repair_id || null,
+          cleaning_tasks: (tasksData || [])
+            .filter(t => t.vehicle_id === vehicle.id)
+            .map(t => ({
+              ...t,
+              task_key: t.task_key as CleaningTaskKey,
+              completed_by_profile: t.completed_by_profile || null,
+            })),
+          current_reservation: vehicle.current_reservation_id 
+            ? reservationsMap[vehicle.current_reservation_id] || null
+            : null,
+          location: vehicle.location_id 
+            ? locationsMap[vehicle.location_id] as VehicleWithTasks['location']
+            : null,
+          cleaned_by_profile: vehicle.cleaned_by
+            ? cleanedByMap[vehicle.cleaned_by] || null
+            : null,
+          fleet_info: v.fleet_vehicle_id
+            ? fleetInfoMap[v.fleet_vehicle_id] || null
+            : null,
+          active_repair: v.current_repair_id
+            ? repairsMap[v.current_repair_id] || null
+            : null,
+        };
+      });
 
       return vehiclesWithTasks;
     },

@@ -100,6 +100,7 @@ export function useMovements(filters?: {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-movements'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       toast({ title: 'Movimiento iniciado', description: 'El movimiento se ha registrado correctamente.' });
     },
     onError: (err) => {
@@ -132,6 +133,7 @@ export function useMovements(filters?: {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-movements'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       toast({ title: 'Movimiento finalizado', description: 'El movimiento se ha completado.' });
     },
     onError: (err) => {

@@ -1,10 +1,12 @@
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import type { RentlySyncPageResponse, RentlySyncResult, RentlySyncStatus } from '@/types/rently';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export interface SyncProgress {
   page: number;
@@ -34,6 +36,12 @@ export interface RentlySyncContextValue {
   // Dialog control for the floating indicator
   syncDialogOpen: boolean;
   setSyncDialogOpen: (open: boolean) => void;
+  // Auto-sync state
+  autoSyncEnabled: boolean;
+  setAutoSyncEnabled: (enabled: boolean) => void;
+  lastAutoSyncAt: Date | null;
+  nextAutoSyncAt: Date | null;
+  autoSyncCountdown: number; // seconds until next auto-sync
 }
 
 const RentlySyncContext = createContext<RentlySyncContextValue | null>(null);
@@ -55,12 +63,29 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     startTime: null,
   });
 
+  // Auto-sync state
+  const [autoSyncEnabled, setAutoSyncEnabledState] = useState<boolean>(() => {
+    const stored = localStorage.getItem('planmint_auto_sync_enabled');
+    return stored !== null ? stored === 'true' : true; // enabled by default
+  });
+  const [lastAutoSyncAt, setLastAutoSyncAt] = useState<Date | null>(null);
+  const [nextAutoSyncAt, setNextAutoSyncAt] = useState<Date | null>(null);
+  const [autoSyncCountdown, setAutoSyncCountdown] = useState<number>(0);
+
   const pauseRequestedRef = useRef(false);
   const cancelRequestedRef = useRef(false);
+  const autoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncingRef = useRef(false);
 
   const isConfigured = settings
     ? !!(settings.rently_client_id && settings.rently_client_secret)
     : hasRently;
+
+  const setAutoSyncEnabled = useCallback((enabled: boolean) => {
+    setAutoSyncEnabledState(enabled);
+    localStorage.setItem('planmint_auto_sync_enabled', String(enabled));
+  }, []);
 
   const getSyncStatus = useCallback(async (): Promise<RentlySyncStatus | null> => {
     const { data } = await supabase
@@ -70,8 +95,26 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     return data as RentlySyncStatus | null;
   }, []);
 
+  const syncVehiclesAfterReservations = useCallback(async () => {
+    try {
+      const { error } = await supabase.rpc('sync_vehicles_from_reservations');
+      if (error) {
+        console.warn('[AutoSync] Vehicle sync failed:', error.message);
+      } else {
+        console.log('[AutoSync] Vehicle status synced from reservations');
+      }
+    } catch (err) {
+      console.warn('[AutoSync] Vehicle sync error:', err);
+    }
+  }, []);
+
   const syncRently = useCallback(async (reset?: boolean): Promise<RentlySyncResult> => {
+    if (syncingRef.current) {
+      return { success: false, inserted: 0, duplicates: 0, filtered: 0, errors: [{ id: 'busy', error: 'Sync already in progress' }], total_fetched: 0 };
+    }
+
     setSyncing(true);
+    syncingRef.current = true;
     pauseRequestedRef.current = false;
     cancelRequestedRef.current = false;
 
@@ -125,6 +168,12 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         date_range_in_data: dateRange,
       };
       setLastResult(finalResult);
+
+      // After reservation sync, also sync vehicle statuses
+      if (totalInserted > 0 || totalFetched > 0) {
+        await syncVehiclesAfterReservations();
+      }
+
       return finalResult;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
@@ -138,8 +187,9 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     } finally {
       setProgress(prev => ({ ...prev, isRunning: false }));
       setSyncing(false);
+      syncingRef.current = false;
     }
-  }, []);
+  }, [syncVehiclesAfterReservations]);
 
   const pauseSync = useCallback(() => { pauseRequestedRef.current = true; }, []);
   const cancelSync = useCallback(() => { cancelRequestedRef.current = true; }, []);
@@ -166,6 +216,65 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     return Math.floor((Date.now() - progress.startTime) / 1000);
   }, [progress.startTime]);
 
+  // ─── Auto-sync timer logic ───
+  useEffect(() => {
+    // Clear existing timers
+    if (autoSyncTimerRef.current) {
+      clearInterval(autoSyncTimerRef.current);
+      autoSyncTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+
+    if (!autoSyncEnabled || !isConfigured || settingsLoading || flagsLoading) {
+      setNextAutoSyncAt(null);
+      setAutoSyncCountdown(0);
+      return;
+    }
+
+    // Set next sync time
+    const nextSync = new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+    setNextAutoSyncAt(nextSync);
+
+    // Countdown timer (updates every second)
+    countdownTimerRef.current = setInterval(() => {
+      setNextAutoSyncAt(prev => {
+        if (!prev) return null;
+        const remaining = Math.max(0, Math.floor((prev.getTime() - Date.now()) / 1000));
+        setAutoSyncCountdown(remaining);
+        return prev;
+      });
+    }, 1000);
+
+    // Auto-sync timer
+    autoSyncTimerRef.current = setInterval(async () => {
+      if (syncingRef.current) {
+        console.log('[AutoSync] Skipping - sync already in progress');
+        return;
+      }
+
+      console.log('[AutoSync] Starting automatic sync...');
+      setLastAutoSyncAt(new Date());
+
+      try {
+        await syncRently(false);
+      } catch (err) {
+        console.error('[AutoSync] Error:', err);
+      }
+
+      // Reset next sync time
+      const next = new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+      setNextAutoSyncAt(next);
+    }, AUTO_SYNC_INTERVAL_MS);
+
+    return () => {
+      if (autoSyncTimerRef.current) clearInterval(autoSyncTimerRef.current);
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+    };
+  }, [autoSyncEnabled, isConfigured, settingsLoading, flagsLoading, syncRently]);
+
   const value: RentlySyncContextValue = {
     syncing, testing, lastResult, isConfigured,
     settingsLoading: settingsLoading || flagsLoading,
@@ -174,6 +283,8 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     rentlyHost: settings?.rently_api_host || 'azul.rently.com.ar',
     syncStartTime: progress.startTime,
     syncDialogOpen, setSyncDialogOpen,
+    autoSyncEnabled, setAutoSyncEnabled,
+    lastAutoSyncAt, nextAutoSyncAt, autoSyncCountdown,
   };
 
   return (

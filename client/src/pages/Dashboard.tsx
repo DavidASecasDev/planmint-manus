@@ -14,6 +14,7 @@ import { usePWA } from '@/hooks/usePWA';
 import { ActivationChecklist } from '@/components/growth/ActivationChecklist';
 
 import { useTemplates } from '@/hooks/useTemplates';
+import { OperationalPanel } from '@/components/dashboard/OperationalPanel';
 
 export default function Dashboard() {
   const { profile, organization } = useAuth();
@@ -119,6 +120,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Operational Panel */}
+        <OperationalPanel />
 
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
