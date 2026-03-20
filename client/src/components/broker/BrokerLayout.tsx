@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
-import { BrokerThemeProvider, useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -9,50 +8,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LogOut, Ship, Plus, Sun, Moon, Monitor } from 'lucide-react';
+import { LogOut, Plus } from 'lucide-react';
 import { BrokerNotificationBell } from '@/components/broker/BrokerNotificationBell';
 
 interface BrokerLayoutProps {
   children: React.ReactNode;
 }
 
-function ThemeToggle() {
-  const { theme, setTheme } = useBrokerTheme();
-
-  const cycle = () => {
-    if (theme === 'light') setTheme('dark');
-    else if (theme === 'dark') setTheme('system');
-    else setTheme('light');
-  };
-
-  const label =
-    theme === 'light' ? 'Tema: Claro' : theme === 'dark' ? 'Tema: Oscuro' : 'Tema: Sistema';
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={cycle}
-          className="text-white/90 hover:text-white hover:bg-white/10 h-9 w-9"
-          aria-label={label}
-        >
-          {theme === 'light' && <Sun className="h-4 w-4" />}
-          {theme === 'dark' && <Moon className="h-4 w-4" />}
-          {theme === 'system' && <Monitor className="h-4 w-4" />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        <p>{label}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function BrokerLayoutInner({ children }: BrokerLayoutProps) {
+export function BrokerLayout({ children }: BrokerLayoutProps) {
   const { broker, logout } = useBrokerAuth();
-  const { resolvedTheme } = useBrokerTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -64,23 +28,25 @@ function BrokerLayoutInner({ children }: BrokerLayoutProps) {
     navigate('/broker/login');
   };
 
-  const isDark = resolvedTheme === 'dark';
-
   return (
     <TooltipProvider>
       <div
-        className={`${resolvedTheme} min-h-screen flex flex-col`}
-        style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}
+        className="min-h-screen flex flex-col"
+        style={{ backgroundColor: '#0D1117', color: '#E6EDF3' }}
       >
         {/* Header */}
         <header
-          className="sticky top-0 z-50 shadow-lg"
-          style={{ backgroundColor: '#1a365d' }}
+          className="sticky top-0 z-50"
+          style={{
+            backgroundColor: 'rgba(13, 17, 23, 0.95)',
+            backdropFilter: 'blur(12px)',
+            borderBottom: '1px solid rgba(163, 230, 53, 0.15)',
+          }}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Logo / Brand */}
-              <Link to="/broker" className="flex items-center gap-3">
+              <Link to="/broker" className="flex items-center gap-3 group">
                 {broker?.organization_logo ? (
                   <img
                     src={broker.organization_logo}
@@ -88,10 +54,18 @@ function BrokerLayoutInner({ children }: BrokerLayoutProps) {
                     className="h-8 w-auto"
                   />
                 ) : (
-                  <Ship className="h-8 w-8 text-white" />
+                  <div
+                    className="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-sm"
+                    style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+                  >
+                    AC
+                  </div>
                 )}
                 <div className="hidden sm:block">
-                  <span className="text-white font-semibold text-lg">
+                  <span
+                    className="font-semibold text-lg tracking-tight"
+                    style={{ color: '#E6EDF3' }}
+                  >
                     {broker?.organization_name || 'Portal de Broker'}
                   </span>
                 </div>
@@ -102,22 +76,22 @@ function BrokerLayoutInner({ children }: BrokerLayoutProps) {
                 <Link to="/broker/new">
                   <Button
                     size="sm"
-                    className="hidden sm:flex"
+                    className="hidden sm:flex gap-2 font-semibold uppercase text-xs tracking-wider transition-all hover:brightness-110"
                     style={{
-                      backgroundColor: '#b8860b',
-                      color: 'white',
+                      backgroundColor: '#A3E635',
+                      color: '#0D1117',
                       border: 'none',
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4" />
                     Nueva Solicitud
                   </Button>
                   <Button
                     size="icon"
                     className="sm:hidden"
                     style={{
-                      backgroundColor: '#b8860b',
-                      color: 'white',
+                      backgroundColor: '#A3E635',
+                      color: '#0D1117',
                       border: 'none',
                     }}
                   >
@@ -125,29 +99,43 @@ function BrokerLayoutInner({ children }: BrokerLayoutProps) {
                   </Button>
                 </Link>
 
-                <div className="hidden md:flex items-center gap-2 text-white/90 text-sm px-2">
+                <div
+                  className="hidden md:flex items-center gap-2 text-sm px-3"
+                  style={{ color: 'rgba(230, 237, 243, 0.7)' }}
+                >
                   <span>Hola,</span>
-                  <span className="font-medium text-white">{broker?.name}</span>
+                  <span className="font-medium" style={{ color: '#E6EDF3' }}>
+                    {broker?.name}
+                  </span>
                 </div>
 
                 <BrokerNotificationBell />
-                <ThemeToggle />
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-white/90 hover:text-white hover:bg-white/10"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Salir</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="transition-colors"
+                      style={{ color: 'rgba(230, 237, 243, 0.7)' }}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline text-xs uppercase tracking-wider">
+                        Salir
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Cerrar sesión</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           </div>
 
-          {/* Gold accent line */}
-          <div className="h-1" style={{ backgroundColor: '#b8860b' }} />
+          {/* Green accent line */}
+          <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, #A3E635, #65A30D, #A3E635)' }} />
         </header>
 
         {/* Main Content */}
@@ -155,25 +143,22 @@ function BrokerLayoutInner({ children }: BrokerLayoutProps) {
 
         {/* Footer */}
         <footer
-          className="py-4 text-center text-sm"
-          style={{ backgroundColor: '#1a365d', color: 'rgba(255,255,255,0.8)' }}
+          className="py-4 text-center text-xs uppercase tracking-wider"
+          style={{
+            backgroundColor: '#0D1117',
+            color: 'rgba(230, 237, 243, 0.4)',
+            borderTop: '1px solid rgba(163, 230, 53, 0.1)',
+          }}
         >
           <div className="max-w-7xl mx-auto px-4">
             <p>
               © {new Date().getFullYear()}{' '}
-              {broker?.organization_name || 'Transfer Management'}. Todos los derechos reservados.
+              {broker?.organization_name || 'Transfer Management'}. Todos los
+              derechos reservados.
             </p>
           </div>
         </footer>
       </div>
     </TooltipProvider>
-  );
-}
-
-export function BrokerLayout({ children }: BrokerLayoutProps) {
-  return (
-    <BrokerThemeProvider>
-      <BrokerLayoutInner>{children}</BrokerLayoutInner>
-    </BrokerThemeProvider>
   );
 }

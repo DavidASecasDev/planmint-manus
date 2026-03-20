@@ -29,15 +29,16 @@ export default function BrokerEditRequest() {
   const [items, setItems] = useState<TransferItemFormData[]>([createEmptyItem()]);
   const [initialized, setInitialized] = useState(false);
 
-  // Paleta Nautical Luxury
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const cardBorder = isDark ? '#334155' : '#e2e8f0';
-  const titleColor = isDark ? '#93c5fd' : '#1a365d';
-  const textPrimary = isDark ? '#e2e8f0' : '#111827';
-  const textSecondary = isDark ? '#94a3b8' : '#6b7280';
+  // Azul Cars brand
+  const cardBg = isDark ? '#161B22' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
+  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
+  const accentColor = isDark ? '#A3E635' : '#b8860b';
+  const textPrimary = isDark ? '#E6EDF3' : '#111827';
+  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
   const inputStyle = !isDark
     ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0f172a', color: '#e2e8f0', borderColor: '#334155' };
+    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
 
   // Pre-fill form when data loads
   useEffect(() => {
@@ -144,21 +145,21 @@ export default function BrokerEditRequest() {
         <button
           onClick={() => navigate(`/broker/request/${id}`)}
           className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity"
-          style={{ color: titleColor }}
+          style={{ color: accentColor }}
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al detalle
         </button>
 
         <h1
-          className="text-2xl font-bold mb-1"
+          className="text-2xl font-bold uppercase tracking-wider mb-1"
           style={{ color: titleColor }}
         >
           Editar Solicitud {request?.request_number}
         </h1>
         <div
-          className="w-20 h-1 rounded"
-          style={{ backgroundColor: '#b8860b' }}
+          className="w-20 h-[2px] rounded"
+          style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
         />
       </div>
 
@@ -218,7 +219,7 @@ export default function BrokerEditRequest() {
               variant="outline"
               size="sm"
               onClick={handleAddItem}
-              style={{ borderColor: '#b8860b', color: '#b8860b' }}
+              style={{ borderColor: accentColor, color: accentColor }}
             >
               <Plus className="h-4 w-4 mr-1" />
               Añadir trayecto
@@ -251,7 +252,8 @@ export default function BrokerEditRequest() {
           <Button
             type="submit"
             disabled={isUpdating || !clientName.trim()}
-            style={{ backgroundColor: '#b8860b', color: 'white' }}
+            className="font-bold uppercase text-sm tracking-wider hover:brightness-110"
+            style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
           >
             {isUpdating ? (
               <>

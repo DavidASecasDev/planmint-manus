@@ -99,16 +99,16 @@ export function TransferItemFormCard({
   onRemove,
   isDark,
 }: TransferItemFormCardProps) {
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const cardBorder = isDark ? '#334155' : '#e2e8f0';
-  const headerBg = isDark ? '#0f172a' : '#f8fafc';
-  const titleColor = isDark ? '#93c5fd' : '#1a365d';
-  const textLabel = isDark ? '#94a3b8' : '#374151';
-  const dividerColor = isDark ? '#334155' : '#e2e8f0';
-  const iconMuted = isDark ? '#64748b' : '#6b7280';
+  const cardBg = isDark ? '#161B22' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
+  const headerBg = isDark ? '#0D1117' : '#f8fafc';
+  const titleColor = isDark ? '#A3E635' : '#1a365d';
+  const textLabel = isDark ? 'rgba(230, 237, 243, 0.6)' : '#374151';
+  const dividerColor = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
+  const iconMuted = isDark ? 'rgba(230, 237, 243, 0.4)' : '#6b7280';
   const inputStyle = !isDark
     ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0f172a', color: '#e2e8f0', borderColor: '#334155' };
+    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
 
   return (
     <div
@@ -116,7 +116,7 @@ export function TransferItemFormCard({
       style={{
         backgroundColor: cardBg,
         borderColor: cardBorder,
-        borderLeft: '4px solid #b8860b',
+        borderLeft: isDark ? '3px solid #A3E635' : '4px solid #b8860b',
       }}
     >
       {/* Header */}

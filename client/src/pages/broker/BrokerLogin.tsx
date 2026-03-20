@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Ship, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function BrokerLogin() {
@@ -16,26 +16,24 @@ export default function BrokerLogin() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clearingSession, setClearingSession] = useState(true);
   const sessionCleared = useRef(false);
-  
+
   const { login, isBroker, loading } = useBrokerAuth();
   const navigate = useNavigate();
 
-  // Clear any existing non-broker session on mount to avoid conflicts
   useEffect(() => {
     if (sessionCleared.current) return;
     sessionCleared.current = true;
-    
+
     const clearNonBrokerSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (session?.user) {
-          // Check if current user is a broker
-          const { data: brokerData } = await supabase
-            .rpc('get_broker_profile', { p_user_id: session.user.id });
-          
+          const { data: brokerData } = await supabase.rpc('get_broker_profile', {
+            p_user_id: session.user.id,
+          });
           if (!brokerData || typeof brokerData !== 'object' || !('id' in (brokerData as any))) {
-            // Not a broker - clear the session to prevent conflicts
-            console.log('[BrokerLogin] Clearing non-broker session for:', session.user.email);
             await supabase.auth.signOut();
           }
         }
@@ -45,11 +43,10 @@ export default function BrokerLogin() {
         setClearingSession(false);
       }
     };
-    
+
     clearNonBrokerSession();
   }, []);
 
-  // Redirect if already logged in as broker
   useEffect(() => {
     if (!loading && !clearingSession && isBroker) {
       navigate('/broker');
@@ -62,7 +59,7 @@ export default function BrokerLogin() {
     setIsSubmitting(true);
 
     const result = await login(email, password);
-    
+
     if (result.error) {
       setError(result.error);
       setIsSubmitting(false);
@@ -73,75 +70,80 @@ export default function BrokerLogin() {
 
   if (loading || clearingSession) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#1a365d' }}
+        style={{ backgroundColor: '#0D1117' }}
       >
-        <Loader2 className="h-10 w-10 animate-spin text-white" />
+        <Loader2 className="h-10 w-10 animate-spin" style={{ color: '#A3E635' }} />
       </div>
     );
   }
 
   return (
-    <div 
-      className="light min-h-screen flex items-center justify-center px-4"
-      style={{ 
-        backgroundColor: '#1a365d',
-        backgroundImage: 'linear-gradient(to bottom right, #1a365d, #0f2644)'
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        backgroundColor: '#0D1117',
+        backgroundImage:
+          'radial-gradient(ellipse at 50% 0%, rgba(163, 230, 53, 0.06) 0%, transparent 60%)',
       }}
     >
-      {/* Decorative elements */}
-      <div 
-        className="absolute inset-0 opacity-10"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-      
       <div className="w-full max-w-md relative z-10">
         {/* Card */}
-        <div 
-          className="bg-white rounded-2xl shadow-2xl overflow-hidden"
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: '#161B22',
+            border: '1px solid rgba(163, 230, 53, 0.15)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          }}
         >
           {/* Header */}
-          <div 
-            className="px-8 pt-10 pb-6 text-center"
-            style={{ backgroundColor: '#1a365d' }}
-          >
-            <div className="inline-flex items-center justify-center mb-4">
-              <Ship className="h-12 w-12 text-white" />
+          <div className="px-8 pt-10 pb-6 text-center">
+            <div
+              className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-5 font-bold text-xl"
+              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+            >
+              AC
             </div>
-            
-            {/* Gold line */}
-            <div 
-              className="w-16 h-1 mx-auto mb-4"
-              style={{ backgroundColor: '#b8860b' }}
+
+            {/* Green line */}
+            <div
+              className="w-16 h-[2px] mx-auto mb-4"
+              style={{ background: 'linear-gradient(90deg, transparent, #A3E635, transparent)' }}
             />
-            
-            <h1 className="text-2xl font-bold text-white">
+
+            <h1
+              className="text-2xl font-bold uppercase tracking-wider"
+              style={{ color: '#E6EDF3' }}
+            >
               Portal de Broker
             </h1>
-            <p className="text-white/85 text-sm mt-1">
+            <p className="text-sm mt-2" style={{ color: 'rgba(230, 237, 243, 0.5)' }}>
               Gestiona tus solicitudes de transfers
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
+          <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
             {error && (
-              <div 
+              <div
                 className="p-3 rounded-lg text-sm text-center"
-                style={{ backgroundColor: '#fee2e2', color: '#991b1b' }}
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  color: '#F87171',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }}
               >
                 {error}
               </div>
             )}
 
             <div className="space-y-2">
-              <Label 
-                htmlFor="email" 
-                className="text-sm font-medium"
-                style={{ color: '#1a365d' }}
+              <Label
+                htmlFor="email"
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: 'rgba(230, 237, 243, 0.6)' }}
               >
                 Correo electrónico
               </Label>
@@ -154,19 +156,19 @@ export default function BrokerLogin() {
                 required
                 disabled={isSubmitting}
                 className="h-11"
-                style={{ 
-                  borderColor: '#e2e8f0',
-                  backgroundColor: '#f8fafc',
-                  color: '#0f172a',
+                style={{
+                  backgroundColor: '#0D1117',
+                  borderColor: 'rgba(163, 230, 53, 0.2)',
+                  color: '#E6EDF3',
                 }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label 
-                htmlFor="password" 
-                className="text-sm font-medium"
-                style={{ color: '#1a365d' }}
+              <Label
+                htmlFor="password"
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: 'rgba(230, 237, 243, 0.6)' }}
               >
                 Contraseña
               </Label>
@@ -180,33 +182,30 @@ export default function BrokerLogin() {
                   required
                   disabled={isSubmitting}
                   className="h-11 pr-10"
-                  style={{ 
-                    borderColor: '#e2e8f0',
-                    backgroundColor: '#f8fafc',
-                    color: '#0f172a',
+                  style={{
+                    backgroundColor: '#0D1117',
+                    borderColor: 'rgba(163, 230, 53, 0.2)',
+                    color: '#E6EDF3',
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: 'rgba(230, 237, 243, 0.4)' }}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 font-semibold text-white transition-all"
+              className="w-full h-11 font-bold uppercase text-sm tracking-wider transition-all hover:brightness-110"
               disabled={isSubmitting}
-              style={{ 
-                backgroundColor: '#b8860b',
-                borderColor: '#b8860b'
+              style={{
+                backgroundColor: '#A3E635',
+                color: '#0D1117',
               }}
             >
               {isSubmitting ? (
@@ -219,21 +218,30 @@ export default function BrokerLogin() {
               )}
             </Button>
 
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-3 pt-2">
               <button
                 type="button"
-                onClick={() => toast.info('Contacta con el administrador de tu organización para restablecer tu contraseña.')}
-                className="text-sm hover:underline block"
-                style={{ color: '#1a365d' }}
+                onClick={() =>
+                  toast.info(
+                    'Contacta con el administrador de tu organización para restablecer tu contraseña.'
+                  )
+                }
+                className="text-sm hover:underline block w-full"
+                style={{ color: 'rgba(230, 237, 243, 0.5)' }}
               >
                 ¿Olvidaste tu contraseña?
               </button>
-              <div className="pt-2 border-t border-gray-100">
-                <span className="text-sm text-gray-500">¿No tienes cuenta? </span>
-                <Link 
-                  to="/broker/register" 
-                  className="text-sm font-medium underline"
-                  style={{ color: '#7a5c08' }}
+              <div
+                className="pt-3"
+                style={{ borderTop: '1px solid rgba(163, 230, 53, 0.1)' }}
+              >
+                <span className="text-sm" style={{ color: 'rgba(230, 237, 243, 0.4)' }}>
+                  ¿No tienes cuenta?{' '}
+                </span>
+                <Link
+                  to="/broker/register"
+                  className="text-sm font-semibold hover:underline"
+                  style={{ color: '#A3E635' }}
                 >
                   Solicitar acceso
                 </Link>
@@ -243,8 +251,11 @@ export default function BrokerLogin() {
         </div>
 
         {/* Footer text */}
-        <p className="text-center text-white/75 text-sm mt-6">
-          © {new Date().getFullYear()} PlanMint
+        <p
+          className="text-center text-xs uppercase tracking-wider mt-6"
+          style={{ color: 'rgba(230, 237, 243, 0.3)' }}
+        >
+          © {new Date().getFullYear()} Azul Cars
         </p>
       </div>
     </div>

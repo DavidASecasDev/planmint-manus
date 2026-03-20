@@ -24,19 +24,19 @@ export function TransferNotesSection({
   const { notes, isLoading, addNote, isAdding, deleteNote, isDeleting } = useTransferNotes(requestId);
   const [newNote, setNewNote] = useState('');
 
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const cardBorder = isDark ? '#334155' : '#e2e8f0';
-  const headerBg = isDark ? '#0f172a' : '#f8fafc';
-  const titleColor = isDark ? '#93c5fd' : '#1a365d';
-  const textPrimary = isDark ? '#e2e8f0' : '#111827';
-  const textSecondary = isDark ? '#94a3b8' : '#6b7280';
-  const textMuted = isDark ? '#64748b' : '#9ca3af';
-  const dividerColor = isDark ? '#334155' : '#e2e8f0';
-  const noteBg = isDark ? '#0f172a' : '#f1f5f9';
-  const ownNoteBg = isDark ? '#1a2744' : '#eff6ff';
+  const cardBg = isDark ? '#161B22' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
+  const headerBg = isDark ? '#0D1117' : '#f8fafc';
+  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
+  const textPrimary = isDark ? '#E6EDF3' : '#111827';
+  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
+  const textMuted = isDark ? 'rgba(230, 237, 243, 0.35)' : '#9ca3af';
+  const dividerColor = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
+  const noteBg = isDark ? '#0D1117' : '#f1f5f9';
+  const ownNoteBg = isDark ? 'rgba(163, 230, 53, 0.06)' : '#eff6ff';
   const inputStyle = !isDark
     ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0f172a', color: '#e2e8f0', borderColor: '#334155' };
+    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
 
   const handleSubmit = async () => {
     if (!newNote.trim()) return;
@@ -128,8 +128,8 @@ export function TransferNotesSection({
                           <span
                             className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                             style={{
-                              backgroundColor: isDark ? '#b8860b35' : '#b8860b20',
-                              color: isDark ? '#d4a017' : '#7a5c08',
+                              backgroundColor: isDark ? 'rgba(163, 230, 53, 0.15)' : '#b8860b20',
+                              color: isDark ? '#A3E635' : '#7a5c08',
                             }}
                           >
                             tú
@@ -190,8 +190,8 @@ export function TransferNotesSection({
               onClick={handleSubmit}
               disabled={!newNote.trim() || isAdding}
               style={{
-                backgroundColor: newNote.trim() ? '#b8860b' : undefined,
-                color: newNote.trim() ? 'white' : undefined,
+                backgroundColor: newNote.trim() ? (isDark ? '#A3E635' : '#b8860b') : undefined,
+                color: newNote.trim() ? (isDark ? '#0D1117' : 'white') : undefined,
               }}
             >
               {isAdding ? (

@@ -44,12 +44,12 @@ import {
 import type { TransferRequestStatus, TransferItem } from '@/types/transfers';
 
 const STATUS_STYLES: Record<TransferRequestStatus, { bg: string; bgDark: string; text: string; textDark: string; label: string }> = {
-  pendiente:  { bg: '#fef3c7', bgDark: '#78350f30', text: '#92400e', textDark: '#fbbf24', label: 'Pendiente' },
-  en_gestion: { bg: '#dbeafe', bgDark: '#1e3a8a30', text: '#1e40af', textDark: '#93c5fd', label: 'En gestión' },
-  presupuesto_enviado: { bg: '#fff7ed', bgDark: '#7c2d1230', text: '#c2410c', textDark: '#fb923c', label: 'Ppto. Enviado' },
-  confirmado: { bg: '#d1fae5', bgDark: '#06402830', text: '#065f46', textDark: '#34d399', label: 'Confirmado' },
-  completado: { bg: '#e0e7ff', bgDark: '#3730a330', text: '#3730a3', textDark: '#a5b4fc', label: 'Completado' },
-  cancelado:  { bg: '#fee2e2', bgDark: '#7f1d1d30', text: '#991b1b', textDark: '#f87171', label: 'Cancelado' },
+  pendiente:  { bg: '#fef3c7', bgDark: 'rgba(251, 191, 36, 0.12)', text: '#92400e', textDark: '#FBBF24', label: 'Pendiente' },
+  en_gestion: { bg: '#dbeafe', bgDark: 'rgba(96, 165, 250, 0.12)', text: '#1e40af', textDark: '#60A5FA', label: 'En gestión' },
+  presupuesto_enviado: { bg: '#fff7ed', bgDark: 'rgba(251, 146, 60, 0.12)', text: '#c2410c', textDark: '#FB923C', label: 'Ppto. Enviado' },
+  confirmado: { bg: '#d1fae5', bgDark: 'rgba(52, 211, 153, 0.12)', text: '#065f46', textDark: '#34D399', label: 'Confirmado' },
+  completado: { bg: '#e0e7ff', bgDark: 'rgba(163, 230, 53, 0.12)', text: '#3730a3', textDark: '#A3E635', label: 'Completado' },
+  cancelado:  { bg: '#fee2e2', bgDark: 'rgba(248, 113, 113, 0.12)', text: '#991b1b', textDark: '#F87171', label: 'Cancelado' },
 };
 
 export default function BrokerRequestDetail() {
@@ -64,13 +64,14 @@ export default function BrokerRequestDetail() {
   const [confirmDialog, setConfirmDialog] = useState<'accept' | 'reject' | null>(null);
   const { logStatusChange } = useTransferStatusHistory(id);
 
-  // Paleta Nautical Luxury
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const cardBorder = isDark ? '#334155' : '#e2e8f0';
-  const titleColor = isDark ? '#93c5fd' : '#1a365d';
-  const textPrimary = isDark ? '#e2e8f0' : '#111827';
-  const textSecondary = isDark ? '#94a3b8' : '#6b7280';
-  const textMuted = isDark ? '#64748b' : '#9ca3af';
+  // Azul Cars brand
+  const cardBg = isDark ? '#161B22' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
+  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
+  const accentColor = isDark ? '#A3E635' : '#b8860b';
+  const textPrimary = isDark ? '#E6EDF3' : '#111827';
+  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
+  const textMuted = isDark ? 'rgba(230, 237, 243, 0.35)' : '#9ca3af';
 
   if (isLoading) {
     return (
@@ -140,7 +141,7 @@ export default function BrokerRequestDetail() {
             </div>
             <div 
               className="w-16 h-1 rounded"
-              style={{ backgroundColor: '#b8860b' }}
+              style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
             />
           </div>
 
@@ -149,7 +150,7 @@ export default function BrokerRequestDetail() {
             <Button
               onClick={() => navigate(`/broker/request/${id}/edit`)}
               variant="outline"
-              style={{ borderColor: '#b8860b', color: '#b8860b' }}
+              style={{ borderColor: accentColor, color: accentColor }}
             >
               <Pencil className="h-4 w-4 mr-2" />
               Editar solicitud
@@ -163,7 +164,7 @@ export default function BrokerRequestDetail() {
             className="mt-4 flex items-start gap-3 p-3 rounded-lg text-sm"
             style={{ 
               backgroundColor: isDark ? '#1e3a8a30' : '#dbeafe', 
-              color: isDark ? '#93c5fd' : '#1e40af',
+              color: accentColor,
               border: `1px solid ${isDark ? '#1e3a8a60' : '#bfdbfe'}`,
             }}
           >
@@ -183,11 +184,11 @@ export default function BrokerRequestDetail() {
             <div 
               className="mt-4 rounded-lg p-5"
               style={{ 
-                backgroundColor: isDark ? '#7c2d1215' : '#fff7ed', 
-                border: `2px solid ${isDark ? '#c2410c50' : '#fb923c60'}`,
+                backgroundColor: isDark ? 'rgba(163, 230, 53, 0.04)' : '#fff7ed', 
+                border: `2px solid ${isDark ? 'rgba(163, 230, 53, 0.2)' : '#fb923c60'}`,
               }}
             >
-              <h3 className="text-base font-semibold mb-3 flex items-center gap-2" style={{ color: isDark ? '#fb923c' : '#c2410c' }}>
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2" style={{ color: isDark ? '#A3E635' : '#c2410c' }}>
                 <Info className="h-5 w-5" />
                 Presupuesto pendiente de confirmación
               </h3>
@@ -197,7 +198,7 @@ export default function BrokerRequestDetail() {
               
               <div 
                 className="rounded-lg p-4 mb-4"
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', border: `1px solid ${cardBorder}` }}
+                style={{ backgroundColor: isDark ? '#0D1117' : '#ffffff', border: `1px solid ${cardBorder}` }}
               >
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between" style={{ color: textSecondary }}>
@@ -342,7 +343,7 @@ export default function BrokerRequestDetail() {
               {isOwnRequest && (
                 <span 
                   className="text-xs px-1.5 py-0.5 rounded font-semibold"
-                  style={{ backgroundColor: '#b8860b25', color: isDark ? '#d4a017' : '#7a5c08' }}
+                  style={{ backgroundColor: isDark ? 'rgba(163, 230, 53, 0.1)' : '#b8860b25', color: accentColor }}
                 >
                   (tú)
                 </span>
@@ -445,8 +446,8 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
 
   const hasDriver = item.driver_name && !item.driver_pending;
 
-  const headerBg = isDark ? '#0f172a' : '#f8fafc';
-  const dividerColor = isDark ? '#334155' : '#e2e8f0';
+  const headerBg = isDark ? '#0D1117' : '#f8fafc';
+  const dividerColor = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
 
   // Píldoras de íconos adaptadas al tema
   const pickupPillBg = isDark ? 'rgba(20,83,45,0.3)' : '#dcfce7';
@@ -454,7 +455,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
   const dropoffPillBg = isDark ? 'rgba(127,29,29,0.3)' : '#fee2e2';
   const dropoffIconColor = isDark ? '#f87171' : '#dc2626';
   const driverPillBg = isDark ? 'rgba(30,58,138,0.3)' : '#dbeafe';
-  const driverIconColor = isDark ? '#93c5fd' : '#2563eb';
+  const driverIconColor = isDark ? '#A3E635' : '#2563eb';
 
   const itemStatusBg = item.status === 'confirmado'
     ? (isDark ? 'rgba(6,64,40,0.35)' : '#d1fae5')
@@ -469,7 +470,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
       style={{ 
         backgroundColor: cardBg,
         borderColor: cardBorder,
-        borderLeft: '4px solid #b8860b',
+        borderLeft: `3px solid ${isDark ? '#A3E635' : '#b8860b'}`,
       }}
     >
       {/* Header */}
@@ -484,7 +485,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
           {['presupuesto_enviado', 'confirmado', 'completado'].includes(requestStatus) && item.price_with_commission != null && item.price_with_commission > 0 && (
             <span 
               className="px-2.5 py-0.5 rounded text-sm font-bold"
-              style={{ backgroundColor: '#b8860b20', color: isDark ? '#d4a017' : '#b8860b' }}
+              style={{ backgroundColor: isDark ? 'rgba(163, 230, 53, 0.08)' : '#b8860b20', color: accentColor }}
             >
               {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price_with_commission)} € <span className="font-normal text-xs" style={{ opacity: 0.7 }}>(sin IVA)</span>
             </span>

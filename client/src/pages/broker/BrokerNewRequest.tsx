@@ -24,13 +24,14 @@ export default function BrokerNewRequest() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<TransferItemFormData[]>([createEmptyItem()]);
 
-  // Paleta Nautical Luxury
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const cardBorder = isDark ? '#334155' : '#e2e8f0';
-  const titleColor = isDark ? '#93c5fd' : '#1a365d';
+  // Azul Cars brand
+  const cardBg = isDark ? '#161B22' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
+  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
+  const accentColor = isDark ? '#A3E635' : '#b8860b';
   const inputStyle = !isDark
     ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0f172a', color: '#e2e8f0', borderColor: '#334155' };
+    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
 
   const handleAddItem = () => {
     setItems(prev => [...prev, createEmptyItem()]);
@@ -72,21 +73,21 @@ export default function BrokerNewRequest() {
         <button
           onClick={() => navigate('/broker')}
           className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity"
-          style={{ color: titleColor }}
+          style={{ color: accentColor }}
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al listado
         </button>
 
         <h1
-          className="text-2xl font-bold mb-1"
+          className="text-2xl font-bold uppercase tracking-wider mb-1"
           style={{ color: titleColor }}
         >
           Nueva Solicitud de Transfer
         </h1>
         <div
-          className="w-20 h-1 rounded"
-          style={{ backgroundColor: '#b8860b' }}
+          className="w-20 h-[2px] rounded"
+          style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
         />
       </div>
 
@@ -146,7 +147,7 @@ export default function BrokerNewRequest() {
               variant="outline"
               size="sm"
               onClick={handleAddItem}
-              style={{ borderColor: '#b8860b', color: '#b8860b' }}
+              style={{ borderColor: accentColor, color: accentColor }}
             >
               <Plus className="h-4 w-4 mr-1" />
               Añadir trayecto
@@ -179,7 +180,8 @@ export default function BrokerNewRequest() {
           <Button
             type="submit"
             disabled={isCreating || !clientName.trim()}
-            style={{ backgroundColor: '#b8860b', color: 'white' }}
+            className="font-bold uppercase text-sm tracking-wider hover:brightness-110"
+            style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
           >
             {isCreating ? (
               <>

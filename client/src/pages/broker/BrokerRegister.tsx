@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Ship, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Organization {
@@ -31,7 +31,6 @@ export default function BrokerRegister() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Fetch organizations that allow broker registration
   useEffect(() => {
     async function fetchOrganizations() {
       try {
@@ -57,17 +56,14 @@ export default function BrokerRegister() {
     e.preventDefault();
     setError('');
     
-    // Validaciones locales (UX rápida)
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
     }
-    
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
-    
     if (!organizationId) {
       setError('Selecciona una organización');
       return;
@@ -76,7 +72,6 @@ export default function BrokerRegister() {
     setIsSubmitting(true);
 
     try {
-      // Llamar a Edge Function atómica
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/request-broker-access`,
         {
@@ -99,7 +94,6 @@ export default function BrokerRegister() {
       const result = await response.json();
 
       if (!response.ok) {
-        // Mapeo de códigos a mensajes amigables
         const errorMessages: Record<string, string> = {
           'missing_fields': 'Por favor completa todos los campos requeridos',
           'weak_password': 'La contraseña debe tener al menos 6 caracteres',
@@ -119,7 +113,6 @@ export default function BrokerRegister() {
         return;
       }
 
-      // Éxito
       setIsSuccess(true);
       
     } catch (err) {
@@ -129,109 +122,118 @@ export default function BrokerRegister() {
     }
   };
 
+  const inputStyle = {
+    backgroundColor: '#0D1117',
+    borderColor: 'rgba(163, 230, 53, 0.2)',
+    color: '#E6EDF3',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    color: 'rgba(230, 237, 243, 0.6)',
+  };
+
   if (isSuccess) {
     return (
-      <div 
-        className="light min-h-screen flex items-center justify-center px-4"
-        style={{ 
-          backgroundColor: '#1a365d',
-          backgroundImage: 'linear-gradient(to bottom right, #1a365d, #0f2644)'
+      <div
+        className="min-h-screen flex items-center justify-center px-4"
+        style={{
+          backgroundColor: '#0D1117',
+          backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(163, 230, 53, 0.06) 0%, transparent 60%)',
         }}
       >
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden p-8 text-center">
-            <div 
-              className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-              style={{ backgroundColor: '#d4edda' }}
-            >
-              <CheckCircle2 className="h-8 w-8" style={{ color: '#155724' }} />
-            </div>
-            
-            <h2 className="text-xl font-bold mb-2" style={{ color: '#1a365d' }}>
-              ¡Solicitud Enviada!
-            </h2>
-            
-            <p className="text-gray-600 mb-6">
-              Tu solicitud de acceso ha sido enviada correctamente. 
-              Recibirás un email cuando sea aprobada.
-            </p>
-            
-            <Link to="/broker/login">
-              <Button 
-                className="w-full"
-                style={{ backgroundColor: '#b8860b' }}
-              >
-                Ir al Login
-              </Button>
-            </Link>
+        <div
+          className="w-full max-w-md rounded-2xl p-8 text-center"
+          style={{
+            backgroundColor: '#161B22',
+            border: '1px solid rgba(163, 230, 53, 0.15)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          }}
+        >
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
+            style={{ backgroundColor: 'rgba(163, 230, 53, 0.1)' }}
+          >
+            <CheckCircle2 className="h-8 w-8" style={{ color: '#A3E635' }} />
           </div>
+          <h2 className="text-xl font-bold mb-3 uppercase tracking-wider" style={{ color: '#E6EDF3' }}>
+            ¡Solicitud Enviada!
+          </h2>
+          <p className="text-sm mb-6" style={{ color: 'rgba(230, 237, 243, 0.5)' }}>
+            Tu solicitud de acceso ha sido enviada correctamente. Recibirás un email cuando sea aprobada.
+          </p>
+          <Link to="/broker/login">
+            <Button
+              className="w-full font-bold uppercase text-sm tracking-wider hover:brightness-110"
+              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+            >
+              Ir al Login
+            </Button>
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      className="light min-h-screen flex items-center justify-center px-4 py-8"
-      style={{ 
-        backgroundColor: '#1a365d',
-        backgroundImage: 'linear-gradient(to bottom right, #1a365d, #0f2644)'
+    <div
+      className="min-h-screen flex items-center justify-center px-4 py-8"
+      style={{
+        backgroundColor: '#0D1117',
+        backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(163, 230, 53, 0.06) 0%, transparent 60%)',
       }}
     >
-      {/* Decorative elements */}
-      <div 
-        className="absolute inset-0 opacity-10"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-      
       <div className="w-full max-w-md relative z-10">
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: '#161B22',
+            border: '1px solid rgba(163, 230, 53, 0.15)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          }}
+        >
           {/* Header */}
-          <div 
-            className="px-8 pt-8 pb-6 text-center"
-            style={{ backgroundColor: '#1a365d' }}
-          >
-            <div className="inline-flex items-center justify-center mb-4">
-              <Ship className="h-10 w-10 text-white" />
+          <div className="px-8 pt-8 pb-6 text-center">
+            <div
+              className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-5 font-bold text-xl"
+              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+            >
+              AC
             </div>
-            
-            <div 
-              className="w-16 h-1 mx-auto mb-4"
-              style={{ backgroundColor: '#b8860b' }}
+            <div
+              className="w-16 h-[2px] mx-auto mb-4"
+              style={{ background: 'linear-gradient(90deg, transparent, #A3E635, transparent)' }}
             />
-            
-            <h1 className="text-xl font-bold text-white">
+            <h1 className="text-xl font-bold uppercase tracking-wider" style={{ color: '#E6EDF3' }}>
               Solicitar Acceso
             </h1>
-            <p className="text-white/85 text-sm mt-1">
+            <p className="text-sm mt-2" style={{ color: 'rgba(230, 237, 243, 0.5)' }}>
               Registro para brokers externos
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4">
+          <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-4">
             {error && (
-              <div 
+              <div
                 className="p-3 rounded-lg text-sm"
-                style={{ backgroundColor: '#fee2e2', color: '#991b1b' }}
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  color: '#F87171',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }}
               >
                 {error}
               </div>
             )}
 
-            {/* Organization Select */}
+            {/* Organization */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Organización *
               </Label>
               <Select value={organizationId} onValueChange={setOrganizationId}>
-                <SelectTrigger 
-                  className="h-10"
-                  style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
-                >
-                  <SelectValue placeholder={loadingOrgs ? "Cargando..." : "Selecciona una organización"} />
+                <SelectTrigger className="h-11" style={inputStyle}>
+                  <SelectValue placeholder={loadingOrgs ? 'Cargando...' : 'Selecciona una organización'} />
                 </SelectTrigger>
                 <SelectContent>
                   {organizations.map(org => (
@@ -245,7 +247,7 @@ export default function BrokerRegister() {
 
             {/* Name */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Nombre completo *
               </Label>
               <Input
@@ -255,14 +257,14 @@ export default function BrokerRegister() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 disabled={isSubmitting}
-                className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
+                className="h-11"
+                style={inputStyle}
               />
             </div>
 
             {/* Company */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Empresa
               </Label>
               <Input
@@ -271,14 +273,14 @@ export default function BrokerRegister() {
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 disabled={isSubmitting}
-                className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
+                className="h-11"
+                style={inputStyle}
               />
             </div>
 
             {/* Email */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Correo electrónico *
               </Label>
               <Input
@@ -288,14 +290,14 @@ export default function BrokerRegister() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isSubmitting}
-                className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
+                className="h-11"
+                style={inputStyle}
               />
             </div>
 
             {/* Phone */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Teléfono
               </Label>
               <Input
@@ -304,14 +306,14 @@ export default function BrokerRegister() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 disabled={isSubmitting}
-                className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
+                className="h-11"
+                style={inputStyle}
               />
             </div>
 
             {/* Password */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Contraseña *
               </Label>
               <div className="relative">
@@ -322,13 +324,14 @@ export default function BrokerRegister() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isSubmitting}
-                  className="h-10 pr-10"
-                  style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
+                  className="h-11 pr-10"
+                  style={inputStyle}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: 'rgba(230, 237, 243, 0.4)' }}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -337,7 +340,7 @@ export default function BrokerRegister() {
 
             {/* Confirm Password */}
             <div className="space-y-2">
-              <Label style={{ color: '#1a365d' }}>
+              <Label className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
                 Confirmar contraseña *
               </Label>
               <Input
@@ -347,16 +350,16 @@ export default function BrokerRegister() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={isSubmitting}
-                className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
+                className="h-11"
+                style={inputStyle}
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full h-10 font-semibold text-white mt-4"
+              className="w-full h-11 font-bold uppercase text-sm tracking-wider transition-all hover:brightness-110 mt-2"
               disabled={isSubmitting}
-              style={{ backgroundColor: '#b8860b' }}
+              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
             >
               {isSubmitting ? (
                 <>
@@ -368,12 +371,14 @@ export default function BrokerRegister() {
               )}
             </Button>
 
-            <div className="text-center pt-2">
-              <span className="text-sm text-gray-500">¿Ya tienes cuenta? </span>
-              <Link 
-                to="/broker/login" 
-                className="text-sm font-medium hover:underline"
-                style={{ color: '#1a365d' }}
+            <div className="text-center pt-3" style={{ borderTop: '1px solid rgba(163, 230, 53, 0.1)' }}>
+              <span className="text-sm" style={{ color: 'rgba(230, 237, 243, 0.4)' }}>
+                ¿Ya tienes cuenta?{' '}
+              </span>
+              <Link
+                to="/broker/login"
+                className="text-sm font-semibold hover:underline"
+                style={{ color: '#A3E635' }}
               >
                 Iniciar sesión
               </Link>
@@ -381,8 +386,8 @@ export default function BrokerRegister() {
           </form>
         </div>
 
-        <p className="text-center text-white/75 text-sm mt-6">
-          © {new Date().getFullYear()} PlanMint
+        <p className="text-center text-xs uppercase tracking-wider mt-6" style={{ color: 'rgba(230, 237, 243, 0.3)' }}>
+          © {new Date().getFullYear()} Azul Cars
         </p>
       </div>
     </div>

@@ -31,7 +31,7 @@ const STATUS_CONFIG: Record<string, {
   en_gestion: {
     icon: FileSearch,
     color: '#1e40af',
-    colorDark: '#93c5fd',
+    colorDark: '#60A5FA',
     label: 'En gestión',
   },
   presupuesto_enviado: {
@@ -80,13 +80,13 @@ interface StatusTimelineProps {
 export function StatusTimeline({ requestId, isDark }: StatusTimelineProps) {
   const { history, isLoading } = useTransferStatusHistory(requestId);
 
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const cardBorder = isDark ? '#334155' : '#e2e8f0';
-  const titleColor = isDark ? '#93c5fd' : '#1a365d';
-  const textPrimary = isDark ? '#e2e8f0' : '#111827';
-  const textSecondary = isDark ? '#94a3b8' : '#6b7280';
-  const textMuted = isDark ? '#64748b' : '#9ca3af';
-  const lineBg = isDark ? '#334155' : '#e2e8f0';
+  const cardBg = isDark ? '#161B22' : '#ffffff';
+  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
+  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
+  const textPrimary = isDark ? '#E6EDF3' : '#111827';
+  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
+  const textMuted = isDark ? 'rgba(230, 237, 243, 0.35)' : '#9ca3af';
+  const lineBg = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
 
   if (isLoading) {
     return (
@@ -139,7 +139,7 @@ export function StatusTimeline({ requestId, isDark }: StatusTimelineProps) {
         <span
           className="text-xs px-2 py-0.5 rounded-full ml-auto"
           style={{
-            backgroundColor: isDark ? '#334155' : '#f1f5f9',
+            backgroundColor: isDark ? 'rgba(163, 230, 53, 0.08)' : '#f1f5f9',
             color: textSecondary,
           }}
         >
