@@ -300,16 +300,18 @@ export default function Login() {
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Iniciar Sesión
                 </Button>
-                <p className="text-center text-sm" style={{ color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}>
-                  ¿No tienes cuenta?{' '}
-                  <Link
-                    to={inviteToken ? `/auth/invitation/${inviteToken}` : "/auth/register"}
-                    className="font-semibold hover:underline"
-                    style={{ color: brand.gold }}
-                  >
-                    {inviteToken ? 'Crear cuenta' : 'Regístrate'}
-                  </Link>
-                </p>
+                {inviteToken && (
+                  <p className="text-center text-sm" style={{ color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}>
+                    ¿No tienes cuenta?{' '}
+                    <Link
+                      to={`/auth/invitation/${inviteToken}`}
+                      className="font-semibold hover:underline"
+                      style={{ color: brand.gold }}
+                    >
+                      Crear cuenta
+                    </Link>
+                  </p>
+                )}
               </CardFooter>
             </form>
           </Card>
