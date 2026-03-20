@@ -24,6 +24,30 @@ export interface OperationalStats {
   // Fleet
   fleetVehicles: number;
   contractsExpiringSoon: number;
+  // Tasks
+  pendingTasksHigh: number;
+  pendingTasksTotal: number;
+  // Today's reservation details
+  todayReservations: Array<{
+    id: string;
+    cliente_nombre: string | null;
+    cliente_apellido: string | null;
+    auto: string | null;
+    modelo: string | null;
+    desde: string | null;
+    hasta: string | null;
+    lugar_entrega: string | null;
+    lugar_devolucion: string | null;
+    estado: string | null;
+    type: 'checkin' | 'checkout';
+  }>;
+  // Vehicles needing preparation
+  vehiclesNeedingPrep: Array<{
+    id: string;
+    matricula: string;
+    modelo: string | null;
+    status: string;
+  }>;
 }
 
 export function useOperationalDashboard() {
@@ -45,11 +69,16 @@ export function useOperationalDashboard() {
         activeReservationsResult,
         todayCheckInsResult,
         todayCheckOutsResult,
+        todayCheckInsDetailResult,
+        todayCheckOutsDetailResult,
         upcomingReservationsResult,
         activeMovementsResult,
         activeRepairsResult,
         fleetResult,
         expiringContractsResult,
+        pendingTasksHighResult,
+        pendingTasksTotalResult,
+        vehiclesNeedingPrepResult,
       ] = await Promise.all([
         // All non-archived vehicles with their status
         supabase
@@ -57,36 +86,64 @@ export function useOperationalDashboard() {
           .select('status')
           .eq('organization_id', orgId)
           .eq('is_archived', false),
-        // Active reservations (confirmed or checked-in)
+        // Active reservations (not cancelled, not terminated, not archived)
         supabase
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
-          .in('estado', ['confirmada', 'checked_in']),
-        // Today's check-ins
+          .is('archived_at', null)
+          .not('estado', 'ilike', '%cancelada%')
+          .not('estado', 'ilike', '%terminada%'),
+        // Today's check-ins (reservations starting today)
         supabase
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
-          .gte('fecha_inicio', `${todayStr}T00:00:00`)
-          .lte('fecha_inicio', `${todayStr}T23:59:59`)
-          .in('estado', ['confirmada', 'checked_in']),
-        // Today's check-outs
+          .is('archived_at', null)
+          .gte('desde', `${todayStr}T00:00:00`)
+          .lte('desde', `${todayStr}T23:59:59`)
+          .not('estado', 'ilike', '%cancelada%'),
+        // Today's check-outs (reservations ending today)
         supabase
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
-          .gte('fecha_fin', `${todayStr}T00:00:00`)
-          .lte('fecha_fin', `${todayStr}T23:59:59`)
-          .in('estado', ['checked_in', 'completada']),
+          .is('archived_at', null)
+          .gte('hasta', `${todayStr}T00:00:00`)
+          .lte('hasta', `${todayStr}T23:59:59`)
+          .not('estado', 'ilike', '%cancelada%'),
+        // Today's check-ins detail
+        supabase
+          .from('reservations')
+          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado')
+          .eq('organization_id', orgId)
+          .is('archived_at', null)
+          .gte('desde', `${todayStr}T00:00:00`)
+          .lte('desde', `${todayStr}T23:59:59`)
+          .not('estado', 'ilike', '%cancelada%')
+          .order('desde', { ascending: true })
+          .limit(20),
+        // Today's check-outs detail
+        supabase
+          .from('reservations')
+          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado')
+          .eq('organization_id', orgId)
+          .is('archived_at', null)
+          .gte('hasta', `${todayStr}T00:00:00`)
+          .lte('hasta', `${todayStr}T23:59:59`)
+          .not('estado', 'ilike', '%cancelada%')
+          .order('hasta', { ascending: true })
+          .limit(20),
         // Upcoming reservations (next 7 days)
         supabase
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
-          .gte('fecha_inicio', `${todayStr}T00:00:00`)
-          .lte('fecha_inicio', `${in7days}T23:59:59`)
-          .eq('estado', 'confirmada'),
+          .is('archived_at', null)
+          .gte('desde', `${todayStr}T00:00:00`)
+          .lte('desde', `${in7days}T23:59:59`)
+          .not('estado', 'ilike', '%cancelada%')
+          .not('estado', 'ilike', '%terminada%'),
         // Active movements
         supabase
           .from('vehicle_movements')
@@ -111,6 +168,32 @@ export function useOperationalDashboard() {
           .eq('organization_id', orgId)
           .lte('fecha_fin_contrato', new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
           .gte('fecha_fin_contrato', todayStr),
+        // Pending tasks with high/urgent priority
+        supabase
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .eq('is_archived', false)
+          .is('deleted_at', null)
+          .in('status', ['pending', 'in_progress'])
+          .in('priority', ['high', 'urgent']),
+        // All pending tasks
+        supabase
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .eq('is_archived', false)
+          .is('deleted_at', null)
+          .in('status', ['pending', 'in_progress']),
+        // Vehicles needing preparation (sucio or incompleto)
+        supabase
+          .from('vehicles')
+          .select('id, matricula, modelo, status')
+          .eq('organization_id', orgId)
+          .eq('is_archived', false)
+          .in('status', ['sucio', 'incompleto'])
+          .order('matricula', { ascending: true })
+          .limit(10),
       ]);
 
       // Count vehicles by status
@@ -129,6 +212,12 @@ export function useOperationalDashboard() {
         }
       });
 
+      // Build today's reservations list
+      const todayReservations = [
+        ...(todayCheckInsDetailResult.data || []).map(r => ({ ...r, type: 'checkin' as const })),
+        ...(todayCheckOutsDetailResult.data || []).map(r => ({ ...r, type: 'checkout' as const })),
+      ];
+
       return {
         vehiclesByStatus,
         totalVehicles: vehicles.length,
@@ -140,6 +229,10 @@ export function useOperationalDashboard() {
         activeRepairs: activeRepairsResult.count || 0,
         fleetVehicles: fleetResult.count || 0,
         contractsExpiringSoon: expiringContractsResult.count || 0,
+        pendingTasksHigh: pendingTasksHighResult.count || 0,
+        pendingTasksTotal: pendingTasksTotalResult.count || 0,
+        todayReservations,
+        vehiclesNeedingPrep: (vehiclesNeedingPrepResult.data || []) as OperationalStats['vehiclesNeedingPrep'],
       };
     },
     enabled: !!orgId,
