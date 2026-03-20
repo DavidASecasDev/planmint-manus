@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -274,28 +274,7 @@ export default function BrokerLogin() {
               >
                 ¿Olvidaste tu contraseña?
               </button>
-              <div
-                className="pt-3"
-                style={{ borderTop: '1px solid #E5E2DB' }}
-              >
-                <span
-                  className="text-sm"
-                  style={{ color: '#52555B', fontFamily: 'Barlow, sans-serif' }}
-                >
-                  ¿No tienes cuenta?{' '}
-                </span>
-                <Link
-                  to="/broker/register"
-                  className="text-sm hover:underline"
-                  style={{
-                    color: 'oklch(0.72 0.10 80)',
-                    fontFamily: 'Montserrat, sans-serif',
-                    fontWeight: 700,
-                  }}
-                >
-                  Solicitar acceso
-                </Link>
-              </div>
+
             </div>
           </form>
         </div>
