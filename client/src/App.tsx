@@ -299,6 +299,14 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/tasks/kanban" 
+              element={
+                <ProtectedRoute>
+                  <Kanban />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/calendar" 
               element={
                 <ProtectedRoute>
