@@ -1,7 +1,24 @@
 import * as React from "react"
-import { useRef, useState, useCallback } from "react"
+import { useRef, useCallback, createContext, useContext } from "react"
 import { motion, useSpring, useTransform, useMotionValue, type MotionValue } from "framer-motion"
 import { cn } from "@/lib/utils"
+
+/*
+ * DockContainer / DockItem — macOS-style magnification for sidebar items.
+ *
+ * IMPORTANT: The DockContainer wraps the entire menu list but the magnification
+ * effect only applies to elements explicitly wrapped in <DockItem>.
+ * Collapsible sub-menus and other content placed OUTSIDE a <DockItem> will
+ * NOT be scaled, preventing the "block move" bug.
+ */
+
+const DockContext = createContext<{
+  mouseY: MotionValue<number>
+  enabled: boolean
+}>({
+  mouseY: null as any,
+  enabled: true,
+})
 
 interface DockContainerProps {
   children: React.ReactNode
@@ -12,15 +29,14 @@ interface DockContainerProps {
 interface DockItemProps {
   children: React.ReactNode
   className?: string
-  mouseY: MotionValue<number>
-  enabled?: boolean
 }
 
-const MAGNIFICATION = 0.4 // max extra scale
-const DISTANCE = 80 // px radius of effect
+const MAGNIFICATION = 0.35 // max extra scale (slightly reduced for subtlety)
+const DISTANCE = 70 // px radius of effect
 
-function DockItem({ children, className, mouseY, enabled = true }: DockItemProps) {
+function DockItem({ children, className }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const { mouseY, enabled } = useContext(DockContext)
 
   const distance = useTransform<number, number>(mouseY, (val) => {
     if (!ref.current || val < 0) return DISTANCE + 1
@@ -65,24 +81,16 @@ function DockContainer({ children, className, enabled = true }: DockContainerPro
     mouseY.set(-1)
   }, [mouseY])
 
-  // Inject mouseY into children
-  const enhancedChildren = React.Children.map(children, (child) => {
-    if (!React.isValidElement(child)) return child
-    return (
-      <DockItem mouseY={mouseY} enabled={enabled}>
-        {child}
-      </DockItem>
-    )
-  })
-
   return (
-    <div
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className={className}
-    >
-      {enhancedChildren}
-    </div>
+    <DockContext.Provider value={{ mouseY, enabled }}>
+      <div
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className={className}
+      >
+        {children}
+      </div>
+    </DockContext.Provider>
   )
 }
 

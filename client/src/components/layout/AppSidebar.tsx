@@ -11,7 +11,7 @@ import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
-import { DockContainer } from '@/components/ui/dock-sidebar';
+import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useOrganizationModules, ModuleKey, OPTIONAL_MODULES } from '@/hooks/useOrganizationModules';
 import { cn } from '@/lib/utils';
@@ -234,44 +234,46 @@ export function AppSidebar() {
     const Icon = icon;
     return (
       <Collapsible open={isOpen} onOpenChange={setOpen} className="mt-0.5">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <CollapsibleTrigger asChild>
-              <SidebarMenuButton
-                className={menuItemBase}
-                style={{
-                  ...menuItemDefault,
-                  ...(isActive ? { color: goldAccent, backgroundColor: 'rgba(201,169,110,0.08)' } : {}),
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    Object.assign(e.currentTarget.style, menuItemHover);
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.backgroundColor = isActive ? 'rgba(201,169,110,0.08)' : 'transparent';
-                    e.currentTarget.style.color = isActive ? goldAccent : textMuted;
-                  }
-                }}
-              >
-                <Icon className="h-[18px] w-[18px] shrink-0" />
-                {!isCollapsed && (
-                  <>
-                    <span className="flex-1 text-left">{label}</span>
-                    <ChevronDown className={cn(
-                      "h-4 w-4 transition-transform duration-200",
-                      isOpen && "rotate-180"
-                    )} style={{ color: 'inherit' }} />
-                  </>
-                )}
-              </SidebarMenuButton>
-            </CollapsibleTrigger>
-          </TooltipTrigger>
-          {isCollapsed && (
-            <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
-          )}
-        </Tooltip>
+        <DockItem>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton
+                  className={menuItemBase}
+                  style={{
+                    ...menuItemDefault,
+                    ...(isActive ? { color: goldAccent, backgroundColor: 'rgba(201,169,110,0.08)' } : {}),
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      Object.assign(e.currentTarget.style, menuItemHover);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = isActive ? 'rgba(201,169,110,0.08)' : 'transparent';
+                      e.currentTarget.style.color = isActive ? goldAccent : textMuted;
+                    }
+                  }}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  {!isCollapsed && (
+                    <>
+                      <span className="flex-1 text-left">{label}</span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 transition-transform duration-200",
+                        isOpen && "rotate-180"
+                      )} style={{ color: 'inherit' }} />
+                    </>
+                  )}
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+            </TooltipTrigger>
+            {isCollapsed && (
+              <TooltipContent side="right" className="font-medium">{label}</TooltipContent>
+            )}
+          </Tooltip>
+        </DockItem>
         {!isCollapsed && (
           <CollapsibleContent>
             <SidebarMenuSub
@@ -409,33 +411,36 @@ export function AppSidebar() {
 
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="w-full">
-                            <SidebarMenuButton asChild>
-                              <NavLink
-                                to={item.url}
-                                className={menuItemBase}
-                                style={{
-                                  ...menuItemDefault,
-                                  ...(isItemActive ? menuItemActive : {}),
-                                }}
-                                activeClassName=""
-                              >
-                                <item.icon className="h-[18px] w-[18px] shrink-0" />
-                                {!isCollapsed && <span>{item.title}</span>}
-                              </NavLink>
-                            </SidebarMenuButton>
-                          </span>
-                        </TooltipTrigger>
-                        {isCollapsed && (
-                          <TooltipContent side="right" className="font-medium">
-                            {item.title}
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
+                      {/* Only the link button gets the dock magnification */}
+                      <DockItem>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="w-full">
+                              <SidebarMenuButton asChild>
+                                <NavLink
+                                  to={item.url}
+                                  className={menuItemBase}
+                                  style={{
+                                    ...menuItemDefault,
+                                    ...(isItemActive ? menuItemActive : {}),
+                                  }}
+                                  activeClassName=""
+                                >
+                                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                                  {!isCollapsed && <span>{item.title}</span>}
+                                </NavLink>
+                              </SidebarMenuButton>
+                            </span>
+                          </TooltipTrigger>
+                          {isCollapsed && (
+                            <TooltipContent side="right" className="font-medium">
+                              {item.title}
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </DockItem>
 
-                      {/* Tasks Collapsible */}
+                      {/* Collapsible sub-menus are OUTSIDE DockItem so they don't scale */}
                       {item.url === '/dashboard' && renderCollapsibleMenu(
                         'Tareas', ClipboardList, tasksOpen, setTasksOpen, isTasksActive,
                         tasksSubItems,
@@ -446,7 +451,6 @@ export function AppSidebar() {
                         }
                       )}
 
-                      {/* Transfers Collapsible */}
                       {item.url === '/vehicles' && isModuleEnabled('transfers') && hasPermission('transfers.view') &&
                         renderCollapsibleMenu(
                           'Transfers', Ship, transfersOpen, setTransfersOpen, isTransfersActive,
@@ -458,7 +462,6 @@ export function AppSidebar() {
                         )
                       }
 
-                      {/* Garatech Collapsible */}
                       {item.url === '/vehicles' && isModuleEnabled('garatech') && hasPermission('garatech.view') &&
                         renderCollapsibleMenu(
                           'Garatech', Wrench, garatechOpen, setGaratechOpen, isGaratechActive,
@@ -470,7 +473,6 @@ export function AppSidebar() {
                         )
                       }
 
-                      {/* Fleet Collapsible */}
                       {item.url === '/movements' && isModuleEnabled('fleet') && hasPermission('fleet.view') &&
                         renderCollapsibleMenu(
                           'Flota', Warehouse, fleetOpen, setFleetOpen, isFleetActive,
@@ -484,61 +486,65 @@ export function AppSidebar() {
                 {/* Admin Panel */}
                 {canAccessAdminPanel && (
                   <SidebarMenuItem>
+                    <DockItem>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="w-full">
+                            <SidebarMenuButton asChild>
+                              <NavLink
+                                to="/settings/admin"
+                                className={menuItemBase}
+                                style={{
+                                  ...menuItemDefault,
+                                  ...(location.pathname.startsWith('/settings/admin') ? menuItemActive : {}),
+                                }}
+                                activeClassName=""
+                              >
+                                <Shield className="h-[18px] w-[18px] shrink-0" />
+                                {!isCollapsed && <span>Administración</span>}
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </span>
+                        </TooltipTrigger>
+                        {isCollapsed && (
+                          <TooltipContent side="right" className="font-medium">
+                            Administración
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </DockItem>
+                  </SidebarMenuItem>
+                )}
+
+                {/* Ayuda */}
+                <SidebarMenuItem>
+                  <DockItem>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="w-full">
                           <SidebarMenuButton asChild>
                             <NavLink
-                              to="/settings/admin"
+                              to="/help"
                               className={menuItemBase}
                               style={{
                                 ...menuItemDefault,
-                                ...(location.pathname.startsWith('/settings/admin') ? menuItemActive : {}),
+                                ...(location.pathname === '/help' ? menuItemActive : {}),
                               }}
                               activeClassName=""
                             >
-                              <Shield className="h-[18px] w-[18px] shrink-0" />
-                              {!isCollapsed && <span>Administración</span>}
+                              <BookOpen className="h-[18px] w-[18px] shrink-0" />
+                              {!isCollapsed && <span>Ayuda</span>}
                             </NavLink>
                           </SidebarMenuButton>
                         </span>
                       </TooltipTrigger>
                       {isCollapsed && (
                         <TooltipContent side="right" className="font-medium">
-                          Administración
+                          Ayuda
                         </TooltipContent>
                       )}
                     </Tooltip>
-                  </SidebarMenuItem>
-                )}
-
-                {/* Ayuda */}
-                <SidebarMenuItem>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="w-full">
-                        <SidebarMenuButton asChild>
-                          <NavLink
-                            to="/help"
-                            className={menuItemBase}
-                            style={{
-                              ...menuItemDefault,
-                              ...(location.pathname === '/help' ? menuItemActive : {}),
-                            }}
-                            activeClassName=""
-                          >
-                            <BookOpen className="h-[18px] w-[18px] shrink-0" />
-                            {!isCollapsed && <span>Ayuda</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </span>
-                    </TooltipTrigger>
-                    {isCollapsed && (
-                      <TooltipContent side="right" className="font-medium">
-                        Ayuda
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
+                  </DockItem>
                 </SidebarMenuItem>
               </DockContainer>
               </SidebarMenu>
