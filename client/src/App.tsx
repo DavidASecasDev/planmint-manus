@@ -60,9 +60,7 @@ const Calendar = lazy(() => import("./pages/Calendar"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Install = lazy(() => import("./pages/Install"));
 const Automations = lazy(() => import("./pages/Automations"));
-const Billing = lazy(() => import("./pages/Billing"));
 const Admin = lazy(() => import("./pages/Admin"));
-const EnterpriseSettings = lazy(() => import("./pages/EnterpriseSettings"));
 const DailyTasks = lazy(() => import("./pages/DailyTasks"));
 const TimeTracking = lazy(() => import("./pages/TimeTracking"));
 const VehicleStatus = lazy(() => import("./pages/VehicleStatus"));
@@ -337,38 +335,7 @@ function MainAppRoutes() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/enterprise" 
-              element={
-                <ProtectedRoute>
-                  <EnterpriseSettings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/settings/enterprise" 
-              element={
-                <ProtectedRoute>
-                  <EnterpriseSettings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/billing" 
-              element={
-                <ProtectedRoute>
-                  <Billing />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/settings/billing" 
-              element={
-                <ProtectedRoute>
-                  <Billing />
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/admin" 
               element={

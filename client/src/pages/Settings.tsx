@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTheme, ThemePreference } from '@/contexts/ThemeContext';
-import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,8 +12,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from '@/hooks/use-toast';
 import { 
   Loader2, User, Building2, Save, Monitor, Sun, Moon, Palette, 
-  Settings as SettingsIcon, CreditCard, BarChart3, Bell, Plug, Gift,
-  Shield, FileText, Users, Laptop, Download, ChevronRight, Fingerprint, Car
+  Settings as SettingsIcon, BarChart3, Bell, Plug,
+  Shield, FileText, Users, Laptop, Download, Car
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { useOrganizationModules } from '@/hooks/useOrganizationModules';
@@ -24,7 +22,6 @@ import { TransferSettingsSection } from '@/components/transfers/TransferSettings
 import { UsageDashboard } from '@/components/analytics/UsageDashboard';
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection';
 import { IntegrationSettingsSection } from '@/components/settings/IntegrationSettingsSection';
-import { ReferralCard } from '@/components/growth/ReferralCard';
 import { SecuritySettingsSection } from '@/components/settings/SecuritySettingsSection';
 import { AuditLogsSection } from '@/components/settings/AuditLogsSection';
 import { RolesSection } from '@/components/settings/RolesSection';
@@ -54,11 +51,9 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ReactN
 ];
 
 export default function Settings() {
-  const navigate = useNavigate();
   const { profile, organization, refreshProfile } = useAuth();
   const { isAdmin, isOwner, role } = usePermissions();
   const { theme, setTheme } = useTheme();
-  const { isProPlan, isTeamPlan } = useSubscription();
   const { isModuleEnabled } = useOrganizationModules();
   const [profileName, setProfileName] = useState(profile?.name || '');
   const [orgName, setOrgName] = useState(organization?.name || '');
@@ -109,8 +104,6 @@ export default function Settings() {
     await setTheme(value as ThemePreference);
     toast({ title: 'Tema actualizado', description: 'Tu preferencia de tema ha sido guardada' });
   };
-
-  // getRoleLabel removed — using inline role display and centralized getRoleLabel from @/lib/roleHierarchy
 
   return (
     <AppLayout title="Ajustes">
@@ -225,8 +218,8 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Security Settings (Admin Only, Team Plan) */}
-          {isOwner && isTeamPlan && (
+          {/* Security Settings (Owner Only — no plan gate) */}
+          {isOwner && (
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -235,7 +228,7 @@ export default function Settings() {
                   </div>
                   Seguridad
                 </CardTitle>
-                <CardDescription>Configura SSO, dominios permitidos y timeouts de sesión</CardDescription>
+                <CardDescription>Configura dominios permitidos y timeouts de sesión</CardDescription>
               </CardHeader>
               <CardContent>
                 <SecuritySettingsSection />
@@ -243,29 +236,8 @@ export default function Settings() {
             </Card>
           )}
 
-          {/* Enterprise Settings (Admin Only, Team Plan) */}
-          {isOwner && isTeamPlan && (
-            <Card 
-              className="border-border/50 shadow-sm cursor-pointer hover:bg-muted/30 transition-colors"
-              onClick={() => navigate('/settings/enterprise')}
-            >
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center justify-between text-lg">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-                      <Fingerprint className="h-5 w-5" />
-                    </div>
-                    Enterprise
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </CardTitle>
-                <CardDescription>Configura SAML SSO, SCIM provisioning y políticas corporativas</CardDescription>
-              </CardHeader>
-            </Card>
-          )}
-
-          {/* Roles Management (Admin Only, Team Plan) */}
-          {isAdmin && isTeamPlan && (
+          {/* Roles Management (Admin Only — no plan gate) */}
+          {isAdmin && (
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -282,8 +254,8 @@ export default function Settings() {
             </Card>
           )}
 
-          {/* Sessions Management (Admin Only, Team Plan) */}
-          {isAdmin && isTeamPlan && (
+          {/* Sessions Management (Admin Only — no plan gate) */}
+          {isAdmin && (
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -300,8 +272,8 @@ export default function Settings() {
             </Card>
           )}
 
-          {/* Audit Logs (Admin Only, Pro/Team Plan) */}
-          {isAdmin && (isProPlan || isTeamPlan) && (
+          {/* Audit Logs (Admin Only — no plan gate, no day limit) */}
+          {isAdmin && (
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -310,11 +282,7 @@ export default function Settings() {
                   </div>
                   Registros de Auditoría
                 </CardTitle>
-                <CardDescription>
-                  Historial de actividad de tu organización
-                  {isProPlan && !isTeamPlan && ' (últimos 7 días)'}
-                  {isTeamPlan && ' (90 días o configurable)'}
-                </CardDescription>
+                <CardDescription>Historial de actividad de tu organización</CardDescription>
               </CardHeader>
               <CardContent>
                 <AuditLogsSection />
@@ -392,25 +360,6 @@ export default function Settings() {
             </Card>
           )}
 
-          {/* Plan & Billing */}
-          <Card 
-            className="border-border/50 shadow-sm cursor-pointer hover:bg-muted/30 transition-colors"
-            onClick={() => navigate('/settings/billing')}
-          >
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center justify-between text-lg">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-                    <CreditCard className="h-5 w-5" />
-                  </div>
-                  Plan y Facturación
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </CardTitle>
-              <CardDescription>Gestiona tu suscripción, add-ons y métodos de pago</CardDescription>
-            </CardHeader>
-          </Card>
-
           {/* Usage Analytics (Admin Only) */}
           {isAdmin && (
             <Card className="border-border/50 shadow-sm">
@@ -428,22 +377,6 @@ export default function Settings() {
               </CardContent>
             </Card>
           )}
-
-          {/* Referral Program */}
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2.5 text-lg">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-500/10 text-pink-500">
-                  <Gift className="h-5 w-5" />
-                </div>
-                Programa de Referidos
-              </CardTitle>
-              <CardDescription>Invita amigos y gana 14 días de Pro gratis</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ReferralCard />
-            </CardContent>
-          </Card>
         </div>
       </div>
     </AppLayout>
