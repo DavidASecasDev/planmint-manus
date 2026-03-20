@@ -30,6 +30,13 @@ interface TransferItemForm {
   dropoff_enabled: boolean;
   dropoff_location: string;
   dropoff_time: string;
+  has_return: boolean;
+  return_pickup_enabled: boolean;
+  return_pickup_location: string;
+  return_pickup_time: string;
+  return_dropoff_enabled: boolean;
+  return_dropoff_location: string;
+  return_dropoff_time: string;
   pax_count: string;
   vehicle_type: string;
   notes: string;
@@ -44,6 +51,13 @@ const createEmptyItem = (): TransferItemForm => ({
   dropoff_enabled: true,
   dropoff_location: '',
   dropoff_time: '',
+  has_return: false,
+  return_pickup_enabled: false,
+  return_pickup_location: '',
+  return_pickup_time: '',
+  return_dropoff_enabled: false,
+  return_dropoff_location: '',
+  return_dropoff_time: '',
   pax_count: '',
   vehicle_type: 'v_class',
   notes: '',
@@ -97,13 +111,13 @@ export default function BrokerNewRequest() {
         dropoff_enabled: item.dropoff_enabled,
         dropoff_location: item.dropoff_location || null,
         dropoff_time: item.dropoff_time || null,
-        has_return: false,
-        return_pickup_enabled: false,
-        return_pickup_location: null,
-        return_pickup_time: null,
-        return_dropoff_enabled: false,
-        return_dropoff_location: null,
-        return_dropoff_time: null,
+        has_return: item.has_return,
+        return_pickup_enabled: item.return_pickup_enabled,
+        return_pickup_location: item.return_pickup_location || null,
+        return_pickup_time: item.return_pickup_time || null,
+        return_dropoff_enabled: item.return_dropoff_enabled,
+        return_dropoff_location: item.return_dropoff_location || null,
+        return_dropoff_time: item.return_dropoff_time || null,
         pax_count: item.pax_count ? parseInt(item.pax_count) : null,
         vehicle_type: item.vehicle_type || null,
         notes: item.notes || null,
@@ -426,6 +440,112 @@ function TransferItemCard({ item, index, canRemove, onChange, onRemove, isDark }
                   className="mt-1"
                   style={inputStyle}
                 />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Return Trip */}
+        <div className="space-y-2">
+          <div
+            className="pt-3 mt-1"
+            style={{ borderTop: `1px solid ${dividerColor}` }}
+          >
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id={`return-${item.id}`}
+                checked={item.has_return}
+                onCheckedChange={(checked) => {
+                  onChange('has_return', !!checked);
+                  if (checked) {
+                    onChange('return_pickup_enabled', true);
+                    onChange('return_dropoff_enabled', true);
+                  }
+                }}
+              />
+              <Label htmlFor={`return-${item.id}`} className="font-medium cursor-pointer flex items-center gap-1.5">
+                <RotateCcw className="h-3.5 w-3.5" style={{ color: isDark ? '#64748b' : '#6b7280' }} />
+                Viaje de vuelta
+              </Label>
+            </div>
+          </div>
+
+          {item.has_return && (
+            <div className="pl-6 space-y-3">
+              {/* Return Pickup */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`return-pickup-${item.id}`}
+                    checked={item.return_pickup_enabled}
+                    onCheckedChange={(checked) => onChange('return_pickup_enabled', !!checked)}
+                  />
+                  <Label htmlFor={`return-pickup-${item.id}`} className="text-sm cursor-pointer">
+                    Recogida (vuelta)
+                  </Label>
+                </div>
+                {item.return_pickup_enabled && (
+                  <div className="grid gap-3 sm:grid-cols-2 pl-6">
+                    <div>
+                      <Label className="text-xs" style={{ color: textLabel }}>Ubicación</Label>
+                      <Input
+                        value={item.return_pickup_location}
+                        onChange={(e) => onChange('return_pickup_location', e.target.value)}
+                        placeholder="Ej: Hotel Son Vida"
+                        className="mt-1"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs" style={{ color: textLabel }}>Hora</Label>
+                      <Input
+                        type="time"
+                        value={item.return_pickup_time}
+                        onChange={(e) => onChange('return_pickup_time', e.target.value)}
+                        className="mt-1"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Return Dropoff */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`return-dropoff-${item.id}`}
+                    checked={item.return_dropoff_enabled}
+                    onCheckedChange={(checked) => onChange('return_dropoff_enabled', !!checked)}
+                  />
+                  <Label htmlFor={`return-dropoff-${item.id}`} className="text-sm cursor-pointer">
+                    Destino (vuelta)
+                  </Label>
+                </div>
+                {item.return_dropoff_enabled && (
+                  <div className="grid gap-3 sm:grid-cols-2 pl-6">
+                    <div>
+                      <Label className="text-xs" style={{ color: textLabel }}>Ubicación</Label>
+                      <Input
+                        value={item.return_dropoff_location}
+                        onChange={(e) => onChange('return_dropoff_location', e.target.value)}
+                        placeholder="Ej: Puerto de Palma"
+                        className="mt-1"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs" style={{ color: textLabel }}>Hora</Label>
+                      <Input
+                        type="time"
+                        value={item.return_dropoff_time}
+                        onChange={(e) => onChange('return_dropoff_time', e.target.value)}
+                        className="mt-1"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

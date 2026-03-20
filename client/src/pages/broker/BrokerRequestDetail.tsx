@@ -479,6 +479,61 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
           </div>
         )}
 
+        {/* Return Trip */}
+        {item.has_return && (
+          <div
+            className="pt-4 space-y-3"
+            style={{ borderTop: `1px solid ${dividerColor}` }}
+          >
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide" style={{ color: textMuted }}>
+              <RotateCcw className="h-3.5 w-3.5" />
+              Viaje de vuelta
+            </div>
+
+            {item.return_pickup_enabled && item.return_pickup_location && (
+              <div className="flex items-start gap-3">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: pickupPillBg }}
+                >
+                  <MapPin className="h-4 w-4" style={{ color: pickupIconColor }} />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Recogida (vuelta)</label>
+                  <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.return_pickup_location}</p>
+                  {item.return_pickup_time && (
+                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                      <Clock className="h-3.5 w-3.5" />
+                      {item.return_pickup_time}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {item.return_dropoff_enabled && item.return_dropoff_location && (
+              <div className="flex items-start gap-3">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: dropoffPillBg }}
+                >
+                  <MapPin className="h-4 w-4" style={{ color: dropoffIconColor }} />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Destino (vuelta)</label>
+                  <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.return_dropoff_location}</p>
+                  {item.return_dropoff_time && (
+                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                      <Clock className="h-3.5 w-3.5" />
+                      {item.return_dropoff_time}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Driver Info */}
         <div 
           className="pt-4"

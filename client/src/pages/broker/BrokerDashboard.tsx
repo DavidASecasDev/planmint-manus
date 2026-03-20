@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   XCircle,
   LayoutList,
+  Send,
 } from 'lucide-react';
 
 export default function BrokerDashboard() {
@@ -56,7 +57,7 @@ export default function BrokerDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
         <StatCard
           label="Total"
           value={stats.total}
@@ -78,6 +79,14 @@ export default function BrokerDashboard() {
           icon={<FileText className="h-5 w-5" />}
           color="#1e40af"
           borderColor="#3b82f6"
+          isDark={isDark}
+        />
+        <StatCard
+          label="Ppto. Enviado"
+          value={stats.presupuesto_enviado}
+          icon={<Send className="h-5 w-5" />}
+          color="#c2410c"
+          borderColor="#fb923c"
           isDark={isDark}
         />
         <StatCard
@@ -150,6 +159,7 @@ export default function BrokerDashboard() {
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="pendiente">Pendiente</SelectItem>
             <SelectItem value="en_gestion">En gestión</SelectItem>
+            <SelectItem value="presupuesto_enviado">Ppto. Enviado</SelectItem>
             <SelectItem value="confirmado">Confirmado</SelectItem>
             <SelectItem value="completado">Completado</SelectItem>
             <SelectItem value="cancelado">Cancelado</SelectItem>

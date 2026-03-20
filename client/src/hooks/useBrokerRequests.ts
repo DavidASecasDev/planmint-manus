@@ -295,8 +295,10 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     total: requests.length,
     pendiente: requests.filter(r => r.status === 'pendiente').length,
     en_gestion: requests.filter(r => r.status === 'en_gestion').length,
+    presupuesto_enviado: requests.filter(r => r.status === 'presupuesto_enviado').length,
     confirmado: requests.filter(r => r.status === 'confirmado').length,
     completado: requests.filter(r => r.status === 'completado').length,
+    cancelado: requests.filter(r => r.status === 'cancelado').length,
   };
 
   return {
