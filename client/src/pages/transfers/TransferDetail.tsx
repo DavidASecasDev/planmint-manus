@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check } from 'lucide-react';
 import { useTransferRequest, useTransferRequests } from '@/hooks/useTransferRequests';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTransferItems } from '@/hooks/useTransferItems';
 import { useTransferDocuments } from '@/hooks/useTransferDocuments';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
@@ -20,6 +21,7 @@ import { TransferItemBlock } from '@/components/transfers/TransferItemBlock';
 import { TransferDocumentsSection } from '@/components/transfers/TransferDocumentsSection';
 import { TransferFinancialSummary } from '@/components/transfers/TransferFinancialSummary';
 import { TransferQuoteActions } from '@/components/transfers/TransferQuoteActions';
+import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
 import { BrokerSelect } from '@/components/transfers/BrokerSelect';
 import { ProviderSelect } from '@/components/transfers/ProviderSelect';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
@@ -43,6 +45,7 @@ export default function TransferDetail() {
 
   const { data: existingRequest, isLoading } = useTransferRequest(isNew ? undefined : id);
   const { createRequest, updateRequest, updateStatus, isCreating, isUpdating } = useTransferRequests();
+  const { profile } = useAuth();
   
   // Hook at top level - always called with the current request ID
   const { createMultipleItems, isCreating: isCreatingItems } = useTransferItems(existingRequest?.id);
@@ -414,6 +417,17 @@ export default function TransferDetail() {
                     />
                   ))}
               </div>
+            )}
+
+            {/* Internal Notes */}
+            {existingRequest && profile?.organization_id && (
+              <TransferNotesSection
+                requestId={existingRequest.id}
+                organizationId={profile.organization_id}
+                currentBrokerId={null}
+                currentAuthorName={profile.name || 'Admin'}
+                isDark={false}
+              />
             )}
 
             {/* Total Summary */}

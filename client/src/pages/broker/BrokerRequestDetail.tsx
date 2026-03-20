@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getVehicleInfo } from '@/lib/transferPricing';
+import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
 import type { TransferItemVehicle } from '@/types/transfers';
 import { Button } from '@/components/ui/button';
 import { 
@@ -313,6 +314,19 @@ export default function BrokerRequestDetail() {
           ))}
         </div>
       </div>
+
+      {/* Internal Notes */}
+      {broker && request && (
+        <div>
+          <TransferNotesSection
+            requestId={request.id}
+            organizationId={broker.organization_id}
+            currentBrokerId={broker.id}
+            currentAuthorName={broker.name}
+            isDark={isDark}
+          />
+        </div>
+      )}
     </div>
   );
 }
