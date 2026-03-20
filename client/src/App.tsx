@@ -371,6 +371,14 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/settings/admin" 
+              element={
+                <ProtectedRoute>
+                  <Admin />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/admin/permissions" 
               element={
                 <ProtectedRoute>
@@ -379,7 +387,31 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/settings/admin/permissions" 
+              element={
+                <ProtectedRoute>
+                  <PermissionsDiagnostics />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings/admin/diagnostics" 
+              element={
+                <ProtectedRoute>
+                  <PermissionsDiagnostics />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/admin/trash" 
+              element={
+                <ProtectedRoute>
+                  <TasksTrash />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings/admin/trash" 
               element={
                 <ProtectedRoute>
                   <TasksTrash />
