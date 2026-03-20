@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
+import { ParticleLogos } from '@/components/effects/ParticleLogos';
 
 const brand = {
   navy: '#001321',
@@ -66,31 +67,48 @@ export default function Recover() {
 
   const AuthShell = ({ children }: { children: React.ReactNode }) => (
     <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
-      {/* Navy left panel */}
+      {/* Navy left panel with particle logos */}
       <div
-        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12"
+        className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden"
         style={{ backgroundColor: brand.navy }}
       >
-        <div>
-          <span
-            className="text-3xl"
-            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
-          >
-            AZUL<span style={{ color: brand.gold }}>.</span>
-          </span>
+        <ParticleLogos />
+        <div className="relative z-10 flex flex-col justify-between h-full p-12">
+          <div>
+            <span
+              className="text-3xl"
+              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
+            >
+              AZUL<span style={{ color: brand.gold }}>.</span>
+            </span>
+          </div>
+          <div />
+          <div>
+            <p
+              className="text-sm tracking-widest uppercase mb-3"
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 600,
+                color: brand.textWhiteMuted,
+                letterSpacing: '0.15em',
+              }}
+            >
+              Grupo Azul
+            </p>
+            <div style={{ height: '2px', width: '60px', background: brand.gold, marginBottom: '12px' }} />
+            <p
+              className="text-sm"
+              style={{
+                fontFamily: 'Barlow, sans-serif',
+                color: brand.textWhiteMuted,
+                lineHeight: '1.6',
+                maxWidth: '280px',
+              }}
+            >
+              Plataforma de gestión integral para las empresas del grupo.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2
-            className="text-4xl leading-tight mb-4"
-            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: brand.textWhite }}
-          >
-            Recupera tu<br />acceso
-          </h2>
-          <p style={{ fontFamily: 'Barlow, sans-serif', color: brand.textWhiteMuted, fontSize: '16px', lineHeight: '1.6' }}>
-            Te enviaremos un enlace para restablecer tu contraseña de forma segura.
-          </p>
-        </div>
-        <div style={{ height: '2px', background: `linear-gradient(90deg, ${brand.gold}, transparent)` }} />
       </div>
 
       {/* Form panel */}
