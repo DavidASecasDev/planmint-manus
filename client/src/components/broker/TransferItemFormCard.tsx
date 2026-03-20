@@ -99,16 +99,15 @@ export function TransferItemFormCard({
   onRemove,
   isDark,
 }: TransferItemFormCardProps) {
-  const cardBg = isDark ? '#161B22' : '#ffffff';
-  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
-  const headerBg = isDark ? '#0D1117' : '#f8fafc';
-  const titleColor = isDark ? '#A3E635' : '#1a365d';
-  const textLabel = isDark ? 'rgba(230, 237, 243, 0.6)' : '#374151';
-  const dividerColor = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
-  const iconMuted = isDark ? 'rgba(230, 237, 243, 0.4)' : '#6b7280';
-  const inputStyle = !isDark
-    ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
+  // Azul Cars Brand: Navy #001321, Gold oklch(0.72 0.10 80), Warm bg #F5F3EF
+  const cardBg = '#FFFFFF';
+  const cardBorder = '#E5E2DB';
+  const headerBg = '#FAFAF8';
+  const titleColor = '#001321';
+  const textLabel = '#374151';
+  const dividerColor = '#E5E2DB';
+  const iconMuted = '#9CA3AF';
+  const inputStyle = { backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' };
 
   return (
     <div
@@ -116,7 +115,7 @@ export function TransferItemFormCard({
       style={{
         backgroundColor: cardBg,
         borderColor: cardBorder,
-        borderLeft: isDark ? '3px solid #A3E635' : '4px solid #b8860b',
+        borderLeft: '4px solid oklch(0.72 0.10 80)',
       }}
     >
       {/* Header */}
@@ -124,7 +123,7 @@ export function TransferItemFormCard({
         className="px-4 py-3 flex items-center justify-between"
         style={{ backgroundColor: headerBg, borderBottom: `1px solid ${dividerColor}` }}
       >
-        <span className="font-medium" style={{ color: titleColor }}>
+        <span style={{ color: titleColor, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '14px' }}>
           Trayecto {index + 1}
         </span>
         {canRemove && (

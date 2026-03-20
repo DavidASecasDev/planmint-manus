@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrokerRequests, useBrokerRequestDetail, UpdateBrokerRequestData } from '@/hooks/useBrokerRequests';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
-import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,12 +14,19 @@ import {
 } from '@/components/broker/TransferItemFormCard';
 import { ArrowLeft, Plus, Loader2, AlertCircle } from 'lucide-react';
 
+/*
+ * Azul Cars Brand – Edit Request
+ * Navy: #001321 | Gold: oklch(0.72 0.10 80) | Warm bg: #F5F3EF
+ * Cards: #FFFFFF | Headings: Montserrat | Body: Barlow
+ */
+
+const navy = '#001321';
+const gold = 'oklch(0.72 0.10 80)';
+
 export default function BrokerEditRequest() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { broker } = useBrokerAuth();
-  const { resolvedTheme } = useBrokerTheme();
-  const isDark = resolvedTheme === 'dark';
   const { data: request, isLoading: isLoadingDetail } = useBrokerRequestDetail(id);
   const { updateRequest, isUpdating } = useBrokerRequests();
 
@@ -28,17 +34,6 @@ export default function BrokerEditRequest() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<TransferItemFormData[]>([createEmptyItem()]);
   const [initialized, setInitialized] = useState(false);
-
-  // Azul Cars brand
-  const cardBg = isDark ? '#161B22' : '#ffffff';
-  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
-  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
-  const accentColor = isDark ? '#A3E635' : '#b8860b';
-  const textPrimary = isDark ? '#E6EDF3' : '#111827';
-  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
-  const inputStyle = !isDark
-    ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
 
   // Pre-fill form when data loads
   useEffect(() => {
@@ -75,7 +70,7 @@ export default function BrokerEditRequest() {
   if (isLoadingDetail) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: titleColor }} />
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: navy }} />
       </div>
     );
   }
@@ -86,16 +81,19 @@ export default function BrokerEditRequest() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-20">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold mb-2" style={{ color: textPrimary }}>
+          <h2
+            className="text-xl mb-2"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: '#111827' }}
+          >
             No se puede editar esta solicitud
           </h2>
-          <p className="mb-4" style={{ color: textSecondary }}>
+          <p className="mb-4" style={{ color: '#6B7280', fontFamily: 'Barlow, sans-serif' }}>
             Solo se pueden editar solicitudes en estado pendiente que sean tuyas.
           </p>
           <button
             onClick={() => navigate(`/broker/request/${id}`)}
             className="text-sm hover:underline"
-            style={{ color: titleColor }}
+            style={{ color: navy, fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
           >
             Volver al detalle
           </button>
@@ -145,40 +143,56 @@ export default function BrokerEditRequest() {
         <button
           onClick={() => navigate(`/broker/request/${id}`)}
           className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity"
-          style={{ color: accentColor }}
+          style={{ color: navy, fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al detalle
         </button>
 
         <h1
-          className="text-2xl font-bold uppercase tracking-wider mb-1"
-          style={{ color: titleColor }}
+          className="text-2xl mb-2"
+          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: navy }}
         >
           Editar Solicitud {request?.request_number}
         </h1>
         <div
-          className="w-20 h-[2px] rounded"
-          style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
+          className="w-16 h-1 rounded"
+          style={{ background: `linear-gradient(90deg, ${gold}, transparent)` }}
         />
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* Client Info */}
         <div
-          className="rounded-lg border p-6 mb-6"
-          style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+          className="rounded-lg p-6 mb-6"
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E5E2DB',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}
         >
           <h2
-            className="text-lg font-semibold mb-4"
-            style={{ color: titleColor }}
+            className="mb-4"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: '11px',
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              color: '#9CA3AF',
+            }}
           >
             Información del Cliente
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Label htmlFor="client_name">Nombre del cliente *</Label>
+              <Label
+                htmlFor="client_name"
+                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: '#374151' }}
+              >
+                Nombre del cliente *
+              </Label>
               <Input
                 id="client_name"
                 value={clientName}
@@ -186,12 +200,17 @@ export default function BrokerEditRequest() {
                 placeholder="Ej: Sr. García y familia"
                 required
                 className="mt-1.5"
-                style={inputStyle}
+                style={{ backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' }}
               />
             </div>
 
             <div className="sm:col-span-2">
-              <Label htmlFor="notes">Notas generales</Label>
+              <Label
+                htmlFor="notes"
+                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: '#374151' }}
+              >
+                Notas generales
+              </Label>
               <Textarea
                 id="notes"
                 value={notes}
@@ -199,7 +218,7 @@ export default function BrokerEditRequest() {
                 placeholder="Instrucciones especiales, preferencias del cliente..."
                 className="mt-1.5"
                 rows={3}
-                style={inputStyle}
+                style={{ backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' }}
               />
             </div>
           </div>
@@ -209,8 +228,14 @@ export default function BrokerEditRequest() {
         <div className="space-y-4 mb-6">
           <div className="flex items-center justify-between">
             <h2
-              className="text-lg font-semibold"
-              style={{ color: titleColor }}
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '11px',
+                letterSpacing: '1.5px',
+                textTransform: 'uppercase',
+                color: '#9CA3AF',
+              }}
             >
               Trayectos ({items.length})
             </h2>
@@ -219,9 +244,18 @@ export default function BrokerEditRequest() {
               variant="outline"
               size="sm"
               onClick={handleAddItem}
-              style={{ borderColor: accentColor, color: accentColor }}
+              className="gap-1"
+              style={{
+                borderColor: navy,
+                color: navy,
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '11px',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+              }}
             >
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="h-4 w-4" />
               Añadir trayecto
             </Button>
           </div>
@@ -234,7 +268,7 @@ export default function BrokerEditRequest() {
               canRemove={items.length > 1}
               onChange={(field, value) => handleItemChange(item.id, field, value)}
               onRemove={() => handleRemoveItem(item.id)}
-              isDark={isDark}
+              isDark={false}
             />
           ))}
         </div>
@@ -246,14 +280,29 @@ export default function BrokerEditRequest() {
             variant="outline"
             onClick={() => navigate(`/broker/request/${id}`)}
             disabled={isUpdating}
+            style={{
+              borderColor: '#D1D5DB',
+              color: '#6B7280',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 600,
+              fontSize: '12px',
+            }}
           >
             Cancelar
           </Button>
           <Button
             type="submit"
             disabled={isUpdating || !clientName.trim()}
-            className="font-bold uppercase text-sm tracking-wider hover:brightness-110"
-            style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+            className="hover:brightness-110"
+            style={{
+              backgroundColor: navy,
+              color: '#FFFFFF',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: '12px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
           >
             {isUpdating ? (
               <>

@@ -6,6 +6,15 @@ import { Loader2, Send, Trash2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+/*
+ * Azul Cars Brand – Transfer Notes Section
+ * Card: #FFFFFF | Navy: #001321 | Gold: oklch(0.72 0.10 80)
+ * Headings: Montserrat | Body: Barlow
+ */
+
+const navy = '#001321';
+const gold = 'oklch(0.72 0.10 80)';
+
 interface TransferNotesSectionProps {
   requestId: string;
   organizationId: string;
@@ -19,24 +28,16 @@ export function TransferNotesSection({
   organizationId,
   currentBrokerId,
   currentAuthorName,
-  isDark,
 }: TransferNotesSectionProps) {
   const { notes, isLoading, addNote, isAdding, deleteNote, isDeleting } = useTransferNotes(requestId);
   const [newNote, setNewNote] = useState('');
 
-  const cardBg = isDark ? '#161B22' : '#ffffff';
-  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
-  const headerBg = isDark ? '#0D1117' : '#f8fafc';
-  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
-  const textPrimary = isDark ? '#E6EDF3' : '#111827';
-  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
-  const textMuted = isDark ? 'rgba(230, 237, 243, 0.35)' : '#9ca3af';
-  const dividerColor = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
-  const noteBg = isDark ? '#0D1117' : '#f1f5f9';
-  const ownNoteBg = isDark ? 'rgba(163, 230, 53, 0.06)' : '#eff6ff';
-  const inputStyle = !isDark
-    ? { backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#d1d5db' }
-    : { backgroundColor: '#0D1117', color: '#E6EDF3', borderColor: 'rgba(163, 230, 53, 0.2)' };
+  const cardBg = '#FFFFFF';
+  const cardBorder = '#E5E2DB';
+  const headerBg = '#FAFAF8';
+  const textPrimary = '#111827';
+  const textSecondary = '#6B7280';
+  const textMuted = '#9CA3AF';
 
   const handleSubmit = async () => {
     if (!newNote.trim()) return;
@@ -61,30 +62,41 @@ export function TransferNotesSection({
   };
 
   const canDelete = (noteBrokerId: string | null) => {
-    // Broker can delete their own notes
     return currentBrokerId && noteBrokerId === currentBrokerId;
   };
 
   return (
     <div
-      className="rounded-lg border overflow-hidden"
-      style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+      className="rounded-lg overflow-hidden"
+      style={{ backgroundColor: cardBg, border: `1px solid ${cardBorder}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
     >
       {/* Header */}
       <div
         className="px-4 py-3 flex items-center gap-2"
-        style={{ backgroundColor: headerBg, borderBottom: `1px solid ${dividerColor}` }}
+        style={{ backgroundColor: headerBg, borderBottom: `1px solid ${cardBorder}` }}
       >
-        <MessageSquare className="h-4 w-4" style={{ color: titleColor }} />
-        <span className="font-medium" style={{ color: titleColor }}>
+        <MessageSquare className="h-4 w-4" style={{ color: textMuted }} />
+        <span
+          style={{
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 700,
+            fontSize: '11px',
+            letterSpacing: '1.5px',
+            textTransform: 'uppercase',
+            color: textMuted,
+          }}
+        >
           Notas Internas
         </span>
         {notes.length > 0 && (
           <span
-            className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+            className="text-xs px-1.5 py-0.5 rounded-full"
             style={{
-              backgroundColor: isDark ? '#b8860b35' : '#b8860b20',
-              color: isDark ? '#d4a017' : '#7a5c08',
+              backgroundColor: 'rgba(0,19,33,0.08)',
+              color: navy,
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: '10px',
             }}
           >
             {notes.length}
@@ -101,7 +113,7 @@ export function TransferNotesSection({
         ) : notes.length === 0 ? (
           <div className="text-center py-6">
             <MessageSquare className="h-8 w-8 mx-auto mb-2" style={{ color: textMuted, opacity: 0.5 }} />
-            <p className="text-sm" style={{ color: textMuted }}>
+            <p className="text-sm" style={{ color: textMuted, fontFamily: 'Barlow, sans-serif' }}>
               No hay notas todavía. Añade un comentario para tu equipo.
             </p>
           </div>
@@ -114,28 +126,33 @@ export function TransferNotesSection({
                   key={note.id}
                   className="rounded-lg p-3 group"
                   style={{
-                    backgroundColor: isOwn ? ownNoteBg : noteBg,
-                    borderLeft: isOwn ? '3px solid #b8860b' : '3px solid transparent',
+                    backgroundColor: isOwn ? '#F0F4FF' : '#F5F3EF',
+                    borderLeft: isOwn ? `3px solid ${navy}` : '3px solid transparent',
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold" style={{ color: textPrimary }}>
+                        <span
+                          className="text-sm"
+                          style={{ color: textPrimary, fontFamily: 'Montserrat, sans-serif', fontWeight: 600 }}
+                        >
                           {note.author_name}
                         </span>
                         {isOwn && (
                           <span
-                            className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                            className="text-[10px] px-1.5 py-0.5 rounded"
                             style={{
-                              backgroundColor: isDark ? 'rgba(163, 230, 53, 0.15)' : '#b8860b20',
-                              color: isDark ? '#A3E635' : '#7a5c08',
+                              backgroundColor: 'rgba(0,19,33,0.08)',
+                              color: navy,
+                              fontFamily: 'Montserrat, sans-serif',
+                              fontWeight: 700,
                             }}
                           >
                             tú
                           </span>
                         )}
-                        <span className="text-xs" style={{ color: textMuted }}>
+                        <span className="text-xs" style={{ color: textMuted, fontFamily: 'Barlow, sans-serif' }}>
                           {formatDistanceToNow(new Date(note.created_at), {
                             addSuffix: true,
                             locale: es,
@@ -144,7 +161,7 @@ export function TransferNotesSection({
                       </div>
                       <p
                         className="text-sm whitespace-pre-wrap break-words"
-                        style={{ color: textSecondary }}
+                        style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}
                       >
                         {note.text}
                       </p>
@@ -168,10 +185,7 @@ export function TransferNotesSection({
         )}
 
         {/* New note input */}
-        <div
-          className="pt-3"
-          style={{ borderTop: `1px solid ${dividerColor}` }}
-        >
+        <div className="pt-3" style={{ borderTop: `1px solid ${cardBorder}` }}>
           <Textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
@@ -179,25 +193,36 @@ export function TransferNotesSection({
             placeholder="Escribe una nota interna..."
             rows={2}
             className="resize-none"
-            style={inputStyle}
+            style={{
+              backgroundColor: '#FFFFFF',
+              color: textPrimary,
+              borderColor: cardBorder,
+              fontFamily: 'Barlow, sans-serif',
+            }}
           />
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs" style={{ color: textMuted }}>
+            <span className="text-xs" style={{ color: textMuted, fontFamily: 'Barlow, sans-serif' }}>
               Ctrl+Enter para enviar
             </span>
             <Button
               size="sm"
               onClick={handleSubmit}
               disabled={!newNote.trim() || isAdding}
+              className="gap-1"
               style={{
-                backgroundColor: newNote.trim() ? (isDark ? '#A3E635' : '#b8860b') : undefined,
-                color: newNote.trim() ? (isDark ? '#0D1117' : 'white') : undefined,
+                backgroundColor: newNote.trim() ? navy : undefined,
+                color: newNote.trim() ? 'white' : undefined,
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '11px',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
               }}
             >
               {isAdding ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Send className="h-4 w-4 mr-1" />
+                <Send className="h-4 w-4" />
               )}
               Enviar
             </Button>

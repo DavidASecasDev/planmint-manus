@@ -12,9 +12,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useBrokerNotifications } from '@/hooks/useBrokerNotifications';
 import type { NotificationWithDetails } from '@/types/notifications';
 
+/*
+ * Azul Cars Brand – Notification Bell
+ * Bell icon: white on navy header | Badge: gold oklch(0.72 0.10 80)
+ * Popover: white bg | Navy text
+ */
+
 export function BrokerNotificationBell() {
   const navigate = useNavigate();
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useBrokerNotifications();
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+    useBrokerNotifications();
 
   const handleClick = async (notification: NotificationWithDetails) => {
     if (!notification.is_read) {
@@ -33,14 +40,19 @@ export function BrokerNotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-9 w-9 transition-colors"
-          style={{ color: 'rgba(230, 237, 243, 0.7)' }}
+          className="relative h-9 w-9 transition-colors hover:bg-white/10"
+          style={{ color: 'rgba(255,255,255,0.8)' }}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span
-              className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+              className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center text-[10px]"
+              style={{
+                backgroundColor: 'oklch(0.72 0.10 80)',
+                color: '#001321',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 800,
+              }}
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
@@ -51,18 +63,25 @@ export function BrokerNotificationBell() {
         className="w-80 p-0"
         align="end"
         style={{
-          backgroundColor: '#161B22',
-          border: '1px solid rgba(163, 230, 53, 0.15)',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E5E2DB',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
         }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: '1px solid rgba(163, 230, 53, 0.1)' }}
+          style={{ borderBottom: '1px solid #E5E2DB' }}
         >
           <h4
-            className="text-sm font-bold uppercase tracking-wider"
-            style={{ color: '#E6EDF3' }}
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: '11px',
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              color: '#001321',
+            }}
           >
             Notificaciones
           </h4>
@@ -71,8 +90,8 @@ export function BrokerNotificationBell() {
               variant="ghost"
               size="sm"
               onClick={() => markAllAsRead()}
-              className="h-7 text-xs"
-              style={{ color: '#A3E635' }}
+              className="h-7 text-xs hover:bg-gray-100"
+              style={{ color: 'oklch(0.55 0.10 80)' }}
             >
               <CheckCheck className="h-3.5 w-3.5 mr-1" />
               Marcar todas
@@ -85,16 +104,16 @@ export function BrokerNotificationBell() {
             <div className="flex items-center justify-center h-20">
               <div
                 className="animate-spin rounded-full h-5 w-5 border-b-2"
-                style={{ borderColor: '#A3E635' }}
+                style={{ borderColor: 'oklch(0.72 0.10 80)' }}
               />
             </div>
           ) : recentNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <Bell
-                className="h-8 w-8 mb-2"
-                style={{ color: 'rgba(230, 237, 243, 0.2)' }}
-              />
-              <p className="text-sm" style={{ color: 'rgba(230, 237, 243, 0.4)' }}>
+              <Bell className="h-8 w-8 mb-2" style={{ color: '#D1D5DB' }} />
+              <p
+                className="text-sm"
+                style={{ color: '#9CA3AF', fontFamily: 'Barlow, sans-serif' }}
+              >
                 Sin notificaciones
               </p>
             </div>
@@ -104,12 +123,10 @@ export function BrokerNotificationBell() {
                 <button
                   key={notification.id}
                   onClick={() => handleClick(notification)}
-                  className="w-full text-left px-4 py-3 transition-colors"
+                  className="w-full text-left px-4 py-3 transition-colors hover:bg-gray-50"
                   style={{
-                    backgroundColor: !notification.is_read
-                      ? 'rgba(163, 230, 53, 0.04)'
-                      : 'transparent',
-                    borderBottom: '1px solid rgba(163, 230, 53, 0.06)',
+                    backgroundColor: !notification.is_read ? '#FEFCE8' : 'transparent',
+                    borderBottom: '1px solid #F3F4F6',
                   }}
                 >
                   <div className="flex gap-3">
@@ -117,16 +134,14 @@ export function BrokerNotificationBell() {
                       className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
                       style={{
                         backgroundColor: !notification.is_read
-                          ? 'rgba(163, 230, 53, 0.1)'
-                          : 'rgba(230, 237, 243, 0.05)',
+                          ? 'rgba(0,19,33,0.08)'
+                          : '#F3F4F6',
                       }}
                     >
                       <MessageSquare
                         className="h-4 w-4"
                         style={{
-                          color: !notification.is_read
-                            ? '#A3E635'
-                            : 'rgba(230, 237, 243, 0.3)',
+                          color: !notification.is_read ? '#001321' : '#9CA3AF',
                         }}
                       />
                     </div>
@@ -135,7 +150,8 @@ export function BrokerNotificationBell() {
                         <p
                           className="text-sm truncate"
                           style={{
-                            color: !notification.is_read ? '#E6EDF3' : 'rgba(230, 237, 243, 0.6)',
+                            color: !notification.is_read ? '#001321' : '#6B7280',
+                            fontFamily: 'Barlow, sans-serif',
                             fontWeight: !notification.is_read ? 600 : 400,
                           }}
                         >
@@ -144,19 +160,19 @@ export function BrokerNotificationBell() {
                         {!notification.is_read && (
                           <span
                             className="h-2 w-2 rounded-full flex-shrink-0 mt-1.5"
-                            style={{ backgroundColor: '#A3E635' }}
+                            style={{ backgroundColor: 'oklch(0.72 0.10 80)' }}
                           />
                         )}
                       </div>
                       <p
                         className="text-sm line-clamp-2 mt-0.5"
-                        style={{ color: 'rgba(230, 237, 243, 0.45)' }}
+                        style={{ color: '#6B7280', fontFamily: 'Barlow, sans-serif' }}
                       >
                         {notification.body}
                       </p>
                       <p
                         className="text-xs mt-1"
-                        style={{ color: 'rgba(230, 237, 243, 0.3)' }}
+                        style={{ color: '#9CA3AF', fontFamily: 'Barlow, sans-serif' }}
                       >
                         {formatDistanceToNow(new Date(notification.created_at), {
                           addSuffix: true,

@@ -8,6 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
+/*
+ * Azul Cars Brand – Login
+ * Navy bg: #001321
+ * Gold accent: oklch(0.72 0.10 80)
+ * Card: white with subtle shadow
+ * Headings: Montserrat 800
+ * Body/inputs: Barlow 400-500
+ * Labels: Montserrat 700, uppercase, tracking wide
+ */
+
 export default function BrokerLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,9 +82,12 @@ export default function BrokerLogin() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#0D1117' }}
+        style={{ backgroundColor: '#001321' }}
       >
-        <Loader2 className="h-10 w-10 animate-spin" style={{ color: '#A3E635' }} />
+        <Loader2
+          className="h-10 w-10 animate-spin"
+          style={{ color: 'oklch(0.72 0.10 80)' }}
+        />
       </div>
     );
   }
@@ -83,43 +96,44 @@ export default function BrokerLogin() {
     <div
       className="min-h-screen flex items-center justify-center px-4"
       style={{
-        backgroundColor: '#0D1117',
-        backgroundImage:
-          'radial-gradient(ellipse at 50% 0%, rgba(163, 230, 53, 0.06) 0%, transparent 60%)',
+        backgroundColor: '#001321',
+        fontFamily: 'Barlow, sans-serif',
       }}
     >
       <div className="w-full max-w-md relative z-10">
-        {/* Card */}
+        {/* Card – white on navy, like the booking widget on azulcars.com */}
         <div
-          className="rounded-2xl overflow-hidden"
+          className="rounded-xl overflow-hidden"
           style={{
-            backgroundColor: '#161B22',
-            border: '1px solid rgba(163, 230, 53, 0.15)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            backgroundColor: '#FFFFFF',
+            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
           }}
         >
           {/* Header */}
           <div className="px-8 pt-10 pb-6 text-center">
-            <div
-              className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-5 font-bold text-xl"
-              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
-            >
-              AC
-            </div>
-
-            {/* Green line */}
-            <div
-              className="w-16 h-[2px] mx-auto mb-4"
-              style={{ background: 'linear-gradient(90deg, transparent, #A3E635, transparent)' }}
-            />
-
             <h1
-              className="text-2xl font-bold uppercase tracking-wider"
-              style={{ color: '#E6EDF3' }}
+              className="text-2xl tracking-tight"
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 800,
+                color: '#001321',
+                letterSpacing: '-0.02em',
+              }}
             >
-              Portal de Broker
+              AZUL<span style={{ color: 'oklch(0.72 0.10 80)' }}>.</span> TRANSFERS
             </h1>
-            <p className="text-sm mt-2" style={{ color: 'rgba(230, 237, 243, 0.5)' }}>
+            <div
+              className="w-12 h-[2px] mx-auto mt-3 mb-2"
+              style={{ backgroundColor: 'oklch(0.72 0.10 80)' }}
+            />
+            <p
+              className="text-sm mt-3"
+              style={{
+                color: '#52555B',
+                fontFamily: 'Barlow, sans-serif',
+                fontWeight: 400,
+              }}
+            >
               Gestiona tus solicitudes de transfers
             </p>
           </div>
@@ -130,9 +144,9 @@ export default function BrokerLogin() {
               <div
                 className="p-3 rounded-lg text-sm text-center"
                 style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  color: '#F87171',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  backgroundColor: '#FEF2F2',
+                  color: '#DC2626',
+                  border: '1px solid #FECACA',
                 }}
               >
                 {error}
@@ -142,8 +156,14 @@ export default function BrokerLogin() {
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: 'rgba(230, 237, 243, 0.6)' }}
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '10px',
+                  letterSpacing: '1.5px',
+                  textTransform: 'uppercase' as const,
+                  color: '#52555B',
+                }}
               >
                 Correo electrónico
               </Label>
@@ -157,9 +177,11 @@ export default function BrokerLogin() {
                 disabled={isSubmitting}
                 className="h-11"
                 style={{
-                  backgroundColor: '#0D1117',
-                  borderColor: 'rgba(163, 230, 53, 0.2)',
-                  color: '#E6EDF3',
+                  backgroundColor: '#F8F7F4',
+                  borderColor: '#E5E2DB',
+                  color: '#0F1216',
+                  fontFamily: 'Barlow, sans-serif',
+                  fontSize: '15px',
                 }}
               />
             </div>
@@ -167,8 +189,14 @@ export default function BrokerLogin() {
             <div className="space-y-2">
               <Label
                 htmlFor="password"
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: 'rgba(230, 237, 243, 0.6)' }}
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '10px',
+                  letterSpacing: '1.5px',
+                  textTransform: 'uppercase' as const,
+                  color: '#52555B',
+                }}
               >
                 Contraseña
               </Label>
@@ -183,29 +211,41 @@ export default function BrokerLogin() {
                   disabled={isSubmitting}
                   className="h-11 pr-10"
                   style={{
-                    backgroundColor: '#0D1117',
-                    borderColor: 'rgba(163, 230, 53, 0.2)',
-                    color: '#E6EDF3',
+                    backgroundColor: '#F8F7F4',
+                    borderColor: '#E5E2DB',
+                    color: '#0F1216',
+                    fontFamily: 'Barlow, sans-serif',
+                    fontSize: '15px',
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: 'rgba(230, 237, 243, 0.4)' }}
+                  style={{ color: '#52555B' }}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 font-bold uppercase text-sm tracking-wider transition-all hover:brightness-110"
+              className="w-full h-11 transition-all hover:brightness-110"
               disabled={isSubmitting}
               style={{
-                backgroundColor: '#A3E635',
-                color: '#0D1117',
+                backgroundColor: '#001321',
+                color: '#FFFFFF',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '12px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase' as const,
+                borderRadius: '6px',
               }}
             >
               {isSubmitting ? (
@@ -227,21 +267,31 @@ export default function BrokerLogin() {
                   )
                 }
                 className="text-sm hover:underline block w-full"
-                style={{ color: 'rgba(230, 237, 243, 0.5)' }}
+                style={{
+                  color: '#52555B',
+                  fontFamily: 'Barlow, sans-serif',
+                }}
               >
                 ¿Olvidaste tu contraseña?
               </button>
               <div
                 className="pt-3"
-                style={{ borderTop: '1px solid rgba(163, 230, 53, 0.1)' }}
+                style={{ borderTop: '1px solid #E5E2DB' }}
               >
-                <span className="text-sm" style={{ color: 'rgba(230, 237, 243, 0.4)' }}>
+                <span
+                  className="text-sm"
+                  style={{ color: '#52555B', fontFamily: 'Barlow, sans-serif' }}
+                >
                   ¿No tienes cuenta?{' '}
                 </span>
                 <Link
                   to="/broker/register"
-                  className="text-sm font-semibold hover:underline"
-                  style={{ color: '#A3E635' }}
+                  className="text-sm hover:underline"
+                  style={{
+                    color: 'oklch(0.72 0.10 80)',
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                  }}
                 >
                   Solicitar acceso
                 </Link>
@@ -252,10 +302,14 @@ export default function BrokerLogin() {
 
         {/* Footer text */}
         <p
-          className="text-center text-xs uppercase tracking-wider mt-6"
-          style={{ color: 'rgba(230, 237, 243, 0.3)' }}
+          className="text-center text-xs mt-8"
+          style={{
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'Barlow, sans-serif',
+            letterSpacing: '0.05em',
+          }}
         >
-          © {new Date().getFullYear()} Azul Cars
+          © {new Date().getFullYear()} Azul Cars. Todos los derechos reservados.
         </p>
       </div>
     </div>

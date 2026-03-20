@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useBrokerRequestDetail, useBrokerRequests } from '@/hooks/useBrokerRequests';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
-import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -23,12 +22,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { 
-  ArrowLeft, 
-  Loader2, 
-  Calendar, 
-  Users, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Loader2,
+  Calendar,
+  Users,
+  MapPin,
   Clock,
   User,
   Phone,
@@ -39,44 +38,49 @@ import {
   Pencil,
   Info,
   CheckCircle2,
-  XCircle
+  XCircle,
 } from 'lucide-react';
 import type { TransferRequestStatus, TransferItem } from '@/types/transfers';
 
-const STATUS_STYLES: Record<TransferRequestStatus, { bg: string; bgDark: string; text: string; textDark: string; label: string }> = {
-  pendiente:  { bg: '#fef3c7', bgDark: 'rgba(251, 191, 36, 0.12)', text: '#92400e', textDark: '#FBBF24', label: 'Pendiente' },
-  en_gestion: { bg: '#dbeafe', bgDark: 'rgba(96, 165, 250, 0.12)', text: '#1e40af', textDark: '#60A5FA', label: 'En gestión' },
-  presupuesto_enviado: { bg: '#fff7ed', bgDark: 'rgba(251, 146, 60, 0.12)', text: '#c2410c', textDark: '#FB923C', label: 'Ppto. Enviado' },
-  confirmado: { bg: '#d1fae5', bgDark: 'rgba(52, 211, 153, 0.12)', text: '#065f46', textDark: '#34D399', label: 'Confirmado' },
-  completado: { bg: '#e0e7ff', bgDark: 'rgba(163, 230, 53, 0.12)', text: '#3730a3', textDark: '#A3E635', label: 'Completado' },
-  cancelado:  { bg: '#fee2e2', bgDark: 'rgba(248, 113, 113, 0.12)', text: '#991b1b', textDark: '#F87171', label: 'Cancelado' },
+/*
+ * Azul Cars Brand – Request Detail
+ * Navy: #001321 | Gold: oklch(0.72 0.10 80) | Warm bg: #F5F3EF
+ * Cards: #FFFFFF | Headings: Montserrat 700-800 | Body: Barlow 400
+ * Labels: Montserrat 700 uppercase tracking 1.5px
+ */
+
+const navy = '#001321';
+const gold = 'oklch(0.72 0.10 80)';
+const warmBg = '#F5F3EF';
+const cardBg = '#FFFFFF';
+const cardBorder = '#E5E2DB';
+const textPrimary = '#111827';
+const textSecondary = '#6B7280';
+const textMuted = '#9CA3AF';
+
+const STATUS_STYLES: Record<TransferRequestStatus, { bg: string; text: string; border: string; label: string }> = {
+  pendiente:           { bg: '#FEF3C7', text: '#92400E', border: '#F59E0B', label: 'Pendiente' },
+  en_gestion:          { bg: '#DBEAFE', text: '#1E40AF', border: '#3B82F6', label: 'En gestión' },
+  presupuesto_enviado: { bg: '#FFEDD5', text: '#9A3412', border: '#F97316', label: 'Ppto. Enviado' },
+  confirmado:          { bg: '#DCFCE7', text: '#166534', border: '#22C55E', label: 'Confirmado' },
+  completado:          { bg: '#F0FDF4', text: '#15803D', border: '#4ADE80', label: 'Completado' },
+  cancelado:           { bg: '#FEE2E2', text: '#991B1B', border: '#EF4444', label: 'Cancelado' },
 };
 
 export default function BrokerRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { broker } = useBrokerAuth();
-  const { resolvedTheme } = useBrokerTheme();
-  const isDark = resolvedTheme === 'dark';
   const { data: request, isLoading, error } = useBrokerRequestDetail(id);
   const { updateRequestStatus, isUpdatingStatus } = useBrokerRequests();
   const [statusAction, setStatusAction] = useState<'confirmado' | 'en_gestion' | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<'accept' | 'reject' | null>(null);
   const { logStatusChange } = useTransferStatusHistory(id);
 
-  // Azul Cars brand
-  const cardBg = isDark ? '#161B22' : '#ffffff';
-  const cardBorder = isDark ? 'rgba(163, 230, 53, 0.12)' : '#e2e8f0';
-  const titleColor = isDark ? '#E6EDF3' : '#1a365d';
-  const accentColor = isDark ? '#A3E635' : '#b8860b';
-  const textPrimary = isDark ? '#E6EDF3' : '#111827';
-  const textSecondary = isDark ? 'rgba(230, 237, 243, 0.5)' : '#6b7280';
-  const textMuted = isDark ? 'rgba(230, 237, 243, 0.35)' : '#9ca3af';
-
   if (isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: titleColor }} />
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: navy }} />
       </div>
     );
   }
@@ -86,16 +90,19 @@ export default function BrokerRequestDetail() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-20">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold mb-2" style={{ color: textPrimary }}>
+          <h2
+            className="text-xl mb-2"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: navy }}
+          >
             Solicitud no encontrada
           </h2>
-          <p className="mb-4" style={{ color: textSecondary }}>
+          <p className="mb-4" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
             No se pudo cargar la información de esta solicitud
           </p>
           <button
             onClick={() => navigate('/broker')}
             className="text-sm hover:underline"
-            style={{ color: titleColor }}
+            style={{ color: gold, fontFamily: 'Montserrat, sans-serif', fontWeight: 600 }}
           >
             Volver al listado
           </button>
@@ -111,61 +118,73 @@ export default function BrokerRequestDetail() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <button 
+        <button
           onClick={() => navigate('/broker')}
           className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity"
-          style={{ color: titleColor }}
+          style={{ color: navy, fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al listado
         </button>
-        
+
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 
-                className="text-2xl font-bold"
-                style={{ color: titleColor }}
+              <h1
+                className="text-2xl"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: navy }}
               >
                 {request.request_number}
               </h1>
-              <span 
-                className="px-3 py-1 rounded-full text-sm font-medium"
-                style={{ 
-                  backgroundColor: isDark ? statusStyle.bgDark : statusStyle.bg, 
-                  color: isDark ? statusStyle.textDark : statusStyle.text,
+              <span
+                className="px-3 py-1 rounded text-xs"
+                style={{
+                  backgroundColor: statusStyle.bg,
+                  color: statusStyle.text,
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
                 }}
               >
                 {statusStyle.label}
               </span>
             </div>
-            <div 
+            <div
               className="w-16 h-1 rounded"
-              style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
+              style={{ background: `linear-gradient(90deg, ${gold}, transparent)` }}
             />
           </div>
 
-          {/* Edit button - only for own pending requests */}
           {isOwnRequest && request.status === 'pendiente' && (
             <Button
               onClick={() => navigate(`/broker/request/${id}/edit`)}
-              variant="outline"
-              style={{ borderColor: accentColor, color: accentColor }}
+              className="gap-2"
+              style={{
+                backgroundColor: navy,
+                color: '#FFFFFF',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '12px',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
             >
-              <Pencil className="h-4 w-4 mr-2" />
+              <Pencil className="h-4 w-4" />
               Editar solicitud
             </Button>
           )}
         </div>
 
-        {/* Info banner when request is no longer editable */}
+        {/* Info banner */}
         {isOwnRequest && request.status === 'en_gestion' && (
-          <div 
-            className="mt-4 flex items-start gap-3 p-3 rounded-lg text-sm"
-            style={{ 
-              backgroundColor: isDark ? '#1e3a8a30' : '#dbeafe', 
-              color: accentColor,
-              border: `1px solid ${isDark ? '#1e3a8a60' : '#bfdbfe'}`,
+          <div
+            className="mt-4 flex items-start gap-3 p-4 rounded-lg text-sm"
+            style={{
+              backgroundColor: '#DBEAFE',
+              border: '1px solid #BFDBFE',
+              color: '#1E40AF',
+              fontFamily: 'Barlow, sans-serif',
             }}
           >
             <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -173,7 +192,7 @@ export default function BrokerRequestDetail() {
           </div>
         )}
 
-        {/* Quote acceptance block for presupuesto_enviado */}
+        {/* Quote acceptance block */}
         {isOwnRequest && request.status === 'presupuesto_enviado' && (() => {
           const subtotal = (request.items || []).reduce((sum, it) => sum + (it.price_with_commission || 0), 0);
           const iva = subtotal * 0.21;
@@ -181,26 +200,33 @@ export default function BrokerRequestDetail() {
           const fmt = (n: number) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
           return (
-            <div 
+            <div
               className="mt-4 rounded-lg p-5"
-              style={{ 
-                backgroundColor: isDark ? 'rgba(163, 230, 53, 0.04)' : '#fff7ed', 
-                border: `2px solid ${isDark ? 'rgba(163, 230, 53, 0.2)' : '#fb923c60'}`,
+              style={{
+                backgroundColor: '#FFFBEB',
+                border: `2px solid oklch(0.72 0.10 80 / 0.4)`,
               }}
             >
-              <h3 className="text-base font-semibold mb-3 flex items-center gap-2" style={{ color: isDark ? '#A3E635' : '#c2410c' }}>
-                <Info className="h-5 w-5" />
+              <h3
+                className="text-base mb-3 flex items-center gap-2"
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  color: navy,
+                }}
+              >
+                <Info className="h-5 w-5" style={{ color: gold }} />
                 Presupuesto pendiente de confirmación
               </h3>
-              <p className="text-sm mb-4" style={{ color: textSecondary }}>
+              <p className="text-sm mb-4" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
                 Revisa el importe y confirma o solicita cambios.
               </p>
-              
-              <div 
+
+              <div
                 className="rounded-lg p-4 mb-4"
-                style={{ backgroundColor: isDark ? '#0D1117' : '#ffffff', border: `1px solid ${cardBorder}` }}
+                style={{ backgroundColor: cardBg, border: `1px solid ${cardBorder}` }}
               >
-                <div className="space-y-1 text-sm">
+                <div className="space-y-1 text-sm" style={{ fontFamily: 'Barlow, sans-serif' }}>
                   <div className="flex justify-between" style={{ color: textSecondary }}>
                     <span>Subtotal (sin IVA):</span>
                     <span>{fmt(subtotal)} €</span>
@@ -209,7 +235,15 @@ export default function BrokerRequestDetail() {
                     <span>IVA 21%:</span>
                     <span>{fmt(iva)} €</span>
                   </div>
-                  <div className="flex justify-between font-bold text-base pt-2" style={{ color: textPrimary, borderTop: `1px solid ${cardBorder}` }}>
+                  <div
+                    className="flex justify-between text-base pt-2"
+                    style={{
+                      color: navy,
+                      borderTop: `1px solid ${cardBorder}`,
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontWeight: 800,
+                    }}
+                  >
                     <span>Total:</span>
                     <span>{fmt(total)} €</span>
                   </div>
@@ -221,7 +255,15 @@ export default function BrokerRequestDetail() {
                   onClick={() => setConfirmDialog('accept')}
                   disabled={isUpdatingStatus}
                   className="flex-1 gap-2"
-                  style={{ backgroundColor: '#16a34a', color: 'white' }}
+                  style={{
+                    backgroundColor: '#16a34a',
+                    color: 'white',
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                  }}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {statusAction === 'confirmado' ? 'Aceptando...' : 'Aceptar Presupuesto'}
@@ -231,20 +273,28 @@ export default function BrokerRequestDetail() {
                   onClick={() => setConfirmDialog('reject')}
                   disabled={isUpdatingStatus}
                   className="flex-1 gap-2"
-                  style={{ borderColor: '#dc2626', color: '#dc2626' }}
+                  style={{
+                    borderColor: '#dc2626',
+                    color: '#dc2626',
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                  }}
                 >
                   <XCircle className="h-4 w-4" />
-                  {statusAction === 'en_gestion' ? 'Enviando...' : 'Rechazar / Solicitar cambios'}
+                  {statusAction === 'en_gestion' ? 'Enviando...' : 'Rechazar'}
                 </Button>
               </div>
 
-              {/* Accept Confirmation Dialog */}
+              {/* Accept Dialog */}
               <AlertDialog open={confirmDialog === 'accept'} onOpenChange={(open) => !open && setConfirmDialog(null)}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar aceptación del presupuesto</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Vas a aceptar el presupuesto por un total de <strong>{fmt(total)} €</strong> (IVA incluido). Esta acción confirmará la solicitud y no se podrá deshacer.
+                      Vas a aceptar el presupuesto por un total de <strong>{fmt(total)} € (IVA incluido)</strong>. Esta acción es irreversible.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -275,7 +325,7 @@ export default function BrokerRequestDetail() {
                 </AlertDialogContent>
               </AlertDialog>
 
-              {/* Reject Confirmation Dialog */}
+              {/* Reject Dialog */}
               <AlertDialog open={confirmDialog === 'reject'} onOpenChange={(open) => !open && setConfirmDialog(null)}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -318,50 +368,124 @@ export default function BrokerRequestDetail() {
 
       {/* Client Info Card */}
       <div
-        className="rounded-lg border p-6 mb-6"
-        style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+        className="rounded-lg p-6 mb-6"
+        style={{ backgroundColor: cardBg, border: `1px solid ${cardBorder}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
       >
-        <h2 
-          className="text-lg font-semibold mb-4 flex items-center gap-2"
-          style={{ color: titleColor }}
+        <h2
+          className="mb-4 flex items-center gap-2"
+          style={{
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 700,
+            fontSize: '11px',
+            letterSpacing: '1.5px',
+            textTransform: 'uppercase',
+            color: textMuted,
+          }}
         >
-          <Users className="h-5 w-5" />
+          <Users className="h-4 w-4" />
           Información del Cliente
         </h2>
-        
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-sm" style={{ color: textSecondary }}>Cliente</label>
-            <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{request.client_name}</p>
+            <label
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '10px',
+                letterSpacing: '1.5px',
+                textTransform: 'uppercase',
+                color: textMuted,
+              }}
+            >
+              Cliente
+            </label>
+            <p
+              className="mt-1"
+              style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: textPrimary, fontSize: '15px' }}
+            >
+              {request.client_name}
+            </p>
           </div>
-          
+
           <div>
-            <label className="text-sm" style={{ color: textSecondary }}>Broker</label>
-            <p className="font-medium mt-0.5 flex items-center gap-2" style={{ color: textPrimary }}>
+            <label
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '10px',
+                letterSpacing: '1.5px',
+                textTransform: 'uppercase',
+                color: textMuted,
+              }}
+            >
+              Broker
+            </label>
+            <p
+              className="mt-1 flex items-center gap-2"
+              style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: textPrimary, fontSize: '15px' }}
+            >
               <Building2 className="h-4 w-4" style={{ color: textMuted }} />
               {request.broker_name}
               {isOwnRequest && (
-                <span 
-                  className="text-xs px-1.5 py-0.5 rounded font-semibold"
-                  style={{ backgroundColor: isDark ? 'rgba(163, 230, 53, 0.1)' : '#b8860b25', color: accentColor }}
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded"
+                  style={{
+                    backgroundColor: 'rgba(0,19,33,0.08)',
+                    color: navy,
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '9px',
+                    letterSpacing: '0.05em',
+                  }}
                 >
-                  (tú)
+                  TÚ
                 </span>
               )}
             </p>
           </div>
 
           <div>
-            <label className="text-sm" style={{ color: textSecondary }}>Fecha de creación</label>
-            <p className="font-medium mt-0.5" style={{ color: textPrimary }}>
+            <label
+              style={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '10px',
+                letterSpacing: '1.5px',
+                textTransform: 'uppercase',
+                color: textMuted,
+              }}
+            >
+              Fecha de creación
+            </label>
+            <p
+              className="mt-1"
+              style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: textPrimary, fontSize: '15px' }}
+            >
               {format(new Date(request.created_at), "d 'de' MMMM yyyy, HH:mm", { locale: es })}
             </p>
           </div>
 
           {request.notes && (
             <div className="sm:col-span-2">
-              <label className="text-sm" style={{ color: textSecondary }}>Notas</label>
-              <p className="mt-0.5 whitespace-pre-wrap" style={{ color: textPrimary }}>{request.notes}</p>
+              <label
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '10px',
+                  letterSpacing: '1.5px',
+                  textTransform: 'uppercase',
+                  color: textMuted,
+                }}
+              >
+                Notas
+              </label>
+              <p
+                className="mt-1 whitespace-pre-wrap"
+                style={{ fontFamily: 'Barlow, sans-serif', color: textPrimary }}
+              >
+                {request.notes}
+              </p>
             </div>
           )}
         </div>
@@ -369,9 +493,16 @@ export default function BrokerRequestDetail() {
 
       {/* Transfer Items */}
       <div className="mb-6">
-        <h2 
-          className="text-lg font-semibold mb-4"
-          style={{ color: titleColor }}
+        <h2
+          className="mb-4"
+          style={{
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 700,
+            fontSize: '11px',
+            letterSpacing: '1.5px',
+            textTransform: 'uppercase',
+            color: textMuted,
+          }}
         >
           Trayectos ({request.items?.length || 0})
         </h2>
@@ -382,14 +513,6 @@ export default function BrokerRequestDetail() {
               key={item.id}
               item={item}
               index={index}
-              organizationId={broker?.organization_id}
-              isDark={isDark}
-              textPrimary={textPrimary}
-              textSecondary={textSecondary}
-              textMuted={textMuted}
-              cardBg={cardBg}
-              cardBorder={cardBorder}
-              titleColor={titleColor}
               requestStatus={request.status}
             />
           ))}
@@ -397,7 +520,7 @@ export default function BrokerRequestDetail() {
       </div>
 
       {/* Status History Timeline */}
-      <StatusTimeline requestId={request.id} isDark={isDark} />
+      <StatusTimeline requestId={request.id} isDark={false} />
 
       {/* Internal Notes */}
       {broker && request && (
@@ -407,7 +530,7 @@ export default function BrokerRequestDetail() {
             organizationId={broker.organization_id}
             currentBrokerId={broker.id}
             currentAuthorName={broker.name}
-            isDark={isDark}
+            isDark={false}
           />
         </div>
       )}
@@ -415,21 +538,15 @@ export default function BrokerRequestDetail() {
   );
 }
 
+/* ─── Transfer Item Detail ─── */
+
 interface TransferItemDetailProps {
   item: TransferItem;
   index: number;
-  organizationId?: string;
-  isDark: boolean;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  cardBg: string;
-  cardBorder: string;
-  titleColor: string;
   requestStatus: TransferRequestStatus;
 }
 
-function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, textMuted, cardBg, cardBorder, titleColor, requestStatus }: TransferItemDetailProps) {
+function TransferItemDetail({ item, index, requestStatus }: TransferItemDetailProps) {
   const { data: additionalVehicles = [] } = useQuery({
     queryKey: ['broker-item-vehicles', item.id],
     queryFn: async () => {
@@ -446,53 +563,57 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
 
   const hasDriver = item.driver_name && !item.driver_pending;
 
-  const headerBg = isDark ? '#0D1117' : '#f8fafc';
-  const dividerColor = isDark ? 'rgba(163, 230, 53, 0.1)' : '#e2e8f0';
-
-  // Píldoras de íconos adaptadas al tema
-  const pickupPillBg = isDark ? 'rgba(20,83,45,0.3)' : '#dcfce7';
-  const pickupIconColor = isDark ? '#4ade80' : '#16a34a';
-  const dropoffPillBg = isDark ? 'rgba(127,29,29,0.3)' : '#fee2e2';
-  const dropoffIconColor = isDark ? '#f87171' : '#dc2626';
-  const driverPillBg = isDark ? 'rgba(30,58,138,0.3)' : '#dbeafe';
-  const driverIconColor = isDark ? '#A3E635' : '#2563eb';
-
-  const itemStatusBg = item.status === 'confirmado'
-    ? (isDark ? 'rgba(6,64,40,0.35)' : '#d1fae5')
-    : (isDark ? 'rgba(120,53,15,0.35)' : '#fef3c7');
-  const itemStatusText = item.status === 'confirmado'
-    ? (isDark ? '#34d399' : '#065f46')
-    : (isDark ? '#fbbf24' : '#92400e');
+  const itemStatusBg = item.status === 'confirmado' ? '#DCFCE7' : '#FEF3C7';
+  const itemStatusText = item.status === 'confirmado' ? '#166534' : '#92400E';
 
   return (
-    <div 
-      className="rounded-lg border overflow-hidden"
-      style={{ 
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{
         backgroundColor: cardBg,
-        borderColor: cardBorder,
-        borderLeft: `3px solid ${isDark ? '#A3E635' : '#b8860b'}`,
+        border: `1px solid ${cardBorder}`,
+        borderLeft: `3px solid ${gold}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
       }}
     >
       {/* Header */}
-      <div 
+      <div
         className="px-4 py-3 flex items-center justify-between"
-        style={{ backgroundColor: headerBg, borderBottom: `1px solid ${dividerColor}` }}
+        style={{ backgroundColor: '#FAFAF8', borderBottom: `1px solid ${cardBorder}` }}
       >
-        <span className="font-medium" style={{ color: titleColor }}>
+        <span
+          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: navy, fontSize: '14px' }}
+        >
           Trayecto {index + 1}
         </span>
         <div className="flex items-center gap-2">
-          {['presupuesto_enviado', 'confirmado', 'completado'].includes(requestStatus) && item.price_with_commission != null && item.price_with_commission > 0 && (
-            <span 
-              className="px-2.5 py-0.5 rounded text-sm font-bold"
-              style={{ backgroundColor: isDark ? 'rgba(163, 230, 53, 0.08)' : '#b8860b20', color: isDark ? '#A3E635' : '#b8860b' }}
-            >
-              {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price_with_commission)} € <span className="font-normal text-xs" style={{ opacity: 0.7 }}>(sin IVA)</span>
-            </span>
-          )}
-          <span 
-            className="px-2 py-0.5 rounded text-xs font-medium"
-            style={{ backgroundColor: itemStatusBg, color: itemStatusText }}
+          {['presupuesto_enviado', 'confirmado', 'completado'].includes(requestStatus) &&
+            item.price_with_commission != null &&
+            item.price_with_commission > 0 && (
+              <span
+                className="px-2.5 py-0.5 rounded text-sm"
+                style={{
+                  backgroundColor: 'rgba(0,19,33,0.06)',
+                  color: navy,
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                }}
+              >
+                {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price_with_commission)} €{' '}
+                <span className="font-normal text-xs" style={{ color: textMuted }}>(sin IVA)</span>
+              </span>
+            )}
+          <span
+            className="px-2 py-0.5 rounded text-xs"
+            style={{
+              backgroundColor: itemStatusBg,
+              color: itemStatusText,
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: '10px',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}
           >
             {item.status === 'confirmado' ? 'Confirmado' : 'Pendiente'}
           </span>
@@ -503,7 +624,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
         {/* Date, Pax & Vehicle */}
         <div className="flex flex-wrap gap-4">
           {item.transfer_date && (
-            <div className="flex items-center gap-2 text-sm" style={{ color: textPrimary }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>
               <Calendar className="h-4 w-4" style={{ color: textMuted }} />
               <span className="font-medium">
                 {format(new Date(item.transfer_date), "EEEE d 'de' MMMM yyyy", { locale: es })}
@@ -511,24 +632,22 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
             </div>
           )}
           {item.pax_count && (
-            <div className="flex items-center gap-2 text-sm" style={{ color: textSecondary }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
               <Users className="h-4 w-4" style={{ color: textMuted }} />
               <span>{item.pax_count} pasajero(s)</span>
             </div>
           )}
           {item.vehicle_type && (
-            <div className="flex items-center gap-2 text-sm" style={{ color: textSecondary }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
               <Car className="h-4 w-4" style={{ color: textMuted }} />
               <span>{getVehicleInfo(item.vehicle_type)?.label || item.vehicle_type}</span>
             </div>
           )}
           {additionalVehicles.map((av) => (
-            <div key={av.id} className="flex items-center gap-2 text-sm" style={{ color: textSecondary }}>
+            <div key={av.id} className="flex items-center gap-2 text-sm" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
               <Car className="h-4 w-4" style={{ color: textMuted }} />
               <span>{getVehicleInfo(av.vehicle_type)?.label || av.vehicle_type}</span>
-              {av.driver_name && (
-                <span style={{ color: textMuted }}>· {av.driver_name}</span>
-              )}
+              {av.driver_name && <span style={{ color: textMuted }}>· {av.driver_name}</span>}
             </div>
           ))}
         </div>
@@ -536,17 +655,19 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
         {/* Pickup */}
         {item.pickup_enabled && item.pickup_location && (
           <div className="flex items-start gap-3">
-            <div 
+            <div
               className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: pickupPillBg }}
+              style={{ backgroundColor: '#DCFCE7' }}
             >
-              <MapPin className="h-4 w-4" style={{ color: pickupIconColor }} />
+              <MapPin className="h-4 w-4" style={{ color: '#16a34a' }} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Recogida</label>
-              <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.pickup_location}</p>
+              <label style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
+                Recogida
+              </label>
+              <p className="font-medium mt-0.5" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>{item.pickup_location}</p>
               {item.pickup_time && (
-                <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
                   <Clock className="h-3.5 w-3.5" />
                   {item.pickup_time}
                 </p>
@@ -558,17 +679,19 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
         {/* Dropoff */}
         {item.dropoff_enabled && item.dropoff_location && (
           <div className="flex items-start gap-3">
-            <div 
+            <div
               className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: dropoffPillBg }}
+              style={{ backgroundColor: '#FEE2E2' }}
             >
-              <MapPin className="h-4 w-4" style={{ color: dropoffIconColor }} />
+              <MapPin className="h-4 w-4" style={{ color: '#dc2626' }} />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Llegada</label>
-              <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.dropoff_location}</p>
+              <label style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
+                Llegada
+              </label>
+              <p className="font-medium mt-0.5" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>{item.dropoff_location}</p>
               {item.dropoff_time && (
-                <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
                   <Clock className="h-3.5 w-3.5" />
                   {item.dropoff_time}
                 </p>
@@ -579,28 +702,24 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
 
         {/* Return Trip */}
         {item.has_return && (
-          <div
-            className="pt-4 space-y-3"
-            style={{ borderTop: `1px solid ${dividerColor}` }}
-          >
-            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide" style={{ color: textMuted }}>
+          <div className="pt-4 space-y-3" style={{ borderTop: `1px solid ${cardBorder}` }}>
+            <div className="flex items-center gap-1.5" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
               <RotateCcw className="h-3.5 w-3.5" />
               Viaje de vuelta
             </div>
 
             {item.return_pickup_enabled && item.return_pickup_location && (
               <div className="flex items-start gap-3">
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: pickupPillBg }}
-                >
-                  <MapPin className="h-4 w-4" style={{ color: pickupIconColor }} />
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#DCFCE7' }}>
+                  <MapPin className="h-4 w-4" style={{ color: '#16a34a' }} />
                 </div>
                 <div>
-                  <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Recogida (vuelta)</label>
-                  <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.return_pickup_location}</p>
+                  <label style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
+                    Recogida (vuelta)
+                  </label>
+                  <p className="font-medium mt-0.5" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>{item.return_pickup_location}</p>
                   {item.return_pickup_time && (
-                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
                       <Clock className="h-3.5 w-3.5" />
                       {item.return_pickup_time}
                     </p>
@@ -611,17 +730,16 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
 
             {item.return_dropoff_enabled && item.return_dropoff_location && (
               <div className="flex items-start gap-3">
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: dropoffPillBg }}
-                >
-                  <MapPin className="h-4 w-4" style={{ color: dropoffIconColor }} />
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FEE2E2' }}>
+                  <MapPin className="h-4 w-4" style={{ color: '#dc2626' }} />
                 </div>
                 <div>
-                  <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Destino (vuelta)</label>
-                  <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.return_dropoff_location}</p>
+                  <label style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
+                    Destino (vuelta)
+                  </label>
+                  <p className="font-medium mt-0.5" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>{item.return_dropoff_location}</p>
                   {item.return_dropoff_time && (
-                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
                       <Clock className="h-3.5 w-3.5" />
                       {item.return_dropoff_time}
                     </p>
@@ -633,23 +751,19 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
         )}
 
         {/* Driver Info */}
-        <div 
-          className="pt-4"
-          style={{ borderTop: `1px solid ${dividerColor}` }}
-        >
+        <div className="pt-4" style={{ borderTop: `1px solid ${cardBorder}` }}>
           {hasDriver ? (
             <div className="flex items-start gap-3">
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: driverPillBg }}
-              >
-                <User className="h-4 w-4" style={{ color: driverIconColor }} />
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#DBEAFE' }}>
+                <User className="h-4 w-4" style={{ color: '#2563EB' }} />
               </div>
               <div>
-                <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Conductor asignado</label>
-                <p className="font-medium mt-0.5" style={{ color: textPrimary }}>{item.driver_name}</p>
+                <label style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
+                  Conductor asignado
+                </label>
+                <p className="font-medium mt-0.5" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>{item.driver_name}</p>
                 {item.driver_phone && (
-                  <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary }}>
+                  <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
                     <Phone className="h-3.5 w-3.5" />
                     {item.driver_phone}
                   </p>
@@ -657,7 +771,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-sm" style={{ color: textSecondary }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: textSecondary, fontFamily: 'Barlow, sans-serif' }}>
               <Clock className="h-4 w-4" />
               <span>Conductor pendiente de asignar</span>
             </div>
@@ -666,12 +780,11 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
 
         {/* Notes */}
         {item.notes && (
-          <div 
-            className="pt-4"
-            style={{ borderTop: `1px solid ${dividerColor}` }}
-          >
-            <label className="text-xs uppercase tracking-wide" style={{ color: textMuted }}>Notas</label>
-            <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: textPrimary }}>{item.notes}</p>
+          <div className="pt-4" style={{ borderTop: `1px solid ${cardBorder}` }}>
+            <label style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: textMuted }}>
+              Notas
+            </label>
+            <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: textPrimary, fontFamily: 'Barlow, sans-serif' }}>{item.notes}</p>
           </div>
         )}
       </div>

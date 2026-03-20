@@ -24,6 +24,12 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
+/*
+ * Azul Cars Brand – Dashboard
+ * Warm bg: #F5F3EF | Card: #FFFFFF | Navy: #001321
+ * Gold: oklch(0.72 0.10 80) | Headings: Montserrat | Body: Barlow
+ */
+
 export default function BrokerDashboard() {
   const { broker } = useBrokerAuth();
 
@@ -36,21 +42,22 @@ export default function BrokerDashboard() {
   const { requests, brokers, stats, isLoading } = useBrokerRequests(filters);
 
   const handleSearchChange = (value: string) => {
-    setFilters(prev => ({ ...prev, search: value }));
+    setFilters((prev) => ({ ...prev, search: value }));
   };
 
   const handleStatusChange = (value: string) => {
-    setFilters(prev => ({ ...prev, status: value as BrokerFilters['status'] }));
+    setFilters((prev) => ({ ...prev, status: value as BrokerFilters['status'] }));
   };
 
   const handleBrokerChange = (value: string) => {
-    setFilters(prev => ({ ...prev, brokerId: value }));
+    setFilters((prev) => ({ ...prev, brokerId: value }));
   };
 
-  const inputStyle = {
-    backgroundColor: '#161B22',
-    borderColor: 'rgba(163, 230, 53, 0.15)',
-    color: '#E6EDF3',
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E2DB',
+    color: '#0F1216',
+    fontFamily: 'Barlow, sans-serif',
   };
 
   return (
@@ -61,44 +68,47 @@ export default function BrokerDashboard() {
           label="Total"
           value={stats.total}
           icon={<LayoutList className="h-5 w-5" />}
-          accentColor="#A3E635"
+          accentColor="#001321"
         />
         <StatCard
           label="Pendientes"
           value={stats.pendiente}
           icon={<Clock className="h-5 w-5" />}
-          accentColor="#FBBF24"
+          accentColor="#D97706"
         />
         <StatCard
           label="En gestión"
           value={stats.en_gestion}
           icon={<TrendingUp className="h-5 w-5" />}
-          accentColor="#60A5FA"
+          accentColor="#2563EB"
         />
         <StatCard
           label="Ppto. Enviado"
           value={stats.presupuesto_enviado}
           icon={<Send className="h-5 w-5" />}
-          accentColor="#FB923C"
+          accentColor="#EA580C"
         />
         <StatCard
           label="Confirmados"
           value={stats.confirmado}
           icon={<CheckCircle2 className="h-5 w-5" />}
-          accentColor="#34D399"
+          accentColor="#16A34A"
         />
         <div className="col-span-2 md:col-span-1">
           <Link to="/broker/new" className="block h-full">
             <div
               className="h-full rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all hover:brightness-110 cursor-pointer"
               style={{
-                backgroundColor: '#A3E635',
-                color: '#0D1117',
+                backgroundColor: '#001321',
+                color: '#FFFFFF',
                 minHeight: '100px',
+                fontFamily: 'Montserrat, sans-serif',
               }}
             >
               <Plus className="h-6 w-6" />
-              <span className="font-bold text-xs uppercase tracking-wider">Nueva Solicitud</span>
+              <span className="font-bold text-xs uppercase tracking-wider">
+                Nueva Solicitud
+              </span>
             </div>
           </Link>
         </div>
@@ -107,14 +117,19 @@ export default function BrokerDashboard() {
       {/* Section Header */}
       <div className="mb-6">
         <h2
-          className="text-lg font-bold uppercase tracking-wider mb-1"
-          style={{ color: '#E6EDF3' }}
+          className="text-lg mb-1"
+          style={{
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 800,
+            color: '#001321',
+            letterSpacing: '-0.02em',
+          }}
         >
           Solicitudes de la Organización
         </h2>
         <div
           className="w-20 h-[2px] rounded"
-          style={{ background: 'linear-gradient(90deg, #A3E635, transparent)' }}
+          style={{ background: 'linear-gradient(90deg, oklch(0.72 0.10 80), transparent)' }}
         />
       </div>
 
@@ -123,12 +138,12 @@ export default function BrokerDashboard() {
         <div className="relative flex-1">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-            style={{ color: 'rgba(230, 237, 243, 0.4)' }}
+            style={{ color: '#52555B' }}
           />
           <Input
             placeholder="Buscar por cliente o número..."
             value={filters.search}
-            onChange={e => handleSearchChange(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-10 h-10"
             style={inputStyle}
           />
@@ -155,7 +170,7 @@ export default function BrokerDashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los brokers</SelectItem>
-            {brokers.map(b => (
+            {brokers.map((b) => (
               <SelectItem key={b.id} value={b.id}>
                 {b.name} {b.id === broker?.id && '(tú)'}
               </SelectItem>
@@ -167,31 +182,46 @@ export default function BrokerDashboard() {
       {/* Request List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#A3E635' }} />
+          <Loader2
+            className="h-8 w-8 animate-spin"
+            style={{ color: 'oklch(0.72 0.10 80)' }}
+          />
         </div>
       ) : requests.length === 0 ? (
         <div className="text-center py-20">
           <div
             className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-            style={{ backgroundColor: 'rgba(163, 230, 53, 0.1)' }}
+            style={{ backgroundColor: 'rgba(0,19,33,0.06)' }}
           >
-            <FileText className="h-8 w-8" style={{ color: 'rgba(230, 237, 243, 0.4)' }} />
+            <FileText className="h-8 w-8" style={{ color: '#52555B' }} />
           </div>
           <h3
-            className="text-lg font-semibold mb-1"
-            style={{ color: '#E6EDF3' }}
+            className="text-lg mb-1"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              color: '#001321',
+            }}
           >
             No hay solicitudes
           </h3>
-          <p className="mb-4" style={{ color: 'rgba(230, 237, 243, 0.5)' }}>
+          <p className="mb-4" style={{ color: '#52555B', fontFamily: 'Barlow, sans-serif' }}>
             {filters.search || filters.status !== 'all' || filters.brokerId !== 'all'
               ? 'No se encontraron solicitudes con los filtros aplicados'
               : 'Crea tu primera solicitud de transfer'}
           </p>
           <Link to="/broker/new">
             <Button
-              className="font-bold uppercase text-xs tracking-wider hover:brightness-110"
-              style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+              className="hover:brightness-110"
+              style={{
+                backgroundColor: '#001321',
+                color: '#FFFFFF',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: '11px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase' as const,
+              }}
             >
               <Plus className="h-4 w-4 mr-2" />
               Nueva Solicitud
@@ -200,7 +230,7 @@ export default function BrokerDashboard() {
         </div>
       ) : (
         <div className="space-y-3">
-          {requests.map(request => (
+          {requests.map((request) => (
             <BrokerRequestCard key={request.id} request={request} />
           ))}
         </div>
@@ -221,20 +251,35 @@ function StatCard({ label, value, icon, accentColor }: StatCardProps) {
     <div
       className="rounded-lg p-4"
       style={{
-        backgroundColor: '#161B22',
-        border: '1px solid rgba(163, 230, 53, 0.08)',
-        borderTop: `2px solid ${accentColor}`,
+        backgroundColor: '#FFFFFF',
+        border: '1px solid #E5E2DB',
+        borderLeft: `3px solid ${accentColor}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
       }}
     >
       <div className="flex items-center justify-between mb-2">
-        <span style={{ color: accentColor, opacity: 0.8 }}>{icon}</span>
+        <span style={{ color: accentColor, opacity: 0.7 }}>{icon}</span>
       </div>
-      <div className="text-2xl font-bold" style={{ color: '#E6EDF3' }}>
+      <div
+        className="text-2xl"
+        style={{
+          fontFamily: 'Montserrat, sans-serif',
+          fontWeight: 800,
+          color: '#001321',
+        }}
+      >
         {value}
       </div>
       <div
-        className="text-xs uppercase tracking-wider mt-1"
-        style={{ color: 'rgba(230, 237, 243, 0.5)' }}
+        className="mt-1"
+        style={{
+          fontFamily: 'Montserrat, sans-serif',
+          fontWeight: 700,
+          fontSize: '10px',
+          letterSpacing: '1.5px',
+          textTransform: 'uppercase' as const,
+          color: '#52555B',
+        }}
       >
         {label}
       </div>

@@ -11,6 +11,33 @@ import {
 import { LogOut, Plus } from 'lucide-react';
 import { BrokerNotificationBell } from '@/components/broker/BrokerNotificationBell';
 
+/*
+ * Azul Cars Brand Tokens
+ * Nav/Header: #001321 (dark navy)
+ * Gold accent: oklch(0.72 0.10 80) ≈ #C9A96E
+ * Body bg: #F5F3EF (warm off-white)
+ * Card bg: #FFFFFF
+ * Headings: Montserrat 700-900
+ * Body: Barlow 400-600
+ * Labels: Montserrat 700, uppercase, tracking 1.5px
+ * Text dark: #0F1216
+ * Text muted: #52555B
+ */
+
+const brand = {
+  navy: '#001321',
+  navyLight: '#0A1E30',
+  gold: 'oklch(0.72 0.10 80)',
+  goldHover: 'oklch(0.78 0.10 80)',
+  warmBg: '#F5F3EF',
+  white: '#FFFFFF',
+  textDark: '#0F1216',
+  textMuted: '#52555B',
+  textOnDark: '#FFFFFF',
+  textOnDarkMuted: 'rgba(255,255,255,0.65)',
+  borderLight: 'rgba(0,19,33,0.08)',
+};
+
 interface BrokerLayoutProps {
   children: React.ReactNode;
 }
@@ -32,15 +59,18 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
     <TooltipProvider>
       <div
         className="min-h-screen flex flex-col"
-        style={{ backgroundColor: '#0D1117', color: '#E6EDF3' }}
+        style={{
+          backgroundColor: brand.warmBg,
+          color: brand.textDark,
+          fontFamily: 'Barlow, sans-serif',
+        }}
       >
-        {/* Header */}
+        {/* Header - dark navy like azulcars.com */}
         <header
           className="sticky top-0 z-50"
           style={{
-            backgroundColor: 'rgba(13, 17, 23, 0.95)',
-            backdropFilter: 'blur(12px)',
-            borderBottom: '1px solid rgba(163, 230, 53, 0.15)',
+            backgroundColor: brand.navy,
+            borderBottom: 'none',
           }}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,45 +84,63 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
                     className="h-8 w-auto"
                   />
                 ) : (
-                  <div
-                    className="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-sm"
-                    style={{ backgroundColor: '#A3E635', color: '#0D1117' }}
+                  <span
+                    className="text-xl tracking-tight"
+                    style={{
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontWeight: 800,
+                      color: brand.textOnDark,
+                      letterSpacing: '-0.02em',
+                    }}
                   >
-                    AC
-                  </div>
+                    AZUL<span style={{ color: brand.gold }}>.</span>
+                  </span>
                 )}
                 <div className="hidden sm:block">
                   <span
-                    className="font-semibold text-lg tracking-tight"
-                    style={{ color: '#E6EDF3' }}
+                    className="text-sm"
+                    style={{
+                      fontFamily: 'Barlow, sans-serif',
+                      fontWeight: 500,
+                      color: brand.textOnDarkMuted,
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase' as const,
+                    }}
                   >
-                    {broker?.organization_name || 'Portal de Broker'}
+                    Portal Transfers
                   </span>
                 </div>
               </Link>
 
               {/* Right side */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Link to="/broker/new">
                   <Button
                     size="sm"
-                    className="hidden sm:flex gap-2 font-semibold uppercase text-xs tracking-wider transition-all hover:brightness-110"
+                    className="hidden sm:flex gap-2 transition-all hover:brightness-110"
                     style={{
-                      backgroundColor: '#A3E635',
-                      color: '#0D1117',
+                      backgroundColor: brand.gold,
+                      color: brand.navy,
                       border: 'none',
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase' as const,
+                      borderRadius: '4px',
                     }}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     Nueva Solicitud
                   </Button>
                   <Button
                     size="icon"
                     className="sm:hidden"
                     style={{
-                      backgroundColor: '#A3E635',
-                      color: '#0D1117',
+                      backgroundColor: brand.gold,
+                      color: brand.navy,
                       border: 'none',
+                      borderRadius: '4px',
                     }}
                   >
                     <Plus className="h-4 w-4" />
@@ -101,10 +149,13 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
 
                 <div
                   className="hidden md:flex items-center gap-2 text-sm px-3"
-                  style={{ color: 'rgba(230, 237, 243, 0.7)' }}
+                  style={{
+                    color: brand.textOnDarkMuted,
+                    fontFamily: 'Barlow, sans-serif',
+                  }}
                 >
                   <span>Hola,</span>
-                  <span className="font-medium" style={{ color: '#E6EDF3' }}>
+                  <span style={{ color: brand.textOnDark, fontWeight: 600 }}>
                     {broker?.name}
                   </span>
                 </div>
@@ -117,11 +168,20 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
                       variant="ghost"
                       size="sm"
                       onClick={handleLogout}
-                      className="transition-colors"
-                      style={{ color: 'rgba(230, 237, 243, 0.7)' }}
+                      className="transition-colors hover:bg-white/10"
+                      style={{ color: brand.textOnDarkMuted }}
                     >
                       <LogOut className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline text-xs uppercase tracking-wider">
+                      <span
+                        className="hidden sm:inline"
+                        style={{
+                          fontFamily: 'Montserrat, sans-serif',
+                          fontWeight: 600,
+                          fontSize: '10px',
+                          letterSpacing: '0.1em',
+                          textTransform: 'uppercase' as const,
+                        }}
+                      >
                         Salir
                       </span>
                     </Button>
@@ -134,8 +194,13 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
             </div>
           </div>
 
-          {/* Green accent line */}
-          <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, #A3E635, #65A30D, #A3E635)' }} />
+          {/* Gold accent line - like the Azul Cars nav bottom */}
+          <div
+            className="h-[2px]"
+            style={{
+              background: `linear-gradient(90deg, transparent, ${brand.gold}, transparent)`,
+            }}
+          />
         </header>
 
         {/* Main Content */}
@@ -143,18 +208,19 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
 
         {/* Footer */}
         <footer
-          className="py-4 text-center text-xs uppercase tracking-wider"
+          className="py-6 text-center"
           style={{
-            backgroundColor: '#0D1117',
-            color: 'rgba(230, 237, 243, 0.4)',
-            borderTop: '1px solid rgba(163, 230, 53, 0.1)',
+            backgroundColor: brand.navy,
+            color: brand.textOnDarkMuted,
+            fontFamily: 'Barlow, sans-serif',
+            fontSize: '13px',
           }}
         >
           <div className="max-w-7xl mx-auto px-4">
-            <p>
+            <p style={{ letterSpacing: '0.05em' }}>
               © {new Date().getFullYear()}{' '}
-              {broker?.organization_name || 'Transfer Management'}. Todos los
-              derechos reservados.
+              {broker?.organization_name || 'Azul Cars'}. Todos los derechos
+              reservados.
             </p>
           </div>
         </footer>
