@@ -181,6 +181,18 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         if (itemsError) throw itemsError;
       }
 
+      // Log initial status in history
+      await supabase.from('transfer_status_history').insert({
+        request_id: requestResult.id,
+        organization_id: broker.organization_id,
+        previous_status: null,
+        new_status: 'pendiente',
+        changed_by_type: 'broker',
+        changed_by_id: broker.id,
+        changed_by_name: broker.name,
+        note: 'Solicitud creada',
+      });
+
       return requestResult;
     },
     onSuccess: () => {

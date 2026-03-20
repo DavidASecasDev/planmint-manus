@@ -22,6 +22,8 @@ import { TransferDocumentsSection } from '@/components/transfers/TransferDocumen
 import { TransferFinancialSummary } from '@/components/transfers/TransferFinancialSummary';
 import { TransferQuoteActions } from '@/components/transfers/TransferQuoteActions';
 import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
+import { StatusTimeline } from '@/components/transfers/StatusTimeline';
+import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import { BrokerSelect } from '@/components/transfers/BrokerSelect';
 import { ProviderSelect } from '@/components/transfers/ProviderSelect';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
@@ -49,6 +51,7 @@ export default function TransferDetail() {
   
   // Hook at top level - always called with the current request ID
   const { createMultipleItems, isCreating: isCreatingItems } = useTransferItems(existingRequest?.id);
+  const { logStatusChange } = useTransferStatusHistory(isNew ? undefined : id);
   const { applyProviderCost, isApplyingCost } = useTransferDocuments(existingRequest?.id);
   
   // Ref to track if initial items have been created (prevents double creation)
@@ -147,9 +150,23 @@ export default function TransferDetail() {
     }
   };
 
-  const handleStatusChange = (status: TransferRequestStatus) => {
+  const handleStatusChange = async (status: TransferRequestStatus) => {
     if (id && !isNew) {
+      const previousStatus = existingRequest?.status || null;
       updateStatus({ id, status });
+      try {
+        await logStatusChange({
+          request_id: id,
+          organization_id: profile?.organization_id || '',
+          previous_status: previousStatus,
+          new_status: status,
+          changed_by_type: 'admin',
+          changed_by_id: profile?.id,
+          changed_by_name: profile?.name || 'Admin',
+        });
+      } catch (e) {
+        console.error('Failed to log status change:', e);
+      }
     }
   };
 
@@ -417,6 +434,11 @@ export default function TransferDetail() {
                     />
                   ))}
               </div>
+            )}
+
+            {/* Status History Timeline */}
+            {existingRequest && (
+              <StatusTimeline requestId={existingRequest.id} isDark={false} />
             )}
 
             {/* Internal Notes */}

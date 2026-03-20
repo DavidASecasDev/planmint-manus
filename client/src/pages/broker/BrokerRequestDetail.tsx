@@ -9,6 +9,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getVehicleInfo } from '@/lib/transferPricing';
 import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
+import { StatusTimeline } from '@/components/transfers/StatusTimeline';
+import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import type { TransferItemVehicle } from '@/types/transfers';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,6 +62,7 @@ export default function BrokerRequestDetail() {
   const { updateRequestStatus, isUpdatingStatus } = useBrokerRequests();
   const [statusAction, setStatusAction] = useState<'confirmado' | 'en_gestion' | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<'accept' | 'reject' | null>(null);
+  const { logStatusChange } = useTransferStatusHistory(id);
 
   // Paleta Nautical Luxury
   const cardBg = isDark ? '#1e293b' : '#ffffff';
@@ -250,6 +253,16 @@ export default function BrokerRequestDetail() {
                         setConfirmDialog(null);
                         setStatusAction('confirmado');
                         await updateRequestStatus({ id: request.id, status: 'confirmado' });
+                        await logStatusChange({
+                          request_id: request.id,
+                          organization_id: broker?.organization_id || '',
+                          previous_status: request.status,
+                          new_status: 'confirmado',
+                          changed_by_type: 'broker',
+                          changed_by_id: broker?.id,
+                          changed_by_name: broker?.name,
+                          note: 'Presupuesto aceptado por el broker',
+                        });
                         setStatusAction(null);
                       }}
                       style={{ backgroundColor: '#16a34a', color: 'white' }}
@@ -277,6 +290,16 @@ export default function BrokerRequestDetail() {
                         setConfirmDialog(null);
                         setStatusAction('en_gestion');
                         await updateRequestStatus({ id: request.id, status: 'en_gestion' });
+                        await logStatusChange({
+                          request_id: request.id,
+                          organization_id: broker?.organization_id || '',
+                          previous_status: request.status,
+                          new_status: 'en_gestion',
+                          changed_by_type: 'broker',
+                          changed_by_id: broker?.id,
+                          changed_by_name: broker?.name,
+                          note: 'Presupuesto rechazado, solicitud de cambios',
+                        });
                         setStatusAction(null);
                       }}
                       style={{ backgroundColor: '#dc2626', color: 'white' }}
@@ -371,6 +394,9 @@ export default function BrokerRequestDetail() {
           ))}
         </div>
       </div>
+
+      {/* Status History Timeline */}
+      <StatusTimeline requestId={request.id} isDark={isDark} />
 
       {/* Internal Notes */}
       {broker && request && (
