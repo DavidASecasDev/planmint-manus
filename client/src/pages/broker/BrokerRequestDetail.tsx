@@ -403,7 +403,7 @@ function TransferItemDetail({ item, index, isDark, textPrimary, textSecondary, t
               className="px-2.5 py-0.5 rounded text-sm font-bold"
               style={{ backgroundColor: '#b8860b20', color: isDark ? '#d4a017' : '#b8860b' }}
             >
-              {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price_with_commission)} €
+              {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price_with_commission)} € <span className="font-normal text-xs" style={{ opacity: 0.7 }}>(sin IVA)</span>
             </span>
           )}
           <span 

@@ -229,7 +229,7 @@ export default function BrokerRegister() {
               <Select value={organizationId} onValueChange={setOrganizationId}>
                 <SelectTrigger 
                   className="h-10"
-                  style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                  style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
                 >
                   <SelectValue placeholder={loadingOrgs ? "Cargando..." : "Selecciona una organización"} />
                 </SelectTrigger>
@@ -256,7 +256,7 @@ export default function BrokerRegister() {
                 required
                 disabled={isSubmitting}
                 className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
               />
             </div>
 
@@ -272,7 +272,7 @@ export default function BrokerRegister() {
                 onChange={(e) => setCompany(e.target.value)}
                 disabled={isSubmitting}
                 className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
               />
             </div>
 
@@ -289,7 +289,7 @@ export default function BrokerRegister() {
                 required
                 disabled={isSubmitting}
                 className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
               />
             </div>
 
@@ -305,7 +305,7 @@ export default function BrokerRegister() {
                 onChange={(e) => setPhone(e.target.value)}
                 disabled={isSubmitting}
                 className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
               />
             </div>
 
@@ -323,7 +323,7 @@ export default function BrokerRegister() {
                   required
                   disabled={isSubmitting}
                   className="h-10 pr-10"
-                  style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                  style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
                 />
                 <button
                   type="button"
@@ -348,7 +348,7 @@ export default function BrokerRegister() {
                 required
                 disabled={isSubmitting}
                 className="h-10"
-                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }}
+                style={{ borderColor: '#e2e8f0', backgroundColor: '#f8fafc', color: '#0f172a' }}
               />
             </div>
 

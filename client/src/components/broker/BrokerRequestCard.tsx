@@ -156,13 +156,13 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
                   className="text-xs uppercase tracking-wide"
                   style={{ color: textSecondary }}
                 >
-                  Importe
+                  Importe (sin IVA)
                 </div>
                 <div className="text-lg font-bold" style={{ color: '#b8860b' }}>
                   {new Intl.NumberFormat('es-ES', {
                     style: 'currency',
                     currency: 'EUR',
-                  }).format(request.total_amount * 1.21)}
+                  }).format(request.total_amount)}
                 </div>
               </div>
             ) : (

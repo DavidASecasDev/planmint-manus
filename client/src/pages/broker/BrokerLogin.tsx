@@ -156,7 +156,8 @@ export default function BrokerLogin() {
                 className="h-11"
                 style={{ 
                   borderColor: '#e2e8f0',
-                  backgroundColor: '#f8fafc'
+                  backgroundColor: '#f8fafc',
+                  color: '#0f172a',
                 }}
               />
             </div>
@@ -181,7 +182,8 @@ export default function BrokerLogin() {
                   className="h-11 pr-10"
                   style={{ 
                     borderColor: '#e2e8f0',
-                    backgroundColor: '#f8fafc'
+                    backgroundColor: '#f8fafc',
+                    color: '#0f172a',
                   }}
                 />
                 <button

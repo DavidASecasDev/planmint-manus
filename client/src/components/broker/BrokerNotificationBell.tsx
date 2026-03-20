@@ -22,7 +22,7 @@ export function BrokerNotificationBell() {
     }
     // Navigate to the transfer request detail
     if (notification.entity_id) {
-      navigate(`/broker/requests/${notification.entity_id}`);
+      navigate(`/broker/request/${notification.entity_id}`);
     }
   };
 
