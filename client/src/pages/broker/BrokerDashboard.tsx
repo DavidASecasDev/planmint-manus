@@ -1,3 +1,8 @@
+/*
+ * Azul Cars Brand — Broker Dashboard
+ * Uses semantic CSS tokens for dark/light mode compatibility
+ * bg-background | bg-card | text-foreground | text-muted-foreground
+ */
 import { Link } from 'react-router-dom';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { useBrokerRequests, BrokerFilters } from '@/hooks/useBrokerRequests';
@@ -24,12 +29,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-/*
- * Azul Cars Brand – Dashboard
- * Warm bg: #F5F3EF | Card: #FFFFFF | Navy: #001321
- * Gold: oklch(0.72 0.10 80) | Headings: Montserrat | Body: Barlow
- */
-
 export default function BrokerDashboard() {
   const { broker } = useBrokerAuth();
 
@@ -53,13 +52,6 @@ export default function BrokerDashboard() {
     setFilters((prev) => ({ ...prev, brokerId: value }));
   };
 
-  const inputStyle: React.CSSProperties = {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E2DB',
-    color: '#0F1216',
-    fontFamily: 'Barlow, sans-serif',
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Stats Cards */}
@@ -68,7 +60,7 @@ export default function BrokerDashboard() {
           label="Total"
           value={stats.total}
           icon={<LayoutList className="h-5 w-5" />}
-          accentColor="#001321"
+          accentColor="hsl(var(--foreground))"
         />
         <StatCard
           label="Pendientes"
@@ -97,10 +89,8 @@ export default function BrokerDashboard() {
         <div className="col-span-2 md:col-span-1">
           <Link to="/broker/new" className="block h-full">
             <div
-              className="h-full rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all hover:brightness-110 cursor-pointer"
+              className="h-full rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all hover:brightness-110 cursor-pointer bg-foreground text-background"
               style={{
-                backgroundColor: '#001321',
-                color: '#FFFFFF',
                 minHeight: '100px',
                 fontFamily: 'Montserrat, sans-serif',
               }}
@@ -117,11 +107,10 @@ export default function BrokerDashboard() {
       {/* Section Header */}
       <div className="mb-6">
         <h2
-          className="text-lg mb-1"
+          className="text-lg mb-1 text-foreground"
           style={{
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 800,
-            color: '#001321',
             letterSpacing: '-0.02em',
           }}
         >
@@ -137,20 +126,19 @@ export default function BrokerDashboard() {
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-            style={{ color: '#52555B' }}
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
           />
           <Input
             placeholder="Buscar por cliente o número..."
             value={filters.search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10 h-10"
-            style={inputStyle}
+            className="pl-10 h-10 bg-card border-border text-foreground"
+            style={{ fontFamily: 'Barlow, sans-serif' }}
           />
         </div>
 
         <Select value={filters.status || 'all'} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-full sm:w-[160px] h-10" style={inputStyle}>
+          <SelectTrigger className="w-full sm:w-[160px] h-10 bg-card border-border text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
@@ -165,7 +153,7 @@ export default function BrokerDashboard() {
         </Select>
 
         <Select value={filters.brokerId || 'all'} onValueChange={handleBrokerChange}>
-          <SelectTrigger className="w-full sm:w-[180px] h-10" style={inputStyle}>
+          <SelectTrigger className="w-full sm:w-[180px] h-10 bg-card border-border text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
             <SelectValue placeholder="Broker" />
           </SelectTrigger>
           <SelectContent>
@@ -182,40 +170,31 @@ export default function BrokerDashboard() {
       {/* Request List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2
-            className="h-8 w-8 animate-spin"
-            style={{ color: 'oklch(0.72 0.10 80)' }}
-          />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : requests.length === 0 ? (
         <div className="text-center py-20">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-            style={{ backgroundColor: 'rgba(0,19,33,0.06)' }}
-          >
-            <FileText className="h-8 w-8" style={{ color: '#52555B' }} />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-muted">
+            <FileText className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3
-            className="text-lg mb-1"
+            className="text-lg mb-1 text-foreground"
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
-              color: '#001321',
             }}
           >
             No hay solicitudes
           </h3>
-          <p className="mb-4" style={{ color: '#52555B', fontFamily: 'Barlow, sans-serif' }}>
+          <p className="mb-4 text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
             {filters.search || filters.status !== 'all' || filters.brokerId !== 'all'
               ? 'No se encontraron solicitudes con los filtros aplicados'
               : 'Crea tu primera solicitud de transfer'}
           </p>
           <Link to="/broker/new">
             <Button
-              className="hover:brightness-110"
+              className="hover:brightness-110 bg-foreground text-background"
               style={{
-                backgroundColor: '#001321',
-                color: '#FFFFFF',
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '11px',
@@ -249,36 +228,31 @@ interface StatCardProps {
 function StatCard({ label, value, icon, accentColor }: StatCardProps) {
   return (
     <div
-      className="rounded-lg p-4"
+      className="rounded-lg p-4 bg-card border border-border"
       style={{
-        backgroundColor: '#FFFFFF',
-        border: '1px solid #E5E2DB',
         borderLeft: `3px solid ${accentColor}`,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
       }}
     >
       <div className="flex items-center justify-between mb-2">
         <span style={{ color: accentColor, opacity: 0.7 }}>{icon}</span>
       </div>
       <div
-        className="text-2xl"
+        className="text-2xl text-foreground"
         style={{
           fontFamily: 'Montserrat, sans-serif',
           fontWeight: 800,
-          color: '#001321',
         }}
       >
         {value}
       </div>
       <div
-        className="mt-1"
+        className="mt-1 text-muted-foreground"
         style={{
           fontFamily: 'Montserrat, sans-serif',
           fontWeight: 700,
           fontSize: '10px',
           letterSpacing: '1.5px',
           textTransform: 'uppercase' as const,
-          color: '#52555B',
         }}
       >
         {label}

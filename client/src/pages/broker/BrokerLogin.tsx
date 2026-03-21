@@ -1,22 +1,19 @@
+/*
+ * Azul Cars Brand — Broker Login
+ * Dark mode: navy bg stays navy (brand identity), card adapts
+ * Gold accent: oklch(0.72 0.10 80)
+ * Headings: Montserrat 800 | Body/inputs: Barlow 400-500
+ */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
+import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { toast } from 'sonner';
-
-/*
- * Azul Cars Brand – Login
- * Navy bg: #001321
- * Gold accent: oklch(0.72 0.10 80)
- * Card: white with subtle shadow
- * Headings: Montserrat 800
- * Body/inputs: Barlow 400-500
- * Labels: Montserrat 700, uppercase, tracking wide
- */
 
 export default function BrokerLogin() {
   const [email, setEmail] = useState('');
@@ -28,7 +25,9 @@ export default function BrokerLogin() {
   const sessionCleared = useRef(false);
 
   const { login, isBroker, loading } = useBrokerAuth();
+  const { resolvedTheme, setTheme } = useBrokerTheme();
   const navigate = useNavigate();
+  const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
     if (sessionCleared.current) return;
@@ -96,17 +95,30 @@ export default function BrokerLogin() {
     <div
       className="min-h-screen flex items-center justify-center px-4"
       style={{
-        backgroundColor: '#001321',
+        backgroundColor: isDark ? '#060F17' : '#001321',
         fontFamily: 'Barlow, sans-serif',
       }}
     >
+      {/* Theme toggle - top right corner */}
+      <button
+        type="button"
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        className="fixed top-4 right-4 z-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
+        style={{ color: 'rgba(255,255,255,0.5)' }}
+        aria-label="Cambiar tema"
+      >
+        {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+
       <div className="w-full max-w-md relative z-10">
-        {/* Card – white on navy, like the booking widget on azulcars.com */}
+        {/* Card */}
         <div
           className="rounded-xl overflow-hidden"
           style={{
-            backgroundColor: '#FFFFFF',
-            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
+            backgroundColor: isDark ? '#0F1E2D' : '#FFFFFF',
+            boxShadow: isDark
+              ? '0 25px 60px -12px rgba(0, 0, 0, 0.6)'
+              : '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
           }}
         >
           {/* Header */}
@@ -116,7 +128,7 @@ export default function BrokerLogin() {
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 800,
-                color: '#001321',
+                color: isDark ? '#EDE8DF' : '#001321',
                 letterSpacing: '-0.02em',
               }}
             >
@@ -129,7 +141,7 @@ export default function BrokerLogin() {
             <p
               className="text-sm mt-3"
               style={{
-                color: '#52555B',
+                color: isDark ? '#7E8694' : '#52555B',
                 fontFamily: 'Barlow, sans-serif',
                 fontWeight: 400,
               }}
@@ -144,9 +156,9 @@ export default function BrokerLogin() {
               <div
                 className="p-3 rounded-lg text-sm text-center"
                 style={{
-                  backgroundColor: '#FEF2F2',
+                  backgroundColor: isDark ? 'rgba(220,38,38,0.12)' : '#FEF2F2',
                   color: '#DC2626',
-                  border: '1px solid #FECACA',
+                  border: isDark ? '1px solid rgba(220,38,38,0.25)' : '1px solid #FECACA',
                 }}
               >
                 {error}
@@ -162,7 +174,7 @@ export default function BrokerLogin() {
                   fontSize: '10px',
                   letterSpacing: '1.5px',
                   textTransform: 'uppercase' as const,
-                  color: '#52555B',
+                  color: isDark ? '#7E8694' : '#52555B',
                 }}
               >
                 Correo electrónico
@@ -177,9 +189,9 @@ export default function BrokerLogin() {
                 disabled={isSubmitting}
                 className="h-11"
                 style={{
-                  backgroundColor: '#F8F7F4',
-                  borderColor: '#E5E2DB',
-                  color: '#0F1216',
+                  backgroundColor: isDark ? '#0A1520' : '#F8F7F4',
+                  borderColor: isDark ? 'rgba(30,50,69,0.6)' : '#E5E2DB',
+                  color: isDark ? '#EDE8DF' : '#0F1216',
                   fontFamily: 'Barlow, sans-serif',
                   fontSize: '15px',
                 }}
@@ -195,7 +207,7 @@ export default function BrokerLogin() {
                   fontSize: '10px',
                   letterSpacing: '1.5px',
                   textTransform: 'uppercase' as const,
-                  color: '#52555B',
+                  color: isDark ? '#7E8694' : '#52555B',
                 }}
               >
                 Contraseña
@@ -211,9 +223,9 @@ export default function BrokerLogin() {
                   disabled={isSubmitting}
                   className="h-11 pr-10"
                   style={{
-                    backgroundColor: '#F8F7F4',
-                    borderColor: '#E5E2DB',
-                    color: '#0F1216',
+                    backgroundColor: isDark ? '#0A1520' : '#F8F7F4',
+                    borderColor: isDark ? 'rgba(30,50,69,0.6)' : '#E5E2DB',
+                    color: isDark ? '#EDE8DF' : '#0F1216',
                     fontFamily: 'Barlow, sans-serif',
                     fontSize: '15px',
                   }}
@@ -222,7 +234,7 @@ export default function BrokerLogin() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: '#52555B' }}
+                  style={{ color: isDark ? '#7E8694' : '#52555B' }}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -238,8 +250,8 @@ export default function BrokerLogin() {
               className="w-full h-11 transition-all hover:brightness-110"
               disabled={isSubmitting}
               style={{
-                backgroundColor: '#001321',
-                color: '#FFFFFF',
+                backgroundColor: isDark ? 'oklch(0.72 0.10 80)' : '#001321',
+                color: isDark ? '#001321' : '#FFFFFF',
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '12px',
@@ -268,13 +280,12 @@ export default function BrokerLogin() {
                 }
                 className="text-sm hover:underline block w-full"
                 style={{
-                  color: '#52555B',
+                  color: isDark ? '#7E8694' : '#52555B',
                   fontFamily: 'Barlow, sans-serif',
                 }}
               >
                 ¿Olvidaste tu contraseña?
               </button>
-
             </div>
           </form>
         </div>

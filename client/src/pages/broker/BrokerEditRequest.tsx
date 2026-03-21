@@ -1,7 +1,12 @@
+/*
+ * Azul Cars Brand — Edit Request
+ * Uses semantic CSS tokens for dark/light mode compatibility
+ */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrokerRequests, useBrokerRequestDetail, UpdateBrokerRequestData } from '@/hooks/useBrokerRequests';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
+import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,21 +19,14 @@ import {
 } from '@/components/broker/TransferItemFormCard';
 import { ArrowLeft, Plus, Loader2, AlertCircle } from 'lucide-react';
 
-/*
- * Azul Cars Brand – Edit Request
- * Navy: #001321 | Gold: oklch(0.72 0.10 80) | Warm bg: #F5F3EF
- * Cards: #FFFFFF | Headings: Montserrat | Body: Barlow
- */
-
-const navy = '#001321';
-const gold = 'oklch(0.72 0.10 80)';
-
 export default function BrokerEditRequest() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { broker } = useBrokerAuth();
   const { data: request, isLoading: isLoadingDetail } = useBrokerRequestDetail(id);
   const { updateRequest, isUpdating } = useBrokerRequests();
+  const { resolvedTheme } = useBrokerTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
@@ -70,7 +68,7 @@ export default function BrokerEditRequest() {
   if (isLoadingDetail) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: navy }} />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -82,18 +80,18 @@ export default function BrokerEditRequest() {
         <div className="text-center py-20">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
           <h2
-            className="text-xl mb-2"
-            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: '#111827' }}
+            className="text-xl mb-2 text-foreground"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}
           >
             No se puede editar esta solicitud
           </h2>
-          <p className="mb-4" style={{ color: '#6B7280', fontFamily: 'Barlow, sans-serif' }}>
+          <p className="mb-4 text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
             Solo se pueden editar solicitudes en estado pendiente que sean tuyas.
           </p>
           <button
             onClick={() => navigate(`/broker/request/${id}`)}
-            className="text-sm hover:underline"
-            style={{ color: navy, fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
+            className="text-sm hover:underline text-foreground"
+            style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
           >
             Volver al detalle
           </button>
@@ -142,44 +140,36 @@ export default function BrokerEditRequest() {
       <div className="mb-8">
         <button
           onClick={() => navigate(`/broker/request/${id}`)}
-          className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity"
-          style={{ color: navy, fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
+          className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity text-foreground"
+          style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al detalle
         </button>
 
         <h1
-          className="text-2xl mb-2"
-          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: navy }}
+          className="text-2xl mb-2 text-foreground"
+          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
         >
           Editar Solicitud {request?.request_number}
         </h1>
         <div
           className="w-16 h-1 rounded"
-          style={{ background: `linear-gradient(90deg, ${gold}, transparent)` }}
+          style={{ background: 'linear-gradient(90deg, oklch(0.72 0.10 80), transparent)' }}
         />
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* Client Info */}
-        <div
-          className="rounded-lg p-6 mb-6"
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E5E2DB',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
-        >
+        <div className="rounded-lg p-6 mb-6 bg-card border border-border">
           <h2
-            className="mb-4"
+            className="mb-4 text-muted-foreground"
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
               fontSize: '11px',
               letterSpacing: '1.5px',
               textTransform: 'uppercase',
-              color: '#9CA3AF',
             }}
           >
             Información del Cliente
@@ -189,7 +179,8 @@ export default function BrokerEditRequest() {
             <div className="sm:col-span-2">
               <Label
                 htmlFor="client_name"
-                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: '#374151' }}
+                className="text-foreground"
+                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
               >
                 Nombre del cliente *
               </Label>
@@ -199,15 +190,15 @@ export default function BrokerEditRequest() {
                 onChange={(e) => setClientName(e.target.value)}
                 placeholder="Ej: Sr. García y familia"
                 required
-                className="mt-1.5"
-                style={{ backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' }}
+                className="mt-1.5 bg-background border-input text-foreground"
               />
             </div>
 
             <div className="sm:col-span-2">
               <Label
                 htmlFor="notes"
-                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: '#374151' }}
+                className="text-foreground"
+                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
               >
                 Notas generales
               </Label>
@@ -216,9 +207,8 @@ export default function BrokerEditRequest() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Instrucciones especiales, preferencias del cliente..."
-                className="mt-1.5"
+                className="mt-1.5 bg-background border-input text-foreground"
                 rows={3}
-                style={{ backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' }}
               />
             </div>
           </div>
@@ -228,13 +218,13 @@ export default function BrokerEditRequest() {
         <div className="space-y-4 mb-6">
           <div className="flex items-center justify-between">
             <h2
+              className="text-muted-foreground"
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '11px',
                 letterSpacing: '1.5px',
                 textTransform: 'uppercase',
-                color: '#9CA3AF',
               }}
             >
               Trayectos ({items.length})
@@ -244,10 +234,8 @@ export default function BrokerEditRequest() {
               variant="outline"
               size="sm"
               onClick={handleAddItem}
-              className="gap-1"
+              className="gap-1 border-foreground text-foreground"
               style={{
-                borderColor: navy,
-                color: navy,
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '11px',
@@ -268,7 +256,7 @@ export default function BrokerEditRequest() {
               canRemove={items.length > 1}
               onChange={(field, value) => handleItemChange(item.id, field, value)}
               onRemove={() => handleRemoveItem(item.id)}
-              isDark={false}
+              isDark={isDark}
             />
           ))}
         </div>
@@ -280,9 +268,8 @@ export default function BrokerEditRequest() {
             variant="outline"
             onClick={() => navigate(`/broker/request/${id}`)}
             disabled={isUpdating}
+            className="border-border text-muted-foreground"
             style={{
-              borderColor: '#D1D5DB',
-              color: '#6B7280',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 600,
               fontSize: '12px',
@@ -293,10 +280,8 @@ export default function BrokerEditRequest() {
           <Button
             type="submit"
             disabled={isUpdating || !clientName.trim()}
-            className="hover:brightness-110"
+            className="hover:brightness-110 bg-foreground text-background"
             style={{
-              backgroundColor: navy,
-              color: '#FFFFFF',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
               fontSize: '12px',

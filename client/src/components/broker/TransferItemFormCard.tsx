@@ -1,3 +1,8 @@
+/*
+ * Azul Cars Brand — Transfer Item Form Card
+ * Uses semantic CSS tokens for dark/light mode compatibility
+ * isDark prop drives conditional styling
+ */
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -99,31 +104,21 @@ export function TransferItemFormCard({
   onRemove,
   isDark,
 }: TransferItemFormCardProps) {
-  // Azul Cars Brand: Navy #001321, Gold oklch(0.72 0.10 80), Warm bg #F5F3EF
-  const cardBg = '#FFFFFF';
-  const cardBorder = '#E5E2DB';
-  const headerBg = '#FAFAF8';
-  const titleColor = '#001321';
-  const textLabel = '#374151';
-  const dividerColor = '#E5E2DB';
-  const iconMuted = '#9CA3AF';
-  const inputStyle = { backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' };
-
   return (
     <div
-      className="rounded-lg border overflow-hidden"
+      className="rounded-lg border overflow-hidden bg-card border-border"
       style={{
-        backgroundColor: cardBg,
-        borderColor: cardBorder,
         borderLeft: '4px solid oklch(0.72 0.10 80)',
       }}
     >
       {/* Header */}
       <div
-        className="px-4 py-3 flex items-center justify-between"
-        style={{ backgroundColor: headerBg, borderBottom: `1px solid ${dividerColor}` }}
+        className="px-4 py-3 flex items-center justify-between border-b border-border bg-muted/50"
       >
-        <span style={{ color: titleColor, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '14px' }}>
+        <span
+          className="text-foreground"
+          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '14px' }}
+        >
           Trayecto {index + 1}
         </span>
         {canRemove && (
@@ -143,21 +138,20 @@ export function TransferItemFormCard({
         {/* Date, Pax & Vehicle */}
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <Label className="flex items-center gap-1.5" style={{ color: textLabel }}>
-              <Clock className="h-3.5 w-3.5" style={{ color: iconMuted }} />
+            <Label className="flex items-center gap-1.5 text-foreground">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               Fecha
             </Label>
             <Input
               type="date"
               value={item.transfer_date}
               onChange={(e) => onChange('transfer_date', e.target.value)}
-              className="mt-1.5"
-              style={inputStyle}
+              className="mt-1.5 bg-background border-input text-foreground"
             />
           </div>
           <div>
-            <Label className="flex items-center gap-1.5" style={{ color: textLabel }}>
-              <Users className="h-3.5 w-3.5" style={{ color: iconMuted }} />
+            <Label className="flex items-center gap-1.5 text-foreground">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
               Pasajeros
             </Label>
             <Input
@@ -166,20 +160,19 @@ export function TransferItemFormCard({
               value={item.pax_count}
               onChange={(e) => onChange('pax_count', e.target.value)}
               placeholder="Nº de pax"
-              className="mt-1.5"
-              style={inputStyle}
+              className="mt-1.5 bg-background border-input text-foreground"
             />
           </div>
           <div>
-            <Label className="flex items-center gap-1.5" style={{ color: textLabel }}>
-              <Car className="h-3.5 w-3.5" style={{ color: iconMuted }} />
+            <Label className="flex items-center gap-1.5 text-foreground">
+              <Car className="h-3.5 w-3.5 text-muted-foreground" />
               Tipo de vehículo
             </Label>
             <Select
               value={item.vehicle_type}
               onValueChange={(value) => onChange('vehicle_type', value)}
             >
-              <SelectTrigger className="mt-1.5" style={inputStyle}>
+              <SelectTrigger className="mt-1.5 bg-background border-input text-foreground">
                 <SelectValue placeholder="Seleccionar vehículo" />
               </SelectTrigger>
               <SelectContent>
@@ -201,7 +194,7 @@ export function TransferItemFormCard({
               checked={item.pickup_enabled}
               onCheckedChange={(checked) => onChange('pickup_enabled', checked)}
             />
-            <Label htmlFor={`pickup-${item.id}`} className="font-medium cursor-pointer">
+            <Label htmlFor={`pickup-${item.id}`} className="font-medium cursor-pointer text-foreground">
               Recogida
             </Label>
           </div>
@@ -209,23 +202,21 @@ export function TransferItemFormCard({
           {item.pickup_enabled && (
             <div className="grid gap-3 sm:grid-cols-2 pl-6">
               <div>
-                <Label className="text-xs" style={{ color: textLabel }}>Ubicación</Label>
+                <Label className="text-xs text-muted-foreground">Ubicación</Label>
                 <Input
                   value={item.pickup_location}
                   onChange={(e) => onChange('pickup_location', e.target.value)}
                   placeholder="Ej: Puerto de Palma"
-                  className="mt-1"
-                  style={inputStyle}
+                  className="mt-1 bg-background border-input text-foreground"
                 />
               </div>
               <div>
-                <Label className="text-xs" style={{ color: textLabel }}>Hora</Label>
+                <Label className="text-xs text-muted-foreground">Hora</Label>
                 <Input
                   type="time"
                   value={item.pickup_time}
                   onChange={(e) => onChange('pickup_time', e.target.value)}
-                  className="mt-1"
-                  style={inputStyle}
+                  className="mt-1 bg-background border-input text-foreground"
                 />
               </div>
             </div>
@@ -240,7 +231,7 @@ export function TransferItemFormCard({
               checked={item.dropoff_enabled}
               onCheckedChange={(checked) => onChange('dropoff_enabled', checked)}
             />
-            <Label htmlFor={`dropoff-${item.id}`} className="font-medium cursor-pointer">
+            <Label htmlFor={`dropoff-${item.id}`} className="font-medium cursor-pointer text-foreground">
               Llegada / Destino
             </Label>
           </div>
@@ -248,23 +239,21 @@ export function TransferItemFormCard({
           {item.dropoff_enabled && (
             <div className="grid gap-3 sm:grid-cols-2 pl-6">
               <div>
-                <Label className="text-xs" style={{ color: textLabel }}>Ubicación</Label>
+                <Label className="text-xs text-muted-foreground">Ubicación</Label>
                 <Input
                   value={item.dropoff_location}
                   onChange={(e) => onChange('dropoff_location', e.target.value)}
                   placeholder="Ej: Aeropuerto PMI"
-                  className="mt-1"
-                  style={inputStyle}
+                  className="mt-1 bg-background border-input text-foreground"
                 />
               </div>
               <div>
-                <Label className="text-xs" style={{ color: textLabel }}>Hora</Label>
+                <Label className="text-xs text-muted-foreground">Hora</Label>
                 <Input
                   type="time"
                   value={item.dropoff_time}
                   onChange={(e) => onChange('dropoff_time', e.target.value)}
-                  className="mt-1"
-                  style={inputStyle}
+                  className="mt-1 bg-background border-input text-foreground"
                 />
               </div>
             </div>
@@ -274,8 +263,7 @@ export function TransferItemFormCard({
         {/* Return Trip */}
         <div className="space-y-2">
           <div
-            className="pt-3 mt-1"
-            style={{ borderTop: `1px solid ${dividerColor}` }}
+            className="pt-3 mt-1 border-t border-border"
           >
             <div className="flex items-center gap-2">
               <Checkbox
@@ -291,9 +279,9 @@ export function TransferItemFormCard({
               />
               <Label
                 htmlFor={`return-${item.id}`}
-                className="font-medium cursor-pointer flex items-center gap-1.5"
+                className="font-medium cursor-pointer flex items-center gap-1.5 text-foreground"
               >
-                <RotateCcw className="h-3.5 w-3.5" style={{ color: iconMuted }} />
+                <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
                 Viaje de vuelta
               </Label>
             </div>
@@ -309,30 +297,28 @@ export function TransferItemFormCard({
                     checked={item.return_pickup_enabled}
                     onCheckedChange={(checked) => onChange('return_pickup_enabled', !!checked)}
                   />
-                  <Label htmlFor={`return-pickup-${item.id}`} className="text-sm cursor-pointer">
+                  <Label htmlFor={`return-pickup-${item.id}`} className="text-sm cursor-pointer text-foreground">
                     Recogida (vuelta)
                   </Label>
                 </div>
                 {item.return_pickup_enabled && (
                   <div className="grid gap-3 sm:grid-cols-2 pl-6">
                     <div>
-                      <Label className="text-xs" style={{ color: textLabel }}>Ubicación</Label>
+                      <Label className="text-xs text-muted-foreground">Ubicación</Label>
                       <Input
                         value={item.return_pickup_location}
                         onChange={(e) => onChange('return_pickup_location', e.target.value)}
                         placeholder="Ej: Hotel Son Vida"
-                        className="mt-1"
-                        style={inputStyle}
+                        className="mt-1 bg-background border-input text-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs" style={{ color: textLabel }}>Hora</Label>
+                      <Label className="text-xs text-muted-foreground">Hora</Label>
                       <Input
                         type="time"
                         value={item.return_pickup_time}
                         onChange={(e) => onChange('return_pickup_time', e.target.value)}
-                        className="mt-1"
-                        style={inputStyle}
+                        className="mt-1 bg-background border-input text-foreground"
                       />
                     </div>
                   </div>
@@ -347,30 +333,28 @@ export function TransferItemFormCard({
                     checked={item.return_dropoff_enabled}
                     onCheckedChange={(checked) => onChange('return_dropoff_enabled', !!checked)}
                   />
-                  <Label htmlFor={`return-dropoff-${item.id}`} className="text-sm cursor-pointer">
+                  <Label htmlFor={`return-dropoff-${item.id}`} className="text-sm cursor-pointer text-foreground">
                     Destino (vuelta)
                   </Label>
                 </div>
                 {item.return_dropoff_enabled && (
                   <div className="grid gap-3 sm:grid-cols-2 pl-6">
                     <div>
-                      <Label className="text-xs" style={{ color: textLabel }}>Ubicación</Label>
+                      <Label className="text-xs text-muted-foreground">Ubicación</Label>
                       <Input
                         value={item.return_dropoff_location}
                         onChange={(e) => onChange('return_dropoff_location', e.target.value)}
                         placeholder="Ej: Puerto de Palma"
-                        className="mt-1"
-                        style={inputStyle}
+                        className="mt-1 bg-background border-input text-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs" style={{ color: textLabel }}>Hora</Label>
+                      <Label className="text-xs text-muted-foreground">Hora</Label>
                       <Input
                         type="time"
                         value={item.return_dropoff_time}
                         onChange={(e) => onChange('return_dropoff_time', e.target.value)}
-                        className="mt-1"
-                        style={inputStyle}
+                        className="mt-1 bg-background border-input text-foreground"
                       />
                     </div>
                   </div>
@@ -382,14 +366,13 @@ export function TransferItemFormCard({
 
         {/* Notes */}
         <div>
-          <Label className="text-sm" style={{ color: textLabel }}>Notas del trayecto</Label>
+          <Label className="text-sm text-foreground">Notas del trayecto</Label>
           <Textarea
             value={item.notes}
             onChange={(e) => onChange('notes', e.target.value)}
             placeholder="Instrucciones especiales para este trayecto..."
-            className="mt-1.5"
+            className="mt-1.5 bg-background border-input text-foreground"
             rows={2}
-            style={inputStyle}
           />
         </div>
       </div>

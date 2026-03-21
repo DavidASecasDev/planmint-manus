@@ -1,6 +1,14 @@
+/*
+ * Azul Cars Brand — Broker Layout
+ * Dark mode: uses CSS variables via .dark class on <html>
+ * Header: always dark navy (brand identity)
+ * Body: bg-background (warm off-white / deep navy)
+ * Gold accent: oklch(0.72 0.10 80)
+ */
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
+import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -8,34 +16,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LogOut, Plus } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { LogOut, Plus, Sun, Moon, Monitor } from 'lucide-react';
 import { BrokerNotificationBell } from '@/components/broker/BrokerNotificationBell';
-
-/*
- * Azul Cars Brand Tokens
- * Nav/Header: #001321 (dark navy)
- * Gold accent: oklch(0.72 0.10 80) ≈ #C9A96E
- * Body bg: #F5F3EF (warm off-white)
- * Card bg: #FFFFFF
- * Headings: Montserrat 700-900
- * Body: Barlow 400-600
- * Labels: Montserrat 700, uppercase, tracking 1.5px
- * Text dark: #0F1216
- * Text muted: #52555B
- */
 
 const brand = {
   navy: '#001321',
-  navyLight: '#0A1E30',
   gold: 'oklch(0.72 0.10 80)',
   goldHover: 'oklch(0.78 0.10 80)',
-  warmBg: '#F5F3EF',
-  white: '#FFFFFF',
-  textDark: '#0F1216',
-  textMuted: '#52555B',
-  textOnDark: '#FFFFFF',
-  textOnDarkMuted: 'rgba(255,255,255,0.65)',
-  borderLight: 'rgba(0,19,33,0.08)',
 };
 
 interface BrokerLayoutProps {
@@ -44,7 +37,9 @@ interface BrokerLayoutProps {
 
 export function BrokerLayout({ children }: BrokerLayoutProps) {
   const { broker, logout } = useBrokerAuth();
+  const { theme, resolvedTheme, setTheme } = useBrokerTheme();
   const navigate = useNavigate();
+  const isDark = resolvedTheme === 'dark';
 
   const handleLogout = async () => {
     try {
@@ -55,17 +50,19 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
     navigate('/broker/login');
   };
 
+  const themeOptions = [
+    { value: 'light' as const, label: 'Claro', icon: Sun },
+    { value: 'dark' as const, label: 'Oscuro', icon: Moon },
+    { value: 'system' as const, label: 'Sistema', icon: Monitor },
+  ];
+
   return (
     <TooltipProvider>
       <div
-        className="min-h-screen flex flex-col"
-        style={{
-          backgroundColor: brand.warmBg,
-          color: brand.textDark,
-          fontFamily: 'Barlow, sans-serif',
-        }}
+        className="min-h-screen flex flex-col bg-background text-foreground"
+        style={{ fontFamily: 'Barlow, sans-serif' }}
       >
-        {/* Header - dark navy like azulcars.com */}
+        {/* Header - always dark navy (brand identity) */}
         <header
           className="sticky top-0 z-50"
           style={{
@@ -89,7 +86,7 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
                     style={{
                       fontFamily: 'Montserrat, sans-serif',
                       fontWeight: 800,
-                      color: brand.textOnDark,
+                      color: '#FFFFFF',
                       letterSpacing: '-0.02em',
                     }}
                   >
@@ -102,7 +99,7 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
                     style={{
                       fontFamily: 'Barlow, sans-serif',
                       fontWeight: 500,
-                      color: brand.textOnDarkMuted,
+                      color: 'rgba(255,255,255,0.65)',
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase' as const,
                     }}
@@ -150,17 +147,49 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
                 <div
                   className="hidden md:flex items-center gap-2 text-sm px-3"
                   style={{
-                    color: brand.textOnDarkMuted,
+                    color: 'rgba(255,255,255,0.65)',
                     fontFamily: 'Barlow, sans-serif',
                   }}
                 >
                   <span>Hola,</span>
-                  <span style={{ color: brand.textOnDark, fontWeight: 600 }}>
+                  <span style={{ color: '#FFFFFF', fontWeight: 600 }}>
                     {broker?.name}
                   </span>
                 </div>
 
                 <BrokerNotificationBell />
+
+                {/* Theme Toggle */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 transition-colors hover:bg-white/10"
+                      style={{ color: 'rgba(255,255,255,0.8)' }}
+                      aria-label="Cambiar tema"
+                    >
+                      <Sun className="h-[1.1rem] w-[1.1rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-[1.1rem] w-[1.1rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[140px]">
+                    {themeOptions.map(({ value, label, icon: Icon }) => (
+                      <DropdownMenuItem
+                        key={value}
+                        onClick={() => setTheme(value)}
+                        className="gap-2.5 cursor-pointer"
+                        style={{ fontFamily: 'Barlow, sans-serif' }}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{label}</span>
+                        {theme === value && (
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -169,7 +198,7 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
                       size="sm"
                       onClick={handleLogout}
                       className="transition-colors hover:bg-white/10"
-                      style={{ color: brand.textOnDarkMuted }}
+                      style={{ color: 'rgba(255,255,255,0.65)' }}
                     >
                       <LogOut className="h-4 w-4 mr-2" />
                       <span
@@ -194,7 +223,7 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
             </div>
           </div>
 
-          {/* Gold accent line - like the Azul Cars nav bottom */}
+          {/* Gold accent line */}
           <div
             className="h-[2px]"
             style={{
@@ -211,7 +240,7 @@ export function BrokerLayout({ children }: BrokerLayoutProps) {
           className="py-6 text-center"
           style={{
             backgroundColor: brand.navy,
-            color: brand.textOnDarkMuted,
+            color: 'rgba(255,255,255,0.65)',
             fontFamily: 'Barlow, sans-serif',
             fontSize: '13px',
           }}

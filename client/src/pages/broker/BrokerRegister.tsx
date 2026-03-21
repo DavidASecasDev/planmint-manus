@@ -1,20 +1,19 @@
+/*
+ * Azul Cars Brand — Broker Register (Invite-only)
+ * Dark mode: navy bg adapts, card uses dark surface
+ * Gold: oklch(0.72 0.10 80) | Headings: Montserrat 800 | Body: Barlow
+ */
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/env';
 import { decodeBrokerInviteCode } from '@/lib/brokerInvite';
+import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Eye, EyeOff, CheckCircle2, ShieldX, Building2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, ShieldX, Building2, Sun, Moon } from 'lucide-react';
 import { toast } from 'sonner';
-
-/*
- * Azul Cars Brand – Broker Register (Invite-only)
- * Navy bg: #001321 | Gold: oklch(0.72 0.10 80) | Card: white
- * Headings: Montserrat 800 | Body: Barlow 400-500
- * Labels: Montserrat 700, uppercase, tracking 1.5px, #52555B
- */
 
 interface Organization {
   id: string;
@@ -24,6 +23,8 @@ interface Organization {
 export default function BrokerRegister() {
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get('invite');
+  const { resolvedTheme, setTheme } = useBrokerTheme();
+  const isDark = resolvedTheme === 'dark';
 
   // Invite validation state
   const [validating, setValidating] = useState(true);
@@ -60,7 +61,6 @@ export default function BrokerRegister() {
       }
 
       try {
-        // Verify the organization exists and is active
         const { data, error } = await supabase
           .from('organizations')
           .select('id, name')
@@ -153,10 +153,27 @@ export default function BrokerRegister() {
     }
   };
 
+  // Shared styles
+  const pageBg = isDark ? '#060F17' : '#001321';
+  const cardBg = isDark ? '#0F1E2D' : '#FFFFFF';
+  const cardShadow = isDark
+    ? '0 25px 60px -12px rgba(0, 0, 0, 0.6)'
+    : '0 25px 60px -12px rgba(0, 0, 0, 0.4)';
+  const titleColor = isDark ? '#EDE8DF' : '#001321';
+  const subtitleColor = isDark ? '#7E8694' : '#52555B';
+  const inputBg = isDark ? '#0A1520' : '#F8F7F4';
+  const inputBorder = isDark ? 'rgba(30,50,69,0.6)' : '#E5E2DB';
+  const inputColor = isDark ? '#EDE8DF' : '#0F1216';
+  const errorBg = isDark ? 'rgba(220,38,38,0.12)' : '#FEF2F2';
+  const errorBorder = isDark ? '1px solid rgba(220,38,38,0.25)' : '1px solid #FECACA';
+  const btnBg = isDark ? 'oklch(0.72 0.10 80)' : '#001321';
+  const btnColor = isDark ? '#001321' : '#FFFFFF';
+  const dividerColor = isDark ? 'rgba(30,50,69,0.6)' : '#E5E2DB';
+
   const inputStyle: React.CSSProperties = {
-    backgroundColor: '#F8F7F4',
-    borderColor: '#E5E2DB',
-    color: '#0F1216',
+    backgroundColor: inputBg,
+    borderColor: inputBorder,
+    color: inputColor,
     fontFamily: 'Barlow, sans-serif',
     fontSize: '15px',
   };
@@ -167,16 +184,27 @@ export default function BrokerRegister() {
     fontSize: '10px',
     letterSpacing: '1.5px',
     textTransform: 'uppercase',
-    color: '#52555B',
+    color: subtitleColor,
   };
+
+  // Theme toggle button (shared across all states)
+  const themeToggle = (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      className="fixed top-4 right-4 z-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
+      style={{ color: 'rgba(255,255,255,0.5)' }}
+      aria-label="Cambiar tema"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
 
   // --- Loading state ---
   if (validating) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#001321' }}
-      >
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: pageBg }}>
+        {themeToggle}
         <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'oklch(0.72 0.10 80)' }} />
       </div>
     );
@@ -187,21 +215,16 @@ export default function BrokerRegister() {
     return (
       <div
         className="min-h-screen flex items-center justify-center px-4"
-        style={{
-          backgroundColor: '#001321',
-          fontFamily: 'Barlow, sans-serif',
-        }}
+        style={{ backgroundColor: pageBg, fontFamily: 'Barlow, sans-serif' }}
       >
+        {themeToggle}
         <div
           className="w-full max-w-md rounded-xl p-8 text-center"
-          style={{
-            backgroundColor: '#FFFFFF',
-            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
-          }}
+          style={{ backgroundColor: cardBg, boxShadow: cardShadow }}
         >
           <div
             className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
-            style={{ backgroundColor: '#FEF2F2' }}
+            style={{ backgroundColor: isDark ? 'rgba(220,38,38,0.12)' : '#FEF2F2' }}
           >
             <ShieldX className="h-8 w-8" style={{ color: '#DC2626' }} />
           </div>
@@ -210,24 +233,24 @@ export default function BrokerRegister() {
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 800,
-              color: '#001321',
+              color: titleColor,
               letterSpacing: '-0.02em',
             }}
           >
             Invitación Requerida
           </h2>
-          <p className="text-sm mb-2" style={{ color: '#52555B' }}>
+          <p className="text-sm mb-2" style={{ color: subtitleColor }}>
             Para registrarte como broker necesitas un enlace de invitación válido proporcionado por el administrador de la organización.
           </p>
-          <p className="text-xs mb-6" style={{ color: '#9CA3AF' }}>
+          <p className="text-xs mb-6" style={{ color: isDark ? '#5A6270' : '#9CA3AF' }}>
             Si crees que esto es un error, contacta con tu administrador para que te envíe un nuevo enlace.
           </p>
           <Link to="/broker/login">
             <Button
               className="w-full hover:brightness-110"
               style={{
-                backgroundColor: '#001321',
-                color: '#FFFFFF',
+                backgroundColor: btnBg,
+                color: btnColor,
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '12px',
@@ -248,21 +271,16 @@ export default function BrokerRegister() {
     return (
       <div
         className="min-h-screen flex items-center justify-center px-4"
-        style={{
-          backgroundColor: '#001321',
-          fontFamily: 'Barlow, sans-serif',
-        }}
+        style={{ backgroundColor: pageBg, fontFamily: 'Barlow, sans-serif' }}
       >
+        {themeToggle}
         <div
           className="w-full max-w-md rounded-xl p-8 text-center"
-          style={{
-            backgroundColor: '#FFFFFF',
-            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
-          }}
+          style={{ backgroundColor: cardBg, boxShadow: cardShadow }}
         >
           <div
             className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
-            style={{ backgroundColor: '#F0FDF4' }}
+            style={{ backgroundColor: isDark ? 'rgba(22,163,106,0.12)' : '#F0FDF4' }}
           >
             <CheckCircle2 className="h-8 w-8" style={{ color: '#16A34A' }} />
           </div>
@@ -271,22 +289,22 @@ export default function BrokerRegister() {
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 800,
-              color: '#001321',
+              color: titleColor,
               letterSpacing: '-0.02em',
             }}
           >
             Solicitud Enviada
           </h2>
-          <p className="text-sm mb-6" style={{ color: '#52555B' }}>
-            Tu solicitud de acceso a <strong>{organization.name}</strong> ha sido enviada correctamente.
+          <p className="text-sm mb-6" style={{ color: subtitleColor }}>
+            Tu solicitud de acceso a <strong style={{ color: titleColor }}>{organization.name}</strong> ha sido enviada correctamente.
             Recibirás un email cuando sea aprobada.
           </p>
           <Link to="/broker/login">
             <Button
               className="w-full hover:brightness-110"
               style={{
-                backgroundColor: '#001321',
-                color: '#FFFFFF',
+                backgroundColor: btnBg,
+                color: btnColor,
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '12px',
@@ -306,18 +324,13 @@ export default function BrokerRegister() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-8"
-      style={{
-        backgroundColor: '#001321',
-        fontFamily: 'Barlow, sans-serif',
-      }}
+      style={{ backgroundColor: pageBg, fontFamily: 'Barlow, sans-serif' }}
     >
+      {themeToggle}
       <div className="w-full max-w-md relative z-10">
         <div
           className="rounded-xl overflow-hidden"
-          style={{
-            backgroundColor: '#FFFFFF',
-            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.4)',
-          }}
+          style={{ backgroundColor: cardBg, boxShadow: cardShadow }}
         >
           {/* Header */}
           <div className="px-8 pt-8 pb-5 text-center">
@@ -326,7 +339,7 @@ export default function BrokerRegister() {
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 800,
-                color: '#001321',
+                color: titleColor,
                 letterSpacing: '-0.02em',
               }}
             >
@@ -336,7 +349,7 @@ export default function BrokerRegister() {
               className="w-12 h-[2px] mx-auto mt-3 mb-2"
               style={{ backgroundColor: 'oklch(0.72 0.10 80)' }}
             />
-            <p className="text-sm mt-3" style={{ color: '#52555B' }}>
+            <p className="text-sm mt-3" style={{ color: subtitleColor }}>
               Solicitud de acceso como broker
             </p>
           </div>
@@ -347,9 +360,9 @@ export default function BrokerRegister() {
               <div
                 className="p-3 rounded-lg text-sm"
                 style={{
-                  backgroundColor: '#FEF2F2',
+                  backgroundColor: errorBg,
                   color: '#DC2626',
-                  border: '1px solid #FECACA',
+                  border: errorBorder,
                 }}
               >
                 {error}
@@ -362,8 +375,8 @@ export default function BrokerRegister() {
               <div
                 className="flex items-center gap-2 h-11 px-3 rounded-md"
                 style={{
-                  backgroundColor: '#F0F1F3',
-                  border: '1px solid #E5E2DB',
+                  backgroundColor: isDark ? 'rgba(15,30,45,0.8)' : '#F0F1F3',
+                  border: `1px solid ${inputBorder}`,
                 }}
               >
                 <Building2 className="h-4 w-4 shrink-0" style={{ color: 'oklch(0.72 0.10 80)' }} />
@@ -371,7 +384,7 @@ export default function BrokerRegister() {
                   className="text-sm font-medium truncate"
                   style={{
                     fontFamily: 'Barlow, sans-serif',
-                    color: '#001321',
+                    color: titleColor,
                   }}
                 >
                   {organization.name}
@@ -455,7 +468,7 @@ export default function BrokerRegister() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: '#52555B' }}
+                  style={{ color: subtitleColor }}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -482,8 +495,8 @@ export default function BrokerRegister() {
               className="w-full h-11 transition-all hover:brightness-110 mt-2"
               disabled={isSubmitting}
               style={{
-                backgroundColor: '#001321',
-                color: '#FFFFFF',
+                backgroundColor: btnBg,
+                color: btnColor,
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '12px',
@@ -502,8 +515,8 @@ export default function BrokerRegister() {
               )}
             </Button>
 
-            <div className="text-center pt-3" style={{ borderTop: '1px solid #E5E2DB' }}>
-              <span className="text-sm" style={{ color: '#52555B' }}>
+            <div className="text-center pt-3" style={{ borderTop: `1px solid ${dividerColor}` }}>
+              <span className="text-sm" style={{ color: subtitleColor }}>
                 ¿Ya tienes cuenta?{' '}
               </span>
               <Link

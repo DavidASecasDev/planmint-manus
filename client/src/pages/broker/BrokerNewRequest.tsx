@@ -1,6 +1,12 @@
+/*
+ * Azul Cars Brand — New Request
+ * Uses semantic CSS tokens for dark/light mode compatibility
+ * bg-background | bg-card | text-foreground | text-muted-foreground
+ */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBrokerRequests, CreateBrokerRequestData } from '@/hooks/useBrokerRequests';
+import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,18 +19,11 @@ import {
 } from '@/components/broker/TransferItemFormCard';
 import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
 
-/*
- * Azul Cars Brand – New Request
- * Navy: #001321 | Gold: oklch(0.72 0.10 80) | Warm bg: #F5F3EF
- * Cards: #FFFFFF | Headings: Montserrat | Body: Barlow
- */
-
-const navy = '#001321';
-const gold = 'oklch(0.72 0.10 80)';
-
 export default function BrokerNewRequest() {
   const navigate = useNavigate();
   const { createRequest, isCreating } = useBrokerRequests();
+  const { resolvedTheme } = useBrokerTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const [clientName, setClientName] = useState('');
   const [notes, setNotes] = useState('');
@@ -69,44 +68,36 @@ export default function BrokerNewRequest() {
       <div className="mb-8">
         <button
           onClick={() => navigate('/broker')}
-          className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity"
-          style={{ color: navy, fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
+          className="flex items-center gap-2 text-sm mb-4 hover:opacity-80 transition-opacity text-foreground"
+          style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al listado
         </button>
 
         <h1
-          className="text-2xl mb-2"
-          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: navy }}
+          className="text-2xl mb-2 text-foreground"
+          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
         >
           Nueva Solicitud de Transfer
         </h1>
         <div
           className="w-16 h-1 rounded"
-          style={{ background: `linear-gradient(90deg, ${gold}, transparent)` }}
+          style={{ background: 'linear-gradient(90deg, oklch(0.72 0.10 80), transparent)' }}
         />
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* Client Info */}
-        <div
-          className="rounded-lg p-6 mb-6"
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E5E2DB',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
-        >
+        <div className="rounded-lg p-6 mb-6 bg-card border border-border">
           <h2
-            className="mb-4"
+            className="mb-4 text-muted-foreground"
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
               fontSize: '11px',
               letterSpacing: '1.5px',
               textTransform: 'uppercase',
-              color: '#9CA3AF',
             }}
           >
             Información del Cliente
@@ -116,7 +107,8 @@ export default function BrokerNewRequest() {
             <div className="sm:col-span-2">
               <Label
                 htmlFor="client_name"
-                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: '#374151' }}
+                className="text-foreground"
+                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
               >
                 Nombre del cliente *
               </Label>
@@ -126,15 +118,15 @@ export default function BrokerNewRequest() {
                 onChange={(e) => setClientName(e.target.value)}
                 placeholder="Ej: Sr. García y familia"
                 required
-                className="mt-1.5"
-                style={{ backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' }}
+                className="mt-1.5 bg-background border-input text-foreground"
               />
             </div>
 
             <div className="sm:col-span-2">
               <Label
                 htmlFor="notes"
-                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500, color: '#374151' }}
+                className="text-foreground"
+                style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
               >
                 Notas generales
               </Label>
@@ -143,9 +135,8 @@ export default function BrokerNewRequest() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Instrucciones especiales, preferencias del cliente..."
-                className="mt-1.5"
+                className="mt-1.5 bg-background border-input text-foreground"
                 rows={3}
-                style={{ backgroundColor: '#FFFFFF', color: '#111827', borderColor: '#D1D5DB' }}
               />
             </div>
           </div>
@@ -155,13 +146,13 @@ export default function BrokerNewRequest() {
         <div className="space-y-4 mb-6">
           <div className="flex items-center justify-between">
             <h2
+              className="text-muted-foreground"
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '11px',
                 letterSpacing: '1.5px',
                 textTransform: 'uppercase',
-                color: '#9CA3AF',
               }}
             >
               Trayectos ({items.length})
@@ -171,10 +162,8 @@ export default function BrokerNewRequest() {
               variant="outline"
               size="sm"
               onClick={handleAddItem}
-              className="gap-1"
+              className="gap-1 border-foreground text-foreground"
               style={{
-                borderColor: navy,
-                color: navy,
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: '11px',
@@ -195,7 +184,7 @@ export default function BrokerNewRequest() {
               canRemove={items.length > 1}
               onChange={(field, value) => handleItemChange(item.id, field, value)}
               onRemove={() => handleRemoveItem(item.id)}
-              isDark={false}
+              isDark={isDark}
             />
           ))}
         </div>
@@ -207,9 +196,8 @@ export default function BrokerNewRequest() {
             variant="outline"
             onClick={() => navigate('/broker')}
             disabled={isCreating}
+            className="border-border text-muted-foreground"
             style={{
-              borderColor: '#D1D5DB',
-              color: '#6B7280',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 600,
               fontSize: '12px',
@@ -220,10 +208,8 @@ export default function BrokerNewRequest() {
           <Button
             type="submit"
             disabled={isCreating || !clientName.trim()}
-            className="hover:brightness-110"
+            className="hover:brightness-110 bg-foreground text-background"
             style={{
-              backgroundColor: navy,
-              color: '#FFFFFF',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
               fontSize: '12px',

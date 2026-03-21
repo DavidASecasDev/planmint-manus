@@ -1,15 +1,14 @@
+/*
+ * Azul Cars Brand — Broker Request Card
+ * Uses semantic CSS tokens for dark/light mode compatibility
+ * Card: bg-card on bg-background | Status badges keep their own colors
+ */
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar, Users, MapPin, ChevronRight, Building2 } from 'lucide-react';
 import type { TransferRequest, TransferRequestStatus } from '@/types/transfers';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
-
-/*
- * Azul Cars Brand – Request Card
- * Card: #FFFFFF on #F5F3EF bg | Navy: #001321 | Gold: oklch(0.72 0.10 80)
- * Headings: Montserrat | Body: Barlow | Labels: Montserrat 700 uppercase
- */
 
 interface BrokerRequestCardProps {
   request: TransferRequest;
@@ -33,12 +32,9 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
   return (
     <Link to={`/broker/request/${request.id}`} className="block group">
       <div
-        className="rounded-lg p-4 sm:p-5 transition-all duration-200 group-hover:shadow-md"
+        className="rounded-lg p-4 sm:p-5 transition-all duration-200 group-hover:shadow-md bg-card border border-border"
         style={{
-          backgroundColor: '#FFFFFF',
-          border: '1px solid #E5E2DB',
           borderLeft: `3px solid ${statusStyle.border}`,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -47,11 +43,10 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
             {/* Header row */}
             <div className="flex items-center gap-3 mb-2">
               <span
-                className="text-sm"
+                className="text-sm text-primary"
                 style={{
                   fontFamily: 'Montserrat, sans-serif',
                   fontWeight: 700,
-                  color: 'oklch(0.72 0.10 80)',
                   letterSpacing: '0.02em',
                 }}
               >
@@ -75,11 +70,10 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
 
             {/* Client name */}
             <h3
-              className="text-lg mb-2 truncate"
+              className="text-lg mb-2 truncate text-foreground"
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
-                color: '#001321',
               }}
             >
               {request.client_name}
@@ -87,18 +81,16 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
 
             {/* Broker info */}
             <div
-              className="flex items-center gap-2 text-sm mb-3"
-              style={{ color: '#52555B', fontFamily: 'Barlow, sans-serif' }}
+              className="flex items-center gap-2 text-sm mb-3 text-muted-foreground"
+              style={{ fontFamily: 'Barlow, sans-serif' }}
             >
-              <Building2 className="h-4 w-4" style={{ color: '#9CA3AF' }} />
+              <Building2 className="h-4 w-4 text-muted-foreground/60" />
               <span>
                 {request.broker_name}
                 {isOwnRequest && (
                   <span
-                    className="ml-1 text-xs px-1.5 py-0.5 rounded"
+                    className="ml-1 text-xs px-1.5 py-0.5 rounded bg-muted text-foreground"
                     style={{
-                      backgroundColor: 'rgba(0,19,33,0.08)',
-                      color: '#001321',
                       fontFamily: 'Montserrat, sans-serif',
                       fontWeight: 700,
                       fontSize: '9px',
@@ -113,8 +105,8 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
 
             {/* Details row */}
             <div
-              className="flex flex-wrap items-center gap-4 text-sm"
-              style={{ color: '#6B7280', fontFamily: 'Barlow, sans-serif' }}
+              className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground"
+              style={{ fontFamily: 'Barlow, sans-serif' }}
             >
               {request.first_transfer_date && (
                 <div className="flex items-center gap-1.5">
@@ -150,23 +142,22 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
           <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
             <div className="text-right">
               <div
+                className="text-muted-foreground/60"
                 style={{
                   fontFamily: 'Montserrat, sans-serif',
                   fontWeight: 700,
                   fontSize: '10px',
                   letterSpacing: '1.5px',
                   textTransform: 'uppercase',
-                  color: '#9CA3AF',
                 }}
               >
                 Trayectos
               </div>
               <div
-                className="text-xl"
+                className="text-xl text-foreground"
                 style={{
                   fontFamily: 'Montserrat, sans-serif',
                   fontWeight: 800,
-                  color: '#001321',
                 }}
               >
                 {request.items_count || 0}
@@ -178,23 +169,22 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
             request.total_amount > 0 ? (
               <div className="text-right">
                 <div
+                  className="text-muted-foreground/60"
                   style={{
                     fontFamily: 'Montserrat, sans-serif',
                     fontWeight: 700,
                     fontSize: '10px',
                     letterSpacing: '1.5px',
                     textTransform: 'uppercase',
-                    color: '#9CA3AF',
                   }}
                 >
                   Importe (sin IVA)
                 </div>
                 <div
-                  className="text-lg"
+                  className="text-lg text-foreground"
                   style={{
                     fontFamily: 'Montserrat, sans-serif',
                     fontWeight: 800,
-                    color: '#001321',
                   }}
                 >
                   {new Intl.NumberFormat('es-ES', {
@@ -206,11 +196,10 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
             ) : (
               <div className="text-right">
                 <div
-                  className="italic"
+                  className="italic text-muted-foreground/60"
                   style={{
                     fontFamily: 'Barlow, sans-serif',
                     fontSize: '12px',
-                    color: '#9CA3AF',
                   }}
                 >
                   Pendiente de cotizar
@@ -219,8 +208,7 @@ export function BrokerRequestCard({ request }: BrokerRequestCardProps) {
             )}
 
             <ChevronRight
-              className="h-5 w-5 group-hover:translate-x-1 transition-transform"
-              style={{ color: '#9CA3AF' }}
+              className="h-5 w-5 group-hover:translate-x-1 transition-transform text-muted-foreground/60"
             />
           </div>
         </div>

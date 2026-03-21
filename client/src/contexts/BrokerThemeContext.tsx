@@ -20,6 +20,16 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function applyTheme(resolvedTheme: 'light' | 'dark') {
+  const root = document.documentElement;
+  root.classList.add('transitioning');
+  root.classList.remove('light', 'dark');
+  root.classList.add(resolvedTheme);
+  requestAnimationFrame(() => {
+    setTimeout(() => root.classList.remove('transitioning'), 300);
+  });
+}
+
 export function BrokerThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<BrokerTheme>(() => {
     try {
@@ -40,6 +50,11 @@ export function BrokerThemeProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const resolvedTheme: 'light' | 'dark' = theme === 'system' ? systemTheme : theme;
+
+  // Apply dark/light class to <html> so CSS variables respond
+  useEffect(() => {
+    applyTheme(resolvedTheme);
+  }, [resolvedTheme]);
 
   const setTheme = useCallback((newTheme: BrokerTheme) => {
     setThemeState(newTheme);
