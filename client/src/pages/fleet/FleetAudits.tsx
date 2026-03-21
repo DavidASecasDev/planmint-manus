@@ -107,6 +107,7 @@ export default function FleetAudits() {
         .select('id, matricula, modelo, categoria, status, organization_id')
         .eq('organization_id', orgId)
         .eq('is_archived', false)
+        .eq('status', 'limpio')
         .order('matricula');
       if (error) throw error;
 
@@ -280,26 +281,22 @@ export default function FleetAudits() {
 
   const getVehicleStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      available: 'Disponible',
-      rented: 'Alquilado',
-      maintenance: 'Mantenimiento',
-      cleaning: 'Limpieza',
-      transit: 'En tránsito',
-      reserved: 'Reservado',
-      service: 'En servicio',
+      limpio: 'Limpio',
+      sucio: 'Sucio',
+      incompleto: 'Incompleto',
+      en_servicio: 'En servicio',
+      alquilado: 'Alquilado',
     };
     return labels[status] || status;
   };
 
   const getVehicleStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      available: 'bg-green-100 text-green-700',
-      rented: 'bg-blue-100 text-blue-700',
-      maintenance: 'bg-orange-100 text-orange-700',
-      cleaning: 'bg-purple-100 text-purple-700',
-      transit: 'bg-cyan-100 text-cyan-700',
-      reserved: 'bg-indigo-100 text-indigo-700',
-      service: 'bg-amber-100 text-amber-700',
+      limpio: 'bg-green-100 text-green-700',
+      sucio: 'bg-red-100 text-red-700',
+      incompleto: 'bg-orange-100 text-orange-700',
+      en_servicio: 'bg-amber-100 text-amber-700',
+      alquilado: 'bg-blue-100 text-blue-700',
     };
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
@@ -517,7 +514,7 @@ export default function FleetAudits() {
           <DialogHeader>
             <DialogTitle>Seleccionar vehículo</DialogTitle>
             <DialogDescription>
-              Elige el vehículo al que deseas realizar la auditoría de calidad.
+              Solo se muestran vehículos en estado <strong>limpio</strong>, listos para auditar.
             </DialogDescription>
           </DialogHeader>
 
@@ -544,8 +541,8 @@ export default function FleetAudits() {
                 <Car className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
                 <p className="text-sm text-muted-foreground">
                   {vehicleSearch
-                    ? 'No se encontraron vehículos con esa búsqueda.'
-                    : 'No hay vehículos disponibles.'}
+                    ? 'No se encontraron vehículos limpios con esa búsqueda.'
+                    : 'No hay vehículos en estado limpio para auditar.'}
                 </p>
               </div>
             ) : (

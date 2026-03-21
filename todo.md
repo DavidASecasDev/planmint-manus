@@ -52,3 +52,6 @@
 - [x] Migrar conexión Supabase a nueva BD (exayzwdudssyegxjiyrk)
 - [x] Crear tablas vehicle_quality_audits y vehicle_audit_photos en la nueva BD (ya existían)
 - [x] Verificar que la app funciona correctamente con la nueva BD
+- [x] Bug: Reset password de Supabase redirige a localhost:3000 en lugar del dominio real (configurado Site URL en Supabase dashboard)
+- [x] Crear página de reset password en la app para manejar el token de Supabase (ya existía)
+- [x] Filtrar selector de vehículos en 'Nueva Auditoría' para mostrar solo vehículos en estado 'limpio'
