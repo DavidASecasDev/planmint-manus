@@ -45,7 +45,7 @@ export default function TransferDetail() {
   const location = useLocation();
   const isNew = id === 'new';
 
-  const { data: existingRequest, isLoading } = useTransferRequest(isNew ? undefined : id);
+  const { data: existingRequest, isLoading, isError, error } = useTransferRequest(isNew ? undefined : id);
   const { createRequest, updateRequest, updateStatus, isCreating, isUpdating } = useTransferRequests();
   const { profile } = useAuth();
   
@@ -183,6 +183,41 @@ export default function TransferDetail() {
         <div className="container max-w-4xl py-6 space-y-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-64 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Show informative message when the transfer request was deleted or doesn't exist
+  if (!isNew && !isLoading && (isError || !existingRequest)) {
+    return (
+      <AppLayout title="Solicitud no encontrada">
+        <div className="container max-w-lg py-16">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Ship className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">Solicitud no disponible</h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Esta solicitud de transfer fue eliminada o ya no existe. Es posible que haya sido borrada por un administrador.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Button onClick={() => navigate('/transfers')} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Volver a Transfers
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/notifications')} className="gap-2">
+                Ver notificaciones
+              </Button>
+            </div>
+            {id && (
+              <p className="text-xs text-muted-foreground/60 font-mono">
+                ID: {id}
+              </p>
+            )}
+          </div>
         </div>
       </AppLayout>
     );

@@ -893,6 +893,16 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/transfers/requests/:id" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
+                    <TransferDetail />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/transfers/:id" 
               element={
                 <ProtectedRoute>
