@@ -23,10 +23,10 @@ export default function Dashboard() {
     <AppLayout title="Dashboard">
       <div className="space-y-6">
         {/* Compact Welcome */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2
-              className="text-xl"
+              className="text-lg sm:text-xl"
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
