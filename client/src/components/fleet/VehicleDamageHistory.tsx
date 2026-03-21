@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle } from 'lucide-react';
+import { Plus, AlertTriangle, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useFleetDamages } from '@/hooks/useFleetDamages';
@@ -20,6 +21,7 @@ interface VehicleDamageHistoryProps {
 }
 
 export function VehicleDamageHistory({ fleetVehicleId, organizationId, vehiclePlate }: VehicleDamageHistoryProps) {
+  const navigate = useNavigate();
   const { damages, isLoading, createDamage, deleteDamage, pendingCount } = useFleetDamages(fleetVehicleId);
   const [selectedDamage, setSelectedDamage] = useState<FleetVehicleDamage | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -56,15 +58,25 @@ export function VehicleDamageHistory({ fleetVehicleId, organizationId, vehiclePl
         )}
       </div>
 
-      {/* Add damage button */}
-      <Button
-        onClick={() => setAddOpen(true)}
-        variant="outline"
-        className="w-full rounded-2xl h-12 text-base border-dashed"
-      >
-        <Plus className="h-5 w-5 mr-2" />
-        Registrar Daño
-      </Button>
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <Button
+          onClick={() => setAddOpen(true)}
+          variant="outline"
+          className="flex-1 rounded-2xl h-12 text-base border-dashed"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Registrar Daño
+        </Button>
+        <Button
+          onClick={() => navigate('/garatech/damages')}
+          variant="outline"
+          className="rounded-2xl h-12 text-sm gap-2"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ver todos
+        </Button>
+      </div>
 
       {isLoading ? (
         <div className="flex justify-center py-8">

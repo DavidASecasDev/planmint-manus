@@ -61,7 +61,8 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/transfers/forms': 'transfers',
   '/movements': 'movements',
   '/fleet': 'fleet',
-  '/fleet/damages': 'fleet',
+  '/fleet/damages': 'garatech',
+  '/garatech/damages': 'garatech',
 };
 
 // Garatech submenu items with permission gates
@@ -70,8 +71,7 @@ const garatechSubItems = [
   { title: 'Reparaciones', url: '/garatech/repairs', icon: Hammer },
   { title: 'Accidentes', url: '/garatech/accidents', icon: AlertTriangle, permission: 'garatech.manage_accidents' as const },
   { title: 'Talleres', url: '/garatech/workshops', icon: Building2 },
-  { title: 'Catálogo Daños', url: '/garatech/catalog', icon: FileSpreadsheet, permission: 'garatech.manage_catalog' as const },
-  { title: 'Informes Daños', url: '/garatech/reports', icon: FileText },
+  { title: 'Daños y Cobros', url: '/garatech/damages', icon: AlertTriangle },
 ];
 
 // Transfers submenu items
@@ -85,7 +85,6 @@ const transfersSubItems = [
 // Fleet submenu items
 const fleetSubItems = [
   { title: 'Vehículos', url: '/fleet', icon: Warehouse },
-  { title: 'Historial de Daños', url: '/fleet/damages', icon: AlertTriangle },
 ];
 
 // Tasks submenu items

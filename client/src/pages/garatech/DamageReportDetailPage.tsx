@@ -73,7 +73,7 @@ export default function DamageReportDetailPage() {
       <AppLayout title="Informe de Daños">
         <div className="text-center py-16 text-muted-foreground">
           <p>Informe no encontrado</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/garatech/reports')}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/garatech/damages?tab=informes')}>
             Volver al listado
           </Button>
         </div>
@@ -123,7 +123,7 @@ export default function DamageReportDetailPage() {
         <div className="space-y-3">
           {/* Row 1: Back + Title + Badges */}
           <div className="flex items-center gap-4 flex-wrap">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/garatech/reports')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/garatech/damages?tab=informes')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex-1 min-w-0">

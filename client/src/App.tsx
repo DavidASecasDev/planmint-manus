@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
@@ -107,6 +107,7 @@ const GaratechWorkshopDetail = lazy(() => import("./pages/garatech/WorkshopDetai
 const GaratechWorkshopNew = lazy(() => import("./pages/garatech/WorkshopNew"));
 const GaratechDamageCatalog = lazy(() => import("./pages/garatech/DamageCatalog"));
 const GaratechDamageReports = lazy(() => import("./pages/garatech/DamageReports"));
+const GaratechDamagesHub = lazy(() => import("./pages/garatech/DamagesHub"));
 const GaratechDamageReportDetail = lazy(() => import("./pages/garatech/DamageReportDetailPage"));
 const GaratechDamageReportNew = lazy(() => import("./pages/garatech/DamageReportNew"));
 
@@ -785,10 +786,14 @@ function MainAppRoutes() {
             />
             <Route 
               path="/garatech/reports" 
+              element={<Navigate to="/garatech/damages?tab=informes" replace />}
+            />
+            <Route 
+              path="/garatech/damages" 
               element={
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="garatech" moduleName="Garatech">
-                    <GaratechDamageReports />
+                    <GaratechDamagesHub />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 
@@ -832,8 +837,8 @@ function MainAppRoutes() {
             } />
             <Route path="/fleet/damages" element={
               <ProtectedRoute>
-                <ModuleRoute moduleKey="fleet" moduleName="Flota">
-                  <FleetDamages />
+                <ModuleRoute moduleKey="garatech" moduleName="Garatech">
+                  <GaratechDamagesHub />
                 </ModuleRoute>
               </ProtectedRoute>
             } />
