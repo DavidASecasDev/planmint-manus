@@ -55,3 +55,8 @@
 - [x] Bug: Reset password de Supabase redirige a localhost:3000 en lugar del dominio real (configurado Site URL en Supabase dashboard)
 - [x] Crear página de reset password en la app para manejar el token de Supabase (ya existía)
 - [x] Filtrar selector de vehículos en 'Nueva Auditoría' para mostrar solo vehículos en estado 'limpio'
+- [x] Revisar CSVs exportados y analizar estructura de datos (44 tablas, 3419 filas)
+- [x] Verificar estado actual de tablas en Supabase
+- [x] Crear script de importación para actualizar datos en Supabase
+- [x] Ejecutar importación y verificar integridad de datos
+- [x] Bug: Campo de email en "Recuperar Contraseña" pierde el foco después de escribir la primera letra (re-render causa pérdida de focus)
