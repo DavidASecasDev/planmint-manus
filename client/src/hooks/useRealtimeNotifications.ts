@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
+import { usePushBridge } from './usePushBridge';
 
-const log = createLogger({ context: 'RealtimeNotifications' }); // v2 - server-side trigger
+const log = createLogger({ context: 'RealtimeNotifications' }); // v3 - push bridge
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -16,6 +17,7 @@ export function useRealtimeNotifications() {
   const navigate = useNavigate();
   const hasNewNotificationRef = useRef(false);
   const lastSeenAtRef = useRef<string>(new Date().toISOString());
+  const { sendLocalPush, isAppInBackground } = usePushBridge();
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -76,12 +78,34 @@ export function useRealtimeNotifications() {
     hasNewNotificationRef.current = true;
 
     const isUrgent = notification.title.startsWith('🔴');
+
+    // If app is in background, send a native push notification
+    if (isAppInBackground()) {
+      sendLocalPush({
+        title: notification.title.replace(/^🔴\s*/, '').replace(/^⚠️\s*/, ''),
+        body: notification.body,
+        tag: `notif-${notification.id}`,
+        entity_type: notification.entity_type,
+        entity_id: notification.entity_id,
+        requireInteraction: isUrgent,
+      });
+      return; // Don't show toast if in background - the push notification is enough
+    }
+
+    // App is in foreground - show toast for urgent notifications
     if (isUrgent) {
       playNotificationSound();
       const taskId = notification.entity_type === 'task' ? notification.entity_id : undefined;
       showUrgentToast(notification.title, notification.body, taskId);
+    } else {
+      // Show a subtle toast for non-urgent notifications in foreground
+      toast(notification.title, {
+        description: notification.body,
+        duration: 5000,
+        action: getToastAction(notification, navigate),
+      });
     }
-  }, [queryClient, profile?.organization_id, playNotificationSound, showUrgentToast]);
+  }, [queryClient, profile?.organization_id, playNotificationSound, showUrgentToast, sendLocalPush, isAppInBackground, navigate]);
 
   // Realtime subscription
   useEffect(() => {
@@ -143,5 +167,33 @@ export function useRealtimeNotifications() {
 
   return {
     hasNewNotification: hasNewNotificationRef,
+  };
+}
+
+// Helper to generate toast action based on notification entity type
+function getToastAction(
+  notification: { entity_type: string; entity_id: string },
+  navigate: (path: string) => void
+) {
+  const { entity_type, entity_id } = notification;
+
+  const routes: Record<string, string> = {
+    task: `/tasks?task=${entity_id}`,
+    task_update: `/tasks`,
+    reminder: `/tasks`,
+    transfer_request: `/transfers/requests/${entity_id}`,
+    transfer_note: `/transfers/requests/${entity_id}`,
+    repair: `/garatech/repairs/${entity_id}`,
+    accident: `/garatech/accidents/${entity_id}`,
+    damage_report: `/garatech/reports/${entity_id}`,
+    form_response: `/notifications`,
+  };
+
+  const route = routes[entity_type];
+  if (!route) return undefined;
+
+  return {
+    label: 'Ver',
+    onClick: () => navigate(route),
   };
 }

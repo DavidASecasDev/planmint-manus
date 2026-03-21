@@ -1,5 +1,5 @@
-export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note';
-export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response';
+export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'repair_update' | 'accident_report' | 'damage_report_update';
+export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report';
 
 export interface Notification {
   id: string;
@@ -19,4 +19,8 @@ export interface NotificationWithDetails extends Notification {
   task_id?: string;
   // For transfer_request navigation
   transfer_request_id?: string;
+  // For Garatech navigation
+  repair_id?: string;
+  accident_id?: string;
+  damage_report_id?: string;
 }

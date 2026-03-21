@@ -21,6 +21,7 @@ import { TransferSettingsSection } from '@/components/transfers/TransferSettings
 
 import { UsageDashboard } from '@/components/analytics/UsageDashboard';
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection';
+import { PushNotificationManager } from '@/components/notifications/PushNotificationManager';
 import { IntegrationSettingsSection } from '@/components/settings/IntegrationSettingsSection';
 import { SecuritySettingsSection } from '@/components/settings/SecuritySettingsSection';
 import { AuditLogsSection } from '@/components/settings/AuditLogsSection';
@@ -319,7 +320,8 @@ export default function Settings() {
               </CardTitle>
               <CardDescription>Configura cómo y cuándo recibir notificaciones</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              <PushNotificationManager />
               <NotificationPreferencesSection />
             </CardContent>
           </Card>

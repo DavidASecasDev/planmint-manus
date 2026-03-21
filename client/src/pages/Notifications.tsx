@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +21,9 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   assignment: UserCheck,
   reminder: Clock,
   transfer_note: MessageSquare,
+  repair_update: Wrench,
+  accident_report: AlertTriangle,
+  damage_report_update: FileWarning,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -28,6 +31,9 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   assignment: 'text-green-500 bg-green-500/10',
   reminder: 'text-orange-500 bg-orange-500/10',
   transfer_note: 'text-amber-600 bg-amber-500/10',
+  repair_update: 'text-indigo-500 bg-indigo-500/10',
+  accident_report: 'text-red-500 bg-red-500/10',
+  damage_report_update: 'text-rose-500 bg-rose-500/10',
 };
 
 const TYPE_LABELS: Record<NotificationType, string> = {
@@ -35,6 +41,9 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   assignment: 'Asignación',
   reminder: 'Recordatorio',
   transfer_note: 'Nota de Transfer',
+  repair_update: 'Reparación',
+  accident_report: 'Accidente',
+  damage_report_update: 'Informe Daños',
 };
 
 export default function Notifications() {
@@ -58,8 +67,22 @@ export default function Notifications() {
       await markAsRead(notification.id);
     }
 
-    // Navigate to the appropriate page
-    if (notification.task_id) {
+    // Navigate to the appropriate page based on entity type
+    const { entity_type, entity_id } = notification;
+    const routes: Record<string, string> = {
+      task: `/tasks?task=${entity_id}`,
+      task_update: `/tasks`,
+      reminder: `/tasks`,
+      transfer_request: `/transfers/requests/${entity_id}`,
+      transfer_note: `/transfers/requests/${entity_id}`,
+      repair: `/garatech/repairs/${entity_id}`,
+      accident: `/garatech/accidents/${entity_id}`,
+      damage_report: `/garatech/reports/${entity_id}`,
+    };
+    const route = routes[entity_type];
+    if (route) {
+      navigate(route);
+    } else if (notification.task_id) {
       navigate(`/tasks?task=${notification.task_id}`);
     } else if (notification.transfer_request_id) {
       navigate(`/transfers/${notification.transfer_request_id}`);

@@ -4,7 +4,7 @@
  * Bell icon: muted-foreground | Badge: gold accent
  * Popover: popover bg | foreground text
  */
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +25,9 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   assignment: UserCheck,
   reminder: Clock,
   transfer_note: MessageSquare,
+  repair_update: Wrench,
+  accident_report: AlertTriangle,
+  damage_report_update: FileWarning,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -32,6 +35,9 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   assignment: '#22C55E',
   reminder: '#F97316',
   transfer_note: 'oklch(0.72 0.10 80)',
+  repair_update: '#6366F1',
+  accident_report: '#EF4444',
+  damage_report_update: '#F43F5E',
 };
 
 export function NotificationBell() {
@@ -44,7 +50,22 @@ export function NotificationBell() {
     if (!notification.is_read) {
       await markAsRead(notification.id);
     }
-    if (notification.task_id) {
+    // Navigate based on entity type
+    const { entity_type, entity_id } = notification;
+    const routes: Record<string, string> = {
+      task: `/tasks?task=${entity_id}`,
+      task_update: `/tasks`,
+      reminder: `/tasks`,
+      transfer_request: `/transfers/requests/${entity_id}`,
+      transfer_note: `/transfers/requests/${entity_id}`,
+      repair: `/garatech/repairs/${entity_id}`,
+      accident: `/garatech/accidents/${entity_id}`,
+      damage_report: `/garatech/reports/${entity_id}`,
+    };
+    const route = routes[entity_type];
+    if (route) {
+      navigate(route);
+    } else if (notification.task_id) {
       navigate(`/tasks?task=${notification.task_id}`);
     } else if (notification.transfer_request_id) {
       navigate(`/transfers/${notification.transfer_request_id}`);
