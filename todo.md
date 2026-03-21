@@ -21,3 +21,4 @@
 - [x] Verify app renders correctly in browser (login page loads)
 - [x] Diagnosticar y corregir problema: la opción de instalar la PWA no aparece en el navegador (eliminado VitePWA conflictivo, manifest manual correcto)
 - [x] Implementar banner de instalación PWA personalizado que se muestre cuando el navegador lo permita
+- [x] Corregir: el banner de instalación PWA no aparece en dispositivos móviles (sí funciona en PC)

@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Download, X, Smartphone, Monitor, Share, ChevronRight, Zap, WifiOff, Sparkles } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Download, X, Share, ChevronRight, Zap, WifiOff, Sparkles } from "lucide-react";
 import { usePWA } from "@/hooks/usePWA";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────
@@ -16,11 +15,6 @@ function detectPlatform(): Platform {
   return "desktop";
 }
 
-function isIOSSafari(): boolean {
-  const ua = navigator.userAgent || "";
-  return /iPad|iPhone|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS/.test(ua);
-}
-
 /* ─────────────────────────────────────────────────────────
  * Feature pills shown inside the banner
  * ───────────────────────────────────────────────────────── */
@@ -32,30 +26,60 @@ const features = [
 
 /* ─────────────────────────────────────────────────────────
  * Main component
+ *
+ * Behavior:
+ * - Chromium (desktop/Android): waits for `beforeinstallprompt` to fire
+ *   (Chrome requires 30 s + 1 click engagement). Once the hook sets
+ *   `isInstallable = true` the banner slides up after a short delay.
+ * - iOS Safari: `beforeinstallprompt` never fires. We show the banner
+ *   after 5 seconds with manual "Add to Home Screen" instructions.
  * ───────────────────────────────────────────────────────── */
 export function InstallPrompt() {
-  const { installApp, shouldShowInstallPrompt, dismissInstallPrompt, isInstalled } = usePWA();
+  const { installApp, isInstallable, isInstalled, shouldShowInstallPrompt, dismissInstallPrompt } =
+    usePWA();
   const [phase, setPhase] = useState<"hidden" | "entering" | "visible" | "leaving">("hidden");
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const shownRef = useRef(false);
 
   const platform = useMemo(() => detectPlatform(), []);
-  const iosSafari = useMemo(() => isIOSSafari(), []);
 
-  /* Show the banner after a 3-second delay */
+  /* ── Chromium path: react to isInstallable becoming true ── */
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const canShow = shouldShowInstallPrompt();
-      // On iOS Safari, always show (no beforeinstallprompt support)
-      const shouldShowIOS = platform === "ios" && !isInstalled;
-      if (canShow || shouldShowIOS) {
+    if (shownRef.current) return;
+    if (isInstalled) return;
+
+    if (isInstallable && shouldShowInstallPrompt()) {
+      // Small delay so the page doesn't feel jarring
+      const timer = setTimeout(() => {
+        shownRef.current = true;
         setPhase("entering");
-        // Transition to visible after the animation completes
-        const enterTimer = setTimeout(() => setPhase("visible"), 500);
-        return () => clearTimeout(enterTimer);
-      }
-    }, 3000);
+        setTimeout(() => setPhase("visible"), 500);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isInstallable, isInstalled, shouldShowInstallPrompt]);
+
+  /* ── iOS path: show after 5 seconds (no beforeinstallprompt) ── */
+  useEffect(() => {
+    if (shownRef.current) return;
+    if (platform !== "ios") return;
+    if (isInstalled) return;
+
+    // Check dismiss state
+    const dismissedAt = localStorage.getItem("pwa-install-dismissed");
+    if (dismissedAt) {
+      const daysSinceDismissed = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
+      if (daysSinceDismissed < 3) return;
+    }
+
+    const timer = setTimeout(() => {
+      shownRef.current = true;
+      setPhase("entering");
+      setTimeout(() => setPhase("visible"), 500);
+    }, 5000);
+
     return () => clearTimeout(timer);
-  }, [shouldShowInstallPrompt, platform, isInstalled]);
+  }, [platform, isInstalled]);
 
   /* Dismiss with exit animation */
   const handleDismiss = useCallback(() => {

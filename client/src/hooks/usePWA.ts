@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -9,13 +9,33 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-export function usePWA() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+/**
+ * Global singleton to capture the beforeinstallprompt event.
+ * The event can fire before any React component mounts, so we
+ * capture it at module level and replay it to the hook.
+ */
+let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+let globalInstallableListeners: Array<(e: BeforeInstallPromptEvent) => void> = [];
 
-  // Check if app is installed (standalone mode)
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e: Event) => {
+    e.preventDefault();
+    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+    // Notify all mounted hooks
+    globalInstallableListeners.forEach((fn) => fn(globalDeferredPrompt!));
+  });
+}
+
+export function usePWA() {
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  const [isInstallable, setIsInstallable] = useState(!!globalDeferredPrompt);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
+
+  // ── Check if app is already installed (standalone mode) ──
   useEffect(() => {
     const checkInstalled = () => {
       const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
@@ -24,15 +44,13 @@ export function usePWA() {
     };
 
     checkInstalled();
-    
-    // Listen for display mode changes
+
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
     mediaQuery.addEventListener("change", checkInstalled);
-    
     return () => mediaQuery.removeEventListener("change", checkInstalled);
   }, []);
 
-  // Online/Offline detection
+  // ── Online / Offline detection ──
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -46,48 +64,57 @@ export function usePWA() {
     };
   }, []);
 
-  // Install prompt handling
+  // ── Subscribe to the global beforeinstallprompt capture ──
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    // If the event already fired before this hook mounted, pick it up
+    if (globalDeferredPrompt) {
+      setDeferredPrompt(globalDeferredPrompt);
+      setIsInstallable(true);
+    }
+
+    const listener = (e: BeforeInstallPromptEvent) => {
+      setDeferredPrompt(e);
       setIsInstallable(true);
     };
+
+    globalInstallableListeners.push(listener);
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      // Clear dismissed state on install
+      globalDeferredPrompt = null;
       localStorage.removeItem("pwa-install-dismissed");
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      globalInstallableListeners = globalInstallableListeners.filter(
+        (fn) => fn !== listener
+      );
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
-  // Install the app
+  // ── Trigger the native install prompt ──
   const installApp = useCallback(async () => {
-    if (!deferredPrompt) return false;
+    const prompt = deferredPrompt || globalDeferredPrompt;
+    if (!prompt) return false;
 
     try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+
       if (outcome === "accepted") {
         setIsInstalled(true);
         setIsInstallable(false);
       } else {
-        // User dismissed, save timestamp to not show again for a while
         localStorage.setItem("pwa-install-dismissed", Date.now().toString());
       }
-      
+
       setDeferredPrompt(null);
+      globalDeferredPrompt = null;
       return outcome === "accepted";
     } catch (error) {
       console.error("Error installing PWA:", error);
@@ -95,21 +122,23 @@ export function usePWA() {
     }
   }, [deferredPrompt]);
 
-  // Check if we should show install prompt
+  // ── Should the install banner be shown? ──
   const shouldShowInstallPrompt = useCallback(() => {
-    if (isInstalled || !isInstallable) return false;
-    
+    if (isInstalled) return false;
+    if (!isInstallable) return false;
+
     const dismissedAt = localStorage.getItem("pwa-install-dismissed");
     if (dismissedAt) {
-      const daysSinceDismissed = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
-      // Show again after 7 days
-      return daysSinceDismissed >= 7;
+      const daysSinceDismissed =
+        (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
+      // Show again after 3 days (reduced from 7 for mobile)
+      return daysSinceDismissed >= 3;
     }
-    
+
     return true;
   }, [isInstalled, isInstallable]);
 
-  // Dismiss install prompt
+  // ── Dismiss ──
   const dismissInstallPrompt = useCallback(() => {
     localStorage.setItem("pwa-install-dismissed", Date.now().toString());
   }, []);
