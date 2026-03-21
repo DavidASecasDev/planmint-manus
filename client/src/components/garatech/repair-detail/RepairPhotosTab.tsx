@@ -3,7 +3,8 @@ import { Camera, Upload, Trash2, Image as ImageIcon, ZoomIn } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useRepairPhotos } from '@/hooks/useRepairPhotos';
 import type { RepairPhotoType, RepairPhoto } from '@/types/garatech';
 import { format } from 'date-fns';
@@ -189,6 +190,7 @@ export function RepairPhotosTab({ repairId }: RepairPhotosTabProps) {
       {/* Photo Preview Dialog */}
       <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <VisuallyHidden><DialogTitle>Vista previa de foto</DialogTitle></VisuallyHidden>
           {selectedUrl && (
             <div className="relative">
               <img
