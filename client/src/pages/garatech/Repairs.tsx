@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Hammer, MoreHorizontal, Trash2, Car, List, LayoutGrid, Eye, Filter, Loader2, ShieldAlert } from 'lucide-react';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useRepairs } from '@/hooks/useRepairs';
 import { useWorkshops } from '@/hooks/useWorkshops';
@@ -37,6 +38,7 @@ export default function GaratechRepairs() {
     workshopId: 'all',
     vehicleId: 'all',
   });
+  const [deleteTarget, setDeleteTarget] = useState<Repair | null>(null);
 
   const filteredRepairs = useMemo(() => {
     return repairs.filter((repair) => {
@@ -51,12 +53,12 @@ export default function GaratechRepairs() {
     navigate(`/garatech/repairs/${repair.id}`);
   };
 
-  const handleDelete = async (repair: Repair) => {
-    const vehicleLabel = repair.vehicle ? `${repair.vehicle.matricula}` : 'esta reparación';
-    if (confirm(`¿Eliminar la reparación de ${vehicleLabel}?`)) {
-      await deleteRepair.mutateAsync(repair.id);
-    }
-  };
+  const handleDeleteRequest = (repair: Repair) => setDeleteTarget(repair);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    await deleteRepair.mutateAsync(deleteTarget.id);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteRepair]);
 
   const handleStatusChange = async (repair: Repair, newStatus: RepairStatus) => {
     await updateRepair.mutateAsync({ id: repair.id, data: { status: newStatus } });
@@ -243,7 +245,7 @@ export default function GaratechRepairs() {
                                   )
                                 ))}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(repair)}>
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteRequest(repair)}>
                                   <Trash2 className="h-4 w-4 mr-2" />Eliminar
                                 </DropdownMenuItem>
                               </>
@@ -259,6 +261,16 @@ export default function GaratechRepairs() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar reparación"
+        description={`¿Eliminar la reparación de ${deleteTarget?.vehicle?.matricula || 'este vehículo'}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
     </AppLayout>
   );
 }

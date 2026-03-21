@@ -7,14 +7,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Building2 } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, ShieldAlert } from 'lucide-react';
 import { useWorkshops } from '@/hooks/useWorkshops';
 import type { WorkshopFormData } from '@/types/garatech';
 import { toast } from 'sonner';
 
 export default function WorkshopNew() {
   const navigate = useNavigate();
-  const { createWorkshop } = useWorkshops();
+  const { createWorkshop, canManage, permissionsLoading } = useWorkshops();
+
+  if (permissionsLoading) {
+    return (
+      <AppLayout title="Añadir Taller">
+        <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      </AppLayout>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <AppLayout title="Añadir Taller">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Acceso denegado</h2>
+          <p className="text-muted-foreground mb-4">No tienes permiso para añadir talleres</p>
+          <Button variant="outline" onClick={() => navigate('/garatech/workshops')}>Volver al listado</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const [form, setForm] = useState<WorkshopFormData>({
     name: '',

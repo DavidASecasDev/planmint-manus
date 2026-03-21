@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Pencil, X, Wrench, Car } from 'lucide-react';
+import { ArrowLeft, Pencil, X, Wrench, Car, Loader2, ShieldAlert } from 'lucide-react';
 import { RepairGeneralTab } from '@/components/garatech/repair-detail/RepairGeneralTab';
 import { RepairCommentsTab } from '@/components/garatech/repair-detail/RepairCommentsTab';
 import { RepairHistoryTab } from '@/components/garatech/repair-detail/RepairHistoryTab';
@@ -22,7 +22,7 @@ export default function RepairDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { canManage } = useRepairs();
+  const { canManage, canView, permissionsLoading } = useRepairs();
   const [isEditing, setIsEditing] = useState(false);
   const orgId = profile?.organization_id;
 
@@ -45,6 +45,27 @@ export default function RepairDetail() {
     },
     enabled: !!id && !!orgId,
   });
+
+  if (permissionsLoading) {
+    return (
+      <AppLayout title="Reparación">
+        <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      </AppLayout>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <AppLayout title="Reparación">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Acceso denegado</h2>
+          <p className="text-muted-foreground mb-4">No tienes permiso para ver esta reparación</p>
+          <Button variant="outline" onClick={() => navigate('/garatech/repairs')}>Volver al listado</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (isLoading) {
     return (

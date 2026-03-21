@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, AlertTriangle, MoreHorizontal, Pencil, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAccidents } from '@/hooks/useAccidents';
 import { AccidentFormDialog } from '@/components/garatech/AccidentFormDialog';
@@ -20,6 +21,7 @@ export default function GaratechAccidents() {
   const { accidents, isLoading, deleteAccident, canView, canManage, permissionsLoading } = useAccidents();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAccident, setEditingAccident] = useState<Accident | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Accident | null>(null);
 
   const handleCreate = () => {
     setEditingAccident(null);
@@ -31,15 +33,16 @@ export default function GaratechAccidents() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (accident: Accident) => {
-    if (confirm(`¿Eliminar el accidente del ${format(new Date(accident.accident_date), 'dd/MM/yyyy')}?`)) {
-      try {
-        await deleteAccident.mutateAsync(accident.id);
-      } catch (error) {
-        // Error handled in hook
-      }
+  const handleDeleteRequest = (accident: Accident) => setDeleteTarget(accident);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteAccident.mutateAsync(deleteTarget.id);
+    } catch (error) {
+      // Error handled in hook
     }
-  };
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteAccident]);
 
   const getSeverityBadgeStyle = (severity: string | null) => {
     const key = (severity || 'leve') as AccidentSeverity;
@@ -173,7 +176,7 @@ export default function GaratechAccidents() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   className="text-destructive"
-                                  onClick={() => handleDelete(accident)}
+                                  onClick={() => handleDeleteRequest(accident)}
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Eliminar
@@ -191,6 +194,16 @@ export default function GaratechAccidents() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar accidente"
+        description={`¿Eliminar el accidente del ${deleteTarget ? format(new Date(deleteTarget.accident_date), 'dd/MM/yyyy') : ''}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
 
       <AccidentFormDialog
         open={dialogOpen}

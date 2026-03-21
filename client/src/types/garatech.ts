@@ -498,6 +498,17 @@ export const REPAIR_STATUS_COLORS: Record<RepairStatus, string> = {
 };
 
 // Kanban column configuration
+// Valid status transitions for repairs
+// Each key maps to the set of statuses it can transition TO
+export const VALID_REPAIR_TRANSITIONS: Record<RepairStatus, RepairStatus[]> = {
+  pendiente_aprobacion: ['listo_entregar_taller'],
+  listo_entregar_taller: ['en_taller', 'pendiente_aprobacion'],
+  en_taller: ['esperando_piezas', 'listo_recoger', 'finalizado'],
+  esperando_piezas: ['en_taller'],
+  listo_recoger: ['finalizado', 'en_taller'],
+  finalizado: [],
+};
+
 export const REPAIR_STATUS_COLUMNS = [
   { status: 'pendiente_aprobacion', label: 'Pendiente Aprobación', color: '#eab308' },
   { status: 'listo_entregar_taller', label: 'Listo Entregar Taller', color: '#a855f7' },

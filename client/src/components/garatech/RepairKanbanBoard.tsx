@@ -9,9 +9,16 @@ import {
   useSensors,
   closestCorners,
 } from '@dnd-kit/core';
+import { toast } from 'sonner';
 import { RepairKanbanColumn } from './RepairKanbanColumn';
 import { RepairKanbanCard } from './RepairKanbanCard';
-import { REPAIR_STATUS_COLUMNS, type Repair, type RepairStatus } from '@/types/garatech';
+import {
+  REPAIR_STATUS_COLUMNS,
+  REPAIR_STATUS_LABELS,
+  VALID_REPAIR_TRANSITIONS,
+  type Repair,
+  type RepairStatus,
+} from '@/types/garatech';
 
 interface RepairKanbanBoardProps {
   repairs: Repair[];
@@ -70,10 +77,31 @@ export function RepairKanbanBoard({
     const repair = active.data.current?.repair as Repair | undefined;
     const newStatus = over.id as RepairStatus;
 
-    if (repair && newStatus && repair.status !== newStatus) {
-      await onStatusChange(repair, newStatus);
+    if (!repair || !newStatus || repair.status === newStatus) return;
+
+    // Validate the transition
+    const allowedTransitions = VALID_REPAIR_TRANSITIONS[repair.status];
+    if (!allowedTransitions || !allowedTransitions.includes(newStatus)) {
+      const fromLabel = REPAIR_STATUS_LABELS[repair.status];
+      const toLabel = REPAIR_STATUS_LABELS[newStatus];
+      toast.error(`Transición no permitida`, {
+        description: `No se puede pasar de "${fromLabel}" a "${toLabel}". ${
+          allowedTransitions.length > 0
+            ? `Transiciones válidas: ${allowedTransitions.map(s => REPAIR_STATUS_LABELS[s]).join(', ')}.`
+            : 'Este estado no permite más cambios.'
+        }`,
+      });
+      return;
     }
+
+    await onStatusChange(repair, newStatus);
   };
+
+  // Compute valid drop targets for the currently dragged repair
+  const validDropTargets = useMemo(() => {
+    if (!activeRepair) return new Set<RepairStatus>();
+    return new Set(VALID_REPAIR_TRANSITIONS[activeRepair.status] || []);
+  }, [activeRepair]);
 
   return (
     <DndContext
@@ -91,6 +119,8 @@ export function RepairKanbanBoard({
             color={column.color}
             repairs={repairsByStatus[column.status] || []}
             onRepairClick={onRepairClick}
+            isValidTarget={activeRepair ? validDropTargets.has(column.status as RepairStatus) : undefined}
+            isDragging={!!activeRepair}
           />
         ))}
       </div>

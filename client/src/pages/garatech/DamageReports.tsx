@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, MoreHorizontal, Eye, CheckCircle, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useDamageReports } from '@/hooks/useDamageReports';
 import { DAMAGE_REPORT_STATUS_COLORS, DAMAGE_REPORT_STATUS_LABELS, type DamageReport, type DamageReportStatus } from '@/types/garatech';
@@ -17,22 +18,26 @@ import { DAMAGE_REPORT_STATUS_COLORS, DAMAGE_REPORT_STATUS_LABELS, type DamageRe
 export default function GaratechDamageReports() {
   const navigate = useNavigate();
   const { reports, isLoading, deleteReport, finalizeReport, canView, canManage, permissionsLoading } = useDamageReports();
+  const [deleteTarget, setDeleteTarget] = useState<DamageReport | null>(null);
+  const [finalizeTarget, setFinalizeTarget] = useState<DamageReport | null>(null);
 
   const handleView = (report: DamageReport) => {
     navigate(`/garatech/reports/${report.id}`);
   };
 
-  const handleFinalize = async (report: DamageReport) => {
-    if (confirm('¿Finalizar este informe? No podrá modificarse después.')) {
-      try { await finalizeReport.mutateAsync(report.id); } catch (error) {}
-    }
-  };
+  const handleFinalizeRequest = (report: DamageReport) => setFinalizeTarget(report);
+  const handleFinalizeConfirm = useCallback(async () => {
+    if (!finalizeTarget) return;
+    try { await finalizeReport.mutateAsync(finalizeTarget.id); } catch (error) {}
+    setFinalizeTarget(null);
+  }, [finalizeTarget, finalizeReport]);
 
-  const handleDelete = async (report: DamageReport) => {
-    if (confirm(`¿Eliminar el informe ${report.report_number}?`)) {
-      try { await deleteReport.mutateAsync(report.id); } catch (error) {}
-    }
-  };
+  const handleDeleteRequest = (report: DamageReport) => setDeleteTarget(report);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    try { await deleteReport.mutateAsync(deleteTarget.id); } catch (error) {}
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteReport]);
 
   const getStatusBadgeStyle = (status: string | null) => {
     const key = (status || 'borrador') as DamageReportStatus;
@@ -130,11 +135,11 @@ export default function GaratechDamageReports() {
                             {canManage && (
                               <>
                                 {report.status !== 'finalizado' && (
-                                  <DropdownMenuItem onClick={() => handleFinalize(report)}>
+                                  <DropdownMenuItem onClick={() => handleFinalizeRequest(report)}>
                                     <CheckCircle className="h-4 w-4 mr-2" />Finalizar
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(report)}>
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteRequest(report)}>
                                   <Trash2 className="h-4 w-4 mr-2" />Eliminar
                                 </DropdownMenuItem>
                               </>
@@ -150,6 +155,25 @@ export default function GaratechDamageReports() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={!!finalizeTarget}
+        onOpenChange={(open) => !open && setFinalizeTarget(null)}
+        title="Finalizar informe"
+        description="¿Finalizar este informe? No podrá modificarse después."
+        confirmLabel="Finalizar"
+        onConfirm={handleFinalizeConfirm}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar informe"
+        description={`¿Eliminar el informe ${deleteTarget?.report_number || ''}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
     </AppLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Plus, Upload, Pencil, Trash2, MoreHorizontal, FileSpreadsheet, Loader2, ShieldAlert } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useDamageCatalog } from '@/hooks/useDamageCatalog';
 import { ImportDamageCatalog } from '@/components/garatech/ImportDamageCatalog';
 import { DamageCatalogItemDialog } from '@/components/garatech/DamageCatalogItemDialog';
@@ -19,6 +20,7 @@ export default function GaratechDamageCatalog() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<DamageCatalogItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DamageCatalogItem | null>(null);
 
   const formatPrice = (value: number | null | undefined) => {
     if (value === null || value === undefined) return '--';
@@ -30,11 +32,12 @@ export default function GaratechDamageCatalog() {
     setItemDialogOpen(true);
   };
 
-  const handleDelete = async (item: DamageCatalogItem) => {
-    if (confirm(`¿Eliminar "${item.name_es}" del catálogo?`)) {
-      await deleteItem.mutateAsync(item.id);
-    }
-  };
+  const handleDeleteRequest = (item: DamageCatalogItem) => setDeleteTarget(item);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    await deleteItem.mutateAsync(deleteTarget.id);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteItem]);
 
   const handleItemDialogClose = () => {
     setItemDialogOpen(false);
@@ -167,7 +170,7 @@ export default function GaratechDamageCatalog() {
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-destructive"
-                                onClick={() => handleDelete(item)}
+                                onClick={() => handleDeleteRequest(item)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Eliminar
@@ -184,6 +187,16 @@ export default function GaratechDamageCatalog() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar del catálogo"
+        description={`¿Eliminar "${deleteTarget?.name_es || ''}" del catálogo? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
 
       <DamageCatalogItemDialog
         open={itemDialogOpen}

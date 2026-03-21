@@ -18,6 +18,7 @@ import { CollectPaymentDialog } from '@/components/garatech/CollectPaymentDialog
 import { DamageReportEditForm } from '@/components/garatech/damage-report-detail/DamageReportEditForm';
 import { VehicleDamageHistory } from '@/components/garatech/damage-report-detail/VehicleDamageHistory';
 import { DAMAGE_REPORT_STATUS_COLORS, DAMAGE_REPORT_STATUS_LABELS, VEHICLE_LOCATIONS, type DamageReport, type DamageReportStatus } from '@/types/garatech';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -32,6 +33,8 @@ export default function DamageReportDetailPage() {
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [pdfLang, setPdfLang] = useState<PdfLang>('es');
   const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
+  const [removeItemTarget, setRemoveItemTarget] = useState<string | null>(null);
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const orgId = profile?.organization_id;
 
   const { data: report, isLoading } = useQuery({
@@ -88,24 +91,25 @@ export default function DamageReportDetailPage() {
     return VEHICLE_LOCATIONS.find((l: any) => l.value === loc)?.label || loc || '--';
   };
 
-  const handleRemoveItem = async (itemId: string) => {
-    if (confirm('¿Eliminar este item del informe?')) {
-      try {
-        await removeReportItem.mutateAsync(itemId);
-      } catch (error) {
-        toast.error('Error al eliminar');
-      }
+  const handleRemoveItemRequest = (itemId: string) => setRemoveItemTarget(itemId);
+  const handleRemoveItemConfirm = async () => {
+    if (!removeItemTarget) return;
+    try {
+      await removeReportItem.mutateAsync(removeItemTarget);
+    } catch (error) {
+      toast.error('Error al eliminar');
     }
+    setRemoveItemTarget(null);
   };
 
-  const handleFinalize = async () => {
-    if (confirm('¿Finalizar este informe? No podrá modificarse después.')) {
-      try {
-        await finalizeReport.mutateAsync(report.id);
-      } catch (error) {
-        toast.error('Error al finalizar');
-      }
+  const handleFinalizeRequest = () => setShowFinalizeConfirm(true);
+  const handleFinalizeConfirm = async () => {
+    try {
+      await finalizeReport.mutateAsync(report.id);
+    } catch (error) {
+      toast.error('Error al finalizar');
     }
+    setShowFinalizeConfirm(false);
   };
 
   const isEditable = report.status !== 'finalizado';
@@ -301,7 +305,7 @@ export default function DamageReportDetailPage() {
                           <TableCell className="text-right font-mono font-medium">{item.total_price}€</TableCell>
                           {isEditable && canManage && (
                             <TableCell>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItemRequest(item.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
@@ -395,7 +399,7 @@ export default function DamageReportDetailPage() {
             {/* Actions */}
             <div className="flex justify-end gap-2">
               {isEditable && canManage && (
-                <Button variant="outline" onClick={handleFinalize}>
+                <Button variant="outline" onClick={handleFinalizeRequest}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Finalizar Informe
                 </Button>
@@ -419,6 +423,25 @@ export default function DamageReportDetailPage() {
 
       <DamageReportItemDialog open={addItemOpen} onOpenChange={setAddItemOpen} reportId={report.id} />
       <CollectPaymentDialog open={collectPaymentOpen} onOpenChange={setCollectPaymentOpen} report={report} />
+
+      <ConfirmDialog
+        open={!!removeItemTarget}
+        onOpenChange={(open) => !open && setRemoveItemTarget(null)}
+        title="Eliminar item"
+        description="¿Eliminar este item del informe? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={handleRemoveItemConfirm}
+      />
+
+      <ConfirmDialog
+        open={showFinalizeConfirm}
+        onOpenChange={setShowFinalizeConfirm}
+        title="Finalizar informe"
+        description="¿Finalizar este informe? No podrá modificarse después."
+        confirmLabel="Finalizar"
+        onConfirm={handleFinalizeConfirm}
+      />
     </AppLayout>
   );
 }

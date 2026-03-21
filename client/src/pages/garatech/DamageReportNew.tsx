@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileText, LinkIcon } from 'lucide-react';
+import { ArrowLeft, FileText, LinkIcon, Loader2, ShieldAlert } from 'lucide-react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useDamageReports } from '@/hooks/useDamageReports';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,8 +18,29 @@ import type { DamageReportFormData } from '@/types/garatech';
 export default function DamageReportNew() {
   const navigate = useNavigate();
   const { vehicles } = useVehicles();
-  const { createReport } = useDamageReports();
+  const { createReport, canManage, permissionsLoading } = useDamageReports();
   const { profile } = useAuth();
+
+  if (permissionsLoading) {
+    return (
+      <AppLayout title="Nuevo Informe de Daños">
+        <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      </AppLayout>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <AppLayout title="Nuevo Informe de Daños">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Acceso denegado</h2>
+          <p className="text-muted-foreground mb-4">No tienes permiso para crear informes de daños</p>
+          <Button variant="outline" onClick={() => navigate('/garatech/reports')}>Volver al listado</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const [form, setForm] = useState<DamageReportFormData>({
     vehicle_id: '',

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Wrench } from 'lucide-react';
+import { ArrowLeft, Wrench, Loader2, ShieldAlert } from 'lucide-react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useWorkshops } from '@/hooks/useWorkshops';
 import { useRepairs } from '@/hooks/useRepairs';
@@ -18,7 +18,28 @@ export default function RepairNew() {
   const navigate = useNavigate();
   const { vehicles } = useVehicles();
   const { activeWorkshops } = useWorkshops();
-  const { createRepair } = useRepairs();
+  const { createRepair, canManage, permissionsLoading } = useRepairs();
+
+  if (permissionsLoading) {
+    return (
+      <AppLayout title="Nueva Reparación">
+        <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      </AppLayout>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <AppLayout title="Nueva Reparación">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Acceso denegado</h2>
+          <p className="text-muted-foreground mb-4">No tienes permiso para crear reparaciones</p>
+          <Button variant="outline" onClick={() => navigate('/garatech/repairs')}>Volver al listado</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const [form, setForm] = useState<RepairFormData>({
     vehicle_id: '',

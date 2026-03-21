@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Building2, Search, LayoutGrid, List, Loader2, ShieldAlert, MoreHorizontal, Trash2, Phone, Mail, MapPin, Star } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useWorkshops } from '@/hooks/useWorkshops';
 import { WorkshopCard } from '@/components/garatech/WorkshopCard';
@@ -20,12 +21,14 @@ export default function GaratechWorkshops() {
   const { workshops, isLoading, deleteWorkshop, updateRating, canView, canManage, permissionsLoading } = useWorkshops();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [deleteTarget, setDeleteTarget] = useState<Workshop | null>(null);
 
-  const handleDelete = async (workshop: Workshop) => {
-    if (confirm(`¿Eliminar el taller "${workshop.name}"?`)) {
-      await deleteWorkshop.mutateAsync(workshop.id);
-    }
-  };
+  const handleDeleteRequest = (workshop: Workshop) => setDeleteTarget(workshop);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    await deleteWorkshop.mutateAsync(deleteTarget.id);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteWorkshop]);
 
   const handleViewDetails = (workshop: Workshop) => {
     navigate(`/garatech/workshops/${workshop.id}`);
@@ -148,7 +151,7 @@ export default function GaratechWorkshops() {
                 key={workshop.id}
                 workshop={workshop}
                 onEdit={canManage ? () => navigate(`/garatech/workshops/${workshop.id}`) : undefined}
-                onDelete={canManage ? handleDelete : undefined}
+                onDelete={canManage ? handleDeleteRequest : undefined}
                 onViewDetails={handleViewDetails}
                 onViewHistory={handleViewDetails}
                 onRatingChange={canManage ? handleRatingChange : undefined}
@@ -208,7 +211,7 @@ export default function GaratechWorkshops() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleViewDetails(workshop)}>Ver Detalles</DropdownMenuItem>
                             {canManage && (
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(workshop)}>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteRequest(workshop)}>
                                 <Trash2 className="h-4 w-4 mr-2" />Eliminar
                               </DropdownMenuItem>
                             )}
@@ -223,6 +226,16 @@ export default function GaratechWorkshops() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar taller"
+        description={`¿Eliminar el taller "${deleteTarget?.name || ''}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
     </AppLayout>
   );
 }
