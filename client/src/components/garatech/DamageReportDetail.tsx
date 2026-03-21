@@ -10,6 +10,7 @@ import { Plus, Trash2, CheckCircle, Banknote, CheckCheck } from 'lucide-react';
 import { useDamageReports } from '@/hooks/useDamageReports';
 import { DamageReportItemDialog } from './DamageReportItemDialog';
 import { CollectPaymentDialog } from './CollectPaymentDialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DAMAGE_REPORT_STATUS_COLORS, DAMAGE_REPORT_STATUS_LABELS, VEHICLE_LOCATIONS, type DamageReport, type DamageReportStatus } from '@/types/garatech';
 import { toast } from 'sonner';
 
@@ -23,6 +24,8 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
   const { removeReportItem, finalizeReport } = useDamageReports();
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
+  const [confirmRemoveItem, setConfirmRemoveItem] = useState<string | null>(null);
+  const [confirmFinalize, setConfirmFinalize] = useState(false);
 
   if (!report) return null;
 
@@ -37,22 +40,18 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
   };
 
   const handleRemoveItem = async (itemId: string) => {
-    if (confirm('¿Eliminar este item del informe?')) {
-      try {
-        await removeReportItem.mutateAsync(itemId);
-      } catch (error) {
-        toast.error('Error al eliminar');
-      }
+    try {
+      await removeReportItem.mutateAsync(itemId);
+    } catch (error) {
+      toast.error('Error al eliminar');
     }
   };
 
   const handleFinalize = async () => {
-    if (confirm('¿Finalizar este informe? No podrá modificarse después.')) {
-      try {
-        await finalizeReport.mutateAsync(report.id);
-      } catch (error) {
-        toast.error('Error al finalizar');
-      }
+    try {
+      await finalizeReport.mutateAsync(report.id);
+    } catch (error) {
+      toast.error('Error al finalizar');
     }
   };
 
@@ -69,7 +68,7 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
               <SheetTitle className="font-mono">{report.report_number}</SheetTitle>
               <div className="flex items-center gap-2">
                 {isCollected && (
-                  <Badge variant="outline" className="border-green-500 text-green-600 bg-green-500/10">
+                  <Badge variant="outline" className="border-green-500 dark:border-green-400 text-green-600 dark:text-green-400 bg-green-500/10 dark:bg-green-500/15">
                     <CheckCheck className="h-3 w-3 mr-1" />
                     Cobrado
                   </Badge>
@@ -163,7 +162,7 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive"
-                              onClick={() => handleRemoveItem(item.id)}
+                              onClick={() => setConfirmRemoveItem(item.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -198,7 +197,7 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
                 {isCollected && (
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Cobrado</p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {(report.amount_collected || 0).toLocaleString('es-ES', { 
                         minimumFractionDigits: 2, 
                         maximumFractionDigits: 2 
@@ -210,10 +209,10 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
 
               {/* Collection details */}
               {isCollected && (
-                <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                <div className="p-3 bg-green-500/10 dark:bg-green-500/15 rounded-lg border border-green-500/20 dark:border-green-400/20">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCheck className="h-4 w-4 text-green-600" />
-                    <span className="font-medium text-green-600">Cobro registrado</span>
+                    <CheckCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <span className="font-medium text-green-600 dark:text-green-400">Cobro registrado</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -223,7 +222,7 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
                     {report.amount_collected !== report.total_amount && (
                       <div>
                         <span className="text-muted-foreground">Diferencia: </span>
-                        <span className={report.amount_collected! < report.total_amount! ? 'text-amber-600' : 'text-green-600'}>
+                        <span className={report.amount_collected! < report.total_amount! ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}>
                           {((report.amount_collected || 0) - (report.total_amount || 0)).toLocaleString('es-ES')}€
                         </span>
                       </div>
@@ -239,7 +238,7 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-4">
               {isEditable && (
-                <Button variant="outline" onClick={handleFinalize}>
+                <Button variant="outline" onClick={() => setConfirmFinalize(true)}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Finalizar Informe
                 </Button>
@@ -273,6 +272,31 @@ export function DamageReportDetail({ open, onOpenChange, report }: DamageReportD
         open={collectPaymentOpen}
         onOpenChange={setCollectPaymentOpen}
         report={report}
+      />
+
+      <ConfirmDialog
+        open={!!confirmRemoveItem}
+        onOpenChange={(open) => { if (!open) setConfirmRemoveItem(null); }}
+        title="Eliminar item"
+        description="¿Eliminar este item del informe? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={() => {
+          if (confirmRemoveItem) handleRemoveItem(confirmRemoveItem);
+          setConfirmRemoveItem(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmFinalize}
+        onOpenChange={setConfirmFinalize}
+        title="Finalizar informe"
+        description="¿Finalizar este informe? No podrá modificarse después."
+        confirmLabel="Finalizar"
+        onConfirm={() => {
+          handleFinalize();
+          setConfirmFinalize(false);
+        }}
       />
     </>
   );

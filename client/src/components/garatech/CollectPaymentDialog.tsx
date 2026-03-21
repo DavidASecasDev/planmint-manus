@@ -102,7 +102,7 @@ export function CollectPaymentDialog({ open, onOpenChange, report }: CollectPaym
               className="font-mono"
             />
             {difference !== 0 && (
-              <p className={`text-xs ${difference > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+              <p className={`text-xs ${difference > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
                 {difference > 0 
                   ? `Descuento de ${difference.toLocaleString('es-ES')}€`
                   : `Sobrecargo de ${Math.abs(difference).toLocaleString('es-ES')}€`

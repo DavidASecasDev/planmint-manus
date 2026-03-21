@@ -20,22 +20,22 @@ export function BalanceKPICards({
       label: 'Ingresos (Cobros)',
       value: `${incomeThisMonth.toLocaleString('es-ES')}€`,
       icon: TrendingUp,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
+      color: 'text-green-500 dark:text-green-400',
+      bgColor: 'bg-green-500/10 dark:bg-green-500/15',
     },
     {
       label: 'Gastos (Taller)',
       value: `${expensesThisMonth.toLocaleString('es-ES')}€`,
       icon: TrendingDown,
-      color: 'text-red-500',
-      bgColor: 'bg-red-500/10',
+      color: 'text-red-500 dark:text-red-400',
+      bgColor: 'bg-red-500/10 dark:bg-red-500/15',
     },
     {
       label: 'Balance Mensual',
       value: `${isPositive ? '+' : ''}${balanceThisMonth.toLocaleString('es-ES')}€`,
       icon: isPositive ? Wallet : Scale,
-      color: isPositive ? 'text-green-600' : 'text-red-600',
-      bgColor: isPositive ? 'bg-green-500/10' : 'bg-red-500/10',
+      color: isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+      bgColor: isPositive ? 'bg-green-500/10 dark:bg-green-500/15' : 'bg-red-500/10 dark:bg-red-500/15',
       highlight: true,
     },
   ];
@@ -46,7 +46,7 @@ export function BalanceKPICards({
         <Card 
           key={kpi.label}
           className={cn(
-            kpi.highlight && (isPositive ? 'border-green-500/30' : 'border-red-500/30')
+            kpi.highlight && (isPositive ? 'border-green-500/30 dark:border-green-400/30' : 'border-red-500/30 dark:border-red-400/30')
           )}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">

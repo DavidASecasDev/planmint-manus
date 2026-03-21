@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface SearchResult {
   id: string;
-  type: 'task' | 'area' | 'tag' | 'subtask' | 'milestone' | 'update';
+  type: 'task' | 'area' | 'tag' | 'subtask' | 'milestone' | 'update' | 'repair' | 'workshop' | 'accident';
   title: string;
   subtitle?: string;
   metadata?: {
@@ -17,6 +17,9 @@ export interface SearchResult {
     icon?: string;
     authorName?: string;
     createdAt?: string;
+    repairType?: string;
+    severity?: string;
+    matricula?: string;
   };
 }
 
@@ -205,6 +208,75 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
               taskTitle: update.tasks?.title,
               authorName: update.profiles?.name,
               createdAt: update.created_at,
+            },
+          });
+        });
+      }
+
+      // Search repairs (Garatech)
+      const { data: repairs } = await supabase
+        .from('repairs')
+        .select('id, repair_number, description, status, repair_type, vehicle:vehicles(matricula, modelo), workshop:workshops(name)')
+        .eq('organization_id', profile.organization_id)
+        .or(`repair_number.ilike.${searchTerm},description.ilike.${searchTerm}`)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (repairs) {
+        repairs.forEach((repair: any) => {
+          allResults.push({
+            id: repair.id,
+            type: 'repair',
+            title: repair.repair_number || 'Reparación',
+            subtitle: repair.description?.substring(0, 60) || undefined,
+            metadata: {
+              status: repair.status,
+              repairType: repair.repair_type,
+              matricula: repair.vehicle?.matricula,
+            },
+          });
+        });
+      }
+
+      // Search workshops (Garatech)
+      const { data: workshops } = await supabase
+        .from('workshops')
+        .select('id, name, city, phone')
+        .eq('organization_id', profile.organization_id)
+        .or(`name.ilike.${searchTerm},city.ilike.${searchTerm}`)
+        .limit(5);
+
+      if (workshops) {
+        workshops.forEach((workshop: any) => {
+          allResults.push({
+            id: workshop.id,
+            type: 'workshop',
+            title: workshop.name,
+            subtitle: [workshop.city, workshop.phone].filter(Boolean).join(' · ') || undefined,
+          });
+        });
+      }
+
+      // Search accidents (Garatech)
+      const { data: accidents } = await supabase
+        .from('accidents')
+        .select('id, accident_number, description, severity, status, vehicle:vehicles(matricula)')
+        .eq('organization_id', profile.organization_id)
+        .or(`accident_number.ilike.${searchTerm},description.ilike.${searchTerm}`)
+        .order('accident_date', { ascending: false })
+        .limit(5);
+
+      if (accidents) {
+        accidents.forEach((accident: any) => {
+          allResults.push({
+            id: accident.id,
+            type: 'accident',
+            title: accident.accident_number || 'Accidente',
+            subtitle: accident.description?.substring(0, 60) || undefined,
+            metadata: {
+              status: accident.status,
+              severity: accident.severity,
+              matricula: accident.vehicle?.matricula,
             },
           });
         });

@@ -90,7 +90,7 @@ export default function DamageReportNew() {
       contract_end_date: reservation.hasta || undefined,
       vehicle_plate: vehicle?.matricula || undefined,
       vehicle_model: vehicle?.modelo || undefined,
-      vehicle_brand: undefined,
+      vehicle_brand: vehicle?.fleet_info?.marca || undefined,
     }));
   };
 

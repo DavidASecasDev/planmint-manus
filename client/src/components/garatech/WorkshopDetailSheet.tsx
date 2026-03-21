@@ -55,8 +55,8 @@ export function WorkshopDetailSheet({
                   <Star 
                     className={`h-5 w-5 cursor-pointer ${
                       star <= (workshop.rating || 0) 
-                        ? 'text-yellow-400 fill-yellow-400' 
-                        : 'text-muted-foreground/30 hover:text-yellow-300'
+                        ? 'text-yellow-400 fill-yellow-400 dark:text-yellow-300 dark:fill-yellow-300' 
+                        : 'text-muted-foreground/30 hover:text-yellow-300 dark:hover:text-yellow-200'
                     }`}
                   />
                 </button>
@@ -130,12 +130,12 @@ export function WorkshopDetailSheet({
                 <p className="text-xs text-muted-foreground">Reparaciones</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50 text-center">
-                <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
+                <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500 dark:text-green-400" />
                 <p className="text-lg font-semibold">{completedRepairs.length}</p>
                 <p className="text-xs text-muted-foreground">Completadas</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50 text-center">
-                <DollarSign className="h-5 w-5 mx-auto mb-1 text-amber-500" />
+                <DollarSign className="h-5 w-5 mx-auto mb-1 text-amber-500 dark:text-amber-400" />
                 <p className="text-lg font-semibold">
                   {totalCost > 0 ? `${totalCost.toLocaleString()}€` : '—'}
                 </p>

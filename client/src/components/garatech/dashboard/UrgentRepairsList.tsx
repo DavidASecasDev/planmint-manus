@@ -17,7 +17,7 @@ export function UrgentRepairsList({ repairs }: UrgentRepairsListProps) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-500" />
+            <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />
             Reparaciones Urgentes
           </CardTitle>
         </CardHeader>
@@ -34,7 +34,7 @@ export function UrgentRepairsList({ repairs }: UrgentRepairsListProps) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />
           Reparaciones Urgentes
         </CardTitle>
       </CardHeader>

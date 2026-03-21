@@ -8,6 +8,7 @@ import { User, Wrench, CheckCircle, Lock, History } from 'lucide-react';
 import { VehicleCleaningChecklist } from './VehicleCleaningChecklist';
 import { VehicleLocationSelect } from './VehicleLocationSelect';
 import { VehicleCleaningHistory } from './VehicleCleaningHistory';
+import { VehicleRepairSummary } from './VehicleRepairSummary';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -234,6 +235,10 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
                   </Collapsible>
                 </>
               )}
+
+              {/* Garatech: Repair & Accident History */}
+              <Separator />
+              <VehicleRepairSummary vehicleId={vehicle.id} />
             </div>
           )}
         </div>

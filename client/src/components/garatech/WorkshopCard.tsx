@@ -44,13 +44,14 @@ export function WorkshopCard({ workshop, onEdit, onDelete, onViewDetails, onView
                     <button
                       key={star}
                       onClick={() => onRatingChange?.(workshop.id, star)}
-                      className="focus:outline-none transition-transform hover:scale-110"
+                      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm transition-transform hover:scale-110"
+                      aria-label={`Valorar ${star} de 5 estrellas`}
                     >
                       <Star 
                         className={`h-3.5 w-3.5 cursor-pointer ${
                           star <= currentRating 
-                            ? 'text-yellow-400 fill-yellow-400' 
-                            : 'text-muted-foreground/30 hover:text-yellow-300'
+                            ? 'text-yellow-400 fill-yellow-400 dark:text-yellow-300 dark:fill-yellow-300' 
+                            : 'text-muted-foreground/30 hover:text-yellow-300 dark:hover:text-yellow-200'
                         }`}
                       />
                     </button>

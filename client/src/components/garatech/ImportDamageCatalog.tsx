@@ -165,16 +165,16 @@ export function ImportDamageCatalog({ onComplete, onCancel }: ImportDamageCatalo
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
               <div className="text-center p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                <p className="text-2xl font-bold text-green-600">{preview.nuevos}</p>
-                <p className="text-xs text-green-600/70">Nuevos</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{preview.nuevos}</p>
+                <p className="text-xs text-green-600/70 dark:text-green-400/70">Nuevos</p>
               </div>
               <div className="text-center p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
-                <p className="text-2xl font-bold text-orange-600">{preview.actualizar}</p>
-                <p className="text-xs text-orange-600/70">Actualizar</p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{preview.actualizar}</p>
+                <p className="text-xs text-orange-600/70 dark:text-orange-400/70">Actualizar</p>
               </div>
               <div className="text-center p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                <p className="text-2xl font-bold text-red-600">{preview.errores}</p>
-                <p className="text-xs text-red-600/70">Errores</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{preview.errores}</p>
+                <p className="text-xs text-red-600/70 dark:text-red-400/70">Errores</p>
               </div>
             </div>
 

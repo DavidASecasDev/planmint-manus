@@ -19,6 +19,10 @@ import {
   Target, 
   MessageSquare,
   Loader2,
+  Wrench,
+  Building,
+  AlertTriangle,
+  Car,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -36,6 +40,9 @@ const typeIcons: Record<SearchResult['type'], React.ReactNode> = {
   subtask: <ListChecks className="h-4 w-4" />,
   milestone: <Target className="h-4 w-4" />,
   update: <MessageSquare className="h-4 w-4" />,
+  repair: <Wrench className="h-4 w-4" />,
+  workshop: <Building className="h-4 w-4" />,
+  accident: <AlertTriangle className="h-4 w-4" />,
 };
 
 const typeLabels: Record<SearchResult['type'], string> = {
@@ -45,6 +52,9 @@ const typeLabels: Record<SearchResult['type'], string> = {
   subtask: 'Subtareas',
   milestone: 'Hitos',
   update: 'Actualizaciones',
+  repair: 'Reparaciones',
+  workshop: 'Talleres',
+  accident: 'Accidentes',
 };
 
 const statusLabels: Record<string, string> = {
@@ -65,6 +75,14 @@ const taskTypeLabels: Record<string, string> = {
   simple: 'Simple',
   goal_numeric: 'Numérico',
   goal_milestones: 'Hitos',
+};
+
+const repairTypeLabels: Record<string, string> = {
+  mantenimiento: 'Mantenimiento',
+  reparacion: 'Reparación',
+  revision: 'Revisión',
+  itv: 'ITV',
+  accidente: 'Accidente',
 };
 
 export function GlobalSearchPalette({ open, onOpenChange }: GlobalSearchPaletteProps) {
@@ -112,7 +130,6 @@ export function GlobalSearchPalette({ open, onOpenChange }: GlobalSearchPaletteP
     
     switch (result.type) {
       case 'task':
-        // Navigate to tasks page - task list will show this task
         navigate('/tasks');
         break;
       case 'area':
@@ -124,8 +141,16 @@ export function GlobalSearchPalette({ open, onOpenChange }: GlobalSearchPaletteP
       case 'subtask':
       case 'milestone':
       case 'update':
-        // Navigate to tasks page
         navigate('/tasks');
+        break;
+      case 'repair':
+        navigate(`/garatech/repairs/${result.id}`);
+        break;
+      case 'workshop':
+        navigate(`/garatech/workshops/${result.id}`);
+        break;
+      case 'accident':
+        navigate(`/garatech/accidents/${result.id}`);
         break;
     }
   }, [navigate, onOpenChange]);
@@ -139,13 +164,13 @@ export function GlobalSearchPalette({ open, onOpenChange }: GlobalSearchPaletteP
     return acc;
   }, {} as Record<SearchResult['type'], SearchResult[]>);
 
-  const resultOrder: SearchResult['type'][] = ['task', 'area', 'tag', 'subtask', 'milestone', 'update'];
+  const resultOrder: SearchResult['type'][] = ['task', 'area', 'tag', 'subtask', 'milestone', 'update', 'repair', 'workshop', 'accident'];
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <Command className="rounded-lg border shadow-md">
         <CommandInput 
-          placeholder="Busca tareas, áreas, etiquetas, hitos, actualizaciones…" 
+          placeholder="Busca tareas, áreas, reparaciones, talleres, accidentes…" 
           value={query}
           onValueChange={setQuery}
         />
@@ -208,6 +233,26 @@ export function GlobalSearchPalette({ open, onOpenChange }: GlobalSearchPaletteP
                               </Badge>
                             )}
                           </>
+                        )}
+                        {(result.type === 'repair' || result.type === 'accident') && result.metadata?.matricula && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Car className="h-3 w-3" />
+                            {result.metadata.matricula}
+                          </Badge>
+                        )}
+                        {result.type === 'repair' && result.metadata?.repairType && (
+                          <Badge variant="secondary" className="text-xs">
+                            {repairTypeLabels[result.metadata.repairType] || result.metadata.repairType}
+                          </Badge>
+                        )}
+                        {result.type === 'accident' && result.metadata?.severity && (
+                          <Badge variant="outline" className={`text-xs ${
+                            result.metadata.severity === 'grave' ? 'border-red-500/50 text-red-600 dark:text-red-400' :
+                            result.metadata.severity === 'moderado' ? 'border-amber-500/50 text-amber-600 dark:text-amber-400' :
+                            'border-green-500/50 text-green-600 dark:text-green-400'
+                          }`}>
+                            {result.metadata.severity}
+                          </Badge>
                         )}
                       </div>
                       {result.subtitle && (

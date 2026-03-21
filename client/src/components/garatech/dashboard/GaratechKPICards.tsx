@@ -19,25 +19,25 @@ export function GaratechKPICards({
       label: 'Reparaciones Activas',
       value: activeRepairs.toString(),
       icon: Hammer,
-      color: 'text-blue-500',
+      color: 'text-blue-500 dark:text-blue-400',
     },
     {
       label: 'Coste Este Mes',
       value: `${totalCostThisMonth.toLocaleString('es-ES')}€`,
       icon: Euro,
-      color: 'text-green-500',
+      color: 'text-green-500 dark:text-green-400',
     },
     {
       label: 'Tiempo Medio Rep.',
       value: `${averageRepairDays} días`,
       icon: Clock,
-      color: 'text-amber-500',
+      color: 'text-amber-500 dark:text-amber-400',
     },
     {
       label: 'Accidentes (30d)',
       value: accidentsThisMonth.toString(),
       icon: AlertTriangle,
-      color: 'text-red-500',
+      color: 'text-red-500 dark:text-red-400',
     },
   ];
 

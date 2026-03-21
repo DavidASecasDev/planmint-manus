@@ -125,10 +125,10 @@ export default function WorkshopDetail() {
                     <button
                       key={star}
                       onClick={() => handleRatingChange(star)}
-                      className="focus:outline-none transition-transform hover:scale-110"
+                      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm transition-transform hover:scale-110"
                       disabled={!canManage}
                     >
-                      <Star className={`h-5 w-5 ${star <= (workshop.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30 hover:text-yellow-300'}`} />
+                      <Star className={`h-5 w-5 ${star <= (workshop.rating || 0) ? 'text-yellow-400 fill-yellow-400 dark:text-yellow-300 dark:fill-yellow-300' : 'text-muted-foreground/30 hover:text-yellow-300 dark:hover:text-yellow-200'}`} />
                     </button>
                   ))}
                   <span className="text-sm text-muted-foreground ml-2">{workshop.rating?.toFixed(1) || '—'}</span>
@@ -177,12 +177,12 @@ export default function WorkshopDetail() {
                     <p className="text-xs text-muted-foreground">Reparaciones</p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50 text-center">
-                    <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
+                    <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500 dark:text-green-400" />
                     <p className="text-lg font-semibold">{completedRepairs.length}</p>
                     <p className="text-xs text-muted-foreground">Completadas</p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50 text-center">
-                    <DollarSign className="h-5 w-5 mx-auto mb-1 text-amber-500" />
+                    <DollarSign className="h-5 w-5 mx-auto mb-1 text-amber-500 dark:text-amber-400" />
                     <p className="text-lg font-semibold">{totalCost > 0 ? `${totalCost.toLocaleString()}€` : '—'}</p>
                     <p className="text-xs text-muted-foreground">Total</p>
                   </div>
