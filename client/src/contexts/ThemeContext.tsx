@@ -28,9 +28,9 @@ function applyTheme(resolvedTheme: 'light' | 'dark') {
   root.classList.add('transitioning');
   root.classList.remove('light', 'dark');
   root.classList.add(resolvedTheme);
-  // Remove transitioning class after animation completes
+  // Remove transitioning class after animation completes (matches 450ms CSS)
   requestAnimationFrame(() => {
-    setTimeout(() => root.classList.remove('transitioning'), 300);
+    setTimeout(() => root.classList.remove('transitioning'), 500);
   });
 }
 

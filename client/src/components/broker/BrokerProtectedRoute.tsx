@@ -12,13 +12,10 @@ export function BrokerProtectedRoute({ children }: BrokerProtectedRouteProps) {
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#1a365d' }}
-      >
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-white mx-auto mb-4" />
-          <p className="text-white/80">Verificando acceso...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Verificando acceso...</p>
         </div>
       </div>
     );

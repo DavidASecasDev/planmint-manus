@@ -161,12 +161,27 @@
     font-family: var(--font-heading);
   }
 
-  /* Smooth transitions for theme changes */
+  /* ── Smooth theme transition ──
+   * Applied temporarily when switching light ↔ dark.
+   * Uses cubic-bezier for a premium, organic feel.
+   * Covers all visual properties that change with CSS variables.
+   */
   html.transitioning,
   html.transitioning *,
   html.transitioning *::before,
   html.transitioning *::after {
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
+    transition:
+      background-color 450ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 450ms cubic-bezier(0.4, 0, 0.2, 1),
+      color 450ms cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 450ms cubic-bezier(0.4, 0, 0.2, 1),
+      fill 450ms cubic-bezier(0.4, 0, 0.2, 1),
+      stroke 450ms cubic-bezier(0.4, 0, 0.2, 1),
+      outline-color 450ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+    /* Prevent layout thrashing during transition */
+    transition-property:
+      background-color, border-color, color,
+      box-shadow, fill, stroke, outline-color !important;
   }
 }
 
@@ -214,6 +229,13 @@
   /* Focus ring utility */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Theme toggle dot animation */
+  @keyframes theme-dot-pop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.4); }
+    100% { transform: scale(1); opacity: 1; }
   }
 
   /* Azul Cars brand utilities */

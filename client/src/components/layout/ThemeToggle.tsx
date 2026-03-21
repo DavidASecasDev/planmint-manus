@@ -1,7 +1,7 @@
 /*
  * Azul Cars — Theme Toggle
- * Compact sun/moon switch for the AppHeader.
- * Cycles: light → dark → system → light …
+ * Animated sun/moon switch for the AppHeader.
+ * Dropdown: light / dark / system
  * Gold accent: oklch(0.72 0.10 80)
  */
 import { useTheme, ThemePreference } from '@/contexts/ThemeContext';
@@ -27,9 +27,7 @@ const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 
 export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-
-  const currentIcon = theme === 'system' ? Monitor : resolvedTheme === 'dark' ? Moon : Sun;
-  const CurrentIcon = currentIcon;
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <DropdownMenu>
@@ -39,11 +37,27 @@ export function ThemeToggle() {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-9 w-9 rounded-full"
+              className="relative h-9 w-9 rounded-full overflow-hidden"
               aria-label="Cambiar tema"
             >
-              <Sun className="h-[1.15rem] w-[1.15rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-muted-foreground" />
-              <Moon className="absolute h-[1.15rem] w-[1.15rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-muted-foreground" />
+              {/* Sun icon — visible in light mode */}
+              <Sun
+                className="absolute h-[1.15rem] w-[1.15rem] text-muted-foreground"
+                style={{
+                  transform: isDark ? 'rotate(-90deg) scale(0)' : 'rotate(0deg) scale(1)',
+                  opacity: isDark ? 0 : 1,
+                  transition: 'transform 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 400ms ease',
+                }}
+              />
+              {/* Moon icon — visible in dark mode */}
+              <Moon
+                className="absolute h-[1.15rem] w-[1.15rem] text-muted-foreground"
+                style={{
+                  transform: isDark ? 'rotate(0deg) scale(1)' : 'rotate(90deg) scale(0)',
+                  opacity: isDark ? 1 : 0,
+                  transition: 'transform 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 400ms ease',
+                }}
+              />
               <span className="sr-only">Cambiar tema</span>
             </Button>
           </DropdownMenuTrigger>
@@ -65,7 +79,12 @@ export function ThemeToggle() {
             <Icon className="h-4 w-4" />
             <span>{label}</span>
             {theme === value && (
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+              <span
+                className="ml-auto h-1.5 w-1.5 rounded-full bg-primary"
+                style={{
+                  animation: 'theme-dot-pop 300ms ease-out',
+                }}
+              />
             )}
           </DropdownMenuItem>
         ))}
