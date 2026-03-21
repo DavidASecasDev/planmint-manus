@@ -8,6 +8,7 @@
  * - Generous padding (20% on each side) so logos never get clipped
  * - Logos are scaled to fit within the safe area, centered vertically
  * - Sampling resolution of 2px for fine detail capture
+ * - onLogoChange callback exposes the current logo name for parent components
  */
 import { useEffect, useRef, useCallback } from 'react';
 
@@ -147,7 +148,12 @@ function sampleLogoPositions(
   return result;
 }
 
-export function ParticleLogos() {
+interface ParticleLogosProps {
+  /** Called whenever the logo being formed changes, with the logo name */
+  onLogoChange?: (logoName: string) => void;
+}
+
+export function ParticleLogos({ onLogoChange }: ParticleLogosProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const particlesRef = useRef<Particle[]>([]);
@@ -155,6 +161,12 @@ export function ParticleLogos() {
   const phaseStartRef = useRef(0);
   const currentLogoRef = useRef(0);
   const logoPositionsRef = useRef<{ x: number; y: number }[][]>([]);
+  const onLogoChangeRef = useRef(onLogoChange);
+
+  // Keep callback ref up to date without re-triggering effect
+  useEffect(() => {
+    onLogoChangeRef.current = onLogoChange;
+  }, [onLogoChange]);
 
   const initParticles = useCallback((width: number, height: number) => {
     const particles: Particle[] = [];
@@ -245,6 +257,8 @@ export function ParticleLogos() {
           p.originX = p.x;
           p.originY = p.y;
         });
+        // Notify parent of initial logo
+        onLogoChangeRef.current?.(LOGOS[0].name);
       }
 
       phaseRef.current = 'forming';
@@ -315,6 +329,9 @@ export function ParticleLogos() {
           });
           phaseRef.current = 'forming';
           phaseStartRef.current = time;
+
+          // Notify parent of new logo
+          onLogoChangeRef.current?.(LOGOS[currentLogoRef.current].name);
         }
 
         animRef.current = requestAnimationFrame(animate);

@@ -4,7 +4,7 @@
  * Gold accent: oklch(0.72 0.10 80)
  * Headings: Montserrat | Body: Barlow
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,13 +36,21 @@ const loginSchema = z.object({
 
 /* ── Shared Navy Panel with Particle Effect ── */
 function NavyPanel() {
+  const [currentLogo, setCurrentLogo] = useState('Azul Cars');
+  const [fadeKey, setFadeKey] = useState(0);
+
+  const handleLogoChange = useCallback((logoName: string) => {
+    setCurrentLogo(logoName);
+    setFadeKey(prev => prev + 1);
+  }, []);
+
   return (
     <div
       className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden"
       style={{ backgroundColor: brand.navy }}
     >
       {/* Particle canvas fills the entire panel */}
-      <ParticleLogos />
+      <ParticleLogos onLogoChange={handleLogoChange} />
 
       {/* Overlay content on top of particles */}
       <div className="relative z-10 flex flex-col justify-between h-full p-12">
@@ -57,15 +65,17 @@ function NavyPanel() {
         <div />
         <div>
           <p
+            key={fadeKey}
             className="text-sm tracking-widest uppercase mb-3"
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 600,
               color: brand.textWhiteMuted,
               letterSpacing: '0.15em',
+              animation: 'fadeInUp 0.6s ease-out',
             }}
           >
-            Grupo Azul
+            {currentLogo}
           </p>
           <div style={{ height: '2px', width: '60px', background: brand.gold, marginBottom: '12px' }} />
           <p
@@ -81,6 +91,20 @@ function NavyPanel() {
           </p>
         </div>
       </div>
+
+      {/* Inline keyframe for the fade-in animation */}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

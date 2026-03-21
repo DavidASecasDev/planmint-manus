@@ -4,7 +4,7 @@
  * Gold accent: oklch(0.72 0.10 80)
  * Headings: Montserrat | Body: Barlow
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,6 +38,70 @@ const registerSchema = z.object({
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],
 });
+
+/* ── Shared Navy Panel with Particle Effect ── */
+function NavyPanel() {
+  const [currentLogo, setCurrentLogo] = useState('Azul Cars');
+  const [fadeKey, setFadeKey] = useState(0);
+
+  const handleLogoChange = useCallback((logoName: string) => {
+    setCurrentLogo(logoName);
+    setFadeKey(prev => prev + 1);
+  }, []);
+
+  return (
+    <div
+      className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden"
+      style={{ backgroundColor: brand.navy }}
+    >
+      <ParticleLogos onLogoChange={handleLogoChange} />
+      <div className="relative z-10 flex flex-col justify-between h-full p-12">
+        <div>
+          <span
+            className="text-3xl"
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
+          >
+            AZUL<span style={{ color: brand.gold }}>.</span>
+          </span>
+        </div>
+        <div />
+        <div>
+          <p
+            key={fadeKey}
+            className="text-sm tracking-widest uppercase mb-3"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 600,
+              color: brand.textWhiteMuted,
+              letterSpacing: '0.15em',
+              animation: 'fadeInUp 0.6s ease-out',
+            }}
+          >
+            {currentLogo}
+          </p>
+          <div style={{ height: '2px', width: '60px', background: brand.gold, marginBottom: '12px' }} />
+          <p
+            className="text-sm"
+            style={{
+              fontFamily: 'Barlow, sans-serif',
+              color: brand.textWhiteMuted,
+              lineHeight: '1.6',
+              maxWidth: '280px',
+            }}
+          >
+            Plataforma de gestión integral para las empresas del grupo.
+          </p>
+        </div>
+      </div>
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default function Register() {
   const { signUp, user, loading: authLoading } = useAuth();
@@ -116,48 +180,7 @@ export default function Register() {
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: brand.warmBg }}>
       {/* Navy left panel with particle logos */}
-      <div
-        className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden"
-        style={{ backgroundColor: brand.navy }}
-      >
-        <ParticleLogos />
-        <div className="relative z-10 flex flex-col justify-between h-full p-12">
-          <div>
-            <span
-              className="text-3xl"
-              style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, color: brand.textWhite }}
-            >
-              AZUL<span style={{ color: brand.gold }}>.</span>
-            </span>
-          </div>
-          <div />
-          <div>
-            <p
-              className="text-sm tracking-widest uppercase mb-3"
-              style={{
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 600,
-                color: brand.textWhiteMuted,
-                letterSpacing: '0.15em',
-              }}
-            >
-              Grupo Azul
-            </p>
-            <div style={{ height: '2px', width: '60px', background: brand.gold, marginBottom: '12px' }} />
-            <p
-              className="text-sm"
-              style={{
-                fontFamily: 'Barlow, sans-serif',
-                color: brand.textWhiteMuted,
-                lineHeight: '1.6',
-                maxWidth: '280px',
-              }}
-            >
-              Plataforma de gestión integral para las empresas del grupo.
-            </p>
-          </div>
-        </div>
-      </div>
+      <NavyPanel />
 
       {/* Form panel */}
       <div className="flex flex-1 items-center justify-center p-6">

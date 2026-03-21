@@ -10,7 +10,7 @@ import { AppHeader } from './AppHeader';
 import { OfflineBanner } from '@/components/offline/OfflineBanner';
 import { ConflictModal } from '@/components/offline/ConflictModal';
 import { useSyncEngine, ConflictInfo, ConflictResolution } from '@/hooks/useSyncEngine';
-import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
+// SyncStatusIndicator is now rendered inline in AppHeader
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 
 interface AppLayoutProps {
@@ -57,7 +57,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         onResolve={handleResolveConflict}
         onClose={() => setCurrentConflict(null)}
       />
-      <SyncStatusIndicator />
+
     </SidebarProvider>
   );
 }

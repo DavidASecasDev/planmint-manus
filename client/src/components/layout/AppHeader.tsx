@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { GlobalSearchPalette } from '@/components/search/GlobalSearchPalette';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -163,6 +164,7 @@ export function AppHeader({ title }: AppHeaderProps) {
             </Tooltip>
           )}
 
+          <SyncStatusIndicator />
           <NotificationBell />
 
           <DropdownMenu>
