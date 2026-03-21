@@ -31,3 +31,4 @@
 - [x] Aplicar estado 'no encontrado' al módulo de vehículos (FleetDetail)
 - [x] Aplicar estado 'no encontrado' al módulo de talleres (WorkshopDetail)
 - [x] Aplicar estado 'no encontrado' al módulo de equipos (TeamDetail)
+- [x] Bug: el banner de Atención muestra "3 tareas urgentes pendientes" pero solo hay 1 y está completada (query corregida: solo prioridad 'urgent', no 'high')

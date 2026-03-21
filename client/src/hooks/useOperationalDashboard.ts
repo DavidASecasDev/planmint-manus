@@ -168,7 +168,7 @@ export function useOperationalDashboard() {
           .eq('organization_id', orgId)
           .lte('fecha_fin_contrato', new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
           .gte('fecha_fin_contrato', todayStr),
-        // Pending tasks with high/urgent priority
+        // Pending tasks with urgent priority only
         supabase
           .from('tasks')
           .select('id', { count: 'exact', head: true })
@@ -176,7 +176,7 @@ export function useOperationalDashboard() {
           .eq('is_archived', false)
           .is('deleted_at', null)
           .in('status', ['pending', 'in_progress'])
-          .in('priority', ['high', 'urgent']),
+          .eq('priority', 'urgent'),
         // All pending tasks
         supabase
           .from('tasks')
