@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 import type { FleetVehicleInspection, FleetInspectionDamage } from '@/types/fleet';
 
 export function useFleetInspections(vehicleId: string | undefined) {
@@ -163,7 +164,9 @@ export function useCreateInspection() {
         const damagePhotos = damages[i].photos || [];
         const damageId = insertedDamages[i]?.id;
         if (!damageId || damagePhotos.length === 0) continue;
-        for (const file of damagePhotos) {
+        for (const rawFile of damagePhotos) {
+          const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+          const file = compressed.file;
           const path = `${orgId}/fleet/${inspection.fleet_vehicle_id}/${inspection.inspection_type}/${Date.now()}_${file.name}`;
           const { error: upErr } = await supabase.storage.from('repair-files').upload(path, file);
           if (upErr) throw upErr;
@@ -182,8 +185,10 @@ export function useCreateInspection() {
       }
 
       for (const pf of photoFiles) {
-        const path = `${orgId}/fleet/${inspection.fleet_vehicle_id}/${inspection.inspection_type}/${Date.now()}_${pf.file.name}`;
-        const { error: upErr } = await supabase.storage.from('repair-files').upload(path, pf.file);
+        const compressedPf = await compressImage(pf.file, { maxDimension: 1200, quality: 0.82 });
+        const pfFile = compressedPf.file;
+        const path = `${orgId}/fleet/${inspection.fleet_vehicle_id}/${inspection.inspection_type}/${Date.now()}_${pfFile.name}`;
+        const { error: upErr } = await supabase.storage.from('repair-files').upload(path, pfFile);
         if (upErr) throw upErr;
 
         const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
@@ -228,8 +233,10 @@ export function useAddInspectionPhoto() {
       category: string;
       description?: string;
     }) => {
-      const path = `${orgId}/fleet/${vehicleId}/photos/${Date.now()}_${file.name}`;
-      const { error: upErr } = await supabase.storage.from('repair-files').upload(path, file);
+      const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+      const compressedFile = compressed.file;
+      const path = `${orgId}/fleet/${vehicleId}/photos/${Date.now()}_${compressedFile.name}`;
+      const { error: upErr } = await supabase.storage.from('repair-files').upload(path, compressedFile);
       if (upErr) throw upErr;
 
       const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
@@ -297,11 +304,17 @@ export function useUploadInspectionReceipt() {
       vehicleId: string;
       file: File;
     }) => {
-      const ext = file.name.split('.').pop() || 'jpg';
+      // Compress if image; skip PDFs/documents
+      let uploadFile: File = file;
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+        uploadFile = compressed.file;
+      }
+      const ext = uploadFile.name.split('.').pop() || 'jpg';
       const path = `${orgId}/fleet/${vehicleId}/receipts/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('repair-files')
-        .upload(path, file, { contentType: file.type });
+        .upload(path, uploadFile, { contentType: uploadFile.type });
       if (upErr) throw upErr;
 
       const { data: signedData } = await supabase.storage

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 
 export interface TransferInvoiceSettings {
   id: string;
@@ -86,7 +87,11 @@ export function useTransferInvoiceSettings() {
     mutationFn: async (file: File) => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      const fileExt = file.name.split('.').pop();
+      // Compress logo image
+      const compressed = await compressImage(file, { maxDimension: 800, quality: 0.85 });
+      const compressedFile = compressed.file;
+
+      const fileExt = compressedFile.name.split('.').pop();
       const fileName = `invoice-logo.${fileExt}`;
       const storagePath = `${profile.organization_id}/${fileName}`;
 
@@ -98,7 +103,7 @@ export function useTransferInvoiceSettings() {
       // Upload new
       const { error: uploadError } = await supabase.storage
         .from('organization-assets')
-        .upload(storagePath, file, { upsert: true });
+        .upload(storagePath, compressedFile, { upsert: true });
 
       if (uploadError) throw uploadError;
 

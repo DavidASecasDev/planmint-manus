@@ -16,6 +16,7 @@ import { FLEET_STATUS_OPTIONS } from '@/types/fleet';
 import type { FleetVehicleStatus } from '@/types/fleet';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -100,11 +101,13 @@ export default function FleetEdit() {
   }, [vehicle]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !id) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile || !id) return;
 
     setUploading(true);
     try {
+      const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+      const file = compressed.file;
       const ext = file.name.split('.').pop();
       const path = `${profile?.organization_id}/${id}/profile.${ext}`;
 

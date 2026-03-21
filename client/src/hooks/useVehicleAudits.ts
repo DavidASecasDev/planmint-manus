@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImage } from '@/lib/imageCompression';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -217,13 +218,17 @@ export function useVehicleAudits(vehicleId?: string) {
     }) => {
       if (!orgId || !vehicleId) throw new Error('No autenticado');
 
+      // Compress image before upload
+      const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+      const uploadFile = compressed.file;
+
       // Upload to Supabase Storage
-      const ext = file.name.split('.').pop() || 'jpg';
+      const ext = uploadFile.name.split('.').pop() || 'jpg';
       const path = `${orgId}/${vehicleId}/${auditId}/${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from(AUDIT_PHOTOS_BUCKET)
-        .upload(path, file, { upsert: true });
+        .upload(path, uploadFile, { upsert: true });
 
       if (uploadError) throw uploadError;
 

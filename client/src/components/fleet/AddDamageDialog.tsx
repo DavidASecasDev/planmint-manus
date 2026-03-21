@@ -13,6 +13,7 @@ import { VehicleCroquis } from './VehicleCroquis';
 import { FLEET_DAMAGE_PIECES, DAMAGE_ZONES } from '@/types/fleet';
 import type { FleetDamageOrigin } from '@/types/fleet';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -118,10 +119,12 @@ export function AddDamageDialog({ open, onOpenChange, fleetVehicleId, organizati
   const availablePieces = FLEET_DAMAGE_PIECES.find(z => z.zona === form.zona)?.piezas || [];
 
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
     setUploading(true);
     try {
+      const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+      const file = compressed.file;
       const ext = file.name.split('.').pop();
       const path = `${organizationId}/${fleetVehicleId}/damages/${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from('fleet-vehicle-photos').upload(path, file, { upsert: true });

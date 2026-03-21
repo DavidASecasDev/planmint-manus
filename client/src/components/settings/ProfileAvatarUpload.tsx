@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Camera, Loader2 } from 'lucide-react';
 import { AvatarCropDialog } from './AvatarCropDialog';
+import { compressImage } from '@/lib/imageCompression';
 
 export function ProfileAvatarUpload() {
   const { profile, refreshProfile } = useAuth();
@@ -45,11 +46,14 @@ export function ProfileAvatarUpload() {
 
     setUploading(true);
     try {
+      // Compress the cropped avatar
+      const avatarFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+      const compressed = await compressImage(avatarFile, { maxDimension: 512, quality: 0.85 });
       const filePath = `${profile.id}/avatar.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+        .upload(filePath, compressed.file, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 

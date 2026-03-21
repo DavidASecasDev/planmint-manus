@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 import { TaskUpdateWithUser, UpdateType, TaskUpdateImage } from '@/types/updates';
 
 interface CreateTimelineUpdateData {
@@ -52,7 +53,10 @@ async function uploadImages(
 ): Promise<TaskUpdateImage[]> {
   const uploadedImages: TaskUpdateImage[] = [];
 
-  for (const file of files) {
+  for (const rawFile of files) {
+    // Compress image before upload
+    const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+    const file = compressed.file;
     const fileExt = file.name.split('.').pop();
     const uniqueName = `${crypto.randomUUID()}.${fileExt}`;
     const storagePath = `${userId}/${updateId}/${uniqueName}`;

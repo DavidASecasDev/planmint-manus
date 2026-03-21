@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 import type { TransferDocument, TransferDocumentType, ExtractedTransferItem } from '@/types/transfers';
 import { calculateClientInvoice } from '@/utils/transferCalculations';
 
@@ -13,14 +14,21 @@ export function useTransferDocuments(requestId: string | undefined) {
     mutationFn: async ({ file, documentType }: { file: File; documentType: TransferDocumentType }) => {
       if (!profile?.organization_id || !requestId) throw new Error('Missing data');
 
+      // Compress images; skip documents/PDFs
+      let uploadFile: File = file;
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+        uploadFile = compressed.file;
+      }
+
       // Upload file to storage
-      const fileExt = file.name.split('.').pop();
+      const fileExt = uploadFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const storagePath = `${profile.organization_id}/${requestId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('transfer-documents')
-        .upload(storagePath, file);
+        .upload(storagePath, uploadFile);
 
       if (uploadError) throw uploadError;
 

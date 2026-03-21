@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { VEHICLE_LOCATION_GROUPS, type DamageReportItemFormData, type DamageCatalogItem } from '@/types/garatech';
 import { toast } from 'sonner';
 import { Camera, X, Loader2 } from 'lucide-react';
+import { compressImage } from '@/lib/imageCompression';
 
 interface DamageReportItemDialogProps {
   open: boolean;
@@ -77,7 +78,9 @@ export function DamageReportItemDialog({ open, onOpenChange, reportId }: DamageR
     const newUrls: string[] = [];
 
     try {
-      for (const file of Array.from(files)) {
+      for (const rawFile of Array.from(files)) {
+        const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+        const file = compressed.file;
         const ext = file.name.split('.').pop();
         const path = `${profile.organization_id}/${reportId}/${crypto.randomUUID()}.${ext}`;
 

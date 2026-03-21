@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { compressImage } from '@/lib/imageCompression';
 
 export type MovementType = 'entrega' | 'recogida' | 'escoba' | 'limpieza';
 export type MovementStatus = 'en_curso' | 'completado' | 'cancelado';
@@ -216,7 +217,13 @@ export function useMovements(filters?: {
   };
 }
 
-export async function uploadMovementPhoto(file: Blob, orgId: string): Promise<string> {
+export async function uploadMovementPhoto(rawFile: Blob, orgId: string): Promise<string> {
+  // Compress if it's a File; Blobs from DamageCamera are already compressed
+  let file: Blob = rawFile;
+  if (rawFile instanceof File && rawFile.type.startsWith('image/')) {
+    const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+    file = compressed.file;
+  }
   const filename = `${orgId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
   const { error } = await supabase.storage
     .from('movement-photos')
@@ -230,7 +237,13 @@ export async function uploadMovementPhoto(file: Blob, orgId: string): Promise<st
   return urlData.publicUrl;
 }
 
-export async function uploadMovementFile(file: File, orgId: string): Promise<string> {
+export async function uploadMovementFile(rawFile: File, orgId: string): Promise<string> {
+  // Compress images; skip PDFs and other non-image files
+  let file: File = rawFile;
+  if (rawFile.type.startsWith('image/')) {
+    const compressed = await compressImage(rawFile, { maxDimension: 1200, quality: 0.82 });
+    file = compressed.file;
+  }
   const ext = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'jpg');
   const filename = `${orgId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const { error } = await supabase.storage

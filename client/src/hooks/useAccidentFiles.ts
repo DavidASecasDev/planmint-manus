@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { compressImage } from '@/lib/imageCompression';
 import type { AccidentFile, AccidentFileType, AccidentFileCategory } from '@/types/garatech';
 
 export function useAccidentFiles(accidentId: string) {
@@ -36,13 +37,20 @@ export function useAccidentFiles(accidentId: string) {
     }) => {
       if (!orgId || !profile?.id) throw new Error('No organization');
 
-      const fileExt = file.name.split('.').pop();
+      // Compress images; skip documents/PDFs
+      let uploadFile: File = file;
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+        uploadFile = compressed.file;
+      }
+
+      const fileExt = uploadFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const storagePath = `${orgId}/accidents/${accidentId}/${fileType}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('repair-files')
-        .upload(storagePath, file);
+        .upload(storagePath, uploadFile);
 
       if (uploadError) throw uploadError;
 
