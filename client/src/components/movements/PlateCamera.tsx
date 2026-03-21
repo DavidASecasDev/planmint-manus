@@ -36,6 +36,7 @@ export const PlateCamera = forwardRef<HTMLDivElement, PlateCameraProps>(
     const [preview, setPreview] = useState<string | null>(restoredPreview ?? null);
     const [cameraMode, setCameraMode] = useState<'idle' | 'streaming' | 'fallback'>('idle');
     const [cameraError, setCameraError] = useState(false);
+    const [videoReady, setVideoReady] = useState(false);
 
     // Sync restored preview from parent
     useEffect(() => {
@@ -55,23 +56,75 @@ export const PlateCamera = forwardRef<HTMLDivElement, PlateCameraProps>(
       };
     }, []);
 
+    // ── KEY FIX: Bind stream to video element when both are ready ──
+    // This useEffect fires after React renders the <video> element
+    // (when cameraMode === 'streaming'), ensuring videoRef.current is available.
+    useEffect(() => {
+      if (cameraMode !== 'streaming') {
+        setVideoReady(false);
+        return;
+      }
+
+      const video = videoRef.current;
+      const stream = streamRef.current;
+
+      if (!video || !stream) {
+        log.warn('Video element or stream not available yet');
+        return;
+      }
+
+      // Assign the stream to the video element
+      video.srcObject = stream;
+
+      const handleCanPlay = () => {
+        log.debug('Video canplay event fired');
+        setVideoReady(true);
+      };
+
+      const handlePlaying = () => {
+        log.debug('Video playing event fired');
+        setVideoReady(true);
+      };
+
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('playing', handlePlaying);
+
+      // Attempt to play
+      video.play().then(() => {
+        log.debug('Video play() resolved');
+        setVideoReady(true);
+      }).catch((err) => {
+        log.warn('Video play() rejected:', err);
+        // On some browsers, autoplay may be blocked; the user can still
+        // interact with the video to start it
+      });
+
+      return () => {
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('playing', handlePlaying);
+      };
+    }, [cameraMode]);
+
     // Start embedded camera
     const startCamera = useCallback(async () => {
       log.debug('Starting getUserMedia camera');
       try {
+        // Stop any existing stream first
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         });
+        log.debug('getUserMedia stream obtained, tracks:', stream.getVideoTracks().length);
         streamRef.current = stream;
+        setVideoReady(false);
+        // Setting cameraMode to 'streaming' will render the <video> element,
+        // and the useEffect above will bind the stream to it.
         setCameraMode('streaming');
-        // Wait for video element to be rendered
-        requestAnimationFrame(() => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => {});
-          }
-        });
       } catch (err) {
         log.warn('getUserMedia failed, falling back to native input', err);
         setCameraError(true);
@@ -85,13 +138,20 @@ export const PlateCamera = forwardRef<HTMLDivElement, PlateCameraProps>(
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
+      setVideoReady(false);
       setCameraMode('idle');
     }, []);
 
     // Capture from embedded stream
     const captureFromStream = useCallback(() => {
-      if (!videoRef.current) return;
-      const base64 = compressToJpeg(videoRef.current);
+      const video = videoRef.current;
+      if (!video || video.videoWidth === 0) {
+        log.warn('Cannot capture: video not ready (videoWidth=0)');
+        // Fallback: try native input
+        openNativeInput();
+        return;
+      }
+      const base64 = compressToJpeg(video);
       log.debug('Captured from stream');
       setPreview(base64);
       onFileSelected?.(base64);
@@ -109,6 +169,8 @@ export const PlateCamera = forwardRef<HTMLDivElement, PlateCameraProps>(
         const file = e.target.files?.[0];
         if (!file) {
           log.debug('No file selected (user cancelled)');
+          // Reset to idle if no file was selected
+          if (cameraMode === 'fallback') setCameraMode('idle');
           return;
         }
         log.debug('File selected:', file.name, file.size);
@@ -142,7 +204,7 @@ export const PlateCamera = forwardRef<HTMLDivElement, PlateCameraProps>(
       } finally {
         if (e.target) e.target.value = '';
       }
-    }, [onFileSelected]);
+    }, [onFileSelected, cameraMode]);
 
     const handleConfirm = useCallback(() => {
       if (preview) {
@@ -218,14 +280,40 @@ export const PlateCamera = forwardRef<HTMLDivElement, PlateCameraProps>(
                 playsInline
                 muted
                 className="w-full aspect-[16/10] object-cover"
+                style={{ minHeight: '200px' }}
               />
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 flex justify-center">
+              {/* Loading overlay while video initializes */}
+              {!videoReady && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-3">
+                  <div className="h-8 w-8 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                  <p className="text-sm text-white/80">Iniciando cámara…</p>
+                </div>
+              )}
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 flex justify-center gap-3">
                 <button
                   type="button"
                   onClick={captureFromStream}
-                  className="w-16 h-16 rounded-full bg-white border-4 border-white/50 shadow-lg active:scale-90 transition-transform"
+                  disabled={!videoReady}
+                  className="w-16 h-16 rounded-full bg-white border-4 border-white/50 shadow-lg active:scale-90 transition-transform disabled:opacity-50"
                   aria-label="Capturar foto"
                 />
+              </div>
+              {/* Fallback button if camera takes too long */}
+              <div className="absolute top-3 right-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-white/70 hover:text-white hover:bg-white/10 text-xs"
+                  onClick={() => {
+                    stopCamera();
+                    setCameraMode('fallback');
+                    openNativeInput();
+                  }}
+                >
+                  <Upload className="h-3 w-3 mr-1" />
+                  Galería
+                </Button>
               </div>
             </div>
             <Button type="button" variant="outline" onClick={() => { stopCamera(); }} className="w-full h-10">
