@@ -282,6 +282,27 @@ export function useVehicleAudits(vehicleId?: string) {
     },
   });
 
+  // ── Update photo caption ──
+  const updatePhotoCaptionMutation = useMutation({
+    mutationFn: async ({ photoId, caption }: { photoId: string; caption: string }) => {
+      const { data, error } = await (supabase as any)
+        .from('vehicle_audit_photos')
+        .update({ caption: caption || null })
+        .eq('id', photoId)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return data as VehicleAuditPhoto;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-audit-photos'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'No se pudo actualizar la descripción.', variant: 'destructive' });
+    },
+  });
+
   // ── Complete audit (approve or reject) ──
   const completeAuditMutation = useMutation({
     mutationFn: async ({
@@ -375,6 +396,8 @@ export function useVehicleAudits(vehicleId?: string) {
     isUploadingPhoto: uploadPhotoMutation.isPending,
     deletePhoto: deletePhotoMutation.mutate,
     isDeletingPhoto: deletePhotoMutation.isPending,
+    updatePhotoCaption: updatePhotoCaptionMutation.mutateAsync,
+    isUpdatingCaption: updatePhotoCaptionMutation.isPending,
 
     // Helpers
     calculateAuditScore,

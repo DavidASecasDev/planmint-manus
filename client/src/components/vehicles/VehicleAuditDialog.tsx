@@ -47,6 +47,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -58,6 +60,117 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   mecanica: Wrench,
   documentacion: FileText,
 };
+
+// ── Editable Caption Component ──
+function EditableCaption({
+  photo,
+  onSave,
+  isEditable,
+}: {
+  photo: VehicleAuditPhoto;
+  onSave: (photoId: string, caption: string) => Promise<void>;
+  isEditable: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(photo.caption || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync value when photo data changes externally
+  useEffect(() => {
+    if (!isEditing) {
+      setValue(photo.caption || '');
+    }
+  }, [photo.caption, isEditing]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = async () => {
+    const trimmed = value.trim();
+    // Only save if actually changed
+    if (trimmed === (photo.caption || '')) {
+      setIsEditing(false);
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await onSave(photo.id, trimmed);
+      setIsEditing(false);
+    } catch {
+      // Error handled in hook
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    }
+    if (e.key === 'Escape') {
+      setValue(photo.caption || '');
+      setIsEditing(false);
+    }
+  };
+
+  // Read-only mode
+  if (!isEditable) {
+    if (!photo.caption) return null;
+    return (
+      <p className="text-[11px] text-muted-foreground leading-tight mt-1 max-w-[80px] truncate" title={photo.caption}>
+        {photo.caption}
+      </p>
+    );
+  }
+
+  // Editing mode
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-0.5 mt-1">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          placeholder="Descripción..."
+          maxLength={120}
+          disabled={isSaving}
+          className="w-[72px] text-[10px] px-1 py-0.5 border border-border rounded bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+        />
+        {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground shrink-0" />}
+      </div>
+    );
+  }
+
+  // Display mode with edit trigger
+  return (
+    <button
+      type="button"
+      onClick={() => setIsEditing(true)}
+      className="flex items-center gap-0.5 mt-1 group/caption max-w-[80px]"
+      title={photo.caption || 'Añadir descripción'}
+    >
+      {photo.caption ? (
+        <span className="text-[11px] text-muted-foreground leading-tight truncate group-hover/caption:text-foreground transition-colors">
+          {photo.caption}
+        </span>
+      ) : (
+        <span className="text-[10px] text-muted-foreground/50 group-hover/caption:text-muted-foreground transition-colors flex items-center gap-0.5">
+          <Pencil className="h-2.5 w-2.5" />
+          Describir
+        </span>
+      )}
+    </button>
+  );
+}
 
 // ── Photo Lightbox Component ──
 function PhotoLightbox({
@@ -131,15 +244,17 @@ function PhotoLightbox({
   );
 }
 
-// ── Photo Thumbnail Grid ──
+// ── Photo Thumbnail Grid with Editable Captions ──
 function PhotoThumbnailGrid({
   photos,
   onDelete,
+  onUpdateCaption,
   isDeletingPhoto,
   isEditable,
 }: {
   photos: VehicleAuditPhoto[];
   onDelete?: (photoId: string, photoUrl: string) => void;
+  onUpdateCaption?: (photoId: string, caption: string) => Promise<void>;
   isDeletingPhoto?: boolean;
   isEditable: boolean;
 }) {
@@ -149,32 +264,48 @@ function PhotoThumbnailGrid({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         {photos.map((photo, idx) => (
-          <div key={photo.id} className="relative group">
-            <button
-              type="button"
-              onClick={() => setLightboxIndex(idx)}
-              className="w-16 h-16 rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <img
-                src={photo.photo_url}
-                alt={photo.caption || 'Foto'}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </button>
-            {isEditable && onDelete && (
+          <div key={photo.id} className="flex flex-col items-center">
+            <div className="relative group">
               <button
                 type="button"
-                onClick={() => onDelete(photo.id, photo.photo_url)}
-                disabled={isDeletingPhoto}
-                className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:scale-110"
+                onClick={() => setLightboxIndex(idx)}
+                className="w-16 h-16 rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <X className="h-3 w-3" />
+                <img
+                  src={photo.photo_url}
+                  alt={photo.caption || 'Foto'}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </button>
+              {isEditable && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(photo.id, photo.photo_url)}
+                  disabled={isDeletingPhoto}
+                  className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:scale-110"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {/* Editable caption below the thumbnail */}
+            {onUpdateCaption ? (
+              <EditableCaption
+                photo={photo}
+                onSave={onUpdateCaption}
+                isEditable={isEditable}
+              />
+            ) : (
+              photo.caption && (
+                <p className="text-[11px] text-muted-foreground leading-tight mt-1 max-w-[80px] truncate" title={photo.caption}>
+                  {photo.caption}
+                </p>
+              )
             )}
           </div>
         ))}
@@ -198,6 +329,7 @@ function ChecklistItemPhotoSection({
   photos,
   onUpload,
   onDelete,
+  onUpdateCaption,
   isUploading,
   isDeletingPhoto,
   isEditable,
@@ -208,6 +340,7 @@ function ChecklistItemPhotoSection({
   photos: VehicleAuditPhoto[];
   onUpload: (auditId: string, file: File, checklistItemKey: string) => Promise<void>;
   onDelete: (photoId: string, photoUrl: string) => void;
+  onUpdateCaption: (photoId: string, caption: string) => Promise<void>;
   isUploading: boolean;
   isDeletingPhoto: boolean;
   isEditable: boolean;
@@ -245,6 +378,7 @@ function ChecklistItemPhotoSection({
         <PhotoThumbnailGrid
           photos={itemPhotos}
           onDelete={onDelete}
+          onUpdateCaption={onUpdateCaption}
           isDeletingPhoto={isDeletingPhoto}
           isEditable={isEditable}
         />
@@ -285,6 +419,7 @@ function GeneralPhotosSection({
   photos,
   onUpload,
   onDelete,
+  onUpdateCaption,
   isUploading,
   isDeletingPhoto,
   isEditable,
@@ -293,6 +428,7 @@ function GeneralPhotosSection({
   photos: VehicleAuditPhoto[];
   onUpload: (auditId: string, file: File, checklistItemKey: string | null) => Promise<void>;
   onDelete: (photoId: string, photoUrl: string) => void;
+  onUpdateCaption: (photoId: string, caption: string) => Promise<void>;
   isUploading: boolean;
   isDeletingPhoto: boolean;
   isEditable: boolean;
@@ -339,6 +475,7 @@ function GeneralPhotosSection({
         <PhotoThumbnailGrid
           photos={generalPhotos}
           onDelete={onDelete}
+          onUpdateCaption={onUpdateCaption}
           isDeletingPhoto={isDeletingPhoto}
           isEditable={isEditable}
         />
@@ -398,6 +535,8 @@ export function VehicleAuditDialog({ open, onOpenChange, vehicle }: VehicleAudit
     isUploadingPhoto,
     deletePhoto,
     isDeletingPhoto,
+    updatePhotoCaption,
+    isUpdatingCaption,
   } = useVehicleAudits(vehicle?.id);
 
   const [localResults, setLocalResults] = useState<Record<string, ChecklistResult>>({});
@@ -484,6 +623,13 @@ export function VehicleAuditDialog({ open, onOpenChange, vehicle }: VehicleAudit
       deletePhoto({ photoId, photoUrl });
     },
     [deletePhoto],
+  );
+
+  const handleUpdateCaption = useCallback(
+    async (photoId: string, caption: string) => {
+      await updatePhotoCaption({ photoId, caption });
+    },
+    [updatePhotoCaption],
   );
 
   const handleApprove = () => {
@@ -793,12 +939,13 @@ export function VehicleAuditDialog({ open, onOpenChange, vehicle }: VehicleAudit
                                 photos={auditPhotos}
                                 onUpload={handleUploadPhoto}
                                 onDelete={handleDeletePhoto}
+                                onUpdateCaption={handleUpdateCaption}
                                 isUploading={isUploadingPhoto}
                                 isDeletingPhoto={isDeletingPhoto}
                                 isEditable={true}
                               />
                             )}
-                            {/* Show photos for approved items too (read-only) */}
+                            {/* Show photos for approved items too (read-only thumbnails but editable captions) */}
                             {status === 'approved' && getItemPhotoCount(item.key) > 0 && (
                               <ChecklistItemPhotoSection
                                 itemKey={item.key}
@@ -807,6 +954,7 @@ export function VehicleAuditDialog({ open, onOpenChange, vehicle }: VehicleAudit
                                 photos={auditPhotos}
                                 onUpload={handleUploadPhoto}
                                 onDelete={handleDeletePhoto}
+                                onUpdateCaption={handleUpdateCaption}
                                 isUploading={isUploadingPhoto}
                                 isDeletingPhoto={isDeletingPhoto}
                                 isEditable={true}
@@ -828,6 +976,7 @@ export function VehicleAuditDialog({ open, onOpenChange, vehicle }: VehicleAudit
                 photos={auditPhotos}
                 onUpload={handleUploadPhoto}
                 onDelete={handleDeletePhoto}
+                onUpdateCaption={handleUpdateCaption}
                 isUploading={isUploadingPhoto}
                 isDeletingPhoto={isDeletingPhoto}
                 isEditable={true}

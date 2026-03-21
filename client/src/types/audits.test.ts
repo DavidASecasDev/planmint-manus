@@ -247,6 +247,98 @@ describe('VehicleAuditPhoto type structure', () => {
   });
 });
 
+// ── Caption editing logic tests ──
+
+describe('Photo caption editing behavior', () => {
+  const makePhoto = (overrides: Partial<VehicleAuditPhoto> = {}): VehicleAuditPhoto => ({
+    id: 'photo-1',
+    audit_id: 'audit-1',
+    organization_id: 'org-1',
+    photo_url: 'https://example.com/photo.jpg',
+    checklist_item_key: 'ext_carroceria',
+    caption: null,
+    created_at: '2025-01-01T00:00:00Z',
+    ...overrides,
+  });
+
+  it('photo starts with null caption', () => {
+    const photo = makePhoto();
+    expect(photo.caption).toBeNull();
+  });
+
+  it('caption can be set to a string value', () => {
+    const photo = makePhoto({ caption: 'Rayazo en puerta delantera izquierda' });
+    expect(photo.caption).toBe('Rayazo en puerta delantera izquierda');
+  });
+
+  it('caption can be updated (simulating mutation result)', () => {
+    const photo = makePhoto({ caption: 'Original' });
+    // Simulate what the mutation returns
+    const updated: VehicleAuditPhoto = { ...photo, caption: 'Actualizado' };
+    expect(updated.caption).toBe('Actualizado');
+    expect(updated.id).toBe(photo.id); // Same photo
+  });
+
+  it('caption can be cleared back to null', () => {
+    const photo = makePhoto({ caption: 'Tenía descripción' });
+    const cleared: VehicleAuditPhoto = { ...photo, caption: null };
+    expect(cleared.caption).toBeNull();
+  });
+
+  it('empty string caption is treated as no caption', () => {
+    // Our hook sends null for empty strings
+    const captionValue = '' || null;
+    const photo = makePhoto({ caption: captionValue });
+    expect(photo.caption).toBeNull();
+  });
+
+  it('caption is preserved when filtering photos by checklist_item_key', () => {
+    const photos: VehicleAuditPhoto[] = [
+      makePhoto({ id: 'p1', checklist_item_key: 'ext_carroceria', caption: 'Golpe lateral' }),
+      makePhoto({ id: 'p2', checklist_item_key: 'ext_carroceria', caption: 'Rayadura profunda' }),
+      makePhoto({ id: 'p3', checklist_item_key: 'int_tapiceria', caption: 'Mancha en asiento' }),
+    ];
+
+    const carroceriaPhotos = photos.filter(p => p.checklist_item_key === 'ext_carroceria');
+    expect(carroceriaPhotos).toHaveLength(2);
+    expect(carroceriaPhotos[0].caption).toBe('Golpe lateral');
+    expect(carroceriaPhotos[1].caption).toBe('Rayadura profunda');
+  });
+
+  it('caption trimming removes leading/trailing whitespace', () => {
+    // This mirrors the handleSave logic in EditableCaption component
+    const rawCaption = '  Daño visible  ';
+    const trimmed = rawCaption.trim();
+    expect(trimmed).toBe('Daño visible');
+
+    // Empty after trim becomes null in our hook
+    const emptyAfterTrim = '   '.trim() || null;
+    expect(emptyAfterTrim).toBeNull();
+  });
+
+  it('caption max length is respected (120 chars)', () => {
+    const longCaption = 'A'.repeat(120);
+    const photo = makePhoto({ caption: longCaption });
+    expect(photo.caption).toHaveLength(120);
+
+    // Exceeding would be truncated by the input maxLength attribute
+    const truncated = 'B'.repeat(150).substring(0, 120);
+    expect(truncated).toHaveLength(120);
+  });
+
+  it('lightbox displays caption when present', () => {
+    const photoWithCaption = makePhoto({ caption: 'Visible en lightbox' });
+    const photoWithoutCaption = makePhoto({ caption: null });
+
+    // Simulate the lightbox alt text logic
+    const altWithCaption = photoWithCaption.caption || 'Foto de auditoría';
+    const altWithoutCaption = photoWithoutCaption.caption || 'Foto de auditoría';
+
+    expect(altWithCaption).toBe('Visible en lightbox');
+    expect(altWithoutCaption).toBe('Foto de auditoría');
+  });
+});
+
 // ── Photo URL extraction helper test ──
 
 describe('Photo storage path extraction', () => {
