@@ -61,6 +61,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/transfers/forms': 'transfers',
   '/movements': 'movements',
   '/fleet': 'fleet',
+  '/fleet/audits': 'fleet',
   '/fleet/damages': 'garatech',
   '/garatech/damages': 'garatech',
 };
@@ -85,6 +86,7 @@ const transfersSubItems = [
 // Fleet submenu items
 const fleetSubItems = [
   { title: 'Vehículos', url: '/fleet', icon: Warehouse },
+  { title: 'Auditorías', url: '/fleet/audits', icon: ClipboardCheck },
 ];
 
 // Tasks submenu items
