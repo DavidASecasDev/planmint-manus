@@ -90,7 +90,7 @@ function DockContainer({ children, className, enabled = true }: DockContainerPro
       <div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className={className}
+        className={cn("overflow-hidden", className)}
       >
         {children}
       </div>
