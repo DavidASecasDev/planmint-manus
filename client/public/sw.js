@@ -1,9 +1,8 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'azul-cars-v2';
+const CACHE_NAME = 'azul-cars-v3';
 const STATIC_ASSETS = [
   '/',
-  '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
 ];
