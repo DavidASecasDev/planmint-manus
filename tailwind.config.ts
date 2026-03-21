@@ -67,20 +67,35 @@ export default {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
-  		keyframes: {
-  			'accordion-down': {
-  				from: { height: '0' },
-  				to: { height: 'var(--radix-accordion-content-height)' }
-  			},
-  			'accordion-up': {
-  				from: { height: 'var(--radix-accordion-content-height)' },
-  				to: { height: '0' }
-  			}
-  		},
-  		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
-  		},
+			keyframes: {
+				'accordion-down': {
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' }
+				},
+				'accordion-up': {
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' }
+				},
+				'sidebar-item-in': {
+					from: { opacity: '0', transform: 'translateX(-8px)' },
+					to: { opacity: '1', transform: 'translateX(0)' }
+				},
+				'sidebar-fade-in': {
+					from: { opacity: '0' },
+					to: { opacity: '1' }
+				},
+				'sidebar-expand': {
+					from: { opacity: '0', transform: 'scale(0.95)' },
+					to: { opacity: '1', transform: 'scale(1)' }
+				}
+			},
+			animation: {
+				'accordion-down': 'accordion-down 0.2s ease-out',
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'sidebar-item-in': 'sidebar-item-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+				'sidebar-fade-in': 'sidebar-fade-in 0.25s ease-out forwards',
+				'sidebar-expand': 'sidebar-expand 0.2s ease-out forwards'
+			},
   		fontFamily: {
   			sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
   			serif: ['Lora', 'ui-serif', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],

@@ -284,17 +284,21 @@ export function AppSidebar() {
           </Tooltip>
         </DockItem>
         {!isCollapsed && (
-          <CollapsibleContent>
+          <CollapsibleContent className="overflow-hidden data-[state=open]:animate-sidebar-expand data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150">
             <SidebarMenuSub
               className="ml-4 mt-1 space-y-0.5 pl-3"
               style={{ borderLeft: `1px solid ${borderColor}` }}
             >
               {subItems
                 .filter(filterFn || (() => true))
-                .map((subItem) => {
+                .map((subItem, subIndex) => {
                   const isSubActive = location.pathname === subItem.url;
                   return (
-                    <SidebarMenuSubItem key={subItem.url}>
+                    <SidebarMenuSubItem
+                      key={subItem.url}
+                      className="opacity-0 animate-sidebar-fade-in"
+                      style={{ animationDelay: `${subIndex * 40 + 50}ms` }}
+                    >
                       <SidebarMenuSubButton asChild isActive={isSubActive}>
                         <NavLink
                           to={subItem.url}
@@ -334,7 +338,7 @@ export function AppSidebar() {
       >
         {/* ── Header ── */}
         <SidebarHeader
-          className="p-4 group-data-[collapsible=icon]:p-2"
+          className="p-4 group-data-[collapsible=icon]:p-2 animate-sidebar-fade-in"
           style={{ borderBottom: `1px solid ${borderColor}` }}
         >
           <div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-between")}>
@@ -417,12 +421,16 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
               <DockContainer>
-                {filteredMenuItems.map((item) => {
+                {filteredMenuItems.map((item, index) => {
                   const isItemActive = location.pathname === item.url ||
                     (item.url !== '/dashboard' && location.pathname.startsWith(item.url + '/'));
 
                   return (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem
+                      key={item.title}
+                      className="opacity-0 animate-sidebar-item-in"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
                       {/* Only the link button gets the dock magnification */}
                       <DockItem>
                         <Tooltip>
@@ -566,8 +574,8 @@ export function AppSidebar() {
 
         {/* ── Footer ── */}
         <SidebarFooter
-          className="p-4 group-data-[collapsible=icon]:p-2"
-          style={{ borderTop: `1px solid ${borderColor}` }}
+          className="p-4 group-data-[collapsible=icon]:p-2 animate-sidebar-fade-in"
+          style={{ borderTop: `1px solid ${borderColor}`, animationDelay: '200ms' }}
         >
           {!isCollapsed ? (
             <div className="space-y-4">
