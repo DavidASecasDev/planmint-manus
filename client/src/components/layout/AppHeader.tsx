@@ -27,6 +27,8 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSidebar } from '@/components/ui/sidebar';
+import { ThemeToggle } from './ThemeToggle';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const brand = {
   navy: '#001321',
@@ -48,6 +50,8 @@ export function AppHeader({ title }: AppHeaderProps) {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const { toggleSidebar } = useSidebar();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,8 +81,8 @@ export function AppHeader({ title }: AppHeaderProps) {
       <header
         className="sticky top-0 z-30 flex h-14 items-center justify-between px-4 md:px-6 backdrop-blur-xl"
         style={{
-          backgroundColor: 'rgba(245,243,239,0.85)',
-          borderBottom: `1px solid ${brand.borderLight}`,
+          backgroundColor: isDark ? 'rgba(10,21,32,0.88)' : 'rgba(245,243,239,0.85)',
+          borderBottom: `1px solid ${isDark ? 'rgba(30,50,69,0.6)' : brand.borderLight}`,
         }}
       >
         {/* Left: Hamburger (mobile) + Title */}
@@ -89,7 +93,7 @@ export function AppHeader({ title }: AppHeaderProps) {
             onClick={toggleSidebar}
             className="md:hidden h-10 w-10 shrink-0"
             aria-label="Abrir menú"
-            style={{ color: brand.textDark }}
+            style={{ color: isDark ? '#EDE8DF' : brand.textDark }}
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -98,7 +102,7 @@ export function AppHeader({ title }: AppHeaderProps) {
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
-              color: brand.textDark,
+              color: isDark ? '#EDE8DF' : brand.textDark,
               letterSpacing: '-0.01em',
             }}
           >
@@ -114,20 +118,20 @@ export function AppHeader({ title }: AppHeaderProps) {
             className="hidden sm:flex relative h-9 w-64 justify-start text-sm shadow-none"
             onClick={() => setSearchOpen(true)}
             style={{
-              backgroundColor: '#FFFFFF',
-              color: brand.textMuted,
-              borderColor: brand.borderLight,
+              backgroundColor: isDark ? 'rgba(15,30,45,0.7)' : '#FFFFFF',
+              color: isDark ? '#7E8694' : brand.textMuted,
+              borderColor: isDark ? 'rgba(30,50,69,0.6)' : brand.borderLight,
               fontFamily: 'Barlow, sans-serif',
             }}
           >
-            <Search className="mr-2 h-4 w-4" style={{ color: brand.textMuted }} />
+            <Search className="mr-2 h-4 w-4" style={{ color: isDark ? '#7E8694' : brand.textMuted }} />
             <span className="flex-1 text-left">Buscar...</span>
             <kbd
               className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium sm:flex"
               style={{
-                borderColor: brand.borderLight,
-                backgroundColor: brand.warmBg,
-                color: brand.textMuted,
+                borderColor: isDark ? 'rgba(30,50,69,0.6)' : brand.borderLight,
+                backgroundColor: isDark ? 'rgba(10,21,32,0.5)' : brand.warmBg,
+                color: isDark ? '#7E8694' : brand.textMuted,
               }}
             >
               <span className="text-xs">⌘</span>K
@@ -141,7 +145,7 @@ export function AppHeader({ title }: AppHeaderProps) {
             onClick={() => setSearchOpen(true)}
             className="sm:hidden h-10 w-10"
             aria-label="Buscar"
-            style={{ color: brand.textMuted }}
+            style={{ color: isDark ? '#7E8694' : brand.textMuted }}
           >
             <Search className="h-5 w-5" />
           </Button>
@@ -155,7 +159,7 @@ export function AppHeader({ title }: AppHeaderProps) {
                   size="icon"
                   className="hidden sm:flex relative h-10 w-10"
                   onClick={() => navigate('/super-admin')}
-                  style={{ color: brand.textMuted }}
+                  style={{ color: isDark ? '#7E8694' : brand.textMuted }}
                 >
                   <Shield className="h-5 w-5" />
                 </Button>
@@ -165,6 +169,7 @@ export function AppHeader({ title }: AppHeaderProps) {
           )}
 
           <SyncStatusIndicator />
+          <ThemeToggle />
           <NotificationBell />
 
           <DropdownMenu>
@@ -193,7 +198,7 @@ export function AppHeader({ title }: AppHeaderProps) {
                     style={{
                       fontFamily: 'Montserrat, sans-serif',
                       fontWeight: 700,
-                      color: brand.textDark,
+                      color: isDark ? '#EDE8DF' : brand.textDark,
                     }}
                   >
                     {profile?.name || 'Usuario'}
@@ -202,7 +207,7 @@ export function AppHeader({ title }: AppHeaderProps) {
                     className="text-xs leading-none"
                     style={{
                       fontFamily: 'Barlow, sans-serif',
-                      color: brand.textMuted,
+                      color: isDark ? '#7E8694' : brand.textMuted,
                     }}
                   >
                     {displayRoleLabel(displayRole)}
@@ -215,7 +220,7 @@ export function AppHeader({ title }: AppHeaderProps) {
                 className="gap-2.5 py-2.5 px-3 cursor-pointer rounded-lg"
                 style={{ fontFamily: 'Barlow, sans-serif' }}
               >
-                <Settings className="h-4 w-4" style={{ color: brand.textMuted }} />
+                <Settings className="h-4 w-4" style={{ color: isDark ? '#7E8694' : brand.textMuted }} />
                 <span>Ajustes</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1" />

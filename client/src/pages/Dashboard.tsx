@@ -26,30 +26,27 @@ export default function Dashboard() {
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2
-              className="text-lg sm:text-xl"
+              className="text-lg sm:text-xl text-foreground"
               style={{
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
-                color: '#0F1216',
               }}
             >
               Hola, {profile?.name || 'Usuario'}
             </h2>
             <p
-              className="text-sm"
+              className="text-sm text-muted-foreground"
               style={{
                 fontFamily: 'Barlow, sans-serif',
-                color: '#52555B',
               }}
             >
               {organization?.name} · {displayRoleLabel(role)}
             </p>
           </div>
           <p
-            className="text-sm hidden sm:block"
+            className="text-sm hidden sm:block text-muted-foreground"
             style={{
               fontFamily: 'Barlow, sans-serif',
-              color: '#52555B',
             }}
           >
             {new Date().toLocaleDateString('es-ES', {

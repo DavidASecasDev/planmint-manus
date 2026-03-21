@@ -1,8 +1,8 @@
 /*
  * Azul Cars Brand — Page Header
- * Title: Montserrat 700, #0F1216
- * Description: Barlow 400, #52555B
- * Icon badge: gold oklch(0.72 0.10 80) bg with navy icon
+ * Title: Montserrat 700 | Description: Barlow 400
+ * Uses semantic tokens for dark/light mode compatibility
+ * Icon badge: gold accent
  */
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -30,8 +30,8 @@ export function PageHeader({
           <div
             className="hidden sm:flex h-12 w-12 items-center justify-center rounded-lg shrink-0"
             style={{
-              backgroundColor: 'rgba(201,169,110,0.12)',
-              color: 'oklch(0.72 0.10 80)',
+              backgroundColor: 'hsl(var(--primary) / 0.12)',
+              color: 'hsl(var(--primary))',
             }}
           >
             <Icon className="h-6 w-6" />
@@ -39,21 +39,19 @@ export function PageHeader({
         )}
         <div>
           <h1
-            className="text-2xl tracking-tight"
+            className="text-2xl tracking-tight text-foreground"
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
-              color: '#0F1216',
             }}
           >
             {title}
           </h1>
           {description && (
             <p
-              className="mt-1 max-w-2xl text-sm"
+              className="mt-1 max-w-2xl text-sm text-muted-foreground"
               style={{
                 fontFamily: 'Barlow, sans-serif',
-                color: '#52555B',
               }}
             >
               {description}

@@ -24,8 +24,14 @@ function getSystemTheme(): 'light' | 'dark' {
 
 function applyTheme(resolvedTheme: 'light' | 'dark') {
   const root = document.documentElement;
+  // Add transitioning class for smooth color transitions
+  root.classList.add('transitioning');
   root.classList.remove('light', 'dark');
   root.classList.add(resolvedTheme);
+  // Remove transitioning class after animation completes
+  requestAnimationFrame(() => {
+    setTimeout(() => root.classList.remove('transitioning'), 300);
+  });
 }
 
 function resolveTheme(preference: ThemePreference): 'light' | 'dark' {

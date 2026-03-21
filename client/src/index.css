@@ -83,61 +83,65 @@
   }
 
   .dark {
-    /* Deep navy background */
-    --background: 208 66% 7%;
-    --foreground: 40 20% 95%;
+    /* ── Azul Cars Dark Mode ──
+     * Deep navy base with warm gold accents.
+     * Background layers: base → card → popover (progressively lighter)
+     * Maintains brand identity while reducing eye strain.
+     */
+    --background: 207 70% 6%;       /* #0A1520 — deep navy base */
+    --foreground: 38 25% 92%;       /* #EDE8DF — warm off-white text */
 
-    --card: 208 55% 10%;
-    --card-foreground: 40 20% 95%;
+    --card: 207 55% 9%;             /* #0F1E2D — slightly lifted navy */
+    --card-foreground: 38 25% 92%;
 
-    --popover: 208 55% 12%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 207 50% 11%;         /* #142636 — popover surface */
+    --popover-foreground: 38 25% 92%;
 
-    /* Gold accent stays consistent */
-    --primary: 37 45% 61%;
-    --primary-foreground: 0 0% 100%;
+    /* Gold accent — slightly brighter for dark bg legibility */
+    --primary: 37 48% 63%;          /* ~#D1B276 */
+    --primary-foreground: 207 70% 6%;
 
-    --secondary: 208 40% 15%;
-    --secondary-foreground: 40 20% 95%;
+    --secondary: 207 40% 14%;       /* #152A3A — subtle navy surface */
+    --secondary-foreground: 38 20% 88%;
 
-    --muted: 208 35% 15%;
-    --muted-foreground: 215 15% 55%;
+    --muted: 207 35% 13%;           /* #14263A — muted surface */
+    --muted-foreground: 215 12% 55%; /* #7E8694 — readable muted text */
 
-    --accent: 37 45% 61%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 37 48% 63%;
+    --accent-foreground: 207 70% 6%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 208 30% 18%;
-    --input: 208 30% 18%;
-    --ring: 37 45% 61%;
+    --border: 207 30% 17%;          /* #1E3245 — subtle navy border */
+    --input: 207 30% 17%;
+    --ring: 37 48% 63%;
 
-    /* Sidebar: slightly deeper navy */
-    --sidebar-background: 200 100% 5%;
-    --sidebar-foreground: 40 20% 95%;
-    --sidebar-primary: 37 45% 61%;
-    --sidebar-primary-foreground: 200 100% 5%;
-    --sidebar-accent: 208 50% 12%;
-    --sidebar-accent-foreground: 40 20% 95%;
-    --sidebar-border: 208 40% 14%;
-    --sidebar-ring: 37 45% 61%;
+    /* Sidebar: deepest navy layer */
+    --sidebar-background: 207 80% 4%;  /* #060F17 */
+    --sidebar-foreground: 38 20% 90%;
+    --sidebar-primary: 37 48% 63%;
+    --sidebar-primary-foreground: 207 80% 4%;
+    --sidebar-accent: 207 50% 11%;
+    --sidebar-accent-foreground: 38 20% 90%;
+    --sidebar-border: 207 35% 14%;
+    --sidebar-ring: 37 48% 63%;
 
-    --chart-1: 37 50% 65%;
-    --chart-2: 200 60% 50%;
-    --chart-3: 208 40% 40%;
-    --chart-4: 215 15% 55%;
-    --chart-5: 40 30% 75%;
-    --sidebar: 200 100% 5%;
+    --chart-1: 37 55% 65%;
+    --chart-2: 200 55% 48%;
+    --chart-3: 207 40% 38%;
+    --chart-4: 215 12% 55%;
+    --chart-5: 38 30% 72%;
+    --sidebar: 207 80% 4%;
 
-    --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
-    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.25);
-    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
-    --shadow: 0 2px 4px 0 hsl(0 0% 0% / 0.25), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -1px hsl(0 0% 0% / 0.2);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.35), 0 4px 6px -2px hsl(0 0% 0% / 0.2);
-    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 10px 10px -5px hsl(0 0% 0% / 0.2);
-    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.5);
+    --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.25);
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.35), 0 1px 2px -1px hsl(0 0% 0% / 0.25);
+    --shadow: 0 2px 4px 0 hsl(0 0% 0% / 0.3), 0 1px 2px -1px hsl(0 0% 0% / 0.25);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.35), 0 2px 4px -1px hsl(0 0% 0% / 0.25);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -2px hsl(0 0% 0% / 0.25);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.45), 0 10px 10px -5px hsl(0 0% 0% / 0.25);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.55);
   }
 }
 

@@ -39,7 +39,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full" style={{ backgroundColor: '#F5F3EF' }}>
+      <div className="flex h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex flex-1 flex-col min-w-0">
           <OfflineBanner />
