@@ -4,12 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import {
   VehicleQualityAudit,
+  VehicleAuditPhoto,
   ChecklistResult,
   AUDIT_CHECKLIST,
   calculateAuditScore,
   isChecklistComplete,
   hasDefects,
 } from '@/types/audits';
+
+const AUDIT_PHOTOS_BUCKET = 'audit-photos';
 
 export function useVehicleAudits(vehicleId?: string) {
   const { profile } = useAuth();
@@ -179,6 +182,106 @@ export function useVehicleAudits(vehicleId?: string) {
     },
   });
 
+  // ── Fetch photos for an audit ──
+  const auditPhotosQuery = useQuery({
+    queryKey: ['vehicle-audit-photos', latestAuditQuery.data?.id, orgId],
+    queryFn: async () => {
+      const auditId = latestAuditQuery.data?.id;
+      if (!orgId || !auditId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from('vehicle_audit_photos')
+        .select('*')
+        .eq('organization_id', orgId)
+        .eq('audit_id', auditId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as VehicleAuditPhoto[];
+    },
+    enabled: !!orgId && !!latestAuditQuery.data?.id,
+  });
+
+  // ── Upload a photo for an audit ──
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async ({
+      auditId,
+      file,
+      checklistItemKey,
+      caption,
+    }: {
+      auditId: string;
+      file: File;
+      checklistItemKey: string | null;
+      caption?: string;
+    }) => {
+      if (!orgId || !vehicleId) throw new Error('No autenticado');
+
+      // Upload to Supabase Storage
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${orgId}/${vehicleId}/${auditId}/${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(AUDIT_PHOTOS_BUCKET)
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from(AUDIT_PHOTOS_BUCKET)
+        .getPublicUrl(path);
+
+      // Insert record in vehicle_audit_photos table
+      const { data, error } = await (supabase as any)
+        .from('vehicle_audit_photos')
+        .insert({
+          audit_id: auditId,
+          organization_id: orgId,
+          photo_url: urlData.publicUrl,
+          checklist_item_key: checklistItemKey,
+          caption: caption || null,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return data as VehicleAuditPhoto;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-audit-photos'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'No se pudo subir la foto.', variant: 'destructive' });
+    },
+  });
+
+  // ── Delete a photo ──
+  const deletePhotoMutation = useMutation({
+    mutationFn: async ({ photoId, photoUrl }: { photoId: string; photoUrl: string }) => {
+      // Extract storage path from URL
+      const bucketPath = photoUrl.split(`/storage/v1/object/public/${AUDIT_PHOTOS_BUCKET}/`)[1];
+
+      // Delete from storage
+      if (bucketPath) {
+        await supabase.storage.from(AUDIT_PHOTOS_BUCKET).remove([bucketPath]);
+      }
+
+      // Delete from database
+      const { error } = await (supabase as any)
+        .from('vehicle_audit_photos')
+        .delete()
+        .eq('id', photoId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-audit-photos'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'No se pudo eliminar la foto.', variant: 'destructive' });
+    },
+  });
+
   // ── Complete audit (approve or reject) ──
   const completeAuditMutation = useMutation({
     mutationFn: async ({
@@ -258,6 +361,8 @@ export function useVehicleAudits(vehicleId?: string) {
     auditHistory: auditHistoryQuery.data || [],
     isLoadingHistory: auditHistoryQuery.isLoading,
     pendingAuditsCount: pendingAuditsCountQuery.data || 0,
+    auditPhotos: auditPhotosQuery.data || [],
+    isLoadingPhotos: auditPhotosQuery.isLoading,
 
     // Mutations
     createAudit: createAuditMutation.mutate,
@@ -266,6 +371,10 @@ export function useVehicleAudits(vehicleId?: string) {
     isUpdatingChecklist: updateChecklistItemMutation.isPending,
     completeAudit: completeAuditMutation.mutate,
     isCompletingAudit: completeAuditMutation.isPending,
+    uploadPhoto: uploadPhotoMutation.mutateAsync,
+    isUploadingPhoto: uploadPhotoMutation.isPending,
+    deletePhoto: deletePhotoMutation.mutate,
+    isDeletingPhoto: deletePhotoMutation.isPending,
 
     // Helpers
     calculateAuditScore,

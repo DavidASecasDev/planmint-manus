@@ -37,3 +37,4 @@
 - [x] Fase 1 Auditorías: Implementar componente de formulario de auditoría con checklist
 - [x] Fase 1 Auditorías: Integrar badge visual en el Kanban de vehículos (VehicleCard)
 - [x] Fase 1 Auditorías: Añadir flujo aprobar/rechazar desde la tarjeta del vehículo
+- [x] Implementar subida de fotos en el diálogo de auditoría para documentar defectos visualmente
