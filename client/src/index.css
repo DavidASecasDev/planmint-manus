@@ -256,4 +256,35 @@
     height: 2px;
     background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
   }
+
+  /* ── PWA Install Banner animations ── */
+  .animate-banner-enter {
+    animation: banner-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-banner-leave {
+    animation: banner-slide-down 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+
+  @keyframes banner-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes banner-slide-down {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
 }

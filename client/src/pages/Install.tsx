@@ -26,7 +26,7 @@ export default function Install() {
             </div>
             <CardTitle>¡App instalada!</CardTitle>
             <CardDescription>
-              Ya tienes PlanMint instalada en tu dispositivo
+              Ya tienes Azul Cars instalada en tu dispositivo
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -45,9 +45,9 @@ export default function Install() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="mx-auto w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-4">
-            <img src="/pwa-192x192.png" alt="Goals" className="w-16 h-16 rounded-2xl" />
+            <img src="/icon-192.png" alt="Azul Cars" className="w-16 h-16 rounded-2xl" />
           </div>
-          <h1 className="text-2xl font-bold">Instalar PlanMint</h1>
+          <h1 className="text-2xl font-bold font-heading">Instalar Azul Cars</h1>
           <p className="text-muted-foreground mt-2">
             Accede más rápido y usa la app incluso sin conexión
           </p>
