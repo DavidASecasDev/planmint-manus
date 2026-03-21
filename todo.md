@@ -32,3 +32,8 @@
 - [x] Aplicar estado 'no encontrado' al módulo de talleres (WorkshopDetail)
 - [x] Aplicar estado 'no encontrado' al módulo de equipos (TeamDetail)
 - [x] Bug: el banner de Atención muestra "3 tareas urgentes pendientes" pero solo hay 1 y está completada (query corregida: solo prioridad 'urgent', no 'high')
+- [x] Fase 1 Auditorías: Crear tablas vehicle_quality_audits y vehicle_audit_photos en Supabase
+- [x] Fase 1 Auditorías: Crear tipos TypeScript y hook useVehicleAudits
+- [x] Fase 1 Auditorías: Implementar componente de formulario de auditoría con checklist
+- [x] Fase 1 Auditorías: Integrar badge visual en el Kanban de vehículos (VehicleCard)
+- [x] Fase 1 Auditorías: Añadir flujo aprobar/rechazar desde la tarjeta del vehículo

@@ -4,8 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Wrench, CheckCircle, Lock, History } from 'lucide-react';
+import { User, Wrench, CheckCircle, Lock, History, ShieldCheck, ShieldX, ClipboardCheck, Loader2 } from 'lucide-react';
 import { VehicleCleaningChecklist } from './VehicleCleaningChecklist';
+import { VehicleAuditDialog } from './VehicleAuditDialog';
+import { useVehicleAudits } from '@/hooks/useVehicleAudits';
 import { VehicleLocationSelect } from './VehicleLocationSelect';
 import { VehicleCleaningHistory } from './VehicleCleaningHistory';
 import { VehicleRepairSummary } from './VehicleRepairSummary';
@@ -41,6 +43,8 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
   const [notes, setNotes] = useState(vehicle?.service_notes || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const { latestAudit, isLoadingLatestAudit } = useVehicleAudits(vehicle?.id);
 
   // Sync notes when vehicle changes
   useEffect(() => {
@@ -126,7 +130,7 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
   if (!vehicle) return null;
 
-  return (
+  return (<>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md">
         <SheetHeader>
@@ -219,6 +223,66 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
               />
               <Separator />
               <VehicleCleaningChecklist vehicle={vehicle} />
+
+              {/* Audit section for clean vehicles */}
+              {vehicle.status === 'limpio' && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <ClipboardCheck className="h-4 w-4 text-amber-600" />
+                      Control de Calidad
+                    </h4>
+                    {isLoadingLatestAudit ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : latestAudit?.status === 'approved' ? (
+                      <div className="rounded-lg border border-green-200 bg-green-50 p-3 flex items-center gap-3">
+                        <ShieldCheck className="h-5 w-5 text-green-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-green-800">Auditoría aprobada</p>
+                          <p className="text-xs text-green-600">Puntuación: {latestAudit.overall_score}%</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto text-green-700"
+                          onClick={() => setAuditDialogOpen(true)}
+                        >
+                          Ver
+                        </Button>
+                      </div>
+                    ) : latestAudit?.status === 'rejected' ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-center gap-3">
+                        <ShieldX className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-red-800">Auditoría rechazada</p>
+                          <p className="text-xs text-red-600">{latestAudit.rejection_reason || 'Sin motivo'}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto text-red-700"
+                          onClick={() => setAuditDialogOpen(true)}
+                        >
+                          Nueva
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                        onClick={() => setAuditDialogOpen(true)}
+                      >
+                        <ClipboardCheck className="h-4 w-4 mr-2" />
+                        Iniciar Auditoría de Calidad
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+
               {canManageVehicles && (
                 <>
                   <Separator />
@@ -244,7 +308,13 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
         </div>
       </SheetContent>
     </Sheet>
-  );
+
+    <VehicleAuditDialog
+      open={auditDialogOpen}
+      onOpenChange={setAuditDialogOpen}
+      vehicle={vehicle}
+    />
+  </>);
 }
 
 function getStatusLabel(status: string): string {

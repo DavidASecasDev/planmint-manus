@@ -3,13 +3,15 @@ import { VehicleWithTasks, CLEANING_TASKS, VehicleStatus, ServiceType } from '@/
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Lock } from 'lucide-react';
+import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Lock, ShieldCheck, ShieldX, ClipboardCheck } from 'lucide-react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { MoveToServiceDialog } from './MoveToServiceDialog';
+import { VehicleAuditDialog } from './VehicleAuditDialog';
+import { useVehicleAuditStatuses } from '@/hooks/useVehicleAudits';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +31,9 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
   const { profile } = useAuth();
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [isMovingToService, setIsMovingToService] = useState(false);
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const { data: auditStatuses } = useVehicleAuditStatuses();
+  const auditInfo = auditStatuses?.get(vehicle.id);
   
   const completedTasks = vehicle.cleaning_tasks.filter(t => t.completed).length;
   const totalTasks = CLEANING_TASKS.length;
@@ -187,6 +192,31 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
               </div>
             )}
 
+            {/* Audit badge for clean vehicles */}
+            {vehicle.status === 'limpio' && (
+              <div
+                className={`flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -mx-1 transition-colors ${
+                  auditInfo?.status === 'approved'
+                    ? 'text-green-700 bg-green-50 hover:bg-green-100'
+                    : auditInfo?.status === 'rejected'
+                    ? 'text-red-700 bg-red-50 hover:bg-red-100'
+                    : 'text-amber-700 bg-amber-50 hover:bg-amber-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAuditDialogOpen(true);
+                }}
+              >
+                {auditInfo?.status === 'approved' ? (
+                  <><ShieldCheck className="h-3 w-3" /><span>Auditado {auditInfo.score}%</span></>
+                ) : auditInfo?.status === 'rejected' ? (
+                  <><ShieldX className="h-3 w-3" /><span>Rechazado</span></>
+                ) : (
+                  <><ClipboardCheck className="h-3 w-3" /><span>Pendiente auditoría</span></>
+                )}
+              </div>
+            )}
+
             {/* Service indicator - show different icon based on service_type */}
             {vehicle.status === 'en_servicio' && (
               <div className={`flex items-center gap-1.5 text-xs ${vehicle.service_type === 'bloqueo' ? 'text-orange-600' : 'text-purple-600'}`}>
@@ -223,6 +253,12 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
                   Finalizar Servicio
                 </DropdownMenuItem>
               )}
+              {vehicle.status === 'limpio' && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setAuditDialogOpen(true); }}>
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Auditar calidad
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleArchive} disabled={isArchiving}>
                 <Archive className="h-4 w-4 mr-2" />
@@ -239,6 +275,12 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
         onConfirm={handleMoveToService}
         matricula={vehicle.matricula}
         isLoading={isMovingToService}
+      />
+
+      <VehicleAuditDialog
+        open={auditDialogOpen}
+        onOpenChange={setAuditDialogOpen}
+        vehicle={vehicle}
       />
     </>
   );
