@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Pencil, X } from 'lucide-react';
+import { ArrowLeft, Pencil, X, AlertTriangle } from 'lucide-react';
 import { AccidentDetailHeader } from '@/components/garatech/accident-detail/AccidentDetailHeader';
 import { AccidentGeneralTab } from '@/components/garatech/accident-detail/AccidentGeneralTab';
 import { AccidentPhotosTab } from '@/components/garatech/accident-detail/AccidentPhotosTab';
@@ -66,12 +66,33 @@ export default function AccidentDetail() {
 
   if (!accident) {
     return (
-      <AppLayout title="Accidente">
-        <div className="text-center py-16 text-muted-foreground">
-          <p>Accidente no encontrado</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/garatech/accidents')}>
-            Volver al listado
-          </Button>
+      <AppLayout title="Accidente no encontrado">
+        <div className="container max-w-lg py-16">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">Accidente no disponible</h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Este registro de accidente fue eliminado o ya no existe. Es posible que haya sido borrado por un administrador.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Button onClick={() => navigate('/garatech/accidents')} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Volver a Accidentes
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/notifications')} className="gap-2">
+                Ver notificaciones
+              </Button>
+            </div>
+            {id && (
+              <p className="text-xs text-muted-foreground/60 font-mono">
+                ID: {id}
+              </p>
+            )}
+          </div>
         </div>
       </AppLayout>
     );

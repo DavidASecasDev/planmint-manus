@@ -80,12 +80,33 @@ export default function RepairDetail() {
 
   if (!repair) {
     return (
-      <AppLayout title="Reparación">
-        <div className="text-center py-16 text-muted-foreground">
-          <p>Reparación no encontrada</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/garatech/repairs')}>
-            Volver al listado
-          </Button>
+      <AppLayout title="Reparación no encontrada">
+        <div className="container max-w-lg py-16">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Wrench className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">Reparación no disponible</h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Esta reparación fue eliminada o ya no existe. Es posible que haya sido borrada por un administrador.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Button onClick={() => navigate('/garatech/repairs')} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Volver a Reparaciones
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/notifications')} className="gap-2">
+                Ver notificaciones
+              </Button>
+            </div>
+            {id && (
+              <p className="text-xs text-muted-foreground/60 font-mono">
+                ID: {id}
+              </p>
+            )}
+          </div>
         </div>
       </AppLayout>
     );
