@@ -6,7 +6,7 @@
  * Headings: Montserrat | Body: Barlow
  * Labels: Montserrat 700, uppercase, tracking 0.1em
  */
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -144,7 +144,7 @@ export function AppSidebar() {
   const { profile, organization, signOut } = useAuth();
   const { role, canAccessAdminPanel, hasPermission, isManager } = usePermissions();
   const { isModuleEnabled } = useOrganizationModules();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
   const isCollapsed = state === 'collapsed';
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -157,6 +157,13 @@ export function AppSidebar() {
   const isTransfersActive = location.pathname.startsWith('/transfers');
   const isTasksActive = location.pathname.startsWith('/tasks');
   const isFleetActive = location.pathname.startsWith('/fleet');
+
+  // Auto-close sidebar on mobile when navigating
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [location.pathname, isMobile, setOpenMobile]);
 
   useEffect(() => {
     if (location.pathname.startsWith('/garatech')) setGaratechOpen(true);
@@ -195,7 +202,9 @@ export function AppSidebar() {
   /* ── Shared style helpers ── */
   const menuItemBase = cn(
     "group flex items-center text-sm transition-all duration-150",
-    isCollapsed ? "justify-center !p-0" : "gap-3 px-3 py-2.5"
+    isCollapsed ? "justify-center !p-0" : "gap-3 px-3",
+    // Larger touch targets on mobile (min 44px)
+    isCollapsed ? "" : (isMobile ? "py-3.5" : "py-2.5")
   );
 
   const menuItemDefault = {
@@ -289,7 +298,7 @@ export function AppSidebar() {
                       <SidebarMenuSubButton asChild isActive={isSubActive}>
                         <NavLink
                           to={subItem.url}
-                          className="flex items-center gap-2 px-2 py-1.5 text-sm transition-colors"
+                          className={cn("flex items-center gap-2 px-2 text-sm transition-colors", isMobile ? "py-3" : "py-1.5")}
                           style={{
                             color: isSubActive ? goldAccent : textMuted,
                             backgroundColor: isSubActive ? 'rgba(201,169,110,0.12)' : 'transparent',
@@ -299,7 +308,7 @@ export function AppSidebar() {
                           }}
                           activeClassName=""
                         >
-                          <subItem.icon className="h-4 w-4" />
+                          <subItem.icon className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
                           <span>{subItem.title}</span>
                         </NavLink>
                       </SidebarMenuSubButton>
@@ -356,24 +365,27 @@ export function AppSidebar() {
                 </span>
               </div>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  className="h-8 w-8 transition-colors"
-                  style={{ color: textMuted }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = textWhite; e.currentTarget.style.backgroundColor = navyLight; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                >
-                  {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {isCollapsed ? 'Expandir' : 'Colapsar'}
-              </TooltipContent>
-            </Tooltip>
+            {/* Hide collapse button on mobile — Sheet handles open/close */}
+            {!isMobile && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSidebar}
+                    className="h-8 w-8 transition-colors"
+                    style={{ color: textMuted }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = textWhite; e.currentTarget.style.backgroundColor = navyLight; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {isCollapsed ? 'Expandir' : 'Colapsar'}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </SidebarHeader>
 
@@ -564,7 +576,7 @@ export function AppSidebar() {
                 variant="outline"
                 size="sm"
                 onClick={() => setFeedbackOpen(true)}
-                className="w-full gap-2 transition-colors"
+                className={cn("w-full gap-2 transition-colors", isMobile && "h-11")}
                 style={{
                   color: textMuted,
                   borderColor: borderColor,
@@ -650,7 +662,7 @@ export function AppSidebar() {
                       variant="ghost"
                       size="icon"
                       onClick={signOut}
-                      className="h-9 w-9 transition-colors"
+                      className={cn("transition-colors", isMobile ? "h-11 w-11" : "h-9 w-9")}
                       style={{ color: textMuted }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.backgroundColor = 'transparent'; }}

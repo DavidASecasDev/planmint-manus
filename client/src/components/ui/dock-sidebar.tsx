@@ -2,6 +2,7 @@ import * as React from "react"
 import { useRef, useCallback, createContext, useContext } from "react"
 import { motion, useSpring, useTransform, useMotionValue, type MotionValue } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 /*
  * DockContainer / DockItem — macOS-style magnification for sidebar items.
@@ -69,12 +70,15 @@ function DockItem({ children, className }: DockItemProps) {
 
 function DockContainer({ children, className, enabled = true }: DockContainerProps) {
   const mouseY = useMotionValue(-1)
+  const isMobile = useIsMobile()
+  // Disable dock magnification on mobile — it doesn't work well with touch
+  const effectiveEnabled = enabled && !isMobile
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (enabled) mouseY.set(e.clientY)
+      if (effectiveEnabled) mouseY.set(e.clientY)
     },
-    [enabled, mouseY]
+    [effectiveEnabled, mouseY]
   )
 
   const handleMouseLeave = useCallback(() => {
@@ -82,7 +86,7 @@ function DockContainer({ children, className, enabled = true }: DockContainerPro
   }, [mouseY])
 
   return (
-    <DockContext.Provider value={{ mouseY, enabled }}>
+    <DockContext.Provider value={{ mouseY, enabled: effectiveEnabled }}>
       <div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
