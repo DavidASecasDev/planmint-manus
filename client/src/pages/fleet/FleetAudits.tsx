@@ -11,6 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +42,7 @@ import {
   Eye,
   Car,
   Filter,
+  Plus,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -64,6 +72,17 @@ interface AuditRow {
   photo_count: number;
 }
 
+interface SimpleVehicle {
+  id: string;
+  matricula: string;
+  modelo: string | null;
+  categoria: string | null;
+  status: string;
+  organization_id: string;
+  // marca comes from fleet_vehicles join, not directly from vehicles table
+  marca?: string | null;
+}
+
 export default function FleetAudits() {
   const { profile } = useAuth();
   const orgId = profile?.organization_id;
@@ -71,6 +90,50 @@ export default function FleetAudits() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleWithTasks | null>(null);
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [vehicleSelectorOpen, setVehicleSelectorOpen] = useState(false);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+
+  // Fetch all vehicles for the "New Audit" selector
+  const vehiclesQuery = useQuery({
+    queryKey: ['audit-vehicles-list', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      // Fetch vehicles with optional fleet_vehicles join for marca
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('id, matricula, modelo, categoria, status, organization_id, fleet_vehicle_id')
+        .eq('organization_id', orgId)
+        .eq('is_archived', false)
+        .order('matricula');
+      if (error) throw error;
+
+      // Fetch fleet vehicle data for marca
+      const fleetIds = (data || []).map((v: any) => v.fleet_vehicle_id).filter(Boolean);
+      let marcaMap: Record<string, string> = {};
+      if (fleetIds.length > 0) {
+        const { data: fleetData } = await supabase
+          .from('fleet_vehicles')
+          .select('id, marca')
+          .in('id', fleetIds);
+        if (fleetData) {
+          for (const f of fleetData) {
+            if (f.marca) marcaMap[f.id] = f.marca;
+          }
+        }
+      }
+
+      return (data || []).map((v: any) => ({
+        id: v.id,
+        matricula: v.matricula,
+        modelo: v.modelo,
+        categoria: v.categoria,
+        status: v.status,
+        organization_id: v.organization_id,
+        marca: v.fleet_vehicle_id ? (marcaMap[v.fleet_vehicle_id] || null) : null,
+      })) as SimpleVehicle[];
+    },
+    enabled: !!orgId,
+  });
 
   // Fetch all audits for the organization
   const auditsQuery = useQuery({
@@ -137,6 +200,18 @@ export default function FleetAudits() {
     return result;
   }, [auditsQuery.data, statusFilter, searchTerm]);
 
+  const filteredVehicles = useMemo(() => {
+    const all = vehiclesQuery.data || [];
+    if (!vehicleSearch.trim()) return all;
+    const term = vehicleSearch.toLowerCase();
+    return all.filter(
+      (v) =>
+        v.matricula?.toLowerCase().includes(term) ||
+        v.modelo?.toLowerCase().includes(term) ||
+        v.marca?.toLowerCase().includes(term),
+    );
+  }, [vehiclesQuery.data, vehicleSearch]);
+
   const stats = useMemo(() => {
     const all = auditsQuery.data || [];
     return {
@@ -147,18 +222,24 @@ export default function FleetAudits() {
     };
   }, [auditsQuery.data]);
 
+  const openAuditForVehicle = (vehicle: SimpleVehicle | AuditRow['vehicle']) => {
+    if (!vehicle) return;
+    setSelectedVehicle({
+      id: vehicle.id,
+      matricula: vehicle.matricula,
+      modelo: vehicle.modelo,
+      marca: vehicle.marca,
+      categoria: vehicle.categoria,
+      status: vehicle.status,
+    } as unknown as VehicleWithTasks);
+    setVehicleSelectorOpen(false);
+    setVehicleSearch('');
+    setAuditDialogOpen(true);
+  };
+
   const handleOpenAudit = (audit: AuditRow) => {
     if (!audit.vehicle) return;
-    // Build a minimal VehicleWithTasks object for the dialog
-    setSelectedVehicle({
-      id: audit.vehicle.id,
-      matricula: audit.vehicle.matricula,
-      modelo: audit.vehicle.modelo,
-      marca: audit.vehicle.marca,
-      categoria: audit.vehicle.categoria,
-      status: audit.vehicle.status,
-    } as unknown as VehicleWithTasks);
-    setAuditDialogOpen(true);
+    openAuditForVehicle(audit.vehicle);
   };
 
   const getStatusBadge = (status: string) => {
@@ -195,14 +276,49 @@ export default function FleetAudits() {
     return 'text-red-600 font-semibold';
   };
 
+  const getVehicleStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      available: 'Disponible',
+      rented: 'Alquilado',
+      maintenance: 'Mantenimiento',
+      cleaning: 'Limpieza',
+      transit: 'En tránsito',
+      reserved: 'Reservado',
+      service: 'En servicio',
+    };
+    return labels[status] || status;
+  };
+
+  const getVehicleStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      available: 'bg-green-100 text-green-700',
+      rented: 'bg-blue-100 text-blue-700',
+      maintenance: 'bg-orange-100 text-orange-700',
+      cleaning: 'bg-purple-100 text-purple-700',
+      transit: 'bg-cyan-100 text-cyan-700',
+      reserved: 'bg-indigo-100 text-indigo-700',
+      service: 'bg-amber-100 text-amber-700',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700';
+  };
+
   return (
     <AppLayout title="Auditorías de Calidad">
       <div className="container py-6 space-y-6">
-        <PageHeader
-          title="Auditorías de Calidad"
-          description="Historial y seguimiento de auditorías de calidad de vehículos"
-          icon={ClipboardCheck}
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <PageHeader
+            title="Auditorías de Calidad"
+            description="Historial y seguimiento de auditorías de calidad de vehículos"
+            icon={ClipboardCheck}
+          />
+          <Button
+            onClick={() => setVehicleSelectorOpen(true)}
+            className="gap-2 shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            Nueva Auditoría
+          </Button>
+        </div>
 
         {/* Stats cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -269,11 +385,21 @@ export default function FleetAudits() {
             <CardContent className="py-12 text-center">
               <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
               <h3 className="font-semibold text-lg mb-1">No hay auditorías</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-4">
                 {searchTerm || statusFilter !== 'all'
                   ? 'No se encontraron auditorías con los filtros seleccionados.'
-                  : 'Las auditorías aparecerán aquí cuando se inicien desde el Kanban de vehículos.'}
+                  : 'Aún no se ha realizado ninguna auditoría. Pulsa "Nueva Auditoría" para comenzar.'}
               </p>
+              {!searchTerm && statusFilter === 'all' && (
+                <Button
+                  onClick={() => setVehicleSelectorOpen(true)}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Iniciar primera auditoría
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -357,6 +483,74 @@ export default function FleetAudits() {
           </Card>
         )}
       </div>
+
+      {/* Vehicle selector dialog */}
+      <Dialog open={vehicleSelectorOpen} onOpenChange={(open) => { setVehicleSelectorOpen(open); if (!open) setVehicleSearch(''); }}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Seleccionar vehículo</DialogTitle>
+            <DialogDescription>
+              Elige el vehículo al que deseas realizar la auditoría de calidad.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por matrícula, marca o modelo..."
+              value={vehicleSearch}
+              onChange={(e) => setVehicleSearch(e.target.value)}
+              className="pl-9"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0 -mx-6 px-6">
+            {vehiclesQuery.isLoading ? (
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : filteredVehicles.length === 0 ? (
+              <div className="py-8 text-center">
+                <Car className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  {vehicleSearch
+                    ? 'No se encontraron vehículos con esa búsqueda.'
+                    : 'No hay vehículos disponibles.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 py-2">
+                {filteredVehicles.map((vehicle) => (
+                  <button
+                    key={vehicle.id}
+                    onClick={() => openAuditForVehicle(vehicle)}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-border hover:bg-muted/50 transition-colors text-left group"
+                  >
+                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10">
+                      <Car className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {vehicle.matricula}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'}
+                        {vehicle.categoria ? ` · ${vehicle.categoria}` : ''}
+                      </p>
+                    </div>
+                    <Badge className={`shrink-0 text-[10px] ${getVehicleStatusColor(vehicle.status)}`}>
+                      {getVehicleStatusLabel(vehicle.status)}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Audit dialog */}
       <VehicleAuditDialog

@@ -40,3 +40,4 @@
 - [x] Implementar subida de fotos en el diálogo de auditoría para documentar defectos visualmente
 - [x] Añadir captions editables a las fotos de auditoría para que los auditores puedan describir cada imagen
 - [x] Añadir entrada de Auditorías en el sidebar de navegación para acceso directo al módulo
+- [x] Añadir botón 'Nueva Auditoría' en la página /fleet/audits con selector de vehículo para iniciar auditorías directamente
