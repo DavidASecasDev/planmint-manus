@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
 import { RentlySyncProvider } from "@/contexts/RentlySyncContext";
 import { BrokerAuthProvider } from "@/contexts/BrokerAuthContext";
+import { BrokerThemeProvider } from "@/contexts/BrokerThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 import { ModuleRoute } from "@/components/modules/ModuleRoute";
@@ -959,6 +960,7 @@ function MainAppRoutes() {
 // Componente wrapper para rutas de Broker (con BrokerAuthProvider, SIN AuthProvider)
 function BrokerPortalRoutes() {
   return (
+    <BrokerThemeProvider>
     <BrokerAuthProvider>
       <Suspense fallback={<PageLoader />}>
       <Routes>
@@ -989,6 +991,7 @@ function BrokerPortalRoutes() {
       </Routes>
       </Suspense>
     </BrokerAuthProvider>
+    </BrokerThemeProvider>
   );
 }
 
