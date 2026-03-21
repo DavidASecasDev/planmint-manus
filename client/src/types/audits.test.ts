@@ -352,7 +352,7 @@ describe('Photo storage path extraction', () => {
   }
 
   it('extracts correct path from a Supabase public URL', () => {
-    const url = 'https://quilsunfhfqqnibheqzl.supabase.co/storage/v1/object/public/audit-photos/org-1/vehicle-1/audit-1/abc123.jpg';
+    const url = 'https://exayzwdudssyegxjiyrk.supabase.co/storage/v1/object/public/audit-photos/org-1/vehicle-1/audit-1/abc123.jpg';
     expect(extractStoragePath(url)).toBe('org-1/vehicle-1/audit-1/abc123.jpg');
   });
 

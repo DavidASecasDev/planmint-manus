@@ -104,22 +104,23 @@ export default function FleetAudits() {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from('vehicles')
-        .select('id, matricula, modelo, categoria, status, organization_id, fleet_vehicle_id')
+        .select('id, matricula, modelo, categoria, status, organization_id')
         .eq('organization_id', orgId)
         .eq('is_archived', false)
         .order('matricula');
       if (error) throw error;
 
-      const fleetIds = (data || []).map((v: any) => v.fleet_vehicle_id).filter(Boolean);
+      // Try to enrich with marca from fleet_vehicles via matricula match
+      const matriculas = (data || []).map((v: any) => v.matricula).filter(Boolean);
       let marcaMap: Record<string, string> = {};
-      if (fleetIds.length > 0) {
+      if (matriculas.length > 0) {
         const { data: fleetData } = await supabase
           .from('fleet_vehicles')
-          .select('id, marca')
-          .in('id', fleetIds);
+          .select('matricula, marca')
+          .in('matricula', matriculas);
         if (fleetData) {
           for (const f of fleetData) {
-            if (f.marca) marcaMap[f.id] = f.marca;
+            if (f.marca) marcaMap[f.matricula] = f.marca;
           }
         }
       }
@@ -131,7 +132,7 @@ export default function FleetAudits() {
         categoria: v.categoria,
         status: v.status,
         organization_id: v.organization_id,
-        marca: v.fleet_vehicle_id ? (marcaMap[v.fleet_vehicle_id] || null) : null,
+        marca: marcaMap[v.matricula] || null,
       })) as SimpleVehicle[];
     },
     enabled: !!orgId,
@@ -144,11 +145,11 @@ export default function FleetAudits() {
       if (!orgId) return [];
 
       const { data: audits, error } = await (supabase as any)
-        .from('vehicle_quality_audits')
+        .from('vehicle_audits')
         .select(`
           *,
-          auditor_profile:profiles!vehicle_quality_audits_auditor_id_fkey(name),
-          vehicle:vehicles!vehicle_quality_audits_vehicle_id_fkey(id, matricula, modelo, marca, categoria, status)
+          auditor_profile:profiles!vehicle_audits_auditor_id_fkey(name),
+          vehicle:vehicles!vehicle_audits_vehicle_id_fkey(id, matricula, modelo, categoria, status)
         `)
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })

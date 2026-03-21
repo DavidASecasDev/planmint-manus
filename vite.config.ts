@@ -6,10 +6,10 @@ import { componentTagger } from "lovable-tagger";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
-// Supabase fallbacks (same as the real PlanMint repo)
+// Supabase fallbacks
 // =============================================================================
-const SUPABASE_URL_FALLBACK = 'https://quilsunfhfqqnibheqzl.supabase.co';
-const SUPABASE_KEY_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1aWxzdW5maGZxcW5pYmhlcXpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0MDk0OTgsImV4cCI6MjA4MDk4NTQ5OH0.dZPc_kv0qlYnGp3EvLhD2sjBAsoeRlSihfedYjDoroQ';
+const SUPABASE_URL_FALLBACK = 'https://exayzwdudssyegxjiyrk.supabase.co';
+const SUPABASE_KEY_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YXl6d2R1ZHNzeWVneGppeXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDkzNDYsImV4cCI6MjA4OTQyNTM0Nn0.GstFrSuWtj9923mHfLVfNkcH0M9MrwpPH0SW3om-WK0';
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin

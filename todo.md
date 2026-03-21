@@ -47,3 +47,8 @@
 - [x] Dashboard de métricas de auditoría: gráfico de auditorías por estado (aprobadas/rechazadas)
 - [x] Dashboard de métricas de auditoría: tarjetas KPI resumen y tendencia
 - [x] Dashboard de métricas de auditoría: integrar en la página /fleet/audits con tabs
+- [x] Bug: Selector de vehículos en auditorías muestra 'No hay vehículos disponibles' - corregir consulta
+- [x] Auditar datos existentes en BD Lovable Cloud (quilsunfhfqqnibheqzl) antes de migrar
+- [x] Migrar conexión Supabase a nueva BD (exayzwdudssyegxjiyrk)
+- [x] Crear tablas vehicle_quality_audits y vehicle_audit_photos en la nueva BD (ya existían)
+- [x] Verificar que la app funciona correctamente con la nueva BD
