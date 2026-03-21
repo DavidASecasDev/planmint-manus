@@ -1,0 +1,21 @@
+# Project TODO
+
+- [x] Upgrade project to full-stack (db, server, user) via webdev_add_feature
+- [x] Resolve conflicts between original architecture (Supabase + react-router-dom) and new Manus backend
+- [x] Restore main.tsx to original (without tRPC wrapper, keeping Supabase auth)
+- [x] Restore App.tsx to original state
+- [x] Restore package.json dependencies (keep original + add new server deps)
+- [x] Update vite.config.ts to export plain object (compatible with server/_core/vite.ts)
+- [x] Add @shared alias to vite.config.ts resolve
+- [x] Create drizzle/schema.ts with users table for Manus auth
+- [x] Create server/db.ts with user CRUD helpers
+- [x] Create server/routers.ts with auth and system routes
+- [x] Create server/storage.ts with S3 helpers
+- [x] Create shared/_core/errors.ts with ForbiddenError/UnauthorizedError
+- [x] Add missing constants to shared/const.ts (AXIOS_TIMEOUT_MS, UNAUTHED_ERR_MSG, NOT_ADMIN_ERR_MSG)
+- [x] Fix imageGeneration.ts import path for storage
+- [x] Install missing dependencies (dotenv, @trpc/server, @trpc/client, superjson, drizzle-orm, mysql2, etc.)
+- [x] Create drizzle.config.ts for database migrations
+- [x] Run database migration (users table already existed and in sync)
+- [x] Verify server starts successfully with 0 TypeScript errors
+- [x] Verify app renders correctly in browser (login page loads)

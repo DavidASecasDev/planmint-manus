@@ -1,0 +1,13 @@
+{
+  "query": "SHOW TABLES LIKE '__drizzle%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute SHOW TABLES LIKE '__drizzle%';",
+  "rows": [
+    {
+      "Tables_in_ixFK4yeJEEAkh8kCZkpztM (__drizzle%)": "__drizzle_migrations"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_ixFK4yeJEEAkh8kCZkpztM (__drizzle%)\n__drizzle_migrations\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

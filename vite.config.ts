@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
+import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import fs from "node:fs";
 import path from "node:path";
@@ -99,85 +99,87 @@ function vitePluginManusDebugCollector(): Plugin {
 }
 
 // =============================================================================
-// Main Vite config
+// Build Supabase fallback defines
 // =============================================================================
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, import.meta.dirname, 'VITE_');
+const fallbackDefine: Record<string, string> = {};
+// In dev mode, loadEnv is not available here since we export a plain config.
+// We set the fallbacks unconditionally; if the env vars are already set,
+// the real values will override these at runtime.
+if (!process.env.VITE_SUPABASE_URL) {
+  fallbackDefine['import.meta.env.VITE_SUPABASE_URL'] = JSON.stringify(SUPABASE_URL_FALLBACK);
+}
+if (!process.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+  fallbackDefine['import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY'] = JSON.stringify(SUPABASE_KEY_FALLBACK);
+}
 
-  const fallbackDefine: Record<string, string> = {};
-  if (!env.VITE_SUPABASE_URL) {
-    fallbackDefine['import.meta.env.VITE_SUPABASE_URL'] = JSON.stringify(SUPABASE_URL_FALLBACK);
-  }
-  if (!env.VITE_SUPABASE_PUBLISHABLE_KEY) {
-    fallbackDefine['import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY'] = JSON.stringify(SUPABASE_KEY_FALLBACK);
-  }
-
-  return {
-    define: fallbackDefine,
-    plugins: [
-      react(),
-      mode === "development" && componentTagger(),
-      VitePWA({
-        registerType: "autoUpdate",
-        includeAssets: ["favicon.ico", "robots.txt"],
-        manifest: {
-          name: "PlanMint",
-          short_name: "PlanMint",
-          description: "Organiza tareas, objetivos y equipos en un solo lugar",
-          theme_color: "#10B981",
-          background_color: "#F8FAFC",
-          display: "standalone",
-          scope: "/",
-          start_url: "/",
-          id: "/",
-          icons: [
-            { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-            { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
-          ],
-        },
-        devOptions: { enabled: false },
-      }),
-      vitePluginManusRuntime(),
-      vitePluginManusDebugCollector(),
-    ].filter(Boolean),
-    resolve: {
-      alias: {
-        "@": path.resolve(import.meta.dirname, "client", "src"),
+// =============================================================================
+// Main Vite config (exported as plain object for server/_core/vite.ts compatibility)
+// =============================================================================
+export default defineConfig({
+  define: fallbackDefine,
+  plugins: [
+    react(),
+    process.env.NODE_ENV === "development" && componentTagger(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "robots.txt"],
+      manifest: {
+        name: "PlanMint",
+        short_name: "PlanMint",
+        description: "Organiza tareas, objetivos y equipos en un solo lugar",
+        theme_color: "#10B981",
+        background_color: "#F8FAFC",
+        display: "standalone",
+        scope: "/",
+        start_url: "/",
+        id: "/",
+        icons: [
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+        ],
       },
-      dedupe: ["react", "react-dom", "react/jsx-runtime"],
+      devOptions: { enabled: false },
+    }),
+    vitePluginManusRuntime(),
+    vitePluginManusDebugCollector(),
+  ].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
     },
-    envDir: path.resolve(import.meta.dirname),
-    root: path.resolve(import.meta.dirname, "client"),
-    build: {
-      outDir: path.resolve(import.meta.dirname, "dist/public"),
-      emptyOutDir: true,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-query': ['@tanstack/react-query'],
-            'vendor-supabase': ['@supabase/supabase-js'],
-          },
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
+  },
+  envDir: path.resolve(import.meta.dirname),
+  root: path.resolve(import.meta.dirname, "client"),
+  publicDir: path.resolve(import.meta.dirname, "client", "public"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-supabase': ['@supabase/supabase-js'],
         },
       },
     },
-    server: {
-      port: 3000,
-      strictPort: false,
-      host: true,
-      allowedHosts: [
-        ".manuspre.computer",
-        ".manus.computer",
-        ".manus-asia.computer",
-        ".manuscomputer.ai",
-        ".manusvm.computer",
-        "localhost",
-        "127.0.0.1",
-      ],
-      fs: {
-        strict: true,
-        deny: ["**/.*"],
-      },
+  },
+  server: {
+    host: true,
+    allowedHosts: [
+      ".manuspre.computer",
+      ".manus.computer",
+      ".manus-asia.computer",
+      ".manuscomputer.ai",
+      ".manusvm.computer",
+      "localhost",
+      "127.0.0.1",
+    ],
+    fs: {
+      strict: true,
+      deny: ["**/.*"],
     },
-  };
+  },
 });
