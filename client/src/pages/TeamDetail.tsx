@@ -72,17 +72,34 @@ export default function TeamDetail() {
 
   if (!team) {
     return (
-      <AppLayout title="Team">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Equipo no encontrado</h3>
-            <Button variant="outline" onClick={() => navigate('/teams')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a Teams
-            </Button>
-          </CardContent>
-        </Card>
+      <AppLayout title="Equipo no encontrado">
+        <div className="container max-w-lg py-16">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Users className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">Equipo no disponible</h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Este equipo fue eliminado o ya no existe. Es posible que haya sido borrado por un administrador.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Button onClick={() => navigate('/teams')} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Volver a Equipos
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/notifications')} className="gap-2">
+                Ver notificaciones
+              </Button>
+            </div>
+            {id && (
+              <p className="text-xs text-muted-foreground/60 font-mono">
+                ID: {id}
+              </p>
+            )}
+          </div>
+        </div>
       </AppLayout>
     );
   }

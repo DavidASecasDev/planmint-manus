@@ -28,3 +28,6 @@
 - [x] Aplicar estado 'no encontrado' al módulo de reparaciones (RepairDetail)
 - [x] Aplicar estado 'no encontrado' al módulo de accidentes (AccidentDetail)
 - [x] Aplicar estado 'no encontrado' al módulo de reportes de daños (DamageReportDetailPage)
+- [x] Aplicar estado 'no encontrado' al módulo de vehículos (FleetDetail)
+- [x] Aplicar estado 'no encontrado' al módulo de talleres (WorkshopDetail)
+- [x] Aplicar estado 'no encontrado' al módulo de equipos (TeamDetail)

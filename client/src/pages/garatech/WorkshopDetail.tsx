@@ -55,12 +55,33 @@ export default function WorkshopDetail() {
 
   if (!workshop) {
     return (
-      <AppLayout title="Taller">
-        <div className="text-center py-16 text-muted-foreground">
-          <p>Taller no encontrado</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/garatech/workshops')}>
-            Volver al listado
-          </Button>
+      <AppLayout title="Taller no encontrado">
+        <div className="container max-w-lg py-16">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Building2 className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">Taller no disponible</h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Este taller fue eliminado o ya no existe. Es posible que haya sido dado de baja por un administrador.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Button onClick={() => navigate('/garatech/workshops')} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Volver a Talleres
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/notifications')} className="gap-2">
+                Ver notificaciones
+              </Button>
+            </div>
+            {id && (
+              <p className="text-xs text-muted-foreground/60 font-mono">
+                ID: {id}
+              </p>
+            )}
+          </div>
         </div>
       </AppLayout>
     );
