@@ -42,3 +42,8 @@
 - [x] Añadir entrada de Auditorías en el sidebar de navegación para acceso directo al módulo
 - [x] Añadir botón 'Nueva Auditoría' en la página /fleet/audits con selector de vehículo para iniciar auditorías directamente
 - [x] Implementar compresión de imágenes en el cliente antes de subirlas para mejorar velocidad en móviles
+- [x] Dashboard de métricas de auditoría: gráfico de puntuación media por mes
+- [x] Dashboard de métricas de auditoría: gráfico de defectos más comunes
+- [x] Dashboard de métricas de auditoría: gráfico de auditorías por estado (aprobadas/rechazadas)
+- [x] Dashboard de métricas de auditoría: tarjetas KPI resumen y tendencia
+- [x] Dashboard de métricas de auditoría: integrar en la página /fleet/audits con tabs
