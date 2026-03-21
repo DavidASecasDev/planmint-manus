@@ -11,3 +11,19 @@ if (storedTheme === 'dark' || (storedTheme === 'system' && window.matchMedia('(p
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
+
+// ── Register Service Worker for PWA install prompt ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        console.log('[PWA] Service Worker registered, scope:', reg.scope);
+        // Check for updates periodically
+        setInterval(() => reg.update(), 60 * 60 * 1000); // every hour
+      })
+      .catch((err) => {
+        console.warn('[PWA] Service Worker registration failed:', err);
+      });
+  });
+}
