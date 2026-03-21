@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -164,6 +165,7 @@ const Sidebar = React.forwardRef<
           }
           side={side}
         >
+          <VisuallyHidden><SheetTitle>Menú de navegación</SheetTitle></VisuallyHidden>
           <div className="flex h-full w-full flex-col overflow-y-auto overscroll-contain">{children}</div>
         </SheetContent>
       </Sheet>

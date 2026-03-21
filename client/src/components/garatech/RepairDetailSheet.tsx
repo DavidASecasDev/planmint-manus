@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RepairDetailHeader } from './repair-detail/RepairDetailHeader';
 import { RepairGeneralTab } from './repair-detail/RepairGeneralTab';
@@ -25,6 +26,7 @@ export function RepairDetailSheet({ repair, open, onOpenChange }: RepairDetailSh
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-2xl overflow-y-auto">
+          <VisuallyHidden><SheetTitle>Detalle de reparación</SheetTitle></VisuallyHidden>
           <RepairDetailHeader repair={repair} onEdit={() => setEditDialogOpen(true)} />
 
           <Tabs defaultValue="general" className="mt-6">
