@@ -14,7 +14,7 @@ const BrokerThemeContext = createContext<BrokerThemeContextValue>({
   setTheme: () => {},
 });
 
-const STORAGE_KEY = 'broker_theme_pref';
+const STORAGE_KEY = 'theme_pref';
 
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -55,6 +55,20 @@ export function BrokerThemeProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme]);
+
+  // Listen for storage changes from the main portal (cross-context sync)
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        const v = e.newValue;
+        if (v === 'light' || v === 'dark' || v === 'system') {
+          setThemeState(v);
+        }
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
 
   const setTheme = useCallback((newTheme: BrokerTheme) => {
     setThemeState(newTheme);
