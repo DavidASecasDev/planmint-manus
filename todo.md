@@ -24,3 +24,4 @@
 - [x] Corregir: el banner de instalación PWA no aparece en dispositivos móviles (sí funciona en PC)
 - [x] Corregir: el banner de instalación PWA no aparece en Android Chrome (manifest.json con Content-Type correcto, SW cache v3)
 - [x] Mejorar manejo de solicitudes de transferencia eliminadas: mostrar mensaje informativo en lugar de 404 genérico
+- [x] Rediseñar página 404 genérica con branding Azul Cars y sugerencias de navegación contextuales
