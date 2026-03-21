@@ -11,6 +11,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
  * effect only applies to elements explicitly wrapped in <DockItem>.
  * Collapsible sub-menus and other content placed OUTSIDE a <DockItem> will
  * NOT be scaled, preventing the "block move" bug.
+ *
+ * Uses origin-left so scale grows rightward, preventing horizontal overflow
+ * on the left-aligned sidebar.
  */
 
 const DockContext = createContext<{
@@ -32,8 +35,8 @@ interface DockItemProps {
   className?: string
 }
 
-const MAGNIFICATION = 0.35 // max extra scale (slightly reduced for subtlety)
-const DISTANCE = 70 // px radius of effect
+const MAGNIFICATION = 0.12 // subtle scale bump — enough to feel alive, not enough to overflow
+const DISTANCE = 80 // px radius of effect
 
 function DockItem({ children, className }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -61,7 +64,7 @@ function DockItem({ children, className }: DockItemProps) {
     <motion.div
       ref={ref}
       style={{ scale: scale as any }}
-      className={cn("origin-center", className)}
+      className={cn("origin-left", className)}
     >
       {children}
     </motion.div>
@@ -90,7 +93,7 @@ function DockContainer({ children, className, enabled = true }: DockContainerPro
       <div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className={cn("overflow-hidden", className)}
+        className={className}
       >
         {children}
       </div>
