@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import fs from "node:fs";
 import path from "node:path";
 import { componentTagger } from "lovable-tagger";
-import { VitePWA } from "vite-plugin-pwa";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
@@ -120,26 +119,6 @@ export default defineConfig({
   plugins: [
     react(),
     process.env.NODE_ENV === "development" && componentTagger(),
-    VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt"],
-      manifest: {
-        name: "PlanMint",
-        short_name: "PlanMint",
-        description: "Organiza tareas, objetivos y equipos en un solo lugar",
-        theme_color: "#10B981",
-        background_color: "#F8FAFC",
-        display: "standalone",
-        scope: "/",
-        start_url: "/",
-        id: "/",
-        icons: [
-          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
-        ],
-      },
-      devOptions: { enabled: false },
-    }),
     vitePluginManusRuntime(),
     vitePluginManusDebugCollector(),
   ].filter(Boolean),

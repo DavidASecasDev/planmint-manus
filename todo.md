@@ -19,3 +19,4 @@
 - [x] Run database migration (users table already existed and in sync)
 - [x] Verify server starts successfully with 0 TypeScript errors
 - [x] Verify app renders correctly in browser (login page loads)
+- [x] Diagnosticar y corregir problema: la opción de instalar la PWA no aparece en el navegador (eliminado VitePWA conflictivo, manifest manual correcto)
