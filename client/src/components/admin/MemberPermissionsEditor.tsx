@@ -15,100 +15,124 @@ interface MemberPermissionsEditorProps {
   memberRole: OrgRole | string;
 }
 
-const SYSTEM_ROLES = ['owner', 'admin', 'manager', 'member'];
+const SYSTEM_ROLES = ['owner', 'admin', 'manager', 'member', 'read_only'];
 
 // Helper to map custom role permissions_json to flat permission format
+// Maps the nested structure (e.g. { tasks: { create: true } }) to flat keys (e.g. 'tasks.create')
 function mapCustomRoleToFlatPermissions(permissionsJson: Record<string, any>): Record<string, boolean> {
   const flat: Record<string, boolean> = {};
-  
-  // Areas
-  flat['areas.create'] = permissionsJson?.areas?.manage ?? false;
-  flat['areas.update'] = permissionsJson?.areas?.manage ?? false;
-  flat['areas.delete'] = permissionsJson?.areas?.manage ?? false;
-  flat['areas.manage_visibility'] = permissionsJson?.areas?.manage ?? false;
-  flat['areas.manage_access_rules'] = permissionsJson?.areas?.manage ?? false;
+
   // Tasks
+  flat['tasks.view'] = permissionsJson?.tasks?.view ?? false;
   flat['tasks.create'] = permissionsJson?.tasks?.create ?? false;
   flat['tasks.update'] = permissionsJson?.tasks?.update ?? false;
   flat['tasks.delete'] = permissionsJson?.tasks?.delete ?? false;
   flat['tasks.assign'] = permissionsJson?.tasks?.update ?? false;
-  flat['tasks.change_status'] = permissionsJson?.tasks?.update ?? false;
-  flat['tasks.manage_columns'] = permissionsJson?.tasks?.delete ?? false;
-  // Templates
-  flat['templates.apply'] = permissionsJson?.templates?.read ?? false;
-  flat['templates.create'] = permissionsJson?.templates?.manage ?? false;
-  flat['templates.delete'] = permissionsJson?.templates?.manage ?? false;
-  // Automations
-  flat['automations.view'] = permissionsJson?.automations?.read ?? false;
-  flat['automations.create'] = permissionsJson?.automations?.manage ?? false;
-  flat['automations.manage'] = permissionsJson?.automations?.manage ?? false;
-  // Reports
-  flat['reports.view'] = permissionsJson?.reports?.view ?? false;
-  flat['reports.export'] = permissionsJson?.reports?.view ?? false;
-  flat['reports.view_financial'] = permissionsJson?.reports?.view ?? false;
-  // Reservations
-  flat['reservations.view'] = permissionsJson?.reservations?.view ?? false;
-  flat['reservations.create'] = permissionsJson?.reservations?.view ?? false;
-  flat['reservations.manage'] = permissionsJson?.reservations?.view ?? false;
-  // Transfers
-  flat['transfers.view'] = permissionsJson?.transfers?.view ?? false;
-  flat['transfers.create'] = permissionsJson?.transfers?.manage ?? false;
-  flat['transfers.update'] = permissionsJson?.transfers?.manage ?? false;
-  flat['transfers.change_status'] = permissionsJson?.transfers?.manage ?? false;
-  flat['transfers.delete'] = permissionsJson?.transfers?.delete ?? false;
-  flat['transfers.manage_pricing'] = permissionsJson?.transfers?.manage ?? false;
-  flat['transfers.manage_brokers'] = permissionsJson?.transfers?.manage ?? false;
-  flat['transfers.manage'] = permissionsJson?.transfers?.manage ?? false;
-  // Garatech
-  flat['garatech.view'] = permissionsJson?.garatech?.view ?? false;
-  flat['garatech.create'] = permissionsJson?.garatech?.manage ?? false;
-  flat['garatech.update'] = permissionsJson?.garatech?.manage ?? false;
-  flat['garatech.change_status'] = permissionsJson?.garatech?.manage ?? false;
-  flat['garatech.edit_dates'] = permissionsJson?.garatech?.edit_dates ?? false;
-  flat['garatech.manage_catalog'] = permissionsJson?.garatech?.manage ?? false;
-  flat['garatech.manage_accidents'] = permissionsJson?.garatech?.manage ?? false;
-  flat['garatech.manage'] = permissionsJson?.garatech?.manage ?? false;
-  // Vehicles
-  flat['vehicles.view'] = permissionsJson?.vehicles?.view ?? false;
-  flat['vehicles.create'] = permissionsJson?.vehicles?.manage ?? false;
-  flat['vehicles.update'] = permissionsJson?.vehicles?.manage ?? false;
-  flat['vehicles.archive'] = permissionsJson?.vehicles?.manage ?? false;
-  flat['vehicles.manage_daily_tasks'] = permissionsJson?.vehicles?.manage ?? false;
-  flat['vehicles.manage'] = permissionsJson?.vehicles?.manage ?? false;
-  // Forms
-  flat['forms.view'] = permissionsJson?.forms?.view ?? false;
-  flat['forms.create'] = permissionsJson?.forms?.create ?? false;
-  flat['forms.update'] = permissionsJson?.forms?.manage ?? false;
-  flat['forms.delete'] = permissionsJson?.forms?.manage ?? false;
-  flat['forms.view_responses'] = permissionsJson?.forms?.view ?? false;
-  flat['forms.manage'] = permissionsJson?.forms?.manage ?? false;
-  // Time Tracking
-  flat['time_tracking.view'] = permissionsJson?.time_tracking?.view ?? false;
-  flat['time_tracking.view_team'] = permissionsJson?.time_tracking?.manage ?? false;
-  flat['time_tracking.create'] = permissionsJson?.time_tracking?.view ?? false;
-  flat['time_tracking.manage'] = permissionsJson?.time_tracking?.manage ?? false;
+  flat['tasks.change_status'] = permissionsJson?.tasks?.change_status ?? permissionsJson?.tasks?.update ?? false;
+  flat['tasks.manage_columns'] = permissionsJson?.tasks?.manage_columns ?? permissionsJson?.tasks?.delete ?? false;
+  // Areas
+  flat['areas.view'] = permissionsJson?.areas?.view ?? false;
+  flat['areas.create'] = permissionsJson?.areas?.manage ?? false;
+  flat['areas.update'] = permissionsJson?.areas?.manage ?? false;
+  flat['areas.delete'] = permissionsJson?.areas?.manage ?? false;
+  flat['areas.manage_visibility'] = permissionsJson?.areas?.manage ?? false;
+  flat['areas.manage_access_rules'] = permissionsJson?.areas?.manage_access_rules ?? permissionsJson?.areas?.manage ?? false;
   // Tags
+  flat['tags.view'] = permissionsJson?.tags?.view ?? false;
   flat['tags.create'] = permissionsJson?.tags?.create ?? false;
   flat['tags.update'] = permissionsJson?.tags?.manage ?? false;
   flat['tags.delete'] = permissionsJson?.tags?.manage ?? false;
   flat['tags.manage'] = permissionsJson?.tags?.manage ?? false;
+  // Templates
+  flat['templates.view'] = permissionsJson?.templates?.view ?? permissionsJson?.templates?.read ?? false;
+  flat['templates.apply'] = permissionsJson?.templates?.read ?? false;
+  flat['templates.create'] = permissionsJson?.templates?.manage ?? false;
+  flat['templates.delete'] = permissionsJson?.templates?.manage ?? false;
+  // Teams
+  flat['teams.view'] = permissionsJson?.team?.read ?? false;
+  // Automations
+  flat['automations.view'] = permissionsJson?.automations?.view ?? permissionsJson?.automations?.read ?? false;
+  flat['automations.create'] = permissionsJson?.automations?.manage ?? false;
+  flat['automations.manage'] = permissionsJson?.automations?.manage ?? false;
+  // Reports
+  flat['reports.view'] = permissionsJson?.reports?.view ?? false;
+  flat['reports.export'] = permissionsJson?.reports?.export ?? permissionsJson?.reports?.view ?? false;
+  flat['reports.view_financial'] = permissionsJson?.reports?.view_financial ?? permissionsJson?.reports?.view ?? false;
+  // Billing
+  flat['billing.view'] = permissionsJson?.billing?.view ?? permissionsJson?.billing?.read ?? false;
+  flat['billing.manage'] = permissionsJson?.billing?.manage ?? false;
   // Members
   flat['members.view'] = permissionsJson?.team?.read ?? false;
   flat['members.invite'] = permissionsJson?.team?.manage ?? false;
   flat['members.change_role'] = permissionsJson?.team?.manage ?? false;
   flat['members.manage_permissions'] = permissionsJson?.team?.manage ?? false;
-  flat['members.suspend'] = permissionsJson?.team?.manage ?? false;
-  // Billing
-  flat['billing.view'] = permissionsJson?.billing?.read ?? false;
-  flat['billing.manage'] = permissionsJson?.billing?.manage ?? false;
+  flat['members.suspend'] = permissionsJson?.team?.suspend ?? permissionsJson?.team?.manage ?? false;
   // Security
   flat['security.view_audit_logs'] = permissionsJson?.audit_logs?.read ?? false;
-   flat['integrations.manage_api_keys'] = permissionsJson?.integrations?.manage ?? false;
+  flat['integrations.manage_api_keys'] = permissionsJson?.integrations?.manage ?? false;
+  // Reservations
+  flat['reservations.view'] = permissionsJson?.reservations?.view ?? false;
+  flat['reservations.create'] = permissionsJson?.reservations?.create ?? false;
+  flat['reservations.manage'] = permissionsJson?.reservations?.manage ?? false;
+  // Garatech
+  flat['garatech.view'] = permissionsJson?.garatech?.view ?? false;
+  flat['garatech.create'] = permissionsJson?.garatech?.create ?? permissionsJson?.garatech?.manage ?? false;
+  flat['garatech.update'] = permissionsJson?.garatech?.update ?? permissionsJson?.garatech?.manage ?? false;
+  flat['garatech.change_status'] = permissionsJson?.garatech?.change_status ?? permissionsJson?.garatech?.manage ?? false;
+  flat['garatech.edit_dates'] = permissionsJson?.garatech?.edit_dates ?? false;
+  flat['garatech.manage_catalog'] = permissionsJson?.garatech?.manage_catalog ?? permissionsJson?.garatech?.manage ?? false;
+  flat['garatech.manage_accidents'] = permissionsJson?.garatech?.manage_accidents ?? permissionsJson?.garatech?.manage ?? false;
+  flat['garatech.manage'] = permissionsJson?.garatech?.manage ?? false;
+  // Transfers
+  flat['transfers.view'] = permissionsJson?.transfers?.view ?? false;
+  flat['transfers.create'] = permissionsJson?.transfers?.create ?? permissionsJson?.transfers?.manage ?? false;
+  flat['transfers.update'] = permissionsJson?.transfers?.update ?? permissionsJson?.transfers?.manage ?? false;
+  flat['transfers.change_status'] = permissionsJson?.transfers?.change_status ?? permissionsJson?.transfers?.manage ?? false;
+  flat['transfers.delete'] = permissionsJson?.transfers?.delete ?? false;
+  flat['transfers.manage_pricing'] = permissionsJson?.transfers?.manage_pricing ?? permissionsJson?.transfers?.manage ?? false;
+  flat['transfers.manage_brokers'] = permissionsJson?.transfers?.manage_brokers ?? permissionsJson?.transfers?.manage ?? false;
+  flat['transfers.manage'] = permissionsJson?.transfers?.manage ?? false;
+  // Forms
+  flat['forms.view'] = permissionsJson?.forms?.view ?? false;
+  flat['forms.create'] = permissionsJson?.forms?.create ?? false;
+  flat['forms.update'] = permissionsJson?.forms?.update ?? permissionsJson?.forms?.manage ?? false;
+  flat['forms.delete'] = permissionsJson?.forms?.delete ?? permissionsJson?.forms?.manage ?? false;
+  flat['forms.view_responses'] = permissionsJson?.forms?.view_responses ?? permissionsJson?.forms?.view ?? false;
+  flat['forms.manage'] = permissionsJson?.forms?.manage ?? false;
+  // Vehicles
+  flat['vehicles.view'] = permissionsJson?.vehicles?.view ?? false;
+  flat['vehicles.create'] = permissionsJson?.vehicles?.create ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.update'] = permissionsJson?.vehicles?.update ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.archive'] = permissionsJson?.vehicles?.archive ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.manage_daily_tasks'] = permissionsJson?.vehicles?.manage_daily_tasks ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.change_status'] = permissionsJson?.vehicles?.change_status ?? false;
+  flat['vehicles.complete_tasks'] = permissionsJson?.vehicles?.complete_tasks ?? false;
+  flat['vehicles.manage_locations'] = permissionsJson?.vehicles?.manage_locations ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.sync'] = permissionsJson?.vehicles?.sync ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.import'] = permissionsJson?.vehicles?.import ?? permissionsJson?.vehicles?.manage ?? false;
+  flat['vehicles.manage'] = permissionsJson?.vehicles?.manage ?? false;
+  // Time Tracking
+  flat['time_tracking.view'] = permissionsJson?.time_tracking?.view ?? false;
+  flat['time_tracking.view_team'] = permissionsJson?.time_tracking?.view_team ?? permissionsJson?.time_tracking?.manage ?? false;
+  flat['time_tracking.create'] = permissionsJson?.time_tracking?.create ?? permissionsJson?.time_tracking?.view ?? false;
+  flat['time_tracking.manage'] = permissionsJson?.time_tracking?.manage ?? false;
   // Movements
-  flat['movements.view'] = permissionsJson?.movements?.view ?? true;
+  flat['movements.view'] = permissionsJson?.movements?.view ?? false;
   flat['movements.create'] = permissionsJson?.movements?.create ?? false;
   flat['movements.manage'] = permissionsJson?.movements?.manage ?? false;
-  
+  flat['movements.delete'] = permissionsJson?.movements?.delete ?? permissionsJson?.movements?.manage ?? false;
+  flat['movements.edit_photos'] = permissionsJson?.movements?.edit_photos ?? permissionsJson?.movements?.manage ?? false;
+  flat['movements.upload_receipt'] = permissionsJson?.movements?.upload_receipt ?? permissionsJson?.movements?.manage ?? false;
+  // Daily Tasks
+  flat['daily_tasks.view'] = permissionsJson?.daily_tasks?.view ?? false;
+  flat['daily_tasks.view_other_days'] = permissionsJson?.daily_tasks?.view_other_days ?? permissionsJson?.daily_tasks?.manage ?? false;
+  flat['daily_tasks.complete'] = permissionsJson?.daily_tasks?.complete ?? false;
+  flat['daily_tasks.manage'] = permissionsJson?.daily_tasks?.manage ?? false;
+  // Fleet
+  flat['fleet.view'] = permissionsJson?.fleet?.view ?? false;
+  flat['fleet.manage'] = permissionsJson?.fleet?.manage ?? false;
+  flat['fleet.import'] = permissionsJson?.fleet?.import ?? permissionsJson?.fleet?.manage ?? false;
+
   return flat;
 }
 

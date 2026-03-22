@@ -1,12 +1,13 @@
 // Role hierarchy utilities for filtering members by role level
 
-export type OrgRole = 'owner' | 'admin' | 'manager' | 'member';
+export type OrgRole = 'owner' | 'admin' | 'manager' | 'member' | 'read_only';
 
 export const ROLE_HIERARCHY: Record<string, number> = {
   owner: 4,
   admin: 3,
   manager: 2,
   member: 1,
+  read_only: 0,
 };
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -48,7 +49,7 @@ export function getMembersBelow<T extends OrganizationMemberWithRole>(
   const currentLevel = ROLE_HIERARCHY[currentRole] || 0;
   
   return members.filter(member => {
-    const memberLevel = ROLE_HIERARCHY[member.role || 'member'] || 1;
+    const memberLevel = ROLE_HIERARCHY[member.role || 'member'] ?? 0;
     return memberLevel < currentLevel;
   });
 }
@@ -66,10 +67,10 @@ export function getMembersAtOrBelow<T extends OrganizationMemberWithRole>(
 ): T[] {
   if (!currentRole) return [];
   
-  const currentLevel = ROLE_HIERARCHY[currentRole] || 0;
+  const currentLevel = ROLE_HIERARCHY[currentRole] ?? 0;
   
   return members.filter(member => {
-    const memberLevel = ROLE_HIERARCHY[member.role || 'member'] || 1;
+    const memberLevel = ROLE_HIERARCHY[member.role || 'member'] ?? 0;
     return memberLevel <= currentLevel;
   });
 }

@@ -81,3 +81,8 @@
 - [x] Implementar ficha completa de reserva en el frontend con todos los datos enriquecidos
 - [x] Mover icono de ojo (ver ficha) entre la columna Fecha/Hora y Tipo Actividad para acceso rápido sin scroll horizontal
 - [x] Bug: ReservationDetailSheet crash - desglose_precios.map is not a function (campo puede ser null/string en vez de array)
+- [x] Auditar sistema de permisos granulares: roles, permisos y políticas RLS en BD y frontend
+- [x] Documentar inconsistencias y brechas en el sistema de permisos
+- [x] Diseñar e implementar mejoras para coherencia y personalización de permisos
+- [x] Implementar interfaz de gestión de permisos para usuarios autorizados
+- [x] Escribir tests para el sistema de permisos

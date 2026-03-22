@@ -29,6 +29,7 @@ const systemRoleLabels: Record<string, string> = {
   admin: 'Admin',
   manager: 'Manager',
   member: 'Miembro',
+  read_only: 'Solo lectura',
 };
 
 const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline'> = {
@@ -36,6 +37,7 @@ const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline'> = {
   admin: 'default',
   manager: 'secondary',
   member: 'outline',
+  read_only: 'outline',
 };
 
 export default function Admin() {
@@ -230,7 +232,7 @@ export default function Admin() {
                             </TableCell>
                             <TableCell>
                               {(() => {
-                                const isSystemRole = ['owner', 'admin', 'manager', 'member'].includes(member.role);
+                                const isSystemRole = ['owner', 'admin', 'manager', 'member', 'read_only'].includes(member.role);
                                 const customRole = !isSystemRole ? customRoles.find(r => r.name === member.role || r.id === member.role.replace('custom:', '')) : null;
                                 const label = isSystemRole ? systemRoleLabels[member.role] : (customRole?.name || member.role);
                                 const variant = isSystemRole ? roleBadgeVariants[member.role] : 'secondary';
@@ -358,6 +360,7 @@ export default function Admin() {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="member">Miembro</SelectItem>
+                  <SelectItem value="read_only">Solo lectura</SelectItem>
                   {customRoles.length > 0 && (
                     <>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
@@ -422,7 +425,7 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
     );
   }
 
-  const roles: OrgRole[] = ['owner', 'admin', 'manager', 'member'];
+  const roles: OrgRole[] = ['owner', 'admin', 'manager', 'member', 'read_only'];
 
   const getPermissionValue = (role: string, permissionKey: string): boolean => {
     const perm = rolePermissions.find(rp => rp.role === role && rp.permission_key === permissionKey);

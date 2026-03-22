@@ -15,6 +15,10 @@ import {
   CreditCard,
   Shield,
   Route,
+  ClipboardCheck,
+  Truck,
+  Camera,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/hooks/usePermissions';
@@ -216,6 +220,29 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'movements.create', label: 'Crear movimientos', description: 'Permite registrar entregas, recogidas y movimientos' },
       { key: 'movements.manage', label: 'Gestionar movimientos', description: 'Permite editar y cancelar movimientos existentes' },
       { key: 'movements.delete', label: 'Eliminar movimientos', description: 'Permite eliminar movimientos de forma permanente' },
+      { key: 'movements.edit_photos', label: 'Editar fotos', description: 'Permite añadir, editar y eliminar fotos de movimientos' },
+      { key: 'movements.upload_receipt', label: 'Subir justificantes', description: 'Permite subir recibos y justificantes a movimientos' },
+    ],
+  },
+  {
+    id: 'daily_tasks',
+    label: 'Tareas diarias',
+    icon: ClipboardCheck,
+    permissions: [
+      { key: 'daily_tasks.view', label: 'Ver tareas diarias', description: 'Permite ver las tareas diarias asignadas' },
+      { key: 'daily_tasks.view_other_days', label: 'Ver otros días', description: 'Permite ver tareas de días anteriores y futuros' },
+      { key: 'daily_tasks.complete', label: 'Completar tareas', description: 'Permite marcar tareas diarias como completadas' },
+      { key: 'daily_tasks.manage', label: 'Gestionar tareas diarias', description: 'Permite crear, editar y eliminar tareas diarias' },
+    ],
+  },
+  {
+    id: 'fleet',
+    label: 'Flota e inspecciones',
+    icon: Truck,
+    permissions: [
+      { key: 'fleet.view', label: 'Ver flota', description: 'Permite ver el listado de vehículos e inspecciones' },
+      { key: 'fleet.manage', label: 'Gestionar flota', description: 'Permite gestionar inspecciones y datos de flota' },
+      { key: 'fleet.import', label: 'Importar flota', description: 'Permite importar vehículos desde archivos Excel' },
     ],
   },
   {

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
-export type OrgRole = 'owner' | 'admin' | 'manager' | 'member';
+export type OrgRole = 'owner' | 'admin' | 'manager' | 'member' | 'read_only';
 
 export type PermissionKey =
   // Tasks

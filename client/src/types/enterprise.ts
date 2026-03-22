@@ -52,7 +52,11 @@ export interface RolePermissions {
   vehicles: { view: boolean; create: boolean; update: boolean; archive: boolean; manage_daily_tasks: boolean; change_status: boolean; complete_tasks: boolean; manage_locations: boolean; sync: boolean; import: boolean; manage: boolean };
   // Time Tracking
   time_tracking: { view: boolean; view_team: boolean; create: boolean; manage: boolean };
-  // Fleet Backup
+  // Movements
+  movements: { view: boolean; create: boolean; manage: boolean; delete: boolean; edit_photos: boolean; upload_receipt: boolean };
+  // Daily Tasks
+  daily_tasks: { view: boolean; view_other_days: boolean; complete: boolean; manage: boolean };
+  // Fleet
   fleet: { view: boolean; manage: boolean; import: boolean };
 }
 
@@ -367,6 +371,8 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
   forms: { view: true, create: false, update: false, delete: false, view_responses: false, manage: false },
   vehicles: { view: true, create: false, update: false, archive: false, manage_daily_tasks: false, change_status: true, complete_tasks: true, manage_locations: false, sync: false, import: false, manage: false },
   time_tracking: { view: true, view_team: false, create: false, manage: false },
+  movements: { view: true, create: false, manage: false, delete: false, edit_photos: false, upload_receipt: false },
+  daily_tasks: { view: true, view_other_days: false, complete: false, manage: false },
   fleet: { view: true, manage: false, import: false },
 };
 
@@ -480,6 +486,20 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     view_team: 'Ver fichajes del equipo',
     create: 'Registrar fichajes',
     manage: 'Gestionar fichajes',
+  },
+  movements: {
+    view: 'Ver movimientos',
+    create: 'Crear movimientos',
+    manage: 'Gestionar movimientos',
+    delete: 'Eliminar movimientos',
+    edit_photos: 'Editar fotos',
+    upload_receipt: 'Subir justificantes',
+  },
+  daily_tasks: {
+    view: 'Ver tareas diarias',
+    view_other_days: 'Ver otros días',
+    complete: 'Completar tareas',
+    manage: 'Gestionar tareas diarias',
   },
   fleet: {
     view: 'Ver flota',

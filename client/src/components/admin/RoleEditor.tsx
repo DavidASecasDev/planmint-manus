@@ -30,7 +30,7 @@ const ROLE_EDITOR_CATEGORIES: {
 import {
   ListTodo, FolderOpen, Tag, FileText, ArrowLeftRight, Wrench, Car,
   CalendarDays, Clock, BarChart3, Layout, Zap, Users, CreditCard,
-  Shield as ShieldIcon, type LucideIcon,
+  Shield as ShieldIcon, Route, ClipboardCheck, Truck, type LucideIcon,
 } from 'lucide-react';
 
 const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; description: Record<string, string> }> = {
@@ -196,6 +196,37 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
     icon: ShieldIcon,
     description: { read: 'Permite ver registros de auditoría' },
   },
+  movements: {
+    label: 'Movimientos',
+    icon: Route,
+    description: {
+      view: 'Permite ver el listado de movimientos',
+      create: 'Permite registrar entregas, recogidas y movimientos',
+      manage: 'Permite editar y cancelar movimientos',
+      delete: 'Permite eliminar movimientos permanentemente',
+      edit_photos: 'Permite añadir, editar y eliminar fotos',
+      upload_receipt: 'Permite subir recibos y justificantes',
+    },
+  },
+  daily_tasks: {
+    label: 'Tareas diarias',
+    icon: ClipboardCheck,
+    description: {
+      view: 'Permite ver las tareas diarias asignadas',
+      view_other_days: 'Permite ver tareas de días anteriores y futuros',
+      complete: 'Permite marcar tareas como completadas',
+      manage: 'Permite crear, editar y eliminar tareas diarias',
+    },
+  },
+  fleet: {
+    label: 'Flota e inspecciones',
+    icon: Truck,
+    description: {
+      view: 'Permite ver el listado de vehículos e inspecciones',
+      manage: 'Permite gestionar inspecciones y datos de flota',
+      import: 'Permite importar vehículos desde archivos Excel',
+    },
+  },
 };
 
 interface RoleFormData {
@@ -333,9 +364,9 @@ export function RoleEditor() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {['owner', 'admin', 'manager', 'member'].map(role => (
+            {['owner', 'admin', 'manager', 'member', 'read_only'].map(role => (
               <Badge key={role} variant="secondary">
-                {role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : 'Miembro'}
+                {role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : role === 'read_only' ? 'Solo lectura' : 'Miembro'}
               </Badge>
             ))}
           </div>
