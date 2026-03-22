@@ -165,23 +165,47 @@ export default function StartMovement() {
     setStep('saving');
     log.debug('Saving movement for plate:', plate);
     try {
+      // Validate plate exists in the organization's fleet
+      const { data: vehicles, error: vehicleError } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('organization_id', orgId)
+        .ilike('plate', plate.replace(/\s+/g, ''))
+        .is('archived_at', null)
+        .limit(1);
+
+      if (vehicleError) {
+        log.error('Vehicle lookup error:', vehicleError);
+        throw new Error('Error al verificar la matrícula. Inténtalo de nuevo.');
+      }
+
+      if (!vehicles || vehicles.length === 0) {
+        log.warn('Plate not found in fleet:', plate);
+        toast({
+          title: 'Matrícula no encontrada',
+          description: `La matrícula "${plate}" no está registrada en la flota. Verifica que sea correcta o regístrala primero en Estado Coches.`,
+          variant: 'destructive',
+        });
+        setStep('confirm');
+        persistMeta({ step: 'confirm' });
+        return;
+      }
+
+      const vehicleId = vehicles[0].id;
+      log.debug('Vehicle found:', vehicleId);
+
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const byteArray = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
       const blob = new Blob([byteArray], { type: 'image/jpeg' });
       const photoUrl = await uploadMovementPhoto(blob, orgId);
-      const { data: vehicles } = await supabase
-        .from('vehicles')
-        .select('id')
-        .eq('organization_id', orgId)
-        .ilike('plate', plate)
-        .limit(1);
+
       await startMovement.mutateAsync({
         matricula: plate,
         movement_type: movementType,
         start_photo_url: photoUrl,
         start_lat: gps?.lat,
         start_lng: gps?.lng,
-        vehicle_id: vehicles?.[0]?.id,
+        vehicle_id: vehicleId,
         notes: notes || undefined,
       });
       log.debug('Movement created successfully');

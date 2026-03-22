@@ -104,3 +104,5 @@
 - [x] Reescribir OCR de matrículas como endpoint Express /api/ocr-plate usando LLM de Manus
 - [x] Actualizar frontend para usar nuevo endpoint OCR en vez de Edge Function de Supabase
 - [x] Hacer OCR graceful: si falla, permitir cerrar movimiento igualmente
+- [x] Bug: Se pueden crear movimientos con matrículas que no existen en la flota - validar contra vehículos registrados (validación en handleConfirmPlate)
+- [x] Bug: Foto de inicio del movimiento no se muestra - RESUELTO: bucket movement-photos cambiado a público en Supabase
