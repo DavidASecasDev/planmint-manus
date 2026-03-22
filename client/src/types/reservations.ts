@@ -1,23 +1,35 @@
 // Tipos para datos JSONB de Rently
 export interface RentlyExtra {
-  name: string;
-  price: number | null;
-  quantity: number | null;
-  total: number | null;
+  nombre?: string;
+  precio?: number | null;
+  cantidad?: number | null;
+  // Legacy English field names (in case of older data)
+  name?: string;
+  price?: number | null;
+  quantity?: number | null;
+  total?: number | null;
 }
 
 export interface RentlyPriceItem {
-  description: string;
-  amount: number | null;
-  type: string | null;
+  descripcion?: string;
+  importe?: number | null;
+  cantidad?: number | null;
+  // Legacy English field names
+  description?: string;
+  amount?: number | null;
+  type?: string | null;
 }
 
 export interface RentlyDriver {
-  name: string;
-  document: string | null;
-  license_number: string | null;
-  license_country: string | null;
-  license_expiration: string | null;
+  nombre?: string;
+  documento?: string | null;
+  carnet?: string | null;
+  // Legacy English field names
+  name?: string;
+  document?: string | null;
+  license_number?: string | null;
+  license_country?: string | null;
+  license_expiration?: string | null;
 }
 
 export interface Reservation {

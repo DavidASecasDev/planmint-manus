@@ -124,6 +124,21 @@ function FuelGauge({ level }: { level: number | null }) {
   );
 }
 
+/** Safely parse a JSON field that may be a string, an array, or null */
+function safeParseJsonArray<T>(value: unknown): T[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value as T[];
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export function ReservationDetailSheet({ reservation, open, onOpenChange }: ReservationDetailSheetProps) {
   if (!reservation) return null;
 
@@ -132,9 +147,14 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
   const hasFinancialData = r.balance !== null || r.total_pagado_rently !== null || r.precio !== null;
   const hasVehicleDetails = r.vehiculo_kms !== null || r.vehiculo_color !== null || r.vehiculo_anio !== null;
   const hasRateDetails = r.tarifa_diaria !== null || r.tarifa_hora !== null;
-  const hasExtras = r.extras_contratados && r.extras_contratados.length > 0;
-  const hasPriceBreakdown = r.desglose_precios && r.desglose_precios.length > 0;
-  const hasAdditionalDrivers = r.conductores_adicionales && r.conductores_adicionales.length > 0;
+
+  const parsedExtras = safeParseJsonArray<RentlyExtra>(r.extras_contratados);
+  const parsedPriceBreakdown = safeParseJsonArray<RentlyPriceItem>(r.desglose_precios);
+  const parsedAdditionalDrivers = safeParseJsonArray<RentlyDriver>(r.conductores_adicionales);
+
+  const hasExtras = parsedExtras.length > 0;
+  const hasPriceBreakdown = parsedPriceBreakdown.length > 0;
+  const hasAdditionalDrivers = parsedAdditionalDrivers.length > 0;
   const hasExtendedClient = r.cliente_direccion || r.cliente_ciudad || r.cliente_carnet_numero || r.cliente_fecha_nacimiento;
   const hasAddressDetails = r.lugar_entrega_direccion || r.lugar_devolucion_direccion;
   const isRentlyEnriched = r.rently_detail_synced_at !== null;
@@ -332,13 +352,11 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                     <Users className="h-4 w-4" /> Conductores adicionales
                   </SectionTitle>
                   <div className="space-y-2">
-                    {(r.conductores_adicionales as RentlyDriver[]).map((driver, i) => (
+                    {parsedAdditionalDrivers.map((driver, i) => (
                       <div key={i} className="bg-muted/30 rounded-lg p-3 space-y-1">
-                        <InfoRow icon={User} label="Nombre" value={driver.name} />
-                        <InfoRow icon={IdCard} label="Documento" value={driver.document} />
-                        <InfoRow icon={IdCard} label="Carnet" value={driver.license_number} />
-                        <InfoRow icon={Globe} label="País carnet" value={driver.license_country} />
-                        <InfoRow icon={Calendar} label="Expiración carnet" value={driver.license_expiration} />
+                        <InfoRow icon={User} label="Nombre" value={driver.nombre || driver.name} />
+                        <InfoRow icon={IdCard} label="Documento" value={driver.documento || driver.document} />
+                        <InfoRow icon={IdCard} label="Carnet" value={driver.carnet || driver.license_number} />
                       </div>
                     ))}
                   </div>
@@ -473,11 +491,11 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                         </tr>
                       </thead>
                       <tbody>
-                        {(r.desglose_precios as RentlyPriceItem[]).map((item, i) => (
+                        {parsedPriceBreakdown.map((item, i) => (
                           <tr key={i} className="border-b border-border/50 last:border-0">
-                            <td className="px-3 py-2 text-sm">{item.description}</td>
+                            <td className="px-3 py-2 text-sm">{item.descripcion || item.description}</td>
                             <td className="px-3 py-2 text-sm text-right font-medium">
-                              {formatCurrency(item.amount, r.moneda)}
+                              {formatCurrency(item.importe ?? item.amount ?? null, r.moneda)}
                             </td>
                           </tr>
                         ))}
@@ -516,12 +534,12 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                           </tr>
                         </thead>
                         <tbody>
-                          {(r.extras_contratados as RentlyExtra[]).map((extra, i) => (
+                          {parsedExtras.map((extra, i) => (
                             <tr key={i} className="border-b border-border/50 last:border-0">
-                              <td className="px-3 py-2 text-sm">{extra.name}</td>
-                              <td className="px-3 py-2 text-sm text-center">{extra.quantity ?? 1}</td>
-                              <td className="px-3 py-2 text-sm text-right">{formatCurrency(extra.price, r.moneda)}</td>
-                              <td className="px-3 py-2 text-sm text-right font-medium">{formatCurrency(extra.total, r.moneda)}</td>
+                              <td className="px-3 py-2 text-sm">{extra.nombre || extra.name || '—'}</td>
+                              <td className="px-3 py-2 text-sm text-center">{extra.cantidad ?? extra.quantity ?? 1}</td>
+                              <td className="px-3 py-2 text-sm text-right">{formatCurrency(extra.precio ?? extra.price ?? null, r.moneda)}</td>
+                              <td className="px-3 py-2 text-sm text-right font-medium">{formatCurrency(extra.total ?? null, r.moneda)}</td>
                             </tr>
                           ))}
                         </tbody>
