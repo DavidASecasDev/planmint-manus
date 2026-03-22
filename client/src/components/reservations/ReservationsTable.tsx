@@ -41,7 +41,7 @@ interface Column {
   label: string;
   width: string;
   sticky?: boolean;
-  type: 'text' | 'date' | 'datetime' | 'chip' | 'assignee' | 'number' | 'readonly' | 'checkbox' | 'actions';
+  type: 'text' | 'date' | 'datetime' | 'chip' | 'assignee' | 'number' | 'readonly' | 'checkbox' | 'actions' | 'detail';
   fieldName?: string;
   filterable?: boolean;
 }
@@ -50,6 +50,7 @@ interface Column {
 const COLUMNS: Column[] = [
   { key: 'completado', label: '✓', width: 'w-10', type: 'checkbox', filterable: false },
   { key: 'fecha_hora', label: 'Fecha/Hora', width: 'w-36', sticky: false, type: 'datetime', filterable: true },
+  { key: 'detail', label: '', width: 'w-8', type: 'detail', filterable: false },
   { key: 'tipo_actividad', label: 'Tipo Actividad', width: 'w-24', type: 'chip', fieldName: 'tipo_actividad', filterable: true },
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
   { key: 'lugar', label: 'Lugar', width: 'w-56', type: 'text', filterable: true },
@@ -949,20 +950,22 @@ export function ReservationsTable() {
                               onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'escoba', userId, teamId)}
                             />
                           )}
+                          {col.type === 'detail' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setDetailReservation(row.reservation);
+                                setShowDetailSheet(true);
+                              }}
+                              title="Ver ficha completa"
+                            >
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                            </Button>
+                          )}
                           {col.type === 'actions' && (
                             <div className="flex items-center gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => {
-                                  setDetailReservation(row.reservation);
-                                  setShowDetailSheet(true);
-                                }}
-                                title="Ver ficha completa"
-                              >
-                                <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-                              </Button>
                               {isFullAccess && (
                                 <Button
                                   variant="ghost"

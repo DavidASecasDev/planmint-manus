@@ -79,3 +79,4 @@
 - [x] Actualizar dropdown_options de estado en Supabase
 - [x] Actualizar frontend para reflejar los nuevos nombres de estados
 - [x] Implementar ficha completa de reserva en el frontend con todos los datos enriquecidos
+- [x] Mover icono de ojo (ver ficha) entre la columna Fecha/Hora y Tipo Actividad para acceso rápido sin scroll horizontal
