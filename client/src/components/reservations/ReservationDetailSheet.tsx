@@ -290,7 +290,7 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
               {isRentlyEnriched && (
                 <div className="text-xs text-muted-foreground flex items-center gap-1 pt-2">
                   <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  Datos enriquecidos de Rently · Última sync: {formatDate(r.rently_detail_synced_at)}
+                  Datos de Rently actualizados: {formatDate(r.rently_detail_synced_at)}
                 </div>
               )}
             </TabsContent>

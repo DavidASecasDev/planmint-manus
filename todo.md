@@ -86,3 +86,4 @@
 - [x] Diseñar e implementar mejoras para coherencia y personalización de permisos
 - [x] Implementar interfaz de gestión de permisos para usuarios autorizados
 - [x] Escribir tests para el sistema de permisos
+- [x] Bug: El campo 'último sync' en la ficha de reserva no se actualiza con las sincronizaciones programadas cada 5 minutos
