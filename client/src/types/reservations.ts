@@ -1,3 +1,25 @@
+// Tipos para datos JSONB de Rently
+export interface RentlyExtra {
+  name: string;
+  price: number | null;
+  quantity: number | null;
+  total: number | null;
+}
+
+export interface RentlyPriceItem {
+  description: string;
+  amount: number | null;
+  type: string | null;
+}
+
+export interface RentlyDriver {
+  name: string;
+  document: string | null;
+  license_number: string | null;
+  license_country: string | null;
+  license_expiration: string | null;
+}
+
 export interface Reservation {
   id: string;
   organization_id: string;
@@ -79,6 +101,67 @@ export interface Reservation {
   updated_at: string;
   archived_at: string | null;
   estado_terminada_at: string | null;
+
+  // === Datos enriquecidos de Rently ===
+
+  // Financiero / Pagos
+  balance: number | null;
+  total_pagado_rently: number | null;
+  prepago: number | null;
+  pagado_por_agencia: number | null;
+  pagado_por_cliente: number | null;
+  moneda: string | null;
+  comision_ventas: number | null;
+
+  // Detalles del vehículo
+  vehiculo_kms: number | null;
+  vehiculo_combustible: number | null;
+  vehiculo_color: string | null;
+  vehiculo_anio: number | null;
+  vehiculo_chasis: string | null;
+  vehiculo_tipo_combustible: string | null;
+
+  // Tarifas
+  tarifa_diaria: number | null;
+  tarifa_hora: number | null;
+  tarifa_dia_extra: number | null;
+  tarifa_hora_extra: number | null;
+  km_ilimitados: boolean | null;
+  km_max_permitidos: number | null;
+  km_max_por_dia: number | null;
+
+  // Metadata de Rently
+  rently_status_code: number | null;
+  rently_status_date: string | null;
+  es_transferencia: boolean | null;
+  es_cotizacion: boolean | null;
+  rently_version: string | null;
+
+  // Lugares con dirección
+  lugar_entrega_direccion: string | null;
+  lugar_entrega_ciudad: string | null;
+  lugar_devolucion_direccion: string | null;
+  lugar_devolucion_ciudad: string | null;
+
+  // Cliente extendido
+  cliente_direccion: string | null;
+  cliente_ciudad: string | null;
+  cliente_estado: string | null;
+  cliente_pais: string | null;
+  cliente_edad: number | null;
+  cliente_fecha_nacimiento: string | null;
+  cliente_carnet_numero: string | null;
+  cliente_carnet_pais: string | null;
+  cliente_carnet_expiracion: string | null;
+  cliente_notas: string | null;
+
+  // Extras y desgloses (JSONB)
+  extras_contratados: RentlyExtra[] | null;
+  desglose_precios: RentlyPriceItem[] | null;
+  conductores_adicionales: RentlyDriver[] | null;
+
+  // Sync metadata
+  rently_detail_synced_at: string | null;
 }
 
 export interface DropdownOption {

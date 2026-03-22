@@ -3,7 +3,7 @@ import { format, isSameDay, parseISO, startOfDay, isAfter, isBefore, addDays } f
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX } from 'lucide-react';
+import { ArrowUpDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -14,6 +14,7 @@ import { EditableCell } from './EditableCell';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
+import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { Badge } from '@/components/ui/badge';
@@ -162,6 +163,8 @@ export function ReservationsTable() {
 
   const [showFilters, setShowFilters] = useState(true);
   const [showArchivedSheet, setShowArchivedSheet] = useState(false);
+  const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
 
   // Expandir reservas a filas de operación
   const operationRows = useMemo(() => {
@@ -946,17 +949,33 @@ export function ReservationsTable() {
                               onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'escoba', userId, teamId)}
                             />
                           )}
-                          {col.type === 'actions' && isFullAccess && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => archiveReservation.mutate(row.reservationId)}
-                              disabled={archiveReservation.isPending}
-                              title="Archivar reserva"
-                            >
-                              <ArchiveX className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-                            </Button>
+                          {col.type === 'actions' && (
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  setDetailReservation(row.reservation);
+                                  setShowDetailSheet(true);
+                                }}
+                                title="Ver ficha completa"
+                              >
+                                <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </Button>
+                              {isFullAccess && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => archiveReservation.mutate(row.reservationId)}
+                                  disabled={archiveReservation.isPending}
+                                  title="Archivar reserva"
+                                >
+                                  <ArchiveX className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}
@@ -969,6 +988,13 @@ export function ReservationsTable() {
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
+
+      {/* Reservation Detail Sheet */}
+      <ReservationDetailSheet
+        reservation={detailReservation}
+        open={showDetailSheet}
+        onOpenChange={setShowDetailSheet}
+      />
 
       {/* Archived Reservations Sheet */}
       <ArchivedReservationsSheet

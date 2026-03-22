@@ -64,3 +64,18 @@
 - [x] Cambiar contraseña del usuario david.m15@hotmail.es a MonsterWhite15
 - [x] Bug: Contraste de colores incorrecto en botones y campos de las páginas de autenticación (texto invisible sobre fondo oscuro)
 - [x] Bug: Enlace de recuperación de contraseña muestra "Enlace inválido" al hacer clic desde el email (el token de Supabase no se detecta correctamente en ResetPassword.tsx)
+- [x] Analizar modelo de datos de reservas y la integración existente con Rently
+- [x] Definir mapeo de estados Rently → PlanMint
+- [x] Implementar sincronización automática de estados de reservas desde Rently
+- [x] Probar y verificar la sincronización de estados
+- [x] Explorar la API de Rently para descubrir todos los datos disponibles por reserva
+- [x] Diseñar ficha completa de reserva con datos enriquecidos de Rently
+- [x] Implementar vista de ficha/detalle de reserva en PlanMint
+- [x] Auditar tabla reservations y planificar columnas nuevas para datos enriquecidos de Rently
+- [x] Añadir columnas nuevas a la tabla reservations en Supabase (pagos, extras, vehículo detallado, etc.)
+- [x] Actualizar Edge Function sync-rently: nuevo mapeo de estados (Reservado→Pendiente, Entregado→En curso, Terminada→Completada)
+- [x] Actualizar Edge Function sync-rently: importar datos enriquecidos del endpoint GET /api/booking/{bookingId}
+- [x] Migrar estados existentes en la BD (Reservado→Pendiente, Entregado→En curso, Terminada→Completada)
+- [x] Actualizar dropdown_options de estado en Supabase
+- [x] Actualizar frontend para reflejar los nuevos nombres de estados
+- [x] Implementar ficha completa de reserva en el frontend con todos los datos enriquecidos
