@@ -40,6 +40,12 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
 
 /**
  * Authenticate a request using the Supabase JWT.
+ * 
+ * IMPORTANT: We use the service role client to call auth.getUser(token).
+ * The service role key has admin privileges and can validate ANY user JWT.
+ * We cannot use the anon key client because the server-side SUPABASE_ANON_KEY
+ * may differ from the one the browser uses, causing "Invalid API key" errors.
+ * 
  * Returns { userId, organizationId } or throws.
  */
 export async function authenticateSupabaseRequest(
@@ -50,8 +56,11 @@ export async function authenticateSupabaseRequest(
     throw new AuthError("No authorization token provided", 401);
   }
 
-  const userClient = getUserClient(token);
-  const { data: userData, error: userError } = await userClient.auth.getUser(token);
+  // Use service role client to validate the user's JWT
+  // This works because auth.getUser() sends the token to Supabase Auth server
+  // for verification, and the service role key has permission to do this.
+  const serviceClient = getServiceClient();
+  const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
 
   if (userError || !userData?.user) {
     throw new AuthError("Invalid or expired token", 401);
@@ -59,7 +68,8 @@ export async function authenticateSupabaseRequest(
 
   const userId = userData.user.id;
 
-  const { data: profile, error: profileError } = await userClient
+  // Use service role client for profile lookup too (bypasses RLS)
+  const { data: profile, error: profileError } = await serviceClient
     .from("profiles")
     .select("organization_id")
     .eq("id", userId)

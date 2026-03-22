@@ -119,3 +119,4 @@
 - [x] Migrar get-vapid-key a endpoint Express
 - [x] Migrar apply-template a endpoint Express
 - [ ] NO migrar funciones de Stripe/billing (create-checkout, customer-portal, etc.) - app interna sin pagos
+- [x] Bug CRÍTICO: Todos los endpoints Express migrados devuelven 401 - RESUELTO: authenticateSupabaseRequest usaba anon key client (incompatible), cambiado a service role client para validar tokens
