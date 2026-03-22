@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Upload, Table, Car } from 'lucide-react';
+import { Upload, Table } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { ReservationsTable } from '@/components/reservations/ReservationsTable';
 import { ImportReservations } from '@/components/reservations/ImportReservations';
 import { SyncRentlyDialog } from '@/components/reservations/SyncRentlyDialog';
@@ -11,7 +10,7 @@ import { useRentlySyncContext } from '@/contexts/RentlySyncContext';
 
 export default function Reservations() {
   const [activeTab, setActiveTab] = useState('table');
-  const { isConfigured, syncDialogOpen, setSyncDialogOpen } = useRentlySyncContext();
+  const { syncDialogOpen, setSyncDialogOpen } = useRentlySyncContext();
 
   const handleSyncComplete = () => {
     // The table should refetch automatically via react-query
@@ -20,19 +19,11 @@ export default function Reservations() {
   return (
     <AppLayout title="Reservas">
       <div className="flex flex-col h-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="shrink-0">
           <PageHeader
             title="Reservas / Operaciones"
             description="Gestiona las reservas importadas y sus operaciones"
           />
-          <Button 
-            onClick={() => setSyncDialogOpen(true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Car className="h-4 w-4" />
-            Sync Rently
-          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 mt-6">

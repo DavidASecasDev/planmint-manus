@@ -88,3 +88,6 @@
 - [x] Escribir tests para el sistema de permisos
 - [x] Bug: El campo 'último sync' en la ficha de reserva no se actualiza con las sincronizaciones programadas cada 5 minutos
 - [x] Bug: ReservationDetailSheet crash 'Cannot read properties of undefined (reading toLocaleString)' para usuarios con rol Manager
+- [x] Dashboard: Tarjeta 'Vehículos por preparar' dinámica cruzando reservas futuras con estado operativo del vehículo
+- [x] Dashboard: Corregir indicador de sincronización en tiempo real
+- [x] Reservas: Eliminar botón 'Sync Rently' del módulo de reservas (ya existe en la barra superior)

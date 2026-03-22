@@ -1,4 +1,4 @@
-import { useOperationalDashboard } from '@/hooks/useOperationalDashboard';
+import { useOperationalDashboard, VehiclePrepItem } from '@/hooks/useOperationalDashboard';
 import { useRentlySyncContextSafe } from '@/contexts/RentlySyncContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Car, CalendarCheck, ArrowRightLeft, Wrench, ClipboardList,
   ArrowRight, RefreshCw, AlertTriangle, ArrowDownToLine, ArrowUpFromLine,
-  Clock, FileWarning, ChevronRight,
+  Clock, FileWarning, ChevronRight, User,
 } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -27,6 +27,13 @@ const STATUS_LABELS: Record<string, string> = {
   alquilado: 'Alquilado',
 };
 
+const URGENCY_STYLES: Record<VehiclePrepItem['urgency'], { bg: string; text: string; border: string; label: string }> = {
+  critical: { bg: 'bg-red-500/10', text: 'text-red-600', border: 'border-red-500/30', label: 'Urgente' },
+  high: { bg: 'bg-orange-500/10', text: 'text-orange-600', border: 'border-orange-500/30', label: 'Hoy' },
+  medium: { bg: 'bg-amber-500/10', text: 'text-amber-600', border: 'border-amber-500/30', label: 'Próximo' },
+  low: { bg: 'bg-muted/30', text: 'text-muted-foreground', border: 'border-border/50', label: 'Sin reserva' },
+};
+
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return '--:--';
   try {
@@ -34,6 +41,36 @@ function formatTime(dateStr: string | null): string {
     return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   } catch {
     return '--:--';
+  }
+}
+
+function formatTimeUntil(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const now = new Date();
+  const target = new Date(dateStr);
+  const diffMs = target.getTime() - now.getTime();
+
+  if (diffMs <= 0) return 'Ya';
+
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+
+  if (hours < 1) {
+    const mins = Math.floor(diffMs / (1000 * 60));
+    return `${mins}min`;
+  }
+  if (hours < 24) return `${hours}h`;
+  if (days === 1) return 'Mañana';
+  return `${days} días`;
+}
+
+function formatShortDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
   }
 }
 
@@ -55,7 +92,8 @@ export function OperationalPanel() {
   }
 
   const needsPrep = stats.vehiclesByStatus.sucio + stats.vehiclesByStatus.incompleto;
-  const hasAlerts = stats.contractsExpiringSoon > 0 || needsPrep > 3 || stats.pendingTasksHigh > 0;
+  const vehiclesWithReservations = stats.vehiclesNeedingPrep.filter(v => v.nextReservationAt);
+  const hasAlerts = stats.contractsExpiringSoon > 0 || stats.pendingTasksHigh > 0;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -300,42 +338,101 @@ export function OperationalPanel() {
         </Card>
       )}
 
-      {/* ─── Vehicles Needing Preparation ─── */}
+      {/* ─── Vehicles Needing Preparation (Dynamic) ─── */}
       {stats.vehiclesNeedingPrep.length > 0 && (
         <Card className="border-border/50 shadow-sm">
           <CardHeader className="pb-2 px-4 sm:px-6">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
-                <span className="truncate">Vehículos por preparar · {needsPrep}</span>
+                <span className="truncate">
+                  Vehículos por preparar
+                  {vehiclesWithReservations.length > 0 && (
+                    <span className="text-orange-500 font-semibold"> · {vehiclesWithReservations.length} con reserva</span>
+                  )}
+                </span>
               </CardTitle>
-              <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 flex-shrink-0" onClick={() => navigate('/vehicles')}>
-                <span className="hidden sm:inline">Estado Coches</span>
-                <ChevronRight className="h-3 w-3" />
-              </Button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                  {stats.totalDirtyVehicles} total
+                </Badge>
+                <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => navigate('/vehicles')}>
+                  <span className="hidden sm:inline">Estado Coches</span>
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pb-3 px-4 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-              {stats.vehiclesNeedingPrep.map((v) => (
-                <div
-                  key={v.id}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/20 text-sm cursor-pointer hover:bg-muted/40 transition-colors"
-                  onClick={() => navigate('/vehicles')}
-                >
-                  <div className={`h-2 w-2 rounded-full ${STATUS_COLORS[v.status]} flex-shrink-0`} />
-                  <span className="font-medium text-foreground">{v.matricula}</span>
-                  {v.modelo && (
-                    <span className="text-xs text-muted-foreground truncate">{v.modelo}</span>
-                  )}
-                  <Badge variant="outline" className={`text-[10px] px-1 py-0 flex-shrink-0 ${
-                    v.status === 'sucio' ? 'text-red-500 border-red-500/30' : 'text-orange-500 border-orange-500/30'
-                  }`}>
-                    {STATUS_LABELS[v.status]}
-                  </Badge>
-                </div>
-              ))}
+            <div className="divide-y divide-border/50">
+              {stats.vehiclesNeedingPrep.map((v) => {
+                const style = URGENCY_STYLES[v.urgency];
+                const timeUntil = formatTimeUntil(v.nextReservationAt);
+
+                return (
+                  <div
+                    key={v.id}
+                    className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 cursor-pointer hover:bg-muted/30 -mx-2 px-2 rounded transition-colors"
+                    onClick={() => navigate('/vehicles')}
+                  >
+                    {/* Urgency indicator */}
+                    <div className={`flex items-center justify-center h-6 w-6 sm:h-7 sm:w-7 rounded-full flex-shrink-0 ${style.bg}`}>
+                      {v.urgency === 'critical' ? (
+                        <AlertTriangle className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${style.text}`} />
+                      ) : v.nextReservationAt ? (
+                        <Clock className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${style.text}`} />
+                      ) : (
+                        <Car className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    {/* Time until delivery */}
+                    <span className={`text-xs font-semibold w-14 sm:w-16 flex-shrink-0 ${style.text}`}>
+                      {timeUntil || '—'}
+                    </span>
+
+                    {/* Plate + Model */}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground text-xs sm:text-sm">{v.matricula}</span>
+                        <Badge variant="outline" className={`text-[9px] px-1 py-0 flex-shrink-0 ${
+                          v.status === 'sucio' ? 'text-red-500 border-red-500/30' : 'text-orange-500 border-orange-500/30'
+                        }`}>
+                          {STATUS_LABELS[v.status]}
+                        </Badge>
+                      </div>
+                      {v.modelo && (
+                        <span className="text-[11px] text-muted-foreground truncate">{v.modelo}</span>
+                      )}
+                    </div>
+
+                    {/* Next reservation info */}
+                    {v.nextReservationAt ? (
+                      <div className="flex flex-col items-end flex-shrink-0 text-right">
+                        <div className="flex items-center gap-1 text-xs text-foreground">
+                          <User className="h-3 w-3 text-muted-foreground hidden sm:block" />
+                          <span className="truncate max-w-[80px] sm:max-w-[120px] font-medium">
+                            {v.nextReservationCliente}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground hidden sm:block">
+                          {formatShortDate(v.nextReservationAt)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground flex-shrink-0 hidden sm:block">
+                        Sin reserva próxima
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            {stats.totalDirtyVehicles > stats.vehiclesNeedingPrep.length && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                +{stats.totalDirtyVehicles - stats.vehiclesNeedingPrep.length} vehículos más sin reserva próxima
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

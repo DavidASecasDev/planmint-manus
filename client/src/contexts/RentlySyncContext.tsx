@@ -77,10 +77,28 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
   const autoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const syncingRef = useRef(false);
+  const nextAutoSyncAtRef = useRef<Date | null>(null);
 
-  const isConfigured = settings
-    ? !!(settings.rently_client_id && settings.rently_client_secret)
-    : hasRently;
+  // isConfigured: for owner, check settings directly; for non-owner, use flags RPC
+  // The key fix: don't require settings to be loaded for non-owner users
+  const isConfigured = (() => {
+    // If settings loaded (owner), use settings directly
+    if (settings) {
+      return !!(settings.rently_client_id && settings.rently_client_secret);
+    }
+    // If settings are still loading, don't block — check flags
+    if (!settingsLoading && !flagsLoading) {
+      return hasRently;
+    }
+    // If flags loaded but settings still loading (non-owner case), use flags
+    if (!flagsLoading) {
+      return hasRently;
+    }
+    return false;
+  })();
+
+  // Track whether initial loading is done (either settings or flags)
+  const isReady = !flagsLoading || !settingsLoading;
 
   const setAutoSyncEnabled = useCallback((enabled: boolean) => {
     setAutoSyncEnabledState(enabled);
@@ -106,6 +124,14 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn('[AutoSync] Vehicle sync error:', err);
     }
+  }, []);
+
+  // Reset the countdown timer to start fresh from now
+  const resetCountdown = useCallback(() => {
+    const next = new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+    setNextAutoSyncAt(next);
+    nextAutoSyncAtRef.current = next;
+    setAutoSyncCountdown(Math.floor(AUTO_SYNC_INTERVAL_MS / 1000));
   }, []);
 
   const syncRently = useCallback(async (reset?: boolean): Promise<RentlySyncResult> => {
@@ -188,8 +214,14 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
       setProgress(prev => ({ ...prev, isRunning: false }));
       setSyncing(false);
       syncingRef.current = false;
+      setLastAutoSyncAt(new Date());
+
+      // Reset countdown after every sync (manual or auto) so the timer restarts
+      if (autoSyncEnabled && isConfigured) {
+        resetCountdown();
+      }
     }
-  }, [syncVehiclesAfterReservations]);
+  }, [syncVehiclesAfterReservations, autoSyncEnabled, isConfigured, resetCountdown]);
 
   const pauseSync = useCallback(() => { pauseRequestedRef.current = true; }, []);
   const cancelSync = useCallback(() => { cancelRequestedRef.current = true; }, []);
@@ -228,8 +260,9 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
       countdownTimerRef.current = null;
     }
 
-    if (!autoSyncEnabled || !isConfigured || settingsLoading || flagsLoading) {
+    if (!autoSyncEnabled || !isConfigured || !isReady) {
       setNextAutoSyncAt(null);
+      nextAutoSyncAtRef.current = null;
       setAutoSyncCountdown(0);
       return;
     }
@@ -237,15 +270,18 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     // Set next sync time
     const nextSync = new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
     setNextAutoSyncAt(nextSync);
+    nextAutoSyncAtRef.current = nextSync;
+    setAutoSyncCountdown(Math.floor(AUTO_SYNC_INTERVAL_MS / 1000));
 
-    // Countdown timer (updates every second)
+    // Countdown timer (updates every second) — uses ref for stable reads
     countdownTimerRef.current = setInterval(() => {
-      setNextAutoSyncAt(prev => {
-        if (!prev) return null;
-        const remaining = Math.max(0, Math.floor((prev.getTime() - Date.now()) / 1000));
-        setAutoSyncCountdown(remaining);
-        return prev;
-      });
+      const target = nextAutoSyncAtRef.current;
+      if (!target) {
+        setAutoSyncCountdown(0);
+        return;
+      }
+      const remaining = Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000));
+      setAutoSyncCountdown(remaining);
     }, 1000);
 
     // Auto-sync timer
@@ -256,24 +292,20 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('[AutoSync] Starting automatic sync...');
-      setLastAutoSyncAt(new Date());
 
       try {
         await syncRently(false);
+        // resetCountdown is called in syncRently's finally block
       } catch (err) {
         console.error('[AutoSync] Error:', err);
       }
-
-      // Reset next sync time
-      const next = new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
-      setNextAutoSyncAt(next);
     }, AUTO_SYNC_INTERVAL_MS);
 
     return () => {
       if (autoSyncTimerRef.current) clearInterval(autoSyncTimerRef.current);
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     };
-  }, [autoSyncEnabled, isConfigured, settingsLoading, flagsLoading, syncRently]);
+  }, [autoSyncEnabled, isConfigured, isReady, syncRently]);
 
   const value: RentlySyncContextValue = {
     syncing, testing, lastResult, isConfigured,

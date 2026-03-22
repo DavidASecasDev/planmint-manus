@@ -2,6 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+export interface VehiclePrepItem {
+  id: string;
+  matricula: string;
+  modelo: string | null;
+  status: string; // sucio | incompleto
+  nextReservationAt: string | null; // ISO date of next reservation start
+  nextReservationCliente: string | null;
+  nextReservationEstado: string | null;
+  urgency: 'critical' | 'high' | 'medium' | 'low'; // based on time until reservation
+}
+
 export interface OperationalStats {
   // Vehicle status breakdown
   vehiclesByStatus: {
@@ -41,13 +52,22 @@ export interface OperationalStats {
     estado: string | null;
     type: 'checkin' | 'checkout';
   }>;
-  // Vehicles needing preparation
-  vehiclesNeedingPrep: Array<{
-    id: string;
-    matricula: string;
-    modelo: string | null;
-    status: string;
-  }>;
+  // Vehicles needing preparation (dynamic, crossed with reservations)
+  vehiclesNeedingPrep: VehiclePrepItem[];
+  // Total dirty/incomplete vehicles (including those without reservations)
+  totalDirtyVehicles: number;
+}
+
+function calculateUrgency(reservationDate: string | null): VehiclePrepItem['urgency'] {
+  if (!reservationDate) return 'low';
+  const now = new Date();
+  const resDate = new Date(reservationDate);
+  const hoursUntil = (resDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  if (hoursUntil <= 4) return 'critical';   // Less than 4 hours
+  if (hoursUntil <= 24) return 'high';       // Less than 24 hours
+  if (hoursUntil <= 72) return 'medium';     // Less than 3 days
+  return 'low';                               // More than 3 days
 }
 
 export function useOperationalDashboard() {
@@ -78,7 +98,8 @@ export function useOperationalDashboard() {
         expiringContractsResult,
         pendingTasksHighResult,
         pendingTasksTotalResult,
-        vehiclesNeedingPrepResult,
+        dirtyVehiclesResult,
+        upcomingReservationsDetailResult,
       ] = await Promise.all([
         // All non-archived vehicles with their status
         supabase
@@ -185,15 +206,24 @@ export function useOperationalDashboard() {
           .eq('is_archived', false)
           .is('deleted_at', null)
           .in('status', ['pending', 'in_progress']),
-        // Vehicles needing preparation (sucio or incompleto)
+        // All vehicles needing preparation (sucio or incompleto)
         supabase
           .from('vehicles')
           .select('id, matricula, modelo, status')
           .eq('organization_id', orgId)
           .eq('is_archived', false)
-          .in('status', ['sucio', 'incompleto'])
-          .order('matricula', { ascending: true })
-          .limit(10),
+          .in('status', ['sucio', 'incompleto']),
+        // Upcoming reservations with vehicle info (next 7 days) for cross-referencing
+        supabase
+          .from('reservations')
+          .select('auto, desde, cliente_nombre, cliente_apellido, estado')
+          .eq('organization_id', orgId)
+          .is('archived_at', null)
+          .gte('desde', today.toISOString())
+          .lte('desde', `${in7days}T23:59:59`)
+          .not('estado', 'ilike', '%cancelada%')
+          .not('estado', 'ilike', '%terminada%')
+          .order('desde', { ascending: true }),
       ]);
 
       // Count vehicles by status
@@ -218,6 +248,75 @@ export function useOperationalDashboard() {
         ...(todayCheckOutsDetailResult.data || []).map(r => ({ ...r, type: 'checkout' as const })),
       ];
 
+      // ─── Cross-reference dirty vehicles with upcoming reservations ───
+      const dirtyVehicles = (dirtyVehiclesResult.data || []) as Array<{
+        id: string; matricula: string; modelo: string | null; status: string;
+      }>;
+      const upcomingRes = (upcomingReservationsDetailResult.data || []) as Array<{
+        auto: string | null; desde: string | null; cliente_nombre: string | null;
+        cliente_apellido: string | null; estado: string | null;
+      }>;
+
+      // Build a map: matricula -> earliest upcoming reservation
+      const nextReservationByPlate = new Map<string, {
+        desde: string; cliente: string; estado: string | null;
+      }>();
+      for (const res of upcomingRes) {
+        if (!res.auto || !res.desde) continue;
+        const plate = res.auto.trim().toUpperCase();
+        if (!nextReservationByPlate.has(plate)) {
+          const cliente = [res.cliente_nombre, res.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre';
+          nextReservationByPlate.set(plate, {
+            desde: res.desde,
+            cliente,
+            estado: res.estado,
+          });
+        }
+      }
+
+      // Build the dynamic prep list: only vehicles with upcoming reservations, sorted by urgency
+      const vehiclesWithReservations: VehiclePrepItem[] = [];
+      const vehiclesWithoutReservations: VehiclePrepItem[] = [];
+
+      for (const v of dirtyVehicles) {
+        const plate = v.matricula.trim().toUpperCase();
+        const nextRes = nextReservationByPlate.get(plate);
+
+        const item: VehiclePrepItem = {
+          id: v.id,
+          matricula: v.matricula,
+          modelo: v.modelo,
+          status: v.status,
+          nextReservationAt: nextRes?.desde || null,
+          nextReservationCliente: nextRes?.cliente || null,
+          nextReservationEstado: nextRes?.estado || null,
+          urgency: calculateUrgency(nextRes?.desde || null),
+        };
+
+        if (nextRes) {
+          vehiclesWithReservations.push(item);
+        } else {
+          vehiclesWithoutReservations.push(item);
+        }
+      }
+
+      // Sort by urgency: critical first, then by reservation date
+      const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      vehiclesWithReservations.sort((a, b) => {
+        const urgDiff = urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
+        if (urgDiff !== 0) return urgDiff;
+        if (a.nextReservationAt && b.nextReservationAt) {
+          return new Date(a.nextReservationAt).getTime() - new Date(b.nextReservationAt).getTime();
+        }
+        return 0;
+      });
+
+      // Combine: vehicles with reservations first, then without (limited)
+      const vehiclesNeedingPrep = [
+        ...vehiclesWithReservations,
+        ...vehiclesWithoutReservations.slice(0, Math.max(0, 12 - vehiclesWithReservations.length)),
+      ];
+
       return {
         vehiclesByStatus,
         totalVehicles: vehicles.length,
@@ -232,7 +331,8 @@ export function useOperationalDashboard() {
         pendingTasksHigh: pendingTasksHighResult.count || 0,
         pendingTasksTotal: pendingTasksTotalResult.count || 0,
         todayReservations,
-        vehiclesNeedingPrep: (vehiclesNeedingPrepResult.data || []) as OperationalStats['vehiclesNeedingPrep'],
+        vehiclesNeedingPrep,
+        totalDirtyVehicles: dirtyVehicles.length,
       };
     },
     enabled: !!orgId,
