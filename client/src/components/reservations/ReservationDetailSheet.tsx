@@ -144,9 +144,9 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
 
   const r = reservation;
   const clientName = [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(' ') || '—';
-  const hasFinancialData = r.balance !== null || r.total_pagado_rently !== null || r.precio !== null;
-  const hasVehicleDetails = r.vehiculo_kms !== null || r.vehiculo_color !== null || r.vehiculo_anio !== null;
-  const hasRateDetails = r.tarifa_diaria !== null || r.tarifa_hora !== null;
+  const hasFinancialData = r.balance != null || r.total_pagado_rently != null || r.precio != null;
+  const hasVehicleDetails = r.vehiculo_kms != null || r.vehiculo_color != null || r.vehiculo_anio != null;
+  const hasRateDetails = r.tarifa_diaria != null || r.tarifa_hora != null;
 
   const parsedExtras = safeParseJsonArray<RentlyExtra>(r.extras_contratados);
   const parsedPriceBreakdown = safeParseJsonArray<RentlyPriceItem>(r.desglose_precios);
@@ -157,7 +157,7 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
   const hasAdditionalDrivers = parsedAdditionalDrivers.length > 0;
   const hasExtendedClient = r.cliente_direccion || r.cliente_ciudad || r.cliente_carnet_numero || r.cliente_fecha_nacimiento;
   const hasAddressDetails = r.lugar_entrega_direccion || r.lugar_devolucion_direccion;
-  const isRentlyEnriched = r.rently_detail_synced_at !== null;
+  const isRentlyEnriched = r.rently_detail_synced_at != null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -374,8 +374,8 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                   <InfoRow icon={Car} label="Modelo" value={r.modelo} />
                   <InfoRow icon={Hash} label="Matrícula" value={r.auto} />
                   <InfoRow icon={Tag} label="Categoría" value={r.categoria} />
-                  {r.vehiculo_anio && (
-                    <InfoRow icon={Calendar} label="Año" value={r.vehiculo_anio.toString()} />
+                  {r.vehiculo_anio != null && (
+                    <InfoRow icon={Calendar} label="Año" value={String(r.vehiculo_anio)} />
                   )}
                   <InfoRow icon={Palette} label="Color" value={r.vehiculo_color} />
                   <InfoRow icon={Wrench} label="Chasis" value={r.vehiculo_chasis} />
@@ -390,16 +390,16 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                     <Gauge className="h-4 w-4" /> Indicadores
                   </SectionTitle>
                   <div className="bg-muted/30 rounded-lg p-3 space-y-3">
-                    {r.vehiculo_kms !== null && (
+                    {r.vehiculo_kms != null && (
                       <div className="flex items-center gap-3">
                         <Gauge className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div>
                           <p className="text-xs text-muted-foreground">Kilómetros</p>
-                          <p className="text-sm font-medium">{r.vehiculo_kms.toLocaleString('es-ES')} km</p>
+                          <p className="text-sm font-medium">{Number(r.vehiculo_kms).toLocaleString('es-ES')} km</p>
                         </div>
                       </div>
                     )}
-                    {r.vehiculo_combustible !== null && (
+                    {r.vehiculo_combustible != null && (
                       <div className="flex items-center gap-3">
                         <Fuel className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1">
@@ -434,11 +434,11 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                           <span className="flex items-center gap-1 text-amber-600"><XCircle className="h-3.5 w-3.5" /> No</span>
                         ) : null
                       } />
-                      {r.km_max_permitidos && (
-                        <InfoRow icon={Gauge} label="Km máx. total" value={`${r.km_max_permitidos.toLocaleString('es-ES')} km`} />
+                      {r.km_max_permitidos != null && r.km_max_permitidos !== 0 && (
+                        <InfoRow icon={Gauge} label="Km máx. total" value={`${Number(r.km_max_permitidos).toLocaleString('es-ES')} km`} />
                       )}
-                      {r.km_max_por_dia && (
-                        <InfoRow icon={Gauge} label="Km máx. por día" value={`${r.km_max_por_dia.toLocaleString('es-ES')} km/día`} />
+                      {r.km_max_por_dia != null && r.km_max_por_dia !== 0 && (
+                        <InfoRow icon={Gauge} label="Km máx. por día" value={`${Number(r.km_max_por_dia).toLocaleString('es-ES')} km/día`} />
                       )}
                     </div>
                   </div>
@@ -462,7 +462,7 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <InfoRow icon={CreditCard} label="Total pagado" value={formatCurrency(r.total_pagado_rently, r.moneda)} />
                     <InfoRow icon={CreditCard} label="Balance" value={
-                      r.balance !== null ? (
+                      r.balance != null ? (
                         <span className={r.balance > 0 ? 'text-red-600 font-semibold' : r.balance < 0 ? 'text-green-600' : ''}>
                           {formatCurrency(r.balance, r.moneda)}
                         </span>

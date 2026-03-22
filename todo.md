@@ -87,3 +87,4 @@
 - [x] Implementar interfaz de gestión de permisos para usuarios autorizados
 - [x] Escribir tests para el sistema de permisos
 - [x] Bug: El campo 'último sync' en la ficha de reserva no se actualiza con las sincronizaciones programadas cada 5 minutos
+- [x] Bug: ReservationDetailSheet crash 'Cannot read properties of undefined (reading toLocaleString)' para usuarios con rol Manager
