@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect, Re
 import { supabase } from '@/integrations/supabase/client';
 import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
+import { toast } from 'sonner';
 import type { RentlySyncPageResponse, RentlySyncResult, RentlySyncStatus } from '@/types/rently';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -156,6 +157,27 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     const errors: Array<{ id: string; error: string }> = [];
 
     try {
+      // Refresh session before syncing to avoid Invalid JWT errors
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          // Try to refresh
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.warn('[Sync] Session refresh failed:', refreshError.message);
+            toast.error('Sesión expirada. Por favor, inicia sesión de nuevo.');
+            const result: RentlySyncResult = {
+              success: false, inserted: 0, duplicates: 0, filtered: 0,
+              errors: [{ id: 'auth', error: 'Sesión expirada' }], total_fetched: 0,
+            };
+            setLastResult(result);
+            return result;
+          }
+        }
+      } catch (authErr) {
+        console.warn('[Sync] Auth check failed:', authErr);
+      }
+
       let isFirstCall = true;
       while (hasMore) {
         if (pauseRequestedRef.current) { console.log('Sync paused'); break; }
@@ -166,7 +188,17 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         });
         isFirstCall = false;
 
-        if (error) { errors.push({ id: 'function', error: error.message }); break; }
+        if (error) {
+          // Check if it's an auth error
+          const errMsg = error.message || '';
+          if (errMsg.includes('Invalid JWT') || errMsg.includes('401') || errMsg.includes('Unauthorized')) {
+            toast.error('Error de autenticación. Intenta recargar la página.');
+          } else {
+            toast.error(`Error de sincronización: ${errMsg}`);
+          }
+          errors.push({ id: 'function', error: error.message });
+          break;
+        }
 
         const result = data as RentlySyncPageResponse;
         if (!result.success) { errors.push({ id: 'sync', error: result.error || 'Unknown error' }); break; }
@@ -194,6 +226,17 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         date_range_in_data: dateRange,
       };
       setLastResult(finalResult);
+
+      // Show success/error feedback
+      if (finalResult.success) {
+        if (totalInserted > 0) {
+          toast.success(`Sync completado: ${totalInserted} nuevas, ${totalFetched} revisadas`);
+        } else {
+          toast.info(`Sync completado: ${totalFetched} reservas revisadas, sin cambios`);
+        }
+      } else if (errors.length > 0) {
+        toast.error(`Sync falló: ${errors[0]?.error || 'Error desconocido'}`);
+      }
 
       // After reservation sync, also sync vehicle statuses
       if (totalInserted > 0 || totalFetched > 0) {

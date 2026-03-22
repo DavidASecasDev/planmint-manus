@@ -91,3 +91,4 @@
 - [x] Dashboard: Tarjeta 'Vehículos por preparar' dinámica cruzando reservas futuras con estado operativo del vehículo
 - [x] Dashboard: Corregir indicador de sincronización en tiempo real
 - [x] Reservas: Eliminar botón 'Sync Rently' del módulo de reservas (ya existe en la barra superior)
+- [x] Bug: Botón Play de sync manual solo resetea el timer pero no ejecuta la sincronización real con Rently (causa: JWT expirado, añadido refresh de sesión + feedback visual)

@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useRentlySyncContextSafe } from '@/contexts/RentlySyncContext';
-import { Loader2, Car, RefreshCw, Timer, Pause, Play } from 'lucide-react';
+import { Loader2, Car, RefreshCw, Timer, Pause, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
- * SyncStatusIndicator — now rendered INLINE inside the AppHeader,
- * no longer uses fixed positioning. It sits naturally in the header's
- * right-side action bar, next to notifications and user avatar.
+ * SyncStatusIndicator — rendered INLINE inside the AppHeader.
+ * Shows countdown, auto-sync toggle, manual sync button, and last result feedback.
  */
 export function SyncStatusIndicator() {
   const ctx = useRentlySyncContextSafe();
   const [elapsed, setElapsed] = useState(0);
+  const [showResult, setShowResult] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     if (!ctx?.syncing) return;
@@ -19,9 +19,17 @@ export function SyncStatusIndicator() {
     return () => clearInterval(interval);
   }, [ctx?.syncing, ctx?.getElapsedTime]);
 
+  // Show result flash for 5 seconds after sync completes
+  useEffect(() => {
+    if (!ctx?.lastResult) return;
+    setShowResult(ctx.lastResult.success ? 'success' : 'error');
+    const timer = setTimeout(() => setShowResult(null), 5000);
+    return () => clearTimeout(timer);
+  }, [ctx?.lastResult]);
+
   if (!ctx) return null;
 
-  const { progress, setSyncDialogOpen, syncing, autoSyncEnabled, setAutoSyncEnabled, autoSyncCountdown, isConfigured } = ctx;
+  const { progress, setSyncDialogOpen, syncing, autoSyncEnabled, setAutoSyncEnabled, autoSyncCountdown, isConfigured, lastResult } = ctx;
 
   // When actively syncing, show the active sync indicator
   if (syncing) {
@@ -51,9 +59,34 @@ export function SyncStatusIndicator() {
   const countdownSecs = autoSyncCountdown % 60;
   const countdownStr = countdownMins > 0 ? `${countdownMins}:${String(countdownSecs).padStart(2, '0')}` : `${countdownSecs}s`;
 
+  // Build tooltip for last result
+  const lastResultTooltip = lastResult
+    ? lastResult.success
+      ? `Último sync: ${lastResult.total_fetched} revisadas, ${lastResult.inserted} nuevas`
+      : `Último sync falló: ${lastResult.errors?.[0]?.error || 'Error'}`
+    : null;
+
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1">
+        {/* Last result flash indicator */}
+        {showResult && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center">
+                {showResult === 'success' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 animate-in fade-in duration-300" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5 text-red-500 animate-in fade-in duration-300" />
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {lastResultTooltip || (showResult === 'success' ? 'Sync completado' : 'Sync falló')}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         {/* Countdown pill */}
         {autoSyncEnabled && (
           <Tooltip>
