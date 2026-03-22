@@ -175,6 +175,7 @@ export default function Register() {
     borderColor: brand.borderLight,
     fontFamily: 'Barlow, sans-serif',
     backgroundColor: '#FFFFFF',
+    color: brand.textDark,
   };
 
   return (

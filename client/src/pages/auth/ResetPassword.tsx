@@ -237,7 +237,7 @@ export default function ResetPassword() {
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
-                    <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }} required />
+                    <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF', color: brand.textDark }} required />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -246,7 +246,7 @@ export default function ResetPassword() {
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: brand.textMuted }} />
-                    <Input id="confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="pl-10 h-12" style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }} required />
+                    <Input id="confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="pl-10 h-12" style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF', color: brand.textDark }} required />
                   </div>
                 </div>
               </CardContent>

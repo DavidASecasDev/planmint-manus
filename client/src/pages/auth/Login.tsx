@@ -198,7 +198,7 @@ export default function Login() {
                   variant="outline"
                   onClick={handleSignOut}
                   className="w-full h-12 text-base"
-                  style={{ borderColor: brand.borderLight, color: brand.textMuted, fontFamily: 'Barlow, sans-serif' }}
+                  style={{ borderColor: brand.borderLight, color: brand.textMuted, backgroundColor: '#FFFFFF', fontFamily: 'Barlow, sans-serif' }}
                 >
                   Cerrar sesión e iniciar con otra cuenta
                 </Button>
@@ -281,7 +281,7 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-10 h-12"
-                      style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }}
+                      style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF', color: brand.textDark }}
                       required
                     />
                   </div>
@@ -299,7 +299,7 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 h-12"
-                      style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }}
+                      style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF', color: brand.textDark }}
                       required
                     />
                   </div>

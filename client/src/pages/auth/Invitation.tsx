@@ -51,6 +51,7 @@ const inputStyle = {
   borderColor: brand.borderLight,
   fontFamily: 'Barlow, sans-serif',
   backgroundColor: '#FFFFFF',
+  color: brand.textDark,
 };
 
 const labelStyle = {

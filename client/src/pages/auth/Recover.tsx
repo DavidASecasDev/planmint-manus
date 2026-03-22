@@ -177,6 +177,7 @@ export default function Recover() {
                 style={{
                   borderColor: brand.borderLight,
                   color: brand.textDark,
+                  backgroundColor: '#FFFFFF',
                   fontFamily: 'Barlow, sans-serif',
                   fontWeight: 600,
                 }}
@@ -223,7 +224,7 @@ export default function Recover() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-11"
-                  style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF' }}
+                  style={{ borderColor: brand.borderLight, fontFamily: 'Barlow, sans-serif', backgroundColor: '#FFFFFF', color: brand.textDark }}
                   required
                 />
               </div>
