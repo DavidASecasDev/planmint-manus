@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
@@ -65,8 +66,8 @@ export function useTransferDocuments(requestId: string | undefined) {
 
   const processWithAI = async (documentId: string) => {
     try {
-      // Call edge function for AI processing (it handles status updates internally)
-      const { error } = await supabase.functions.invoke('parse-transfer-document', {
+      // Call Express endpoint for AI processing (it handles status updates internally)
+      const { error } = await apiInvoke('parse-transfer-document', {
         body: { documentId },
       });
 

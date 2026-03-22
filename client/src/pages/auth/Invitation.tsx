@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getRoleLabel } from '@/lib/roleHierarchy';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -198,7 +199,7 @@ export default function Invitation() {
     }
     setLoading(true);
     try {
-      const { data: fnData, error: fnError } = await supabase.functions.invoke('signup-with-invitation', {
+      const { data: fnData, error: fnError } = await apiInvoke<{ error?: string; message?: string; userId?: string; organization_name?: string }>('signup-with-invitation', {
         body: { email: email.trim(), password, name, token },
       });
       if (fnError) {
@@ -234,7 +235,7 @@ export default function Invitation() {
         setLoading(false);
         return;
       }
-      toast({ title: '¡Bienvenido!', description: `Te has unido a ${fnData.organization_name}` });
+      toast({ title: '¡Bienvenido!', description: `Te has unido a ${fnData?.organization_name || 'la organización'}` });
       navigate('/dashboard');
     } catch (err) {
       toast({ title: 'Error', description: 'Error inesperado. Por favor intenta de nuevo.', variant: 'destructive' });

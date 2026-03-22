@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { PushSubscription } from '@/types/external-notifications';
 
@@ -23,7 +24,7 @@ async function getVapidPublicKey(): Promise<string | null> {
   if (envKey) return envKey;
   if (cachedVapidKey) return cachedVapidKey;
   try {
-    const { data, error } = await supabase.functions.invoke('get-vapid-key');
+    const { data, error } = await apiInvoke<{ vapidPublicKey: string }>('get-vapid-key');
     if (error || !data?.vapidPublicKey) {
       console.error('Failed to fetch VAPID key:', error);
       return null;

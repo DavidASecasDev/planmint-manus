@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { useVehiclePrepAlerts } from '@/hooks/useVehiclePrepAlerts';
@@ -193,9 +194,8 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         if (pauseRequestedRef.current) { console.log('Sync paused'); break; }
         if (cancelRequestedRef.current) { console.log('Sync cancelled'); break; }
 
-        const { data, error } = await supabase.functions.invoke('sync-rently', {
+        const { data, error } = await apiInvoke('sync-rently', {
           body: { continue_sync: !isFirstCall, reset: isFirstCall && reset },
-          headers: invokeHeaders,
         });
         isFirstCall = false;
 
@@ -303,9 +303,8 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         }
       } catch { /* use default token */ }
 
-      const { data, error } = await supabase.functions.invoke('sync-rently', {
+      const { data, error } = await apiInvoke<{ error?: string; success?: boolean }>('sync-rently', {
         body: { test_only: true },
-        headers,
       });
       if (error) return { success: false, error: error.message };
       if (data?.error) return { success: false, error: data.error };

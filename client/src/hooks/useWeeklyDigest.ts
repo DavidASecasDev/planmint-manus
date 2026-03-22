@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -19,7 +19,7 @@ export function useWeeklyDigest() {
     setDigest(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+      const { data, error } = await apiInvoke<{ summary: string }>('ai-assistant', {
         body: { type: 'weekly_digest', organizationId: profile.organization_id },
       });
 
@@ -35,9 +35,9 @@ export function useWeeklyDigest() {
         return null;
       }
 
-      setDigest(data.summary);
+      setDigest(data!.summary);
       setLastGenerated(new Date());
-      return data.summary;
+      return data!.summary;
     } catch (err) {
       console.error('Weekly digest error:', err);
       toast.error('Error al generar el resumen semanal');

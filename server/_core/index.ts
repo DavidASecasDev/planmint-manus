@@ -8,6 +8,13 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleOcrPlate } from "../ocrPlate";
+import { handleSyncRently } from "../syncRently";
+import { handleAiAssistant } from "../aiAssistant";
+import { handleRentlyHub } from "../rentlyHub";
+import { handleParseTransferDocument } from "../parseTransferDocument";
+import { handleSignupWithInvitation } from "../signupWithInvitation";
+import { handleGetVapidKey } from "../vapidKey";
+import { handleApplyTemplate } from "../applyTemplate";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,8 +43,17 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
-  // OCR plate recognition endpoint (replaces Supabase Edge Function)
+
+  // ─── Migrated Edge Function endpoints ──────────────────────────────────────
   app.post("/api/ocr-plate", handleOcrPlate);
+  app.post("/api/sync-rently", handleSyncRently);
+  app.post("/api/ai-assistant", handleAiAssistant);
+  app.post("/api/rently-hub", handleRentlyHub);
+  app.post("/api/parse-transfer-document", handleParseTransferDocument);
+  app.post("/api/signup-with-invitation", handleSignupWithInvitation);
+  app.post("/api/get-vapid-key", handleGetVapidKey);
+  app.post("/api/apply-template", handleApplyTemplate);
+
   // tRPC API
   app.use(
     "/api/trpc",

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { IntegrationSettings, AIProvider } from '@/types/external-notifications';
@@ -152,7 +153,7 @@ export function useIntegrationSettings() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+      const { data, error } = await apiInvoke<{ success?: boolean; error?: string }>('ai-assistant', {
         body: { type: 'connection_test' },
       });
 

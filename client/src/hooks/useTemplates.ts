@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -103,8 +104,8 @@ export const useTemplates = () => {
         throw new Error('versionId or userTemplateId is required');
       }
 
-      // Call the secure Edge Function - config_json is never exposed to client
-      const { data, error } = await supabase.functions.invoke('apply-template', {
+      // Call the secure Express endpoint - config_json is never exposed to client
+      const { data, error } = await apiInvoke<{ success: boolean; error?: string; applied: AppliedEntities }>('apply-template', {
         body: {
           version_id: versionId,
           user_template_id: userTemplateId,
@@ -116,8 +117,8 @@ export const useTemplates = () => {
         throw new Error(error.message || 'Error applying template');
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to apply template');
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to apply template');
       }
 
       return data.applied as AppliedEntities;

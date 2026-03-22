@@ -2,11 +2,11 @@
  * useRentlyHub — Hook React para interactuar con el Rently Integration Hub
  *
  * Proporciona una interfaz limpia para que los componentes de PlanMint
- * consulten la API de Rently a través de la Edge Function rently-hub.
+ * consulten la API de Rently a través del endpoint Express /api/rently-hub.
  */
 
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiInvoke } from "@/lib/apiClient";
 
 export interface RentlyHubResponse<T = unknown> {
   success: boolean;
@@ -44,7 +44,7 @@ export function useRentlyHub() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Llama a la Edge Function rently-hub con el body especificado
+   * Llama al endpoint Express rently-hub con el body especificado
    */
   const invoke = useCallback(async <T = unknown>(
     body: Record<string, unknown>
@@ -53,7 +53,7 @@ export function useRentlyHub() {
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("rently-hub", {
+      const { data, error: fnError } = await apiInvoke<RentlyHubResponse<T>>("rently-hub", {
         body,
       });
 

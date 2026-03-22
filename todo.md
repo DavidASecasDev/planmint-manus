@@ -106,3 +106,16 @@
 - [x] Hacer OCR graceful: si falla, permitir cerrar movimiento igualmente
 - [x] Bug: Se pueden crear movimientos con matrículas que no existen en la flota - validar contra vehículos registrados (validación en handleConfirmPlate)
 - [x] Bug: Foto de inicio del movimiento no se muestra - RESUELTO: bucket movement-photos cambiado a público en Supabase
+- [x] Migrar Edge Function sync-rently a endpoint Express propio
+- [x] Migrar Edge Function check-rently-credentials a endpoint Express propio (integrado en rently-hub)
+- [x] Migrar Edge Function sync-vehicles a endpoint Express propio (usa supabase.rpc, no necesita Edge Function)
+- [x] Migrar Edge Function update-vehicle-status a endpoint Express propio (usa supabase.rpc, no necesita Edge Function)
+- [x] Actualizar frontend para usar nuevos endpoints en vez de Edge Functions de Supabase
+- [x] Eliminar dependencia de servicios externos (Lovable/Supabase Edge Functions) - todas las funciones activas migradas
+- [x] Migrar ai-assistant a endpoint Express usando LLM de Manus
+- [x] Migrar rently-hub a endpoint Express
+- [x] Migrar parse-transfer-document a endpoint Express
+- [x] Migrar signup-with-invitation a endpoint Express
+- [x] Migrar get-vapid-key a endpoint Express
+- [x] Migrar apply-template a endpoint Express
+- [ ] NO migrar funciones de Stripe/billing (create-checkout, customer-portal, etc.) - app interna sin pagos

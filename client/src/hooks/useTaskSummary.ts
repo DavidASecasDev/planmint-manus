@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 
 export function useTaskSummary() {
@@ -12,7 +12,7 @@ export function useTaskSummary() {
     setSummary(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+      const { data, error } = await apiInvoke<{ summary: string }>('ai-assistant', {
         body: { type: 'task_summary', taskId },
       });
 
@@ -28,9 +28,9 @@ export function useTaskSummary() {
         return null;
       }
 
-      setSummary(data.summary);
+      setSummary(data!.summary);
       setLastGenerated(new Date());
-      return data.summary;
+      return data!.summary;
     } catch (err) {
       console.error('Task summary error:', err);
       toast.error('Error al generar el resumen');
