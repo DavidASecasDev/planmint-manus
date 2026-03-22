@@ -1,8 +1,14 @@
 /*
  * Azul Cars Brand — Reset Password Page
  * Split layout: navy left panel with particle logos | warm right panel with form
+ *
+ * Recovery detection strategy:
+ * 1. Check URL hash/params for recovery tokens (before Supabase clears them)
+ * 2. Listen for PASSWORD_RECOVERY event from onAuthStateChange
+ * 3. Check if there's an active session (Supabase may have already processed the URL)
+ * 4. Fallback timeout after 5 seconds
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -105,16 +111,78 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
   const [checking, setChecking] = useState(true);
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setIsRecovery(true);
-      setChecking(false);
-    });
+    // Helper to mark recovery as detected (only once)
+    const markRecovery = () => {
+      if (!resolvedRef.current) {
+        resolvedRef.current = true;
+        setIsRecovery(true);
+        setChecking(false);
+      }
+    };
+
+    const markInvalid = () => {
+      if (!resolvedRef.current) {
+        resolvedRef.current = true;
+        setIsRecovery(false);
+        setChecking(false);
+      }
+    };
+
+    // Strategy 1: Check URL hash for recovery tokens BEFORE Supabase clears them
     const hash = window.location.hash;
-    if (hash.includes('type=recovery')) setIsRecovery(true);
-    const timeout = setTimeout(() => setChecking(false), 3000);
-    return () => { subscription.unsubscribe(); clearTimeout(timeout); };
+    if (hash.includes('type=recovery') || hash.includes('access_token')) {
+      // Hash still has recovery tokens - Supabase hasn't processed them yet
+      // Wait for Supabase to process and emit the event
+    }
+
+    // Strategy 2: Listen for PASSWORD_RECOVERY event from Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        markRecovery();
+      } else if (event === 'SIGNED_IN' && session) {
+        // Supabase v2 sometimes emits SIGNED_IN instead of PASSWORD_RECOVERY
+        // If we're on /reset-password and got a SIGNED_IN, it's likely from the recovery link
+        markRecovery();
+      } else if (event === 'INITIAL_SESSION' && session) {
+        // User already has a session (Supabase processed the URL before component mounted)
+        markRecovery();
+      }
+    });
+
+    // Strategy 3: Poll for session - Supabase may have already processed the URL
+    // This handles the race condition where the event fired before our listener was registered
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          markRecovery();
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+
+    // Check immediately and then again after short delays to catch async processing
+    checkSession();
+    const timer1 = setTimeout(checkSession, 500);
+    const timer2 = setTimeout(checkSession, 1500);
+    const timer3 = setTimeout(checkSession, 3000);
+
+    // Final fallback: after 5 seconds, if nothing detected, mark as invalid
+    const fallbackTimer = setTimeout(() => {
+      markInvalid();
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,7 +208,12 @@ export default function ResetPassword() {
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: brand.warmBg }}>
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: brand.gold }} />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: brand.gold }} />
+          <p className="text-sm" style={{ fontFamily: 'Barlow, sans-serif', color: brand.textMuted }}>
+            Verificando enlace de recuperación...
+          </p>
+        </div>
       </div>
     );
   }

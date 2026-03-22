@@ -63,3 +63,4 @@
 - [x] Auditar y asegurar que el flujo completo de recuperación de contraseñas funciona correctamente
 - [x] Cambiar contraseña del usuario david.m15@hotmail.es a MonsterWhite15
 - [x] Bug: Contraste de colores incorrecto en botones y campos de las páginas de autenticación (texto invisible sobre fondo oscuro)
+- [x] Bug: Enlace de recuperación de contraseña muestra "Enlace inválido" al hacer clic desde el email (el token de Supabase no se detecta correctamente en ResetPassword.tsx)
