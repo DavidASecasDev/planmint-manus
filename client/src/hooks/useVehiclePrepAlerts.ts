@@ -51,7 +51,7 @@ export function useVehiclePrepAlerts() {
       .from('vehicles')
       .select('id, matricula, modelo, status')
       .in('status', ['sucio', 'incompleto'])
-      .eq('archived', false);
+      .is('archived_at', null);
 
     if (vehicleError || !dirtyVehicles || dirtyVehicles.length === 0) {
       if (vehicleError) log.error('Error fetching dirty vehicles:', vehicleError);
@@ -68,7 +68,7 @@ export function useVehiclePrepAlerts() {
       .gte('desde', now.toISOString())
       .lte('desde', thresholdDate.toISOString())
       .in('estado', ['Pendiente', 'Confirmada', 'En curso'])
-      .eq('archived', false)
+      .is('archived_at', null)
       .order('desde', { ascending: true });
 
     if (resError || !upcomingReservations || upcomingReservations.length === 0) {

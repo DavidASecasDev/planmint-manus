@@ -96,3 +96,5 @@
 - [x] Notificaciones push: Enviar alerta al equipo de operaciones
 - [x] Notificaciones push: Integrar verificación en ciclo de auto-sync
 - [x] Notificaciones push: Indicador visual en dashboard y centro de notificaciones
+- [x] Bug: VehiclePrepAlerts error 'column vehicles.archived does not exist' al buscar vehículos sucios (corregido: usar archived_at IS NULL)
+- [x] Bug: Sync Rently devuelve 401 Unauthorized al pulsar Play (corregido: refresh proactivo de sesión antes de cada sync)

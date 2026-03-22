@@ -159,23 +159,22 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     const errors: Array<{ id: string; error: string }> = [];
 
     try {
-      // Refresh session before syncing to avoid Invalid JWT errors
+      // Proactively refresh session before syncing to avoid Invalid JWT errors.
+      // Always call refreshSession() — Supabase SDK only refreshes if the token
+      // is close to expiry, so it's safe to call every time.
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          // Try to refresh
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            console.warn('[Sync] Session refresh failed:', refreshError.message);
-            toast.error('Sesión expirada. Por favor, inicia sesión de nuevo.');
-            const result: RentlySyncResult = {
-              success: false, inserted: 0, duplicates: 0, filtered: 0,
-              errors: [{ id: 'auth', error: 'Sesión expirada' }], total_fetched: 0,
-            };
-            setLastResult(result);
-            return result;
-          }
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          console.warn('[Sync] Session refresh failed:', refreshError?.message || 'No session');
+          toast.error('Sesión expirada. Por favor, inicia sesión de nuevo.');
+          const result: RentlySyncResult = {
+            success: false, inserted: 0, duplicates: 0, filtered: 0,
+            errors: [{ id: 'auth', error: 'Sesión expirada' }], total_fetched: 0,
+          };
+          setLastResult(result);
+          return result;
         }
+        console.log('[Sync] Session refreshed, token valid until:', new Date(refreshData.session.expires_at! * 1000).toISOString());
       } catch (authErr) {
         console.warn('[Sync] Auth check failed:', authErr);
       }
