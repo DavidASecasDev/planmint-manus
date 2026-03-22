@@ -85,9 +85,14 @@ export default function MovementDetail() {
     if (!movement || !profile?.organization_id) return;
     setIsProcessing(true);
     try {
-      const ocrResult = await ocrPlate(base64);
-      if (ocrResult.success && ocrResult.plate !== movement.matricula) {
-        toast({ title: 'Matrícula diferente', description: `Se detectó ${ocrResult.plate} pero el movimiento es de ${movement.matricula}. Se finalizará igualmente.`, variant: 'destructive' });
+      // OCR is best-effort: if it fails, we still close the movement
+      try {
+        const ocrResult = await ocrPlate(base64);
+        if (ocrResult.success && ocrResult.plate !== movement.matricula) {
+          toast({ title: 'Matrícula diferente', description: `Se detectó ${ocrResult.plate} pero el movimiento es de ${movement.matricula}. Se finalizará igualmente.`, variant: 'destructive' });
+        }
+      } catch (ocrErr) {
+        console.warn('[OCR] Plate recognition failed, continuing with movement close:', ocrErr);
       }
       const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
       const byteArray = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));

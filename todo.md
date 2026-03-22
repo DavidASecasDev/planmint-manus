@@ -99,3 +99,8 @@
 - [x] Bug: VehiclePrepAlerts error 'column vehicles.archived does not exist' al buscar vehículos sucios (corregido: usar archived_at IS NULL)
 - [x] Bug: Sync Rently devuelve 401 Unauthorized al pulsar Play (corregido: refresh proactivo de sesión antes de cada sync)
 - [x] Bug PERSISTENTE: Sync Rently 401 en producción - corregido: pasar access_token explícitamente en headers de functions.invoke()
+- [x] Bug CRÍTICO: Sync Rently 401 - RESUELTO: desactivar 'Verify JWT with legacy secret' en Supabase Edge Function settings
+- [x] Bug: Usuario no puede cerrar movimiento - Edge Function ocr-plate devuelve 500 (reemplazada por endpoint Express /api/ocr-plate)
+- [x] Reescribir OCR de matrículas como endpoint Express /api/ocr-plate usando LLM de Manus
+- [x] Actualizar frontend para usar nuevo endpoint OCR en vez de Edge Function de Supabase
+- [x] Hacer OCR graceful: si falla, permitir cerrar movimiento igualmente

@@ -259,9 +259,14 @@ export async function uploadMovementFile(rawFile: File, orgId: string): Promise<
 }
 
 export async function ocrPlate(imageBase64: string): Promise<{ plate: string; success: boolean }> {
-  const { data, error } = await supabase.functions.invoke('ocr-plate', {
-    body: { image_base64: imageBase64 },
+  const response = await fetch('/api/ocr-plate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_base64: imageBase64 }),
   });
-  if (error) throw error;
-  return data;
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ error: 'OCR request failed' }));
+    throw new Error(errData.error || `OCR failed with status ${response.status}`);
+  }
+  return response.json();
 }
