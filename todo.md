@@ -98,3 +98,4 @@
 - [x] Notificaciones push: Indicador visual en dashboard y centro de notificaciones
 - [x] Bug: VehiclePrepAlerts error 'column vehicles.archived does not exist' al buscar vehículos sucios (corregido: usar archived_at IS NULL)
 - [x] Bug: Sync Rently devuelve 401 Unauthorized al pulsar Play (corregido: refresh proactivo de sesión antes de cada sync)
+- [x] Bug PERSISTENTE: Sync Rently 401 en producción - corregido: pasar access_token explícitamente en headers de functions.invoke()

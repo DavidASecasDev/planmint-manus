@@ -160,8 +160,10 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
 
     try {
       // Proactively refresh session before syncing to avoid Invalid JWT errors.
-      // Always call refreshSession() — Supabase SDK only refreshes if the token
-      // is close to expiry, so it's safe to call every time.
+      // We store the fresh access_token and pass it explicitly in the Authorization
+      // header of every functions.invoke() call. This bypasses any caching/staleness
+      // in the Supabase client's internal session state.
+      let freshAccessToken: string | null = null;
       try {
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError || !refreshData.session) {
@@ -174,9 +176,16 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
           setLastResult(result);
           return result;
         }
+        freshAccessToken = refreshData.session.access_token;
         console.log('[Sync] Session refreshed, token valid until:', new Date(refreshData.session.expires_at! * 1000).toISOString());
       } catch (authErr) {
         console.warn('[Sync] Auth check failed:', authErr);
+      }
+
+      // Build headers with fresh token if available
+      const invokeHeaders: Record<string, string> = {};
+      if (freshAccessToken) {
+        invokeHeaders['Authorization'] = `Bearer ${freshAccessToken}`;
       }
 
       let isFirstCall = true;
@@ -186,6 +195,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
 
         const { data, error } = await supabase.functions.invoke('sync-rently', {
           body: { continue_sync: !isFirstCall, reset: isFirstCall && reset },
+          headers: invokeHeaders,
         });
         isFirstCall = false;
 
@@ -284,8 +294,18 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
   const testConnection = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     setTesting(true);
     try {
+      // Refresh session and pass fresh token explicitly
+      const headers: Record<string, string> = {};
+      try {
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        if (refreshData.session?.access_token) {
+          headers['Authorization'] = `Bearer ${refreshData.session.access_token}`;
+        }
+      } catch { /* use default token */ }
+
       const { data, error } = await supabase.functions.invoke('sync-rently', {
         body: { test_only: true },
+        headers,
       });
       if (error) return { success: false, error: error.message };
       if (data?.error) return { success: false, error: data.error };
