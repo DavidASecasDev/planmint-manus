@@ -1,5 +1,5 @@
-export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'repair_update' | 'accident_report' | 'damage_report_update';
-export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report';
+export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert';
+export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep';
 
 export interface Notification {
   id: string;
@@ -23,4 +23,6 @@ export interface NotificationWithDetails extends Notification {
   repair_id?: string;
   accident_id?: string;
   damage_report_id?: string;
+  // For vehicle prep navigation
+  vehicle_id?: string;
 }

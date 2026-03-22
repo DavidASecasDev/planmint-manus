@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect, Re
 import { supabase } from '@/integrations/supabase/client';
 import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
+import { useVehiclePrepAlerts } from '@/hooks/useVehiclePrepAlerts';
 import { toast } from 'sonner';
 import type { RentlySyncPageResponse, RentlySyncResult, RentlySyncStatus } from '@/types/rently';
 
@@ -50,6 +51,7 @@ const RentlySyncContext = createContext<RentlySyncContextValue | null>(null);
 export function RentlySyncProvider({ children }: { children: ReactNode }) {
   const { settings, loading: settingsLoading } = useIntegrationSettings();
   const { hasRently, loading: flagsLoading } = useIntegrationFlags();
+  const { checkAndAlert: checkAndAlertVehiclePrep } = useVehiclePrepAlerts();
 
   const [syncing, setSyncing] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -243,6 +245,16 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         await syncVehiclesAfterReservations();
       }
 
+      // Check for unprepared vehicles with imminent reservations and send alerts
+      try {
+        const alertsSent = await checkAndAlertVehiclePrep();
+        if (alertsSent > 0) {
+          console.log(`[AutoSync] Sent ${alertsSent} vehicle prep alert(s)`);
+        }
+      } catch (alertErr) {
+        console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
+      }
+
       return finalResult;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
@@ -264,7 +276,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         resetCountdown();
       }
     }
-  }, [syncVehiclesAfterReservations, autoSyncEnabled, isConfigured, resetCountdown]);
+  }, [syncVehiclesAfterReservations, checkAndAlertVehiclePrep, autoSyncEnabled, isConfigured, resetCountdown]);
 
   const pauseSync = useCallback(() => { pauseRequestedRef.current = true; }, []);
   const cancelSync = useCallback(() => { cancelRequestedRef.current = true; }, []);

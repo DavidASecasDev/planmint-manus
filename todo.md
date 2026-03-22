@@ -92,3 +92,7 @@
 - [x] Dashboard: Corregir indicador de sincronización en tiempo real
 - [x] Reservas: Eliminar botón 'Sync Rently' del módulo de reservas (ya existe en la barra superior)
 - [x] Bug: Botón Play de sync manual solo resetea el timer pero no ejecuta la sincronización real con Rently (causa: JWT expirado, añadido refresh de sesión + feedback visual)
+- [x] Notificaciones push: Detectar vehículos no preparados con reserva en menos de 2 horas
+- [x] Notificaciones push: Enviar alerta al equipo de operaciones
+- [x] Notificaciones push: Integrar verificación en ciclo de auto-sync
+- [x] Notificaciones push: Indicador visual en dashboard y centro de notificaciones

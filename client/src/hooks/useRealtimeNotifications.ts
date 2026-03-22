@@ -187,6 +187,7 @@ function getToastAction(
     accident: `/garatech/accidents/${entity_id}`,
     damage_report: `/garatech/reports/${entity_id}`,
     form_response: `/notifications`,
+    vehicle_prep: `/vehicle-status`,
   };
 
   const route = routes[entity_type];
