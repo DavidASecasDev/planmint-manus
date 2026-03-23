@@ -150,3 +150,10 @@
 - [ ] AUDITORÍA COMPLETA: Fase 4 - Entregar informe detallado con hallazgos, causas raíz, y plan de corrección
 - [ ] AUDITORÍA COMPLETA: Fase 5 - Aplicar correcciones aprobadas
 - [ ] AUDITORÍA COMPLETA: Fase 6 - Verificar flujos corregidos y guardar checkpoint
+- [x] Step 1: Crear 6 endpoints Express para invitaciones (get-invitation-public, accept-invitation, accept-my-pending-invitation, revoke-invitation, get-organization-invitations, get-my-pending-invitations)
+- [x] Step 1: Actualizar Invitation.tsx para usar apiInvoke en vez de supabase.rpc
+- [x] Step 1: Actualizar Login.tsx para usar apiInvoke en vez de supabase.rpc (accept_invitation)
+- [x] Step 1: Actualizar PendingInvitationsList.tsx para usar apiInvoke en vez de supabase.rpc
+- [x] Step 1: Actualizar CreateOrganization.tsx para usar apiInvoke en vez de supabase.rpc
+- [x] Step 1: Registrar 6 endpoints en server/_core/index.ts
+- [x] Step 1: Escribir tests para invitationEndpoints (23 tests, 305 total pasando)

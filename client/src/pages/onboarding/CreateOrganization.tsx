@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { Button } from '@/components/ui/button';
@@ -57,9 +58,9 @@ export default function CreateOrganization() {
   useEffect(() => {
     if (!user) return;
     
-    supabase.rpc('get_my_pending_invitations').then(({ data, error }) => {
+    apiInvoke<PendingInvitation[]>('get-my-pending-invitations').then(({ data, error }) => {
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        setPendingInvitations(data as unknown as PendingInvitation[]);
+        setPendingInvitations(data);
       }
       setCheckingInvitations(false);
     });
@@ -85,12 +86,12 @@ export default function CreateOrganization() {
   const handleAcceptInvitation = async (invitation: PendingInvitation) => {
     setAcceptingInvitation(invitation.id);
 
-    const { data, error } = await supabase.rpc('accept_my_pending_invitation', {
-      p_invitation_id: invitation.id,
+    const { data, error } = await apiInvoke<{ success: boolean; error?: string; organization_name?: string }>('accept-my-pending-invitation', {
+      body: { p_invitation_id: invitation.id },
     });
 
-    if (error || !(data as any)?.success) {
-      const errCode = (data as any)?.error || 'unknown';
+    if (error || !data?.success) {
+      const errCode = data?.error || 'unknown';
       const messages: Record<string, string> = {
         email_mismatch: 'Tu email no coincide con la invitación.',
         invitation_expired: 'La invitación ha expirado. Pide al administrador que envíe una nueva.',
@@ -110,7 +111,7 @@ export default function CreateOrganization() {
 
     toast({
       title: '¡Bienvenido!',
-      description: `Te has unido a ${(data as any).organization_name}`,
+      description: `Te has unido a ${data?.organization_name}`,
     });
 
     navigate('/dashboard');
@@ -408,9 +409,9 @@ export default function CreateOrganization() {
                     navigate('/dashboard');
                   } else {
                     // Re-check pending invitations
-                    supabase.rpc('get_my_pending_invitations').then(({ data }) => {
+                    apiInvoke<PendingInvitation[]>('get-my-pending-invitations').then(({ data }) => {
                       if (data && Array.isArray(data) && data.length > 0) {
-                        setPendingInvitations(data as unknown as PendingInvitation[]);
+                        setPendingInvitations(data);
                       } else {
                         toast({
                           title: 'Sin invitaciones',

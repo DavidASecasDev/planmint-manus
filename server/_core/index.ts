@@ -16,6 +16,14 @@ import { handleSignupWithInvitation } from "../signupWithInvitation";
 import { handleGetVapidKey } from "../vapidKey";
 import { handleApplyTemplate } from "../applyTemplate";
 import { handleCreateInvitation } from "../createInvitation";
+import {
+  handleGetInvitationPublic,
+  handleAcceptInvitation,
+  handleAcceptMyPendingInvitation,
+  handleRevokeInvitation,
+  handleGetOrganizationInvitations,
+  handleGetMyPendingInvitations,
+} from "../invitationEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -55,6 +63,14 @@ async function startServer() {
   app.post("/api/get-vapid-key", handleGetVapidKey);
   app.post("/api/apply-template", handleApplyTemplate);
   app.post("/api/create-invitation", handleCreateInvitation);
+
+  // ─── Invitation endpoints (replace broken Supabase RPCs) ───────────────────
+  app.post("/api/get-invitation-public", handleGetInvitationPublic);
+  app.post("/api/accept-invitation", handleAcceptInvitation);
+  app.post("/api/accept-my-pending-invitation", handleAcceptMyPendingInvitation);
+  app.post("/api/revoke-invitation", handleRevokeInvitation);
+  app.post("/api/get-organization-invitations", handleGetOrganizationInvitations);
+  app.post("/api/get-my-pending-invitations", handleGetMyPendingInvitations);
 
   // tRPC API
   app.use(

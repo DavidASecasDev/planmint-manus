@@ -148,14 +148,13 @@ export default function Invitation() {
   useEffect(() => {
     const fetchInvitationPreview = async () => {
       if (!token) return;
-      const { data, error } = await supabase.rpc('get_invitation_public', { p_token: token });
-      if (error) {
+      const { data, error } = await apiInvoke<InvitationPreview>('get-invitation-public', { body: { p_token: token } });
+      if (error || !data) {
         setInvitation({ valid: false, error: 'invitation_not_found' });
         setLoadingInvitation(false);
         return;
       }
-      const result = data as unknown as InvitationPreview;
-      setInvitation(result);
+      setInvitation(data);
       setLoadingInvitation(false);
     };
     fetchInvitationPreview();
@@ -164,8 +163,7 @@ export default function Invitation() {
   const handleAcceptAsExistingUser = async () => {
     if (!user || !token) return;
     setAcceptingAsExisting(true);
-    const { data, error } = await supabase.rpc('accept_invitation', { p_token: token });
-    const result = data as unknown as { success: boolean; error?: string; organization_name?: string };
+    const { data: result, error } = await apiInvoke<{ success: boolean; error?: string; organization_name?: string }>('accept-invitation', { body: { p_token: token } });
     if (error || !result?.success) {
       const errorMsg = result?.error || error?.message || 'Error desconocido';
       const messages: Record<string, string> = {

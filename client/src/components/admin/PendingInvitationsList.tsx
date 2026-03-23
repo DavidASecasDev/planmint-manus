@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -43,9 +43,9 @@ export function PendingInvitationsList() {
   const { data: invitations = [], isLoading, refetch } = useQuery({
     queryKey: ['organization-invitations', profile?.organization_id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_organization_invitations');
-      if (error) throw error;
-      return (data as unknown as OrgInvitation[]) || [];
+      const { data, error } = await apiInvoke<OrgInvitation[]>('get-organization-invitations');
+      if (error) throw new Error(error.message);
+      return data || [];
     },
     enabled: !!profile?.organization_id,
   });
@@ -53,9 +53,10 @@ export function PendingInvitationsList() {
   const handleRevoke = async (invitationId: string) => {
     setRevokingId(invitationId);
     try {
-      const { data, error } = await supabase.rpc('revoke_invitation', { p_invitation_id: invitationId });
-      if (error) throw error;
-      const result = data as unknown as { success?: boolean; error?: string };
+      const { data: result, error } = await apiInvoke<{ success?: boolean; error?: string }>('revoke-invitation', {
+        body: { p_invitation_id: invitationId },
+      });
+      if (error) throw new Error(error.message);
       if (result?.success) {
         toast({ title: 'Invitación revocada', description: 'La invitación ha sido cancelada.' });
         refetch();
@@ -80,35 +81,36 @@ export function PendingInvitationsList() {
     return inv.status;
   };
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Invitaciones
-            </CardTitle>
-            <CardDescription>
-              Invitaciones enviadas a nuevos miembros de tu organización
-            </CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualizar
-          </Button>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Invitaciones
+          </CardTitle>
+          <CardDescription>Invitaciones enviadas a nuevos miembros</CardDescription>
         </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="h-4 w-4 mr-1" />
+          Actualizar
+        </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : invitations.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Mail className="h-10 w-10 mx-auto mb-3 opacity-40" />
-            <p>No hay invitaciones enviadas</p>
-          </div>
+        {invitations.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No hay invitaciones enviadas aún.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -116,7 +118,7 @@ export function PendingInvitationsList() {
                 <TableHead>Email</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Enviada</TableHead>
+                <TableHead>Fecha</TableHead>
                 <TableHead>Expira</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -125,48 +127,35 @@ export function PendingInvitationsList() {
               {invitations.map((inv) => {
                 const status = getStatus(inv);
                 const config = statusConfig[status] || statusConfig.pending;
-                const canRevoke = status === 'pending';
-
                 return (
                   <TableRow key={inv.id}>
                     <TableCell className="font-medium">{inv.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{roleLabels[inv.role] || inv.role}</Badge>
-                    </TableCell>
+                    <TableCell>{roleLabels[inv.role] || inv.role}</TableCell>
                     <TableCell>
                       <Badge variant={config.variant}>{config.label}</Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {format(new Date(inv.created_at), 'PP', { locale: es })}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(inv.created_at), 'dd MMM yyyy', { locale: es })}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="text-sm text-muted-foreground">
                       {inv.expires_at
-                        ? format(new Date(inv.expires_at), 'PP', { locale: es })
+                        ? format(new Date(inv.expires_at), 'dd MMM yyyy', { locale: es })
                         : '—'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {canRevoke && (
+                      {status === 'pending' && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRevoke(inv.id)}
                           disabled={revokingId === inv.id}
-                          className="text-destructive hover:text-destructive"
                         >
                           {revokingId === inv.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <>
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Revocar
-                            </>
+                            <XCircle className="h-4 w-4 text-destructive" />
                           )}
                         </Button>
-                      )}
-                      {status === 'accepted' && inv.accepted_at && (
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(inv.accepted_at), 'PP', { locale: es })}
-                        </span>
                       )}
                     </TableCell>
                   </TableRow>

@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -129,9 +130,8 @@ export default function Login() {
         inviteAcceptedRef.current = true;
         setAcceptingInvite(true);
         try {
-          const { data, error } = await supabase.rpc('accept_invitation', { p_token: inviteToken });
+          const { data: result, error } = await apiInvoke<{ success?: boolean; organization_name?: string; error?: string }>('accept-invitation', { body: { p_token: inviteToken } });
           if (error) { navigate('/dashboard'); return; }
-          const result = data as { success?: boolean; organization_name?: string; error?: string } | null;
           if (result?.success) {
             toast({ title: 'Invitación aceptada', description: `Te has unido a ${result.organization_name}` });
           } else if (result?.error === 'email_mismatch') {
