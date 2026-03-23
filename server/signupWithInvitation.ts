@@ -63,11 +63,17 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
     }
 
     // Try to create user with Supabase Auth Admin
+    // Pass organization_id and role in user_metadata so the handle_new_user trigger
+    // can create the profile with the correct organization from the start
     const { data: signUpData, error: signUpError } = await serviceClient.auth.admin.createUser({
       email: email.trim(),
       password,
       email_confirm: true,
-      user_metadata: { name },
+      user_metadata: {
+        name,
+        organization_id: invitation.organization_id,
+        role: invitation.role || "member",
+      },
     });
 
     if (signUpError) {
@@ -83,19 +89,34 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
       return res.json({ error: "signup_failed", message: "No user ID returned" });
     }
 
-    // Create profile
+    // Ensure profile has organization_id set (the handle_new_user trigger should
+    // have already created it with org_id from user_metadata, but we do an explicit
+    // UPDATE as a safety net in case of race conditions)
     const { error: profileError } = await serviceClient
       .from("profiles")
-      .upsert({
-        id: userId,
+      .update({
         email: email.trim(),
         name,
         organization_id: invitation.organization_id,
         role: invitation.role || "member",
-      });
+      })
+      .eq("id", userId);
 
     if (profileError) {
-      console.error("[signup-with-invitation] Profile creation error:", profileError);
+      console.error("[signup-with-invitation] Profile update error:", profileError);
+      // If UPDATE failed (profile not yet created by trigger), try INSERT
+      const { error: insertError } = await serviceClient
+        .from("profiles")
+        .insert({
+          id: userId,
+          email: email.trim(),
+          name,
+          organization_id: invitation.organization_id,
+          role: invitation.role || "member",
+        });
+      if (insertError) {
+        console.error("[signup-with-invitation] Profile insert fallback error:", insertError);
+      }
     }
 
     // Add to organization_members

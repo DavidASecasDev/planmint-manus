@@ -138,3 +138,6 @@
 - [x] Notificaciones de invitación: notificar admins cuando se envía una invitación (trigger DB notify_on_invitation_sent)
 - [x] Notificaciones de invitación: integrar con sistema de notificaciones existente (tipos, routing, iconos, colores en bell/toast/SW/Notifications page)
 - [x] Notificaciones de invitación: tests unitarios (13 tests - tipos, routing, UI metadata)
+- [x] Bug: Miembros invitados ven pantalla "Crear organización" - RESUELTO: handle_new_user trigger actualizado para incluir org_id desde metadata, signupWithInvitation hace UPDATE explícito del perfil
+- [x] Restringir creación de organizaciones solo a superadmin - CreateOrganization.tsx reescrito con 3 estados: invitaciones pendientes, crear org (solo superadmin), y página de espera
+- [x] Revisar flujo completo post-invitación: registro → login → routing a la organización correcta (trigger + endpoint + RPC accept_my_pending_invitation verificados)
