@@ -142,3 +142,4 @@
 - [x] Restringir creación de organizaciones solo a superadmin - CreateOrganization.tsx reescrito con 3 estados: invitaciones pendientes, crear org (solo superadmin), y página de espera
 - [x] Revisar flujo completo post-invitación: registro → login → routing a la organización correcta (trigger + endpoint + RPC accept_my_pending_invitation verificados)
 - [x] Bug: Error al crear invitación - RESUELTO: RPC create_invitation_secure referenciaba tabla public.roles inexistente. Reemplazado por endpoint Express /api/create-invitation que inserta directamente en organization_invitations
+- [x] Bug PERSISTENTE: RESUELTO - Triggers rotos (on_invitation_sent_notify, on_invitation_accepted_notify) referenciaban tablas inexistentes (public.notifications, public.roles, public.members). Eliminados de Supabase. INSERT verificado exitosamente.
