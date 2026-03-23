@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, UserPlus, Copy, Check, Mail } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 
 type InviteRole = 'admin' | 'manager' | 'member' | 'read_only';
@@ -15,6 +15,16 @@ interface InviteMemberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+/** Error messages for known error codes from the backend */
+const ERROR_MESSAGES: Record<string, string> = {
+  missing_email: 'El email es obligatorio.',
+  invalid_role: 'El rol seleccionado no es válido.',
+  insufficient_permissions: 'No tienes permisos para invitar miembros. Solo los propietarios y administradores pueden hacerlo.',
+  already_member: 'Este usuario ya es miembro de tu organización.',
+  invitation_already_exists: 'Ya existe una invitación pendiente para este email.',
+  insert_failed: 'Error al guardar la invitación. Inténtalo de nuevo.',
+};
 
 export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogProps) {
   const [email, setEmail] = useState('');
@@ -29,21 +39,28 @@ export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogPro
 
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('create_invitation_secure', {
-        p_email: email.trim(),
-        p_role: role,
-        p_expires_in_days: 7,
+      const { data, error } = await apiInvoke<{
+        success: boolean;
+        error?: string;
+        token?: string;
+        expires_at?: string;
+      }>('create-invitation', {
+        body: {
+          p_email: email.trim(),
+          p_role: role,
+          p_expires_in_days: 7,
+        },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      const result = data as { success: boolean; error?: string; token?: string; expires_at?: string };
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Error al crear invitación');
+      if (!data?.success) {
+        const errCode = data?.error || 'unknown';
+        const message = ERROR_MESSAGES[errCode] || `Error al crear invitación: ${errCode}`;
+        throw new Error(message);
       }
 
-      const link = `${window.location.origin}/auth/invitation/${result.token}`;
+      const link = `${window.location.origin}/auth/invitation/${data.token}`;
       setInviteLink(link);
       toast.success('Invitación creada', { description: `Se ha generado el enlace de invitación para ${email}` });
     } catch (error: any) {

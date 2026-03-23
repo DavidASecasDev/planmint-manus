@@ -1,0 +1,8 @@
+{
+  "query": "SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'create_invitation_secure';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'create_invitation_secure';",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'ixfk4yejeeakh8kczkpztm.pg_proc' doesn't exist"
+  ]
+}

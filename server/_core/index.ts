@@ -15,6 +15,7 @@ import { handleParseTransferDocument } from "../parseTransferDocument";
 import { handleSignupWithInvitation } from "../signupWithInvitation";
 import { handleGetVapidKey } from "../vapidKey";
 import { handleApplyTemplate } from "../applyTemplate";
+import { handleCreateInvitation } from "../createInvitation";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -53,6 +54,7 @@ async function startServer() {
   app.post("/api/signup-with-invitation", handleSignupWithInvitation);
   app.post("/api/get-vapid-key", handleGetVapidKey);
   app.post("/api/apply-template", handleApplyTemplate);
+  app.post("/api/create-invitation", handleCreateInvitation);
 
   // tRPC API
   app.use(
