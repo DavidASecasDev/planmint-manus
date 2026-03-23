@@ -11,6 +11,7 @@ import { useMovements, MovementType, ocrPlate, uploadMovementPhoto } from '@/hoo
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { lookupVehicleByPlate } from '@/lib/fleetLookup';
 import { cn } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
 import {
@@ -165,40 +166,14 @@ export default function StartMovement() {
     setStep('saving');
     log.debug('Saving movement for plate:', plate);
     try {
-      // Validate plate exists in the organization's fleet (fleet_vehicles table)
-      const cleanPlate = plate.replace(/\s+/g, '');
-      const { data: fleetVehicles, error: fleetError } = await supabase
-        .from('fleet_vehicles')
-        .select('id')
-        .eq('organization_id', orgId)
-        .ilike('matricula', cleanPlate)
-        .limit(1);
+      // Validate plate exists in the organization's fleet (fleet_vehicles = source of truth)
+      const lookup = await lookupVehicleByPlate(plate, orgId);
 
-      if (fleetError) {
-        log.error('Fleet vehicle lookup error:', fleetError);
-        throw new Error('Error al verificar la matrícula. Inténtalo de nuevo.');
-      }
-
-      // Also check the vehicles table (operational vehicles)
-      let vehicleId: string | undefined;
-      const { data: opVehicles } = await supabase
-        .from('vehicles')
-        .select('id')
-        .eq('organization_id', orgId)
-        .ilike('matricula', cleanPlate)
-        .is('archived_at', null)
-        .limit(1);
-
-      if (opVehicles && opVehicles.length > 0) {
-        vehicleId = opVehicles[0].id;
-      }
-
-      // If not found in either table, show error
-      if ((!fleetVehicles || fleetVehicles.length === 0) && !vehicleId) {
+      if (!lookup.found) {
         log.warn('Plate not found in fleet:', plate);
         toast({
           title: 'Matrícula no encontrada',
-          description: `La matrícula "${plate}" no está registrada en la flota. Verifica que sea correcta o regístrala primero en Estado Coches.`,
+          description: `La matrícula "${plate}" no está registrada en la flota. Verifica que sea correcta o regístrala primero en Flota.`,
           variant: 'destructive',
         });
         setStep('confirm');
@@ -206,7 +181,8 @@ export default function StartMovement() {
         return;
       }
 
-      log.debug('Vehicle found in fleet:', fleetVehicles?.[0]?.id, 'operational:', vehicleId);
+      const vehicleId = lookup.operationalVehicleId || undefined;
+      log.debug('Vehicle found - fleet:', lookup.fleetVehicleId, 'operational:', vehicleId);
 
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const byteArray = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));

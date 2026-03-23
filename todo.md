@@ -123,3 +123,10 @@
 - [ ] Eliminar Edge Functions de Supabase reemplazadas por endpoints Express propios
 - [x] Fix: Error al verificar la matrícula al crear movimientos (error en paso Confirmar) - RESUELTO: consulta usaba columna 'plate' inexistente, cambiado a 'matricula'
 - [x] Fix: Matrícula 3906MWM no se encuentra al crear movimiento aunque existe en la flota - RESUELTO: consulta buscaba en tabla 'vehicles' pero la flota está en 'fleet_vehicles', ahora busca en ambas tablas
+- [x] Unificar tablas vehicles y fleet_vehicles a nivel de código: fleet_vehicles es fuente de verdad para verificación, vehicles se mantiene para operaciones
+- [x] Unificación: StartMovement - fleet_vehicles como fuente primaria para verificar matrícula (usa fleetLookup helper)
+- [x] Unificación: useMovements - búsqueda de movimientos usa vehicle_movements.matricula (correcto, no necesita cambio)
+- [x] Unificación: aiAssistant - actualizado a fleet_vehicles con columnas correctas (matricula, marca, modelo, etc.)
+- [x] Unificación: FleetAudits - ya usa patrón híbrido correcto (vehicles operativo + enrichment de fleet_vehicles)
+- [x] Unificación: useVehicleImport - mantiene import a vehicles (operativo). Import a fleet va por useFleetVehicles.importVehicles
+- [x] Unificación: Creado fleetLookup.ts helper reutilizable (lookupVehicleByPlate)

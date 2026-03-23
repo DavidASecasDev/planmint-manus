@@ -24,12 +24,11 @@ async function fetchOrganizationData(organizationId: string) {
     .order("desde", { ascending: false })
     .limit(200);
 
-  // Fetch vehicles
+  // Fetch vehicles from fleet_vehicles (source of truth)
   const { data: vehicles } = await serviceClient
-    .from("vehicles")
-    .select("id, plate, brand, model, status, category")
+    .from("fleet_vehicles")
+    .select("id, matricula, marca, modelo, status, categoria")
     .eq("organization_id", organizationId)
-    .is("archived_at", null)
     .limit(100);
 
   // Fetch movements (last 7 days)
