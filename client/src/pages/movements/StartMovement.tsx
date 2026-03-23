@@ -170,7 +170,7 @@ export default function StartMovement() {
         .from('vehicles')
         .select('id')
         .eq('organization_id', orgId)
-        .ilike('plate', plate.replace(/\s+/g, ''))
+        .ilike('matricula', plate.replace(/\s+/g, ''))
         .is('archived_at', null)
         .limit(1);
 

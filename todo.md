@@ -120,3 +120,5 @@
 - [x] Migrar apply-template a endpoint Express
 - [ ] NO migrar funciones de Stripe/billing (create-checkout, customer-portal, etc.) - app interna sin pagos
 - [x] Bug CRÍTICO: Todos los endpoints Express migrados devuelven 401 - RESUELTO: authenticateSupabaseRequest usaba anon key client (incompatible), cambiado a service role client para validar tokens
+- [ ] Eliminar Edge Functions de Supabase reemplazadas por endpoints Express propios
+- [x] Fix: Error al verificar la matrícula al crear movimientos (error en paso Confirmar) - RESUELTO: consulta usaba columna 'plate' inexistente, cambiado a 'matricula'
