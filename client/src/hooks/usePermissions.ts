@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { apiInvoke } from '@/lib/apiClient';
@@ -210,7 +209,7 @@ export function usePermissions() {
   };
 }
 
-// Hook for managing organization members
+// Hook for managing organization members — uses backend endpoints to bypass RLS
 export function useOrganizationMembers() {
   const { profile, organization } = useAuth();
   const queryClient = useQueryClient();
@@ -221,40 +220,26 @@ export function useOrganizationMembers() {
     queryFn: async (): Promise<OrganizationMember[]> => {
       if (!organizationId) return [];
 
-      const { data, error } = await supabase
-        .from('organization_members')
-        .select(`
-          *,
-          profile:profiles!organization_members_user_id_fkey(id, name)
-        `)
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: true });
+      const result = await apiInvoke<{ data: OrganizationMember[]; error: string | null }>('get-org-members', {
+        body: { p_organization_id: organizationId },
+      });
 
-      if (error) {
-        console.error('Error fetching members:', error);
+      if (result.error || !result.data) {
+        console.error('Error fetching members:', result.error?.message);
         return [];
       }
 
-      return (data || []).map(m => {
-        const profile = Array.isArray(m.profile) ? m.profile[0] : m.profile;
-        return {
-          ...m,
-          name: profile?.name || null,
-          profile,
-        };
-      }) as OrganizationMember[];
+      return result.data.data as OrganizationMember[];
     },
     enabled: !!organizationId,
   });
 
   const updateMemberRole = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: OrgRole }) => {
-      const { error } = await supabase
-        .from('organization_members')
-        .update({ role })
-        .eq('id', memberId);
-
-      if (error) throw error;
+      const result = await apiInvoke('update-member-role', {
+        body: { p_member_id: memberId, p_role: role },
+      });
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-members'] });
@@ -267,12 +252,10 @@ export function useOrganizationMembers() {
 
   const updateMemberStatus = useMutation({
     mutationFn: async ({ memberId, status }: { memberId: string; status: 'active' | 'suspended' }) => {
-      const { error } = await supabase
-        .from('organization_members')
-        .update({ status })
-        .eq('id', memberId);
-
-      if (error) throw error;
+      const result = await apiInvoke('update-member-status', {
+        body: { p_member_id: memberId, p_status: status },
+      });
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-members'] });
@@ -285,12 +268,10 @@ export function useOrganizationMembers() {
 
   const removeMember = useMutation({
     mutationFn: async (memberId: string) => {
-      const { error } = await supabase
-        .from('organization_members')
-        .delete()
-        .eq('id', memberId);
-
-      if (error) throw error;
+      const result = await apiInvoke('remove-member', {
+        body: { p_member_id: memberId },
+      });
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-members'] });
@@ -312,7 +293,7 @@ export function useOrganizationMembers() {
   };
 }
 
-// Hook for managing user permission overrides
+// Hook for managing user permission overrides — uses backend endpoints to bypass RLS
 export function useUserPermissionOverrides(userId?: string) {
   const { profile, organization } = useAuth();
   const queryClient = useQueryClient();
@@ -323,18 +304,16 @@ export function useUserPermissionOverrides(userId?: string) {
     queryFn: async (): Promise<UserPermissionOverride[]> => {
       if (!organizationId || !userId) return [];
 
-      const { data, error } = await supabase
-        .from('user_permissions')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .eq('user_id', userId);
+      const result = await apiInvoke<{ data: UserPermissionOverride[]; error: string | null }>('get-user-permission-overrides', {
+        body: { p_organization_id: organizationId, p_user_id: userId },
+      });
 
-      if (error) {
-        console.error('Error fetching user permissions:', error);
+      if (result.error || !result.data) {
+        console.error('Error fetching user permissions:', result.error?.message);
         return [];
       }
 
-      return data as UserPermissionOverride[];
+      return result.data.data as UserPermissionOverride[];
     },
     enabled: !!organizationId && !!userId,
   });
@@ -343,20 +322,16 @@ export function useUserPermissionOverrides(userId?: string) {
     mutationFn: async ({ permissionKey, enabled }: { permissionKey: string; enabled: boolean }) => {
       if (!organizationId || !userId) throw new Error('Missing organizationId or userId');
 
-      // Upsert the permission override
-      const { error } = await supabase
-        .from('user_permissions')
-        .upsert({
-          organization_id: organizationId,
-          user_id: userId,
-          permission_key: permissionKey,
-          enabled,
-          created_by: profile?.id,
-        }, {
-          onConflict: 'organization_id,user_id,permission_key',
-        });
+      const result = await apiInvoke('set-user-permission-override', {
+        body: {
+          p_organization_id: organizationId,
+          p_user_id: userId,
+          p_permission_key: permissionKey,
+          p_enabled: enabled,
+        },
+      });
 
-      if (error) throw error;
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-permissions', organizationId, userId] });
@@ -372,14 +347,15 @@ export function useUserPermissionOverrides(userId?: string) {
     mutationFn: async (permissionKey: string) => {
       if (!organizationId || !userId) throw new Error('Missing organizationId or userId');
 
-      const { error } = await supabase
-        .from('user_permissions')
-        .delete()
-        .eq('organization_id', organizationId)
-        .eq('user_id', userId)
-        .eq('permission_key', permissionKey);
+      const result = await apiInvoke('remove-user-permission-override', {
+        body: {
+          p_organization_id: organizationId,
+          p_user_id: userId,
+          p_permission_key: permissionKey,
+        },
+      });
 
-      if (error) throw error;
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-permissions', organizationId, userId] });
@@ -395,13 +371,14 @@ export function useUserPermissionOverrides(userId?: string) {
     mutationFn: async () => {
       if (!organizationId || !userId) throw new Error('Missing organizationId or userId');
 
-      const { error } = await supabase
-        .from('user_permissions')
-        .delete()
-        .eq('organization_id', organizationId)
-        .eq('user_id', userId);
+      const result = await apiInvoke('reset-user-permission-overrides', {
+        body: {
+          p_organization_id: organizationId,
+          p_user_id: userId,
+        },
+      });
 
-      if (error) throw error;
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-permissions', organizationId, userId] });
@@ -424,37 +401,33 @@ export function useUserPermissionOverrides(userId?: string) {
   };
 }
 
-// Hook to get role default permissions
+// Hook to get role default permissions — uses backend endpoint to bypass RLS
 export function useRolePermissions() {
   const queryClient = useQueryClient();
 
   const { data: rolePermissions = [], isLoading } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('*')
-        .order('role', { ascending: true });
+      const result = await apiInvoke<{ data: Array<{ id?: string; role: string; permission_key: string; enabled: boolean }>; error: string | null }>('get-role-permissions', {
+        body: {},
+      });
 
-      if (error) {
-        console.error('Error fetching role permissions:', error);
+      if (result.error || !result.data) {
+        console.error('Error fetching role permissions:', result.error?.message);
         return [];
       }
 
-      return data;
+      return result.data.data || [];
     },
     staleTime: 30 * 60 * 1000, // 30 minutes - these rarely change
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ role, permissionKey, enabled }: { role: string; permissionKey: string; enabled: boolean }) => {
-      const { error } = await supabase
-        .from('role_permissions')
-        .update({ enabled })
-        .eq('role', role)
-        .eq('permission_key', permissionKey);
-
-      if (error) throw error;
+      const result = await apiInvoke('toggle-role-permission', {
+        body: { p_role: role, p_permission_key: permissionKey, p_enabled: enabled },
+      });
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] });

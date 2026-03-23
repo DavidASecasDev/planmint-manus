@@ -93,11 +93,12 @@ describe('Non-core RPC Fail-Graceful Migration', () => {
     expect(code).toContain('DEFAULT_ENTITLEMENTS');
   });
 
-  it('useOrganizationModules should query organization_modules table directly', async () => {
+  it('useOrganizationModules should use backend endpoint instead of Supabase RPC', async () => {
     const source = await import('../hooks/useOrganizationModules?raw');
     const code = (source as any).default || '';
     expect(code).not.toContain("supabase.rpc('get_my_enabled_modules'");
-    expect(code).toContain('organization_modules');
+    // Now uses apiInvoke('get-org-modules') backend endpoint
+    expect(code).toContain('get-org-modules');
     expect(code).toContain('DEFAULT_MODULES');
   });
 

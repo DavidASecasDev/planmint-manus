@@ -22,7 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Search, Eye, ShieldCheck, ShieldX, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 
@@ -187,20 +187,19 @@ export function EffectivePermissionsView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  // Fetch all user_permissions for the org in one query
+  // Fetch all user_permissions for the org via backend (bypasses RLS)
   const { data: allOverrides = [], isLoading: overridesLoading } = useQuery({
     queryKey: ['all-user-permissions', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('user_permissions')
-        .select('*')
-        .eq('organization_id', organizationId);
-      if (error) {
-        console.error('Error fetching all user permissions:', error);
+      const result = await apiInvoke<{ data: any[]; error: string | null }>('get-user-permission-overrides', {
+        body: { p_organization_id: organizationId },
+      });
+      if (result.error || !result.data) {
+        console.error('Error fetching all user permissions:', result.error?.message);
         return [];
       }
-      return data || [];
+      return result.data.data || [];
     },
     enabled: !!organizationId,
     staleTime: 60 * 1000,

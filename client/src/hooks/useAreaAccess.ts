@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { AreaAccessRule } from '@/types/areas';
@@ -60,20 +61,23 @@ export function useAreaAccess(areaId?: string) {
       );
     }
 
-    // Fetch custom roles
-    const { data: roles } = await supabase
-      .from('custom_roles')
-      .select('id, name')
-      .eq('organization_id', profile.organization_id);
+    // Fetch custom roles via backend (bypasses RLS)
+    try {
+      const rolesResult = await apiInvoke<{ data: any[]; error: string | null }>('get-org-custom-roles', {
+        body: { p_organization_id: profile.organization_id },
+      });
 
-    if (roles) {
-      setAvailableRoles(
-        roles.map((r) => ({
-          id: r.id,
-          type: 'role' as const,
-          name: r.name,
-        }))
-      );
+      if (!rolesResult.error && rolesResult.data?.data) {
+        setAvailableRoles(
+          rolesResult.data.data.map((r: any) => ({
+            id: r.id,
+            type: 'role' as const,
+            name: r.name,
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('[useAreaAccess] Error fetching custom roles:', err);
     }
   }, [profile?.organization_id]);
 

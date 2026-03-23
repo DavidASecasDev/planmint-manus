@@ -124,9 +124,10 @@ describe('EffectivePermissionsView component', () => {
     expect(viewCode).toContain('export function EffectivePermissionsView');
   });
 
-  it('fetches all user_permissions for the organization', () => {
-    expect(viewCode).toContain("from('user_permissions')");
-    expect(viewCode).toContain("eq('organization_id', organizationId)");
+  it('fetches all user_permissions for the organization via backend', () => {
+    // Now uses apiInvoke('get-user-permission-overrides') backend endpoint
+    expect(viewCode).toContain('get-user-permission-overrides');
+    expect(viewCode).toContain('p_organization_id');
   });
 
   it('uses useOrganizationMembers to get member list', () => {

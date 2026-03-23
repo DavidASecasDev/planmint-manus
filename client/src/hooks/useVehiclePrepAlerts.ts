@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 
@@ -114,18 +115,23 @@ export function useVehiclePrepAlerts() {
    * Targets: owner, admin, manager roles (operations team).
    */
   const getOperationsTeamMembers = useCallback(async (orgId: string): Promise<string[]> => {
-    const { data, error } = await supabase
-      .from('organization_members')
-      .select('user_id, role')
-      .eq('organization_id', orgId)
-      .in('role', ['owner', 'admin', 'manager']);
+    try {
+      const result = await apiInvoke<{ data: any[]; error: string | null }>('get-org-members', {
+        body: { p_organization_id: orgId },
+      });
 
-    if (error || !data) {
-      log.error('Error fetching operations team:', error);
+      if (result.error || !result.data?.data) {
+        log.error('Error fetching operations team:', result.error?.message);
+        return [];
+      }
+
+      return result.data.data
+        .filter((m: any) => ['owner', 'admin', 'manager'].includes(m.role))
+        .map((m: any) => m.user_id);
+    } catch (err) {
+      log.error('Error fetching operations team:', err);
       return [];
     }
-
-    return data.map(m => m.user_id);
   }, []);
 
   /**

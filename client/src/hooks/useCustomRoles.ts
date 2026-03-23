@@ -1,9 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { CustomRole, RolePermissions, DEFAULT_ROLE_PERMISSIONS } from '@/types/enterprise';
 import { toast } from 'sonner';
-import { Json } from '@/integrations/supabase/types';
+import { apiInvoke } from '@/lib/apiClient';
 
 export function useCustomRoles() {
   const { profile } = useAuth();
@@ -14,15 +13,16 @@ export function useCustomRoles() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
-        .from('custom_roles')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .order('is_system', { ascending: false })
-        .order('name');
+      const result = await apiInvoke<{ data: any[]; error: string | null }>('get-org-custom-roles', {
+        body: { p_organization_id: profile.organization_id },
+      });
 
-      if (error) throw error;
-      return data.map(role => ({
+      if (result.error || !result.data) {
+        console.error('Error fetching custom roles:', result.error?.message);
+        return [];
+      }
+
+      return (result.data.data || []).map(role => ({
         ...role,
         permissions_json: role.permissions_json as unknown as RolePermissions
       })) as CustomRole[];
@@ -42,15 +42,22 @@ export function useCustomRoles() {
     }) => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      const { error } = await supabase.from('custom_roles').insert({
-        organization_id: profile.organization_id,
-        name,
-        description,
-        permissions_json: (permissions || DEFAULT_ROLE_PERMISSIONS) as unknown as Json,
-        is_system: false,
+      const result = await apiInvoke<{ success?: boolean; error?: string; code?: string }>('manage-custom-role', {
+        body: {
+          action: 'create',
+          p_organization_id: profile.organization_id,
+          p_name: name,
+          p_description: description,
+          p_permissions_json: permissions || DEFAULT_ROLE_PERMISSIONS,
+        },
       });
 
-      if (error) throw error;
+      if (result.error) {
+        const err: any = new Error(result.error.message);
+        // Check if the backend returned a code for duplicate name
+        err.code = (result.data as any)?.code;
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-roles'] });
@@ -77,17 +84,17 @@ export function useCustomRoles() {
       description?: string;
       permissions?: RolePermissions;
     }) => {
-      const updates: any = {};
-      if (name !== undefined) updates.name = name;
-      if (description !== undefined) updates.description = description;
-      if (permissions !== undefined) updates.permissions_json = permissions as unknown as Json;
+      const result = await apiInvoke('manage-custom-role', {
+        body: {
+          action: 'update',
+          p_role_id: id,
+          p_name: name,
+          p_description: description,
+          p_permissions_json: permissions,
+        },
+      });
 
-      const { error } = await supabase
-        .from('custom_roles')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) throw error;
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-roles'] });
@@ -100,12 +107,14 @@ export function useCustomRoles() {
 
   const deleteRole = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('custom_roles')
-        .delete()
-        .eq('id', id);
+      const result = await apiInvoke('manage-custom-role', {
+        body: {
+          action: 'delete',
+          p_role_id: id,
+        },
+      });
 
-      if (error) throw error;
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-roles'] });

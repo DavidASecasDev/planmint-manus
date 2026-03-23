@@ -37,6 +37,25 @@ import {
   handleUpdateVehicleLocation,
   handleGetReservationsOperational,
 } from "../coreEndpoints2";
+import {
+  handleGetMyProfile,
+  handleGetMyOrganization,
+} from "../authEndpoints";
+import {
+  handleGetOrgModules,
+  handleGetOrgCustomRoles,
+  handleGetRolePermissions,
+  handleGetUserPermissionOverrides,
+  handleSetUserPermissionOverride,
+  handleRemoveUserPermissionOverride,
+  handleResetUserPermissionOverrides,
+  handleGetOrgMembers,
+  handleUpdateMemberRole,
+  handleUpdateMemberStatus,
+  handleRemoveMember,
+  handleManageCustomRole,
+  handleToggleRolePermission,
+} from "../orgDataEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -97,6 +116,25 @@ async function startServer() {
   app.post("/api/get-next-transfer-document-number", handleGetNextTransferDocumentNumber);
   app.post("/api/update-vehicle-location", handleUpdateVehicleLocation);
   app.post("/api/get-reservations-operational", handleGetReservationsOperational);
+
+  // ─── Auth data endpoints (bypass RLS for profile/org loading) ─────────────
+  app.post("/api/get-my-profile", handleGetMyProfile);
+  app.post("/api/get-my-organization", handleGetMyOrganization);
+
+  // ─── Org data endpoints (bypass RLS for non-owner users) ──────────────────
+  app.post("/api/get-org-modules", handleGetOrgModules);
+  app.post("/api/get-org-custom-roles", handleGetOrgCustomRoles);
+  app.post("/api/get-role-permissions", handleGetRolePermissions);
+  app.post("/api/get-user-permission-overrides", handleGetUserPermissionOverrides);
+  app.post("/api/set-user-permission-override", handleSetUserPermissionOverride);
+  app.post("/api/remove-user-permission-override", handleRemoveUserPermissionOverride);
+  app.post("/api/reset-user-permission-overrides", handleResetUserPermissionOverrides);
+  app.post("/api/get-org-members", handleGetOrgMembers);
+  app.post("/api/update-member-role", handleUpdateMemberRole);
+  app.post("/api/update-member-status", handleUpdateMemberStatus);
+  app.post("/api/remove-member", handleRemoveMember);
+  app.post("/api/manage-custom-role", handleManageCustomRole);
+  app.post("/api/toggle-role-permission", handleToggleRolePermission);
 
   // tRPC API
   app.use(

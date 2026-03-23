@@ -88,14 +88,14 @@ export default function PermissionsDiagnostics() {
         details: 'ID de organización en contexto',
       });
 
-      // 4. Query organization_members directly
+      // 4. Query organization_members via backend (bypasses RLS)
       if (profile?.organization_id && authUser?.id) {
-        const { data: memberData, error: memberError } = await supabase
-          .from('organization_members')
-          .select('*')
-          .eq('organization_id', profile.organization_id)
-          .eq('user_id', authUser.id)
-          .maybeSingle();
+        const membersResult = await apiInvoke<{ data: any[]; error: string | null }>('get-org-members', {
+          body: { p_organization_id: profile.organization_id },
+        });
+        const allMembers = membersResult.data?.data || [];
+        const memberData = allMembers.find((m: any) => m.user_id === authUser.id) || null;
+        const memberError = membersResult.error ? { message: membersResult.error.message } : null;
 
         memberDataLocal = memberData;
         setOrgMemberData(memberData);

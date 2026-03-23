@@ -192,3 +192,11 @@
 - [x] Fix: handleCreateAreaSecure refactorizado para usar checkUserPermission
 - [x] Creado permissionHelper.ts como helper reutilizable para todos los endpoints
 - [x] Tests para la vista de permisos efectivos y endpoints corregidos (400 tests pasando)
+- [x] Bug CRÍTICO: Mikaela (manager) no ve reservas - investigar permisos
+- [x] Bug CRÍTICO: Jordan sigue sin poder ver Transfers pese a overrides
+- [x] Investigación profunda del sistema de permisos granulares completo
+- [x] Corregir causa raíz del problema de permisos (no parches superficiales)
+- [x] Causa raíz: AuthContext usaba queries directas a Supabase con anon key que no funcionaba para non-owner users ("Invalid API key"). Profile=null cascadeaba a useOrganizationModules y usePermissions deshabilitados
+- [x] Fix: Creados endpoints backend /api/get-my-profile y /api/get-my-organization que usan service role client (bypasses RLS)
+- [x] Fix: AuthContext migrado para usar backend endpoints primero, con fallback a Supabase directo
+- [x] Tests: 11 tests nuevos de migración auth, 411 total pasando

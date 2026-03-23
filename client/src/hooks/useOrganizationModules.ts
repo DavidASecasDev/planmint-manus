@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiInvoke } from '@/lib/apiClient';
 
 export type ModuleKey = 'reservations' | 'automations' | 'reports' | 'teams' | 'templates' | 'reminders' | 'calendar' | 'time_tracking' | 'forms' | 'vehicle_status' | 'daily_tasks' | 'garatech' | 'transfers' | 'movements' | 'fleet' | 'fleet';
 
@@ -45,25 +45,25 @@ export function useOrganizationModules() {
     queryFn: async (): Promise<OrganizationModules> => {
       if (!profile?.organization_id) return DEFAULT_MODULES;
 
-      // Query organization_modules table directly instead of broken RPC
+      // Use backend endpoint with service role key to bypass RLS
       try {
-        const { data, error } = await supabase
-          .from('organization_modules')
-          .select('module_key, enabled')
-          .eq('organization_id', profile.organization_id);
+        const result = await apiInvoke<{ data: Array<{ module_key: string; enabled: boolean }>; error: string | null }>('get-org-modules', {
+          body: { p_organization_id: profile.organization_id },
+        });
 
-        if (error) {
-          console.warn('[OrganizationModules] Error fetching:', error.message);
+        if (result.error || !result.data) {
+          console.warn('[OrganizationModules] Error fetching:', result.error?.message);
           return DEFAULT_MODULES;
         }
 
-        if (!data || data.length === 0) {
+        const rows = result.data.data;
+        if (!rows || rows.length === 0) {
           return DEFAULT_MODULES;
         }
 
         // Convert array of { module_key, enabled } to record
         const modulesMap: OrganizationModules = { ...DEFAULT_MODULES };
-        for (const row of data) {
+        for (const row of rows) {
           modulesMap[row.module_key] = row.enabled;
         }
 

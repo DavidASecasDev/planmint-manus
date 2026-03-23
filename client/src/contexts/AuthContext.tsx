@@ -41,6 +41,72 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Fetch profile via our Express backend (bypasses RLS).
+ * Falls back to direct Supabase query if the backend call fails.
+ */
+async function fetchProfileViaBackend(accessToken: string): Promise<Profile | null> {
+  try {
+    const response = await fetch('/api/get-my-profile', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      log.warn('Backend profile fetch failed with status:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+    if (result.error) {
+      log.warn('Backend profile fetch error:', result.error);
+      return null;
+    }
+
+    return result.data as Profile | null;
+  } catch (err) {
+    log.error('Backend profile fetch exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch organization via our Express backend (bypasses RLS).
+ * Falls back to direct Supabase query if the backend call fails.
+ */
+async function fetchOrganizationViaBackend(accessToken: string, orgId: string): Promise<Organization | null> {
+  try {
+    const response = await fetch('/api/get-my-organization', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ organization_id: orgId }),
+    });
+
+    if (!response.ok) {
+      log.warn('Backend organization fetch failed with status:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+    if (result.error) {
+      log.warn('Backend organization fetch error:', result.error);
+      return null;
+    }
+
+    return result.data as Organization | null;
+  } catch (err) {
+    log.error('Backend organization fetch exception:', err);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -50,7 +116,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const isInitialLoad = useRef(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, accessToken?: string): Promise<Profile | null> => {
+    // Try backend first (bypasses RLS)
+    if (accessToken) {
+      const backendProfile = await fetchProfileViaBackend(accessToken);
+      if (backendProfile) return backendProfile;
+    }
+
+    // Fallback to direct Supabase query (may be blocked by RLS for non-owner users)
+    log.warn('Falling back to direct Supabase profile query for user:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -65,7 +139,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data as Profile | null;
   };
 
-  const fetchOrganization = async (orgId: string) => {
+  const fetchOrganization = async (orgId: string, accessToken?: string): Promise<Organization | null> => {
+    // Try backend first (bypasses RLS)
+    if (accessToken) {
+      const backendOrg = await fetchOrganizationViaBackend(accessToken, orgId);
+      if (backendOrg) return backendOrg;
+    }
+
+    // Fallback to direct Supabase query (may be blocked by RLS for non-owner users)
+    log.warn('Falling back to direct Supabase organization query for org:', orgId);
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
@@ -84,11 +166,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     
     setProfileLoading(true);
-    const profileData = await fetchProfile(user.id);
+    // Get fresh access token for backend calls
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    
+    const profileData = await fetchProfile(user.id, accessToken);
     setProfile(profileData);
 
     if (profileData?.organization_id) {
-      const orgData = await fetchOrganization(profileData.organization_id);
+      const orgData = await fetchOrganization(profileData.organization_id, accessToken);
       setOrganization(orgData);
     } else {
       setOrganization(null);
@@ -107,9 +193,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Indicate profile is loading when auth changes
           setProfileLoading(true);
           
+          const accessToken = session.access_token;
+          
           // Defer profile fetch with setTimeout to prevent deadlock
           setTimeout(() => {
-            fetchProfile(session.user.id).then((profileData) => {
+            fetchProfile(session.user.id, accessToken).then((profileData) => {
               setProfile(profileData);
 
               // If user exists in auth but has no profile, allow navigation
@@ -121,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
 
               if (profileData?.organization_id) {
-                fetchOrganization(profileData.organization_id).then((org) => {
+                fetchOrganization(profileData.organization_id, accessToken).then((org) => {
                   setOrganization(org);
                   setProfileLoading(false);
                 });
@@ -172,10 +260,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchProfile(session.user.id).then((profileData) => {
+        const accessToken = session.access_token;
+        
+        fetchProfile(session.user.id, accessToken).then((profileData) => {
           setProfile(profileData);
           if (profileData?.organization_id) {
-            fetchOrganization(profileData.organization_id).then((org) => {
+            fetchOrganization(profileData.organization_id, accessToken).then((org) => {
               setOrganization(org);
               setLoading(false);
               setProfileLoading(false);

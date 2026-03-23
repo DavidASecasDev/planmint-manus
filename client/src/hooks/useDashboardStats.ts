@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardStats {
@@ -28,12 +29,13 @@ export function useDashboardStats() {
     try {
       // Fetch all stats in parallel
       const [teamResult, areasResult, completedResult, pendingResult] = await Promise.all([
-        // Use organization_members as source of truth for team count
-        supabase
-          .from('organization_members')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', profile.organization_id)
-          .eq('status', 'active'),
+        // Use backend endpoint to bypass RLS for team count
+        apiInvoke<{ data: any[]; error: string | null }>('get-org-members', {
+          body: { p_organization_id: profile.organization_id },
+        }).then(r => ({
+          count: (r.data?.data || []).filter((m: any) => m.status === 'active').length,
+          error: r.error ? { message: r.error.message } : null,
+        })),
         supabase
           .from('areas')
           .select('id', { count: 'exact', head: true })
