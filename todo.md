@@ -130,3 +130,6 @@
 - [x] Unificación: FleetAudits - ya usa patrón híbrido correcto (vehicles operativo + enrichment de fleet_vehicles)
 - [x] Unificación: useVehicleImport - mantiene import a vehicles (operativo). Import a fleet va por useFleetVehicles.importVehicles
 - [x] Unificación: Creado fleetLookup.ts helper reutilizable (lookupVehicleByPlate)
+- [x] Trigger: Sincronizar automáticamente vehículos nuevos de fleet_vehicles a vehicles
+- [x] Trigger: Sincronizar actualizaciones de matrícula/modelo/categoría de fleet_vehicles a vehicles
+- [x] Trigger: Marcar como archivado en vehicles cuando se elimina de fleet_vehicles
