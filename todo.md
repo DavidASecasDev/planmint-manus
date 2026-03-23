@@ -200,3 +200,5 @@
 - [x] Fix: Creados endpoints backend /api/get-my-profile y /api/get-my-organization que usan service role client (bypasses RLS)
 - [x] Fix: AuthContext migrado para usar backend endpoints primero, con fallback a Supabase directo
 - [x] Tests: 11 tests nuevos de migración auth, 411 total pasando
+- [x] Bug: Botón "Nueva Solicitud" en Transfers no funciona al hacer clic
+- [x] Causa: La ruta /transfers/new renderizaba <Transfers/> (lista) en vez de <TransferDetail/> (formulario). Eliminada ruta estática duplicada; ahora /transfers/:id captura id='new' correctamente

@@ -901,6 +901,16 @@ function MainAppRoutes() {
               } 
             />
             <Route 
+              path="/transfers/brokers" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
+                    <BrokerManagement />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/transfers/requests/:id" 
               element={
                 <ProtectedRoute>
@@ -914,32 +924,12 @@ function MainAppRoutes() {
               path="/transfers/:id" 
               element={
                 <ProtectedRoute>
-                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
-                    <TransferDetail />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/transfers/brokers" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
-                    <BrokerManagement />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/transfers/new" 
-              element={
-                <ProtectedRoute>
                   <ModuleRoute 
                     moduleKey="transfers" 
                     moduleName="Transfers"
                     moduleDescription="El módulo de Transfers no está habilitado para tu organización."
                   >
-                    <Transfers />
+                    <TransferDetail />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 
