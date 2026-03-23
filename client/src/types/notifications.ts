@@ -1,5 +1,5 @@
-export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert';
-export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep';
+export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert' | 'invitation_sent' | 'invitation_accepted';
+export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep' | 'invitation';
 
 export interface Notification {
   id: string;

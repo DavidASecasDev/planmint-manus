@@ -4,7 +4,7 @@
  * Bell icon: muted-foreground | Badge: gold accent
  * Popover: popover bg | foreground text
  */
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,6 +29,8 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   accident_report: AlertTriangle,
   damage_report_update: FileWarning,
   vehicle_prep_alert: Car,
+  invitation_sent: Mail,
+  invitation_accepted: UserPlus,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -40,6 +42,8 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   accident_report: '#EF4444',
   damage_report_update: '#F43F5E',
   vehicle_prep_alert: '#EF4444',
+  invitation_sent: '#A855F7',
+  invitation_accepted: '#10B981',
 };
 
 export function NotificationBell() {
@@ -63,6 +67,7 @@ export function NotificationBell() {
       repair: `/garatech/repairs/${entity_id}`,
       accident: `/garatech/accidents/${entity_id}`,
       damage_report: `/garatech/reports/${entity_id}`,
+      invitation: `/admin/members`,
     };
     const route = routes[entity_type];
     if (route) {

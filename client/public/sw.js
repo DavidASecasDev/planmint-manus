@@ -148,6 +148,8 @@ self.addEventListener('notificationclick', (event) => {
     targetUrl = `/garatech/reports/${data.entity_id}`;
   } else if (data.entity_type === 'reminder' && data.entity_id) {
     targetUrl = `/tasks`;
+  } else if (data.entity_type === 'invitation') {
+    targetUrl = `/admin/members`;
   } else if (data.url) {
     targetUrl = data.url;
   }
