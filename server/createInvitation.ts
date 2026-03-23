@@ -56,15 +56,24 @@ export async function handleCreateInvitation(req: Request, res: Response) {
     }
 
     // 4. Check if user is already a member of this organization
-    const { data: existingMember } = await serviceClient
-      .from("profiles")
-      .select("id")
-      .eq("email", email)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    // profiles table does NOT have an email column, so we use auth.admin.listUsers
+    // to find the user by email, then check organization_members
+    const { data: authUsers } = await serviceClient.auth.admin.listUsers();
+    const matchedUser = authUsers?.users?.find(
+      (u: any) => u.email?.toLowerCase() === email
+    );
 
-    if (existingMember) {
-      return res.json({ success: false, error: "already_member" });
+    if (matchedUser) {
+      const { data: existingMember } = await serviceClient
+        .from("organization_members")
+        .select("id")
+        .eq("user_id", matchedUser.id)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
+
+      if (existingMember) {
+        return res.json({ success: false, error: "already_member" });
+      }
     }
 
     // 5. Check if there's already a pending invitation for this email

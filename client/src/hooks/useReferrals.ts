@@ -29,15 +29,14 @@ export const useReferrals = () => {
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      // Generate code using database function
-      const { data: codeData, error: codeError } = await supabase.rpc('generate_referral_code');
-      if (codeError) throw codeError;
+      // Generate code client-side instead of broken RPC
+      const code = `REF-${user.id.substring(0, 4).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
       const { data, error } = await supabase
         .from('referrals')
         .insert({
           referrer_user_id: user.id,
-          code: codeData,
+          code,
         })
         .select()
         .single();
@@ -57,7 +56,19 @@ export const useReferrals = () => {
 
   const trackClick = async (code: string) => {
     try {
-      await supabase.rpc('track_referral_click', { ref_code: code });
+      // Increment click count directly instead of broken RPC
+      // The referrals table has a clicks column we can increment
+      const { data: ref } = await supabase
+        .from('referrals')
+        .select('clicks')
+        .eq('code', code)
+        .maybeSingle();
+      if (ref) {
+        await supabase
+          .from('referrals')
+          .update({ clicks: (ref.clicks || 0) + 1 })
+          .eq('code', code);
+      }
     } catch (error) {
       console.error('Error tracking click:', error);
     }

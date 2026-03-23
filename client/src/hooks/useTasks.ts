@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { ERROR_MESSAGES, createErrorHandler } from '@/lib/errorHandler';
+import { apiInvoke } from '@/lib/apiClient';
 import {
   Task,
   TaskWithRelations,
@@ -451,34 +452,35 @@ export function useTasks() {
         insertData.assigned_to = data.primary_assignee_id || null;
       }
 
-      // Use RPC to bypass potential RLS timing issues with auth.uid()
-      // The RPC returns full task data as JSON, avoiding a separate SELECT
-      const { data: taskJson, error: rpcError } = await supabase.rpc('create_task_secure', {
-        p_title: insertData.title,
-        p_description: insertData.description,
-        p_type: insertData.type,
-        p_status: insertData.status,
-        p_priority: insertData.priority,
-        p_assigned_to: insertData.assigned_to,
-        p_due_date: insertData.due_date,
-        p_goal_target_value: insertData.goal_target_value || null,
-        p_goal_unit: insertData.goal_unit || null,
-        p_operation_type: insertData.operation_type || null,
-        p_scheduled_at: insertData.scheduled_at || null,
-        p_location_type: insertData.location_type || null,
-        p_location_text: insertData.location_text || null,
-        p_location_notes: insertData.location_notes || null,
-        p_reservation_ref: insertData.reservation_ref || null,
-        p_customer_name: insertData.customer_name || null,
-        p_customer_phone: insertData.customer_phone || null,
-        p_vehicle_out_id: insertData.vehicle_out_id || null,
-        p_vehicle_in_id: insertData.vehicle_in_id || null,
+      // Use Express endpoint to bypass potential RLS timing issues with auth.uid()
+      const { data: taskJson, error: rpcError } = await apiInvoke<Task>('create-task-secure', {
+        body: {
+          p_title: insertData.title,
+          p_description: insertData.description,
+          p_type: insertData.type,
+          p_status: insertData.status,
+          p_priority: insertData.priority,
+          p_assigned_to: insertData.assigned_to,
+          p_due_date: insertData.due_date,
+          p_goal_target_value: insertData.goal_target_value || null,
+          p_goal_unit: insertData.goal_unit || null,
+          p_operation_type: insertData.operation_type || null,
+          p_scheduled_at: insertData.scheduled_at || null,
+          p_location_type: insertData.location_type || null,
+          p_location_text: insertData.location_text || null,
+          p_location_notes: insertData.location_notes || null,
+          p_reservation_ref: insertData.reservation_ref || null,
+          p_customer_name: insertData.customer_name || null,
+          p_customer_phone: insertData.customer_phone || null,
+          p_vehicle_out_id: insertData.vehicle_out_id || null,
+          p_vehicle_in_id: insertData.vehicle_in_id || null,
+        },
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) throw new Error(rpcError.message);
 
-      // The RPC returns full task data as JSON
-      const newTask = taskJson as unknown as Task;
+      // The endpoint returns full task data as JSON
+      const newTask = taskJson as Task;
 
       // Create operation legs for operation type
       if (taskType === 'operation') {

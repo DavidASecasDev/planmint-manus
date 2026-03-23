@@ -37,20 +37,22 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
 
   const fetchBrokerProfile = useCallback(async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .rpc('get_broker_profile', { p_user_id: userId });
+      // Query broker_profiles table directly instead of broken RPC
+      const { data, error } = await (supabase as any)
+        .from('broker_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
       
       if (error) {
         log.error('Error fetching broker profile:', error);
         return null;
       }
       
-      // The RPC returns jsonb, handle null case
       if (!data) {
         return null;
       }
       
-      // Parse the jsonb response
       const profile = data as unknown as BrokerProfile;
       if (profile && typeof profile === 'object' && 'id' in profile) {
         return profile;
@@ -139,11 +141,22 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
       
       if (!profile) {
         // Check if user has a pending/rejected registration request
-        const { data: statusData } = await supabase.rpc('get_broker_registration_status', {
-          p_user_id: data.user.id
-        });
-        
-        const status = statusData as { has_request: boolean; status?: string; rejection_reason?: string } | null;
+        // Query broker_registrations table directly instead of broken RPC
+        let status: { has_request: boolean; status?: string; rejection_reason?: string } | null = null;
+        try {
+          const { data: regData } = await (supabase as any)
+            .from('broker_registrations')
+            .select('status, rejection_reason')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+          if (regData) {
+            status = { has_request: true, status: regData.status, rejection_reason: regData.rejection_reason };
+          } else {
+            status = { has_request: false };
+          }
+        } catch {
+          status = { has_request: false };
+        }
         
         await supabase.auth.signOut();
         setLoading(false);

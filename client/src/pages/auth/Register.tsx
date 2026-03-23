@@ -160,7 +160,18 @@ export default function Register() {
     }
     if (refCode) {
       try {
-        await supabase.rpc('track_referral_signup', { ref_code: refCode, user_email: email });
+        // Track referral signup directly instead of broken RPC
+        const { data: refData } = await supabase
+          .from('referrals')
+          .select('id, signups')
+          .eq('code', refCode)
+          .maybeSingle();
+        if (refData) {
+          await supabase
+            .from('referrals')
+            .update({ signups: (refData.signups || 0) + 1 })
+            .eq('id', refData.id);
+        }
         localStorage.removeItem('ref_code');
         localStorage.removeItem('ref_code_expires');
       } catch (err) {

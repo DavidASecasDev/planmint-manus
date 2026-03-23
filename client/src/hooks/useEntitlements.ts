@@ -35,43 +35,50 @@ export const useEntitlements = () => {
     queryFn: async (): Promise<Entitlements> => {
       if (!profile?.organization_id) return DEFAULT_ENTITLEMENTS;
 
-      // Call secure RPC function instead of querying billing_products directly
-      const { data, error } = await supabase.rpc('get_organization_entitlements');
+      // Query subscriptions table directly instead of broken RPC
+      try {
+        const { data: subData, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('organization_id', profile.organization_id)
+          .maybeSingle();
 
-      if (error) {
-        console.error('[Entitlements] Error fetching:', error);
+        if (subError || !subData) {
+          console.warn('[Entitlements] No subscription found, using defaults');
+          return DEFAULT_ENTITLEMENTS;
+        }
+
+        // Build entitlements from subscription data
+        const plan = (subData.plan || 'free') as 'free' | 'pro' | 'team';
+        const isPro = plan === 'pro' || plan === 'team';
+
+        return {
+          plan,
+          billing_interval: (subData.billing_interval || null) as 'monthly' | 'annual' | null,
+          features: {
+            ai: isPro,
+            workflows_pro: isPro,
+            integrations_api: plan === 'team',
+            saml_scim: plan === 'team',
+            pdf_exports: isPro,
+          },
+          limits: {
+            seats_included: plan === 'team' ? 10 : plan === 'pro' ? 5 : 1,
+            seats_total: plan === 'team' ? 50 : plan === 'pro' ? 10 : 1,
+            tasks_limit: isPro ? 999999 : 20,
+            areas_limit: isPro ? 999999 : 2,
+            tags_limit: isPro ? 999999 : 5,
+            automations_limit: plan === 'team' ? 999999 : plan === 'pro' ? 10 : 0,
+          },
+          addons: [],
+          status: (subData.status || 'active') as Entitlements['status'],
+          trial_ends_at: subData.trial_ends_at || null,
+          current_period_end: subData.current_period_end || null,
+        };
+      } catch (err) {
+        console.error('[Entitlements] Error:', err);
         return DEFAULT_ENTITLEMENTS;
       }
-
-      if (!data) {
-        console.log('[Entitlements] No data returned, using defaults');
-        return DEFAULT_ENTITLEMENTS;
-      }
-
-      console.log('[Entitlements] RPC result:', data);
-
-      // Parse the response from the RPC
-      const result = data as {
-        plan: string;
-        billing_interval: string | null;
-        features: Entitlements['features'];
-        limits: Entitlements['limits'];
-        addons: string[];
-        status: string;
-        trial_ends_at: string | null;
-        current_period_end: string | null;
-      };
-
-      return {
-        plan: result.plan as 'free' | 'pro' | 'team',
-        billing_interval: result.billing_interval as 'monthly' | 'annual' | null,
-        features: result.features || DEFAULT_ENTITLEMENTS.features,
-        limits: result.limits || DEFAULT_ENTITLEMENTS.limits,
-        addons: Array.isArray(result.addons) ? result.addons : [],
-        status: result.status as Entitlements['status'],
-        trial_ends_at: result.trial_ends_at,
-        current_period_end: result.current_period_end,
-      };
     },
     enabled: !!profile?.organization_id,
     staleTime: 5000, // Cache for 5 seconds - faster refresh

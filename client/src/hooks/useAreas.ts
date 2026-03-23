@@ -5,6 +5,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { Area, CreateAreaData, UpdateAreaData, AreaFilter, AreaVisibility } from '@/types/areas';
 import { toast } from '@/hooks/use-toast';
 import { ERROR_MESSAGES, createErrorHandler } from '@/lib/errorHandler';
+import { apiInvoke } from '@/lib/apiClient';
 
 const errorHandler = createErrorHandler('useAreas');
 
@@ -85,24 +86,26 @@ export function useAreas() {
   ): Promise<boolean> => {
     if (!profile?.organization_id) return false;
 
-    const { data: newArea, error } = await supabase
-      .rpc('create_area_secure', {
+    const { data: newArea, error } = await apiInvoke<Area>('create-area-secure', {
+      body: {
         p_name: data.name,
         p_description: data.description ?? undefined,
         p_color: data.color,
         p_icon: data.icon,
         p_visibility: data.visibility || 'org',
-      });
+      },
+    });
 
     if (error) {
       errorHandler.log('Error creating area', error);
-      if (error.code === '23505') {
+      const errMsg = error.message || '';
+      if (errMsg.includes('23505') || errMsg.includes('Duplicate')) {
         toast({
           title: ERROR_MESSAGES.areas.duplicateName.title,
           description: ERROR_MESSAGES.areas.duplicateName.description,
           variant: 'destructive',
         });
-      } else if (error.code === '42501') {
+      } else if (errMsg.includes('42501') || errMsg.includes('permission')) {
         toast({
           title: ERROR_MESSAGES.areas.noPermission.title,
           description: ERROR_MESSAGES.areas.noPermission.description,

@@ -157,3 +157,18 @@
 - [x] Step 1: Actualizar CreateOrganization.tsx para usar apiInvoke en vez de supabase.rpc
 - [x] Step 1: Registrar 6 endpoints en server/_core/index.ts
 - [x] Step 1: Escribir tests para invitationEndpoints (23 tests, 305 total pasando)
+- [x] Step 2: Migrar create_organization_with_owner a endpoint Express
+- [x] Step 2: Migrar create_task_secure a endpoint Express
+- [x] Step 2: Migrar get_my_permissions a endpoint Express
+- [x] Step 2: Migrar get_inactive_vehicles a endpoint Express
+- [x] Step 2: Migrar get_org_integration_flags a endpoint Express
+- [x] Step 2: Migrar get_next_transfer_document_number a endpoint Express
+- [x] Step 2: Migrar update_vehicle_location a endpoint Express
+- [x] Step 2: Migrar create_area_secure a endpoint Express
+- [x] Step 2: Migrar get_reservations_operational a endpoint Express
+- [x] Step 2: Migrar sync_vehicles_from_reservations a endpoint Express (SyncRentlyDialog, RentlySyncContext)
+- [x] Step 2: Hacer módulos no-core (Broker, Referrals, Coupons, Leads) fail-graceful
+- [x] Step 2: Actualizar frontend para usar nuevos endpoints Express (0 supabase.rpc calls remaining)
+- [x] Step 2: Escribir tests de migración RPC (28 tests nuevos, 333 total pasando)
+- [x] Step 3: Corregir profiles.email en createInvitation.ts (usa auth.admin.listUsers + organization_members)
+- [x] Step 3: Corregir profiles.email en signupWithInvitation.ts (eliminada referencia a email en profiles)

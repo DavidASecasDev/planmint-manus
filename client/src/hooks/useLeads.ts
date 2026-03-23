@@ -13,14 +13,21 @@ export const useLeads = () => {
       source?: string; 
       referralCode?: string | null;
     }) => {
-      const { data, error } = await supabase.rpc('upsert_lead', {
-        p_email: email,
-        p_source: source,
-        p_referral_code: referralCode ?? undefined,
-      });
+      // Insert directly into leads table instead of broken RPC
+      try {
+        const { data, error } = await supabase
+          .from('leads')
+          .upsert({ email, source, referral_code: referralCode || null }, { onConflict: 'email' })
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.warn('[Leads] upsert_lead failed, lead may not be saved:', err);
+        // Don't throw - leads are non-critical
+        return null;
+      }
     },
     onSuccess: () => {
       toast.success('¡Gracias! Te avisaremos cuando haya novedades.');

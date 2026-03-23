@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import type { VehicleLocation } from '@/types/vehicles';
@@ -98,12 +99,14 @@ export function useVehicleLocations() {
   // Update vehicle location
   const updateVehicleLocationMutation = useMutation({
     mutationFn: async ({ vehicleId, locationId }: { vehicleId: string; locationId: string | null }) => {
-      const { error } = await supabase.rpc('update_vehicle_location', {
-        p_vehicle_id: vehicleId,
-        p_location_id: locationId ?? undefined,
+      const { error } = await apiInvoke('update-vehicle-location', {
+        body: {
+          p_vehicle_id: vehicleId,
+          p_location_id: locationId ?? undefined,
+        },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles', orgId] });

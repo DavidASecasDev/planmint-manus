@@ -5,6 +5,7 @@ import { Reservation, UpdateReservationData, CreateReservationData } from '@/typ
 import { toast } from 'sonner';
 import { ERROR_MESSAGES, createErrorHandler } from '@/lib/errorHandler';
 import { usePermissions } from '@/hooks/usePermissions';
+import { apiInvoke } from '@/lib/apiClient';
 
 const errorHandler = createErrorHandler('useReservations');
 
@@ -35,13 +36,13 @@ export function useReservations() {
         if (error) throw error;
         return data as Reservation[];
       } else {
-        // Operational users: Use RPC function that returns view without PII
-        // The RPC already filters out archived reservations
-        const { data, error } = await supabase
-          .rpc('get_reservations_operational', { p_organization_id: organizationId });
+        // Operational users: Use Express endpoint that returns view without PII
+        const { data, error } = await apiInvoke<Reservation[]>('get-reservations-operational', {
+          body: { p_organization_id: organizationId },
+        });
         
-        if (error) throw error;
-        return (data || []) as unknown as Reservation[];
+        if (error) throw new Error(error.message);
+        return (data || []) as Reservation[];
       }
     },
     enabled: !!organizationId,

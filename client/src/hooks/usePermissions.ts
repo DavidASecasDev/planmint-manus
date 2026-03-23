@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { apiInvoke } from '@/lib/apiClient';
 
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'member' | 'read_only';
 
@@ -162,8 +163,8 @@ export function usePermissions() {
         return { success: false, role: null, permissions: {} };
       }
 
-      const { data, error } = await supabase.rpc('get_my_permissions', {
-        p_organization_id: organizationId,
+      const { data, error } = await apiInvoke<PermissionsData>('get-my-permissions', {
+        body: { p_organization_id: organizationId },
       });
 
       if (error) {
@@ -171,7 +172,7 @@ export function usePermissions() {
         return { success: false, role: null, permissions: {} };
       }
 
-      return data as unknown as PermissionsData;
+      return data as PermissionsData;
     },
     enabled: !!organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes

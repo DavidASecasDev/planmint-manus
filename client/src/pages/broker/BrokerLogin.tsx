@@ -43,10 +43,13 @@ export default function BrokerLogin() {
           data: { session },
         } = await supabase.auth.getSession();
         if (session?.user) {
-          const { data: brokerData } = await supabase.rpc('get_broker_profile', {
-            p_user_id: session.user.id,
-          });
-          if (!brokerData || typeof brokerData !== 'object' || !('id' in (brokerData as any))) {
+          // Query broker_profiles table directly instead of broken RPC
+          const { data: brokerData } = await (supabase as any)
+            .from('broker_profiles')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+          if (!brokerData) {
             await supabase.auth.signOut();
           }
         }

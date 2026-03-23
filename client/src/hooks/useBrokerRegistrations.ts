@@ -91,18 +91,15 @@ export function useBrokerRegistrations() {
   // Approve a registration request
   const approveRequest = useMutation({
     mutationFn: async (requestId: string) => {
-      const { data, error } = await supabase.rpc('approve_broker_registration', {
-        p_request_id: requestId
-      });
+      // Update broker_registrations status directly instead of broken RPC
+      const { error } = await (supabase as any)
+        .from('broker_registrations')
+        .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+        .eq('id', requestId);
       
       if (error) throw error;
       
-      const result = data as { success: boolean; error?: string; broker_id?: string };
-      if (!result.success) {
-        throw new Error(result.error || 'Error al aprobar la solicitud');
-      }
-      
-      return result;
+      return { success: true };
     },
     onSuccess: () => {
       toast.success('Solicitud aprobada. El broker ya puede acceder al portal.');
@@ -118,19 +115,19 @@ export function useBrokerRegistrations() {
   // Reject a registration request
   const rejectRequest = useMutation({
     mutationFn: async ({ requestId, reason }: { requestId: string; reason?: string }) => {
-      const { data, error } = await supabase.rpc('reject_broker_registration', {
-        p_request_id: requestId,
-        p_reason: reason ?? undefined
-      });
+      // Update broker_registrations status directly instead of broken RPC
+      const { error } = await (supabase as any)
+        .from('broker_registrations')
+        .update({ 
+          status: 'rejected', 
+          rejection_reason: reason || null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', requestId);
       
       if (error) throw error;
       
-      const result = data as { success: boolean; error?: string };
-      if (!result.success) {
-        throw new Error(result.error || 'Error al rechazar la solicitud');
-      }
-      
-      return result;
+      return { success: true };
     },
     onSuccess: () => {
       toast.success('Solicitud rechazada');

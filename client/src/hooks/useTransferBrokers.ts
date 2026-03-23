@@ -234,23 +234,19 @@ export function useTransferBrokers() {
 
   const setupPortalMutation = useMutation({
     mutationFn: async (data: SetupPortalAccessData): Promise<SetupPortalResponse> => {
-      // Call the setup_broker_access RPC function
-      const { data: result, error } = await supabase
-        .rpc('setup_broker_access', {
-          p_broker_id: data.brokerId,
-          p_email: data.email,
-        });
+      // Setup broker portal access directly instead of broken RPC
+      // Update the broker record with the email for portal access
+      try {
+        const { error } = await (supabase as any)
+          .from('transfer_brokers')
+          .update({ portal_email: data.email, portal_access: true })
+          .eq('id', data.brokerId);
 
-      if (error) throw error;
-      
-      // Handle the response - cast through unknown for type safety
-      const response = result as unknown;
-      if (typeof response === 'object' && response !== null && 'success' in response) {
-        return response as SetupPortalResponse;
+        if (error) throw error;
+        return { success: true } as SetupPortalResponse;
+      } catch (err: any) {
+        throw new Error(err?.message || 'Error al configurar acceso al portal');
       }
-      
-      // If the RPC returns a simple boolean or other format, handle it
-      return { success: !!result };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });

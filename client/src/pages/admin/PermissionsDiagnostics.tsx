@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -117,8 +118,8 @@ export default function PermissionsDiagnostics() {
 
       // 5. Call RPC get_my_permissions
       if (profile?.organization_id) {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_my_permissions', {
-          p_organization_id: profile.organization_id,
+        const { data: rpcData, error: rpcError } = await apiInvoke('get-my-permissions', {
+          body: { p_organization_id: profile.organization_id },
         });
 
         setRawRpcResult(rpcData);
@@ -209,8 +210,8 @@ export default function PermissionsDiagnostics() {
 
           // Extra server-side debug (SECURITY DEFINER RPC)
           try {
-            const { data: debugData } = await supabase.rpc('debug_areas_insert_permission', {
-              p_org_id: profile.organization_id,
+            const { data: debugData } = await apiInvoke('debug-areas-insert-permission', {
+              body: { p_org_id: profile.organization_id },
             });
             setDebugInsertResult(debugData);
             results.push({

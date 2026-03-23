@@ -9,12 +9,21 @@ export function useSuperAdmin() {
     queryKey: ['is-super-admin', user?.id],
     queryFn: async () => {
       if (!user?.id) return false;
-      const { data, error } = await supabase.rpc('is_super_admin', { check_user_id: user.id });
-      if (error) {
-        console.error('Error checking super admin:', error);
+      // RPC is_super_admin not available in Express backend - check via Supabase direct query
+      try {
+        const { data, error } = await supabase
+          .from('super_admins')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (error) {
+          console.warn('super_admins table may not exist:', error.message);
+          return false;
+        }
+        return !!data;
+      } catch {
         return false;
       }
-      return data ?? false;
     },
     enabled: !!user?.id,
   });

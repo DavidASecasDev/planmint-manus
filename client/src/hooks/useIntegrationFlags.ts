@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiInvoke } from '@/lib/apiClient';
 
 export interface IntegrationFlags {
   has_rently: boolean;
@@ -40,8 +40,8 @@ export function useIntegrationFlags() {
     }
 
     try {
-      const { data, error: rpcError } = await supabase.rpc('get_org_integration_flags', {
-        p_organization_id: profile.organization_id,
+      const { data, error: rpcError } = await apiInvoke<IntegrationFlags>('get-org-integration-flags', {
+        body: { p_organization_id: profile.organization_id },
       });
 
       if (rpcError) {
@@ -49,8 +49,7 @@ export function useIntegrationFlags() {
         setError(rpcError.message);
         setFlags(DEFAULT_FLAGS);
       } else if (data && typeof data === 'object') {
-        // Cast through unknown to avoid TS error with Json type
-        setFlags(data as unknown as IntegrationFlags);
+        setFlags(data as IntegrationFlags);
       } else {
         setFlags(DEFAULT_FLAGS);
       }

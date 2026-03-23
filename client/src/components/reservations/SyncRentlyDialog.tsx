@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { useRentlySync } from '@/hooks/useRentlySync';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -79,7 +80,9 @@ export function SyncRentlyDialog({ open, onOpenChange, onSyncComplete }: SyncRen
       // Step 2: auto-sync vehicle statuses
       setVehicleSyncStatus('syncing');
       try {
-        const { data: vehicleData, error: vehicleError } = await supabase.rpc('sync_vehicles_from_reservations');
+        const { data: vehicleData, error: vehicleError } = await apiInvoke<{ vehicles_created: number; vehicles_updated: number }>('sync-rently', {
+          body: { action: 'sync_vehicles' },
+        });
         if (!vehicleError) {
           const vResult = vehicleData as { vehicles_created: number; vehicles_updated: number } | null;
           setVehicleSyncResult(vResult || { vehicles_created: 0, vehicles_updated: 0 });

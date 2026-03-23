@@ -45,24 +45,33 @@ export function useOrganizationModules() {
     queryFn: async (): Promise<OrganizationModules> => {
       if (!profile?.organization_id) return DEFAULT_MODULES;
 
-      const { data, error } = await supabase.rpc('get_my_enabled_modules');
+      // Query organization_modules table directly instead of broken RPC
+      try {
+        const { data, error } = await supabase
+          .from('organization_modules')
+          .select('module_key, enabled')
+          .eq('organization_id', profile.organization_id);
 
-      if (error) {
-        console.error('[OrganizationModules] Error fetching:', error);
+        if (error) {
+          console.warn('[OrganizationModules] Error fetching:', error.message);
+          return DEFAULT_MODULES;
+        }
+
+        if (!data || data.length === 0) {
+          return DEFAULT_MODULES;
+        }
+
+        // Convert array of { module_key, enabled } to record
+        const modulesMap: OrganizationModules = { ...DEFAULT_MODULES };
+        for (const row of data) {
+          modulesMap[row.module_key] = row.enabled;
+        }
+
+        return modulesMap;
+      } catch (err) {
+        console.error('[OrganizationModules] Error:', err);
         return DEFAULT_MODULES;
       }
-
-      if (!data || data.length === 0) {
-        return DEFAULT_MODULES;
-      }
-
-      // Convert array of { module_key, enabled } to record
-      const modulesMap: OrganizationModules = { ...DEFAULT_MODULES };
-      for (const row of data) {
-        modulesMap[row.module_key] = row.enabled;
-      }
-
-      return modulesMap;
     },
     enabled: !!profile?.organization_id,
     staleTime: 30000, // Cache for 30 seconds

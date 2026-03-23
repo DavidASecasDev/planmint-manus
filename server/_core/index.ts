@@ -24,6 +24,19 @@ import {
   handleGetOrganizationInvitations,
   handleGetMyPendingInvitations,
 } from "../invitationEndpoints";
+import {
+  handleCreateOrganizationWithOwner,
+  handleCreateAreaSecure,
+  handleCreateTaskSecure,
+  handleGetMyPermissions,
+} from "../coreEndpoints";
+import {
+  handleGetInactiveVehicles,
+  handleGetOrgIntegrationFlags,
+  handleGetNextTransferDocumentNumber,
+  handleUpdateVehicleLocation,
+  handleGetReservationsOperational,
+} from "../coreEndpoints2";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -71,6 +84,19 @@ async function startServer() {
   app.post("/api/revoke-invitation", handleRevokeInvitation);
   app.post("/api/get-organization-invitations", handleGetOrganizationInvitations);
   app.post("/api/get-my-pending-invitations", handleGetMyPendingInvitations);
+
+  // ─── Core endpoints (replace broken Supabase RPCs - batch 1) ──────────────
+  app.post("/api/create-organization-with-owner", handleCreateOrganizationWithOwner);
+  app.post("/api/create-area-secure", handleCreateAreaSecure);
+  app.post("/api/create-task-secure", handleCreateTaskSecure);
+  app.post("/api/get-my-permissions", handleGetMyPermissions);
+
+  // ─── Core endpoints (replace broken Supabase RPCs - batch 2) ──────────────
+  app.post("/api/get-inactive-vehicles", handleGetInactiveVehicles);
+  app.post("/api/get-org-integration-flags", handleGetOrgIntegrationFlags);
+  app.post("/api/get-next-transfer-document-number", handleGetNextTransferDocumentNumber);
+  app.post("/api/update-vehicle-location", handleUpdateVehicleLocation);
+  app.post("/api/get-reservations-operational", handleGetReservationsOperational);
 
   // tRPC API
   app.use(

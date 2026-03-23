@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from '@/hooks/use-toast';
+import { apiInvoke } from '@/lib/apiClient';
 import type { Vehicle, VehicleWithTasks, VehicleCleaningTask, VehicleStatus, CleaningTaskKey, InactiveVehicle, ServiceType } from '@/types/vehicles';
 
 export function useVehicles() {
@@ -209,11 +210,11 @@ export function useVehicles() {
     queryFn: async (): Promise<InactiveVehicle[]> => {
       if (!orgId) return [];
 
-      const { data, error } = await supabase.rpc('get_inactive_vehicles', {
-        p_org_id: orgId,
+      const { data, error } = await apiInvoke<InactiveVehicle[]>('get-inactive-vehicles', {
+        body: { p_org_id: orgId },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return (data || []) as InactiveVehicle[];
     },
     enabled: !!orgId,
@@ -224,10 +225,12 @@ export function useVehicles() {
     mutationFn: async () => {
       if (!orgId) throw new Error('No organization');
       
-      const { data, error } = await supabase.rpc('sync_vehicles_from_reservations');
+      const { data, error } = await apiInvoke<{ vehicles_created: number; vehicles_updated: number; vehicles_released: number }>('sync-rently', {
+        body: { action: 'sync_vehicles' },
+      });
 
-      if (error) throw error;
-      const result = data as { vehicles_created: number; vehicles_updated: number; vehicles_released: number } | null;
+      if (error) throw new Error(error.message);
+      const result = data;
       const totals = result || { vehicles_created: 0, vehicles_updated: 0, vehicles_released: 0 };
       return totals.vehicles_created + totals.vehicles_updated + totals.vehicles_released;
     },

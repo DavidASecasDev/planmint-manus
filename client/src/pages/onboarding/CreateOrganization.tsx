@@ -142,9 +142,11 @@ export default function CreateOrganization() {
 
     setLoading(true);
 
-    const { data: newOrgId, error: rpcError } = await supabase.rpc('create_organization_with_owner', {
-      p_name: name,
-      p_vertical_preset: selectedPreset || undefined,
+    const { data: newOrgId, error: rpcError } = await apiInvoke<string>('create-organization-with-owner', {
+      body: {
+        p_name: name,
+        p_vertical_preset: selectedPreset || undefined,
+      },
     });
 
     if (rpcError) {

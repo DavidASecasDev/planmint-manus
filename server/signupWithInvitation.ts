@@ -92,10 +92,11 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
     // Ensure profile has organization_id set (the handle_new_user trigger should
     // have already created it with org_id from user_metadata, but we do an explicit
     // UPDATE as a safety net in case of race conditions)
+    // Update profile - NOTE: profiles table does NOT have an 'email' column
+    // Only update name, organization_id, and role
     const { error: profileError } = await serviceClient
       .from("profiles")
       .update({
-        email: email.trim(),
         name,
         organization_id: invitation.organization_id,
         role: invitation.role || "member",
@@ -109,7 +110,6 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
         .from("profiles")
         .insert({
           id: userId,
-          email: email.trim(),
           name,
           organization_id: invitation.organization_id,
           role: invitation.role || "member",

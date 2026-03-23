@@ -15,8 +15,20 @@ export const ReferralRedirect = () => {
       }
 
       try {
-        // Track click using the database function
-        await supabase.rpc('track_referral_click', { ref_code: code });
+        // Track click directly instead of broken RPC
+        try {
+          const { data: ref } = await supabase
+            .from('referrals')
+            .select('id, clicks')
+            .eq('code', code)
+            .maybeSingle();
+          if (ref) {
+            await supabase
+              .from('referrals')
+              .update({ clicks: (ref.clicks || 0) + 1 })
+              .eq('id', ref.id);
+          }
+        } catch { /* non-critical */ }
 
         // Store referral code in localStorage for 30 days
         localStorage.setItem('ref_code', code);

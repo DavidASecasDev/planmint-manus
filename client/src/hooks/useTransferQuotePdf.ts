@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { useTransferInvoiceSettings } from './useTransferInvoiceSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -125,12 +126,14 @@ export function useTransferQuotePdf() {
   const getNextDocumentNumber = async (docType: DocumentType): Promise<string> => {
     if (!profile?.organization_id) throw new Error('No organization');
 
-    const { data, error } = await supabase.rpc('get_next_transfer_document_number', {
-      p_organization_id: profile.organization_id,
-      p_document_type: docType,
+    const { data, error } = await apiInvoke<string>('get-next-transfer-document-number', {
+      body: {
+        p_organization_id: profile.organization_id,
+        p_document_type: docType,
+      },
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data as string;
   };
 

@@ -119,7 +119,9 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
 
   const syncVehiclesAfterReservations = useCallback(async () => {
     try {
-      const { error } = await supabase.rpc('sync_vehicles_from_reservations');
+      const { error } = await apiInvoke('sync-rently', {
+        body: { action: 'sync_vehicles' },
+      });
       if (error) {
         console.warn('[AutoSync] Vehicle sync failed:', error.message);
       } else {
