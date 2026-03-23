@@ -122,3 +122,4 @@
 - [x] Bug CRÍTICO: Todos los endpoints Express migrados devuelven 401 - RESUELTO: authenticateSupabaseRequest usaba anon key client (incompatible), cambiado a service role client para validar tokens
 - [ ] Eliminar Edge Functions de Supabase reemplazadas por endpoints Express propios
 - [x] Fix: Error al verificar la matrícula al crear movimientos (error en paso Confirmar) - RESUELTO: consulta usaba columna 'plate' inexistente, cambiado a 'matricula'
+- [x] Fix: Matrícula 3906MWM no se encuentra al crear movimiento aunque existe en la flota - RESUELTO: consulta buscaba en tabla 'vehicles' pero la flota está en 'fleet_vehicles', ahora busca en ambas tablas

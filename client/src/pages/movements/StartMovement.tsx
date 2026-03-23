@@ -165,21 +165,36 @@ export default function StartMovement() {
     setStep('saving');
     log.debug('Saving movement for plate:', plate);
     try {
-      // Validate plate exists in the organization's fleet
-      const { data: vehicles, error: vehicleError } = await supabase
-        .from('vehicles')
+      // Validate plate exists in the organization's fleet (fleet_vehicles table)
+      const cleanPlate = plate.replace(/\s+/g, '');
+      const { data: fleetVehicles, error: fleetError } = await supabase
+        .from('fleet_vehicles')
         .select('id')
         .eq('organization_id', orgId)
-        .ilike('matricula', plate.replace(/\s+/g, ''))
-        .is('archived_at', null)
+        .ilike('matricula', cleanPlate)
         .limit(1);
 
-      if (vehicleError) {
-        log.error('Vehicle lookup error:', vehicleError);
+      if (fleetError) {
+        log.error('Fleet vehicle lookup error:', fleetError);
         throw new Error('Error al verificar la matrícula. Inténtalo de nuevo.');
       }
 
-      if (!vehicles || vehicles.length === 0) {
+      // Also check the vehicles table (operational vehicles)
+      let vehicleId: string | undefined;
+      const { data: opVehicles } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('organization_id', orgId)
+        .ilike('matricula', cleanPlate)
+        .is('archived_at', null)
+        .limit(1);
+
+      if (opVehicles && opVehicles.length > 0) {
+        vehicleId = opVehicles[0].id;
+      }
+
+      // If not found in either table, show error
+      if ((!fleetVehicles || fleetVehicles.length === 0) && !vehicleId) {
         log.warn('Plate not found in fleet:', plate);
         toast({
           title: 'Matrícula no encontrada',
@@ -191,8 +206,7 @@ export default function StartMovement() {
         return;
       }
 
-      const vehicleId = vehicles[0].id;
-      log.debug('Vehicle found:', vehicleId);
+      log.debug('Vehicle found in fleet:', fleetVehicles?.[0]?.id, 'operational:', vehicleId);
 
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const byteArray = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
