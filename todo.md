@@ -172,3 +172,14 @@
 - [x] Step 2: Escribir tests de migración RPC (28 tests nuevos, 333 total pasando)
 - [x] Step 3: Corregir profiles.email en createInvitation.ts (usa auth.admin.listUsers + organization_members)
 - [x] Step 3: Corregir profiles.email en signupWithInvitation.ts (eliminada referencia a email en profiles)
+- [x] Bug: Permisos individuales (overrides) no sobrescriben permisos del rol base (caso Jordan - Transfers)
+- [x] Revisar lógica de merge entre custom_roles.permissions y user_permission_overrides
+- [x] Verificar que el endpoint get-my-permissions devuelve permisos efectivos correctos
+- [x] Verificar que el frontend lee y aplica correctamente los overrides
+- [x] Asegurar que transfers.create respeta overrides individuales
+- [x] Fix: Backend resuelve custom roles desde tabla custom_roles (flatten permissions_json)
+- [x] Fix: Transfers.tsx usa transfers.create (no solo transfers.manage) para botón crear
+- [x] Fix: Sidebar usa transfers.create y transfers.manage_brokers para items granulares
+- [x] Fix: BrokerSelect, ProviderSelect, TransferItemBlock, BrokerTable usan permisos granulares
+- [x] Fix: handleCreateAreaSecure respeta user_permissions overrides
+- [x] Tests: 20 tests nuevos de permisos, 353 total pasando

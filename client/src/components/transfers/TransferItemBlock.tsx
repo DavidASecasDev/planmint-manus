@@ -58,7 +58,7 @@ export function TransferItemBlock({ item, index, requestId }: TransferItemBlockP
   const { updateItem, updateItemStatus, deleteItem } = useTransferItems(requestId);
   const { vehicles, addVehicle, updateVehicle, deleteVehicle } = useTransferItemVehicles(item.id);
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
-  const canEditPrice = !permissionsLoading && hasPermission('transfers.manage');
+  const canEditPrice = !permissionsLoading && (hasPermission('transfers.manage_pricing') || hasPermission('transfers.manage'));
 
   // Local state for text fields - decoupled from server props
   const [localFields, setLocalFields] = useState<Record<LocalTextFieldKey, string>>(

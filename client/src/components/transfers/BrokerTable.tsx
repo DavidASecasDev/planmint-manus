@@ -46,7 +46,7 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
   const [selectedBroker, setSelectedBroker] = useState<TransferBroker | null>(null);
 
-  const canDelete = hasPermission('transfers.delete') || hasPermission('transfers.manage');
+  const canDelete = hasPermission('transfers.delete') || hasPermission('transfers.manage_brokers') || hasPermission('transfers.manage');
 
   const handleToggleActive = (broker: TransferBroker) => {
     toggleActive({ id: broker.id, is_active: !broker.is_active });

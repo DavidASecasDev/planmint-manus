@@ -78,8 +78,8 @@ const garatechSubItems = [
 // Transfers submenu items
 const transfersSubItems = [
   { title: 'Solicitudes', url: '/transfers', icon: Ship },
-  { title: 'Nueva Solicitud', url: '/transfers/new', icon: Plus },
-  { title: 'Gestión Brokers', url: '/transfers/brokers', icon: Users, permission: 'transfers.manage' as const },
+  { title: 'Nueva Solicitud', url: '/transfers/new', icon: Plus, permission: 'transfers.create' as const },
+  { title: 'Gestión Brokers', url: '/transfers/brokers', icon: Users, permission: 'transfers.manage_brokers' as const },
   { title: 'Formularios', url: '/transfers/forms', icon: FileText },
 ];
 

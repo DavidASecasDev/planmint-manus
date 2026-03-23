@@ -17,6 +17,7 @@ export default function Transfers() {
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
   
   const canView = !permissionsLoading && hasPermission('transfers.view');
+  const canCreate = !permissionsLoading && (hasPermission('transfers.create') || hasPermission('transfers.manage'));
   const canManage = !permissionsLoading && hasPermission('transfers.manage');
   const canDelete = !permissionsLoading && hasPermission('transfers.delete');
   
@@ -71,7 +72,7 @@ export default function Transfers() {
             </h1>
             <p className="text-muted-foreground">Gestión de traslados para brokers de yates</p>
           </div>
-          {canManage && (
+          {canCreate && (
             <Button onClick={() => navigate('/transfers/new')} className="gap-2">
               <Plus className="h-4 w-4" />
               Nueva Solicitud
@@ -99,7 +100,7 @@ export default function Transfers() {
               <p className="text-muted-foreground text-sm mb-4">
                 Crea tu primera solicitud de transfer para empezar
               </p>
-              {canManage && (
+              {canCreate && (
                 <Button onClick={() => navigate('/transfers/new')} className="gap-2">
                   <Plus className="h-4 w-4" />
                   Nueva Solicitud

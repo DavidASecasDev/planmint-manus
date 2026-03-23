@@ -42,7 +42,7 @@ export function BrokerSelect({ value, onChange, placeholder = 'Seleccionar broke
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
   
   // Wait for permissions to load to avoid race conditions
-  const canAdd = !permissionsLoading && hasPermission('transfers.manage');
+  const canAdd = !permissionsLoading && (hasPermission('transfers.manage_brokers') || hasPermission('transfers.manage'));
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
