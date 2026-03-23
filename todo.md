@@ -143,3 +143,10 @@
 - [x] Revisar flujo completo post-invitación: registro → login → routing a la organización correcta (trigger + endpoint + RPC accept_my_pending_invitation verificados)
 - [x] Bug: Error al crear invitación - RESUELTO: RPC create_invitation_secure referenciaba tabla public.roles inexistente. Reemplazado por endpoint Express /api/create-invitation que inserta directamente en organization_invitations
 - [x] Bug PERSISTENTE: RESUELTO - Triggers rotos (on_invitation_sent_notify, on_invitation_accepted_notify) referenciaban tablas inexistentes (public.notifications, public.roles, public.members). Eliminados de Supabase. INSERT verificado exitosamente.
+- [ ] AUDITORÍA COMPLETA: Fase 1 - Auditar base de datos (tablas, relaciones, triggers, funciones, RLS, constraints, datos inconsistentes)
+- [ ] AUDITORÍA COMPLETA: Fase 2 - Auditar código (frontend, backend, hooks, servicios, flujos, código muerto, lógica duplicada)
+- [ ] AUDITORÍA COMPLETA: Fase 3a - Análisis específico flujo de invitaciones end-to-end
+- [ ] AUDITORÍA COMPLETA: Fase 3b - Análisis específico flujo de estados de vehículos/reservas (caso 7767MWH)
+- [ ] AUDITORÍA COMPLETA: Fase 4 - Entregar informe detallado con hallazgos, causas raíz, y plan de corrección
+- [ ] AUDITORÍA COMPLETA: Fase 5 - Aplicar correcciones aprobadas
+- [ ] AUDITORÍA COMPLETA: Fase 6 - Verificar flujos corregidos y guardar checkpoint

@@ -1,0 +1,227 @@
+================================================================================
+AUDITORÍA COMPLETA DE BASE DE DATOS - PlanMint / Azul Cars
+Fecha: 2026-03-23T12:28:11.491Z
+================================================================================
+
+## 1. TABLAS Y CONTEO DE FILAS
+
+  accident_files: 2 filas
+  accidents: 1 filas
+  areas: 8 filas
+  custom_roles: 8 filas
+  damage_report_files: null filas
+  damage_reports: 1 filas
+  dropdown_options: 53 filas
+  fleet_vehicles: 78 filas
+  labels: null filas
+  movement_photos: null filas
+  organization_invitations: 20 filas
+  organization_members: 11 filas
+  organizations: 2 filas
+  profiles: 14 filas
+  push_subscriptions: 8 filas
+  reminders: 4 filas
+  repair_files: null filas
+  repair_notes: null filas
+  repairs: 5 filas
+  reservation_extras: null filas
+  reservations: 1827 filas
+  role_permissions: 455 filas
+  task_assignments: null filas
+  task_comments: null filas
+  task_files: null filas
+  tasks: 147 filas
+  transfer_documents: 0 filas
+  transfer_requests: 6 filas
+  user_notification_preferences: null filas
+  user_notifications: null filas
+  vehicle_audit_photos: 0 filas
+  vehicle_movements: 32 filas
+  vehicle_quality_audits: 2 filas
+  vehicles: 164 filas
+  workshops: 8 filas
+
+## 2. ORGANIZATION_INVITATIONS - Estructura y datos
+
+  Total invitaciones recientes: 20
+  Columnas: id, organization_id, email, role, created_at, accepted, token_hash, status, expires_at, accepted_at
+  - pedro.uceda.13@gmail.com | status: accepted | role: member | accepted: true | expires: 2026-03-23T11:20:14.352343+00:00 | created: 2026-03-16T11:20:14.352343+00:00
+  - jordan.caceres2004@gmail.com | status: accepted | role: member | accepted: true | expires: 2026-03-11T10:28:34.407471+00:00 | created: 2026-03-04T10:28:34.407471+00:00
+  - rentals@azulcars.com | status: accepted | role: member | accepted: true | expires: 2026-03-05T10:08:57.129115+00:00 | created: 2026-02-26T10:08:57.129115+00:00
+  - rentals@azulcars.com | status: accepted | role: member | accepted: true | expires: 2026-03-05T10:05:00.834482+00:00 | created: 2026-02-26T10:05:00.834482+00:00
+  - matias@azulcars.com | status: revoked | role: manager | accepted: false | expires: 2026-03-05T08:44:46.108459+00:00 | created: 2026-02-26T08:44:46.108459+00:00
+  - matias@azulcars.com | status: revoked | role: manager | accepted: false | expires: 2026-03-05T08:44:07.976003+00:00 | created: 2026-02-26T08:44:07.976003+00:00
+  - eduard@azulcars.com | status: accepted | role: admin | accepted: true | expires: 2026-03-03T10:23:41.723973+00:00 | created: 2026-02-24T10:23:41.723973+00:00
+  - nushy1986@gmail.com | status: accepted | role: admin | accepted: true | expires: 2026-02-05T19:59:54.685941+00:00 | created: 2026-01-29T19:59:54.685941+00:00
+  - nushy1986@gmail.com | status: pending | role: admin | accepted: false | expires: 2026-02-05T19:57:13.421433+00:00 | created: 2026-01-29T19:57:13.421433+00:00
+  - camila@azulcars.com | status: accepted | role: manager | accepted: true | expires: 2026-02-03T14:31:06.365167+00:00 | created: 2026-01-27T14:31:06.365167+00:00
+  - camila@azulcars.com | status: pending | role: manager | accepted: false | expires: 2026-02-03T14:30:41.528812+00:00 | created: 2026-01-27T14:30:41.528812+00:00
+  - Pererigollabres@gmail.com | status: accepted | role: member | accepted: true | expires: 2026-01-09T08:46:05.728363+00:00 | created: 2026-01-02T08:46:05.728363+00:00
+  - mikapiur@gmail.com | status: accepted | role: manager | accepted: true | expires: 2025-12-30T16:01:12.201982+00:00 | created: 2025-12-23T16:01:12.201982+00:00
+  - mikapiur@gmail.com | status: pending | role: manager | accepted: false | expires: 2025-12-30T16:00:50.238312+00:00 | created: 2025-12-23T16:00:50.238312+00:00
+  - david@azulcars.com | status: accepted | role: admin | accepted: true | expires: 2025-12-30T07:31:43.072546+00:00 | created: 2025-12-23T07:31:43.072546+00:00
+  - david@azulcars.com | status: pending | role: admin | accepted: false | expires: 2025-12-30T07:29:42.376092+00:00 | created: 2025-12-23T07:29:42.376092+00:00
+  - laura@azulcars.com | status: accepted | role: member | accepted: true | expires: 2025-12-26T15:11:37.001494+00:00 | created: 2025-12-19T15:11:37.001494+00:00
+  - laura@azulcars.com | status: revoked | role: member | accepted: false | expires: 2025-12-26T13:55:41.011646+00:00 | created: 2025-12-19T13:55:41.011646+00:00
+  - laura@azulcars.com | status: revoked | role: member | accepted: false | expires: 2025-12-25T15:27:48.730215+00:00 | created: 2025-12-18T15:27:48.730215+00:00
+  - david.m15@hotmail.es | status: revoked | role: manager | accepted: false | expires: 2025-12-18T10:00:43.621318+00:00 | created: 2025-12-11T10:00:43.621318+00:00
+
+## 3. PROFILES - Estructura y datos
+
+  ERROR: column profiles.email does not exist
+
+## 4. VEHÍCULOS - vehicles vs fleet_vehicles
+
+  Vehículo 7767MWH en fleet_vehicles:
+    {
+  "id": "06daae45-417f-4a88-b5b2-a74e4ca44e54",
+  "organization_id": "a23a0d42-5af7-4cda-9955-569c10cc6714",
+  "matricula": "7767MWH",
+  "modelo": "A 180 MHEV DCT 136 5P",
+  "categoria": null,
+  "proveedor": "Mercedes Autovidal",
+  "numero_contrato": null,
+  "fecha_inicio_contrato": "2026-03-05",
+  "fecha_fin_contrato": "2026-09-05",
+  "km_recogida": null,
+  "km_devolucion": null,
+  "status": "pendiente_recogida",
+  "notas": null,
+  "created_at": "2026-03-09T11:25:41.690282+00:00",
+  "updated_at": "2026-03-21T22:44:39.473691+00:00",
+  "photo_url": null,
+  "marca": null,
+  "color": null,
+  "combustible": null,
+  "hibrido": false,
+  "motor": null,
+  "cv": null,
+  "numero_bastidor": null
+}
+  Vehículo 7767MWH en vehicles:
+    {
+  "id": "e4fab14d-2d18-4f9b-9813-e2db2d1e2dfc",
+  "organization_id": "a23a0d42-5af7-4cda-9955-569c10cc6714",
+  "matricula": "7767MWH",
+  "modelo": "Clase A",
+  "categoria": "Compact Premium",
+  "status": "alquilado",
+  "current_reservation_id": "b4a66e42-448b-429b-b422-e0fed1453db0",
+  "last_status_change": "2026-03-20T16:36:52.312033+00:00",
+  "created_at": "2026-02-02T14:38:11.323099+00:00",
+  "updated_at": "2026-03-23T08:51:27.554536+00:00",
+  "is_archived": false,
+  "archived_at": null,
+  "archived_by": null,
+  "cleaned_by": "3026e417-c45f-4f9f-84ae-085bda543783",
+  "cleaned_at": "2026-03-19T15:41:25.848693+00:00",
+  "location_id": "e6589fd6-d0db-4c56-a4d8-c526fc13ba6e",
+  "service_type": null,
+  "service_notes": null,
+  "fleet_vehicle_id": "06daae45-417f-4a88-b5b2-a74e4ca44e54"
+}
+
+## 5. RESERVAS del vehículo 7767MWH
+
+  No se encontraron reservas para 7767MWH
+
+## 6. ORGANIZATION_MEMBERS
+
+  Total: 11
+  - user: ef7ab11b-c5db-4cc5-b9a4-e3e67f54c90c | org: 3091fe94-1de2-4d0f-a468-b7e6f36484bf | role: owner | status: active | joined: 2026-03-06T10:24:45.875449+00:00
+  - user: 71caf346-fc53-4506-a06f-ea86cd347937 | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: owner | status: active | joined: 2025-12-22T09:16:01.139402+00:00
+  - user: 1672f6cd-9ca6-4fd5-8e64-ffb515cbd651 | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: manager | status: active | joined: 2025-12-23T16:02:36.954696+00:00
+  - user: 82aa0439-a8ce-413b-99e7-c51c7ac6b714 | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: member | status: active | joined: 2026-01-03T10:25:43.101472+00:00
+  - user: 0411d476-8d12-440c-8901-eecbdbb4a60a | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: manager | status: active | joined: 2026-02-02T09:08:34.998518+00:00
+  - user: f9200d82-9473-47ac-83c7-5ffda32ce75a | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: admin | status: active | joined: 2026-02-24T10:24:22.634428+00:00
+  - user: ed8d1e3d-9f67-4ed7-87c5-8532eb4af48f | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: member | status: active | joined: 2026-02-26T10:09:21.957919+00:00
+  - user: 9f446098-69ed-4e30-b7cf-1c06fdc86c7c | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: member | status: active | joined: 2026-03-04T15:04:35.958935+00:00
+  - user: 5e84484c-0eba-4f07-bb36-fa7047a89ef5 | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: manager | status: active | joined: 2025-12-23T07:40:57.440953+00:00
+  - user: 702a73b2-0c53-47b6-814e-42146aa1be45 | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: manager | status: active | joined: 2025-12-22T09:16:01.139402+00:00
+  - user: 3026e417-c45f-4f9f-84ae-085bda543783 | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | role: member | status: active | joined: 2026-03-16T11:22:38.551435+00:00
+
+## 7. ORGANIZATIONS
+
+  - Bluebnc | id: 3091fe94-1de2-4d0f-a468-b7e6f36484bf | created: 2026-03-06T10:24:45.875449+00:00
+  - Azul Cars | id: a23a0d42-5af7-4cda-9955-569c10cc6714 | created: 2025-12-11T09:59:56.731395+00:00
+
+## 8. CUSTOM_ROLES
+
+  - Admin | org: 3091fe94-1de2-4d0f-a468-b7e6f36484bf | created: 2026-03-06T10:24:45.875449+00:00
+  - Manager | org: 3091fe94-1de2-4d0f-a468-b7e6f36484bf | created: 2026-03-06T10:24:45.875449+00:00
+  - Member | org: 3091fe94-1de2-4d0f-a468-b7e6f36484bf | created: 2026-03-06T10:24:45.875449+00:00
+  - Read Only | org: 3091fe94-1de2-4d0f-a468-b7e6f36484bf | created: 2026-03-06T10:24:45.875449+00:00
+  - Admin | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | created: 2025-12-16T16:56:35.365972+00:00
+  - Manager | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | created: 2025-12-16T16:56:35.365972+00:00
+  - Member | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | created: 2025-12-16T16:56:35.365972+00:00
+  - Read Only | org: a23a0d42-5af7-4cda-9955-569c10cc6714 | created: 2025-12-16T16:56:35.365972+00:00
+
+## 9. ROLE_PERMISSIONS
+
+  Total: 50
+  - role: admin | permission: areas.create | granted: undefined
+  - role: admin | permission: areas.update | granted: undefined
+  - role: admin | permission: areas.delete | granted: undefined
+  - role: admin | permission: areas.manage_visibility | granted: undefined
+  - role: admin | permission: tasks.create | granted: undefined
+  - role: admin | permission: tasks.update | granted: undefined
+  - role: admin | permission: tasks.delete | granted: undefined
+  - role: admin | permission: tasks.assign | granted: undefined
+  - role: admin | permission: templates.apply | granted: undefined
+  - role: admin | permission: templates.create | granted: undefined
+  - role: admin | permission: automations.manage | granted: undefined
+  - role: admin | permission: reports.view | granted: undefined
+  - role: admin | permission: billing.manage | granted: undefined
+  - role: admin | permission: members.invite | granted: undefined
+  - role: admin | permission: members.change_role | granted: undefined
+  - role: admin | permission: members.manage_permissions | granted: undefined
+  - role: admin | permission: security.view_audit_logs | granted: undefined
+  - role: manager | permission: areas.create | granted: undefined
+  - role: manager | permission: areas.update | granted: undefined
+  - role: manager | permission: areas.delete | granted: undefined
+  - role: manager | permission: areas.manage_visibility | granted: undefined
+  - role: manager | permission: tasks.create | granted: undefined
+  - role: manager | permission: tasks.update | granted: undefined
+  - role: manager | permission: tasks.delete | granted: undefined
+  - role: manager | permission: tasks.assign | granted: undefined
+  - role: manager | permission: templates.create | granted: undefined
+  - role: manager | permission: automations.manage | granted: undefined
+  - role: manager | permission: billing.manage | granted: undefined
+  - role: manager | permission: members.change_role | granted: undefined
+  - role: manager | permission: members.manage_permissions | granted: undefined
+  - role: manager | permission: security.view_audit_logs | granted: undefined
+  - role: manager | permission: integrations.manage_api_keys | granted: undefined
+  - role: member | permission: areas.create | granted: undefined
+  - role: member | permission: areas.update | granted: undefined
+  - role: member | permission: areas.delete | granted: undefined
+  - role: member | permission: areas.manage_visibility | granted: undefined
+  - role: member | permission: tasks.create | granted: undefined
+  - role: member | permission: tasks.update | granted: undefined
+  - role: member | permission: tasks.delete | granted: undefined
+  - role: member | permission: tasks.assign | granted: undefined
+  - role: member | permission: templates.apply | granted: undefined
+  - role: member | permission: templates.create | granted: undefined
+  - role: member | permission: automations.manage | granted: undefined
+  - role: member | permission: reports.view | granted: undefined
+  - role: member | permission: billing.manage | granted: undefined
+  - role: member | permission: members.invite | granted: undefined
+  - role: member | permission: members.change_role | granted: undefined
+  - role: member | permission: members.manage_permissions | granted: undefined
+  - role: member | permission: security.view_audit_logs | granted: undefined
+  - role: member | permission: integrations.manage_api_keys | granted: undefined
+
+## 10. DROPDOWN_OPTIONS (estados de vehículos)
+
+
+## 11. VEHÍCULOS POR ESTADO OPERATIVO
+
+
+## 12. RESERVAS ACTIVAS Y RECIENTES
+
+  No hay reservas activas
+
+## 13. PUSH_SUBSCRIPTIONS
+
+  Total: 8
+
+## 14. USER_NOTIFICATIONS (últimas 10)

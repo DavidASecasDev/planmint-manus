@@ -101,7 +101,6 @@ export async function handleCreateInvitation(req: Request, res: Response) {
         status: "pending",
         accepted: false,
         expires_at: expiresAt.toISOString(),
-        invited_by: userId,
       })
       .select("id, expires_at")
       .single();
