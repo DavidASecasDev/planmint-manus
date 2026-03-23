@@ -2,9 +2,22 @@
  * POST /api/signup-with-invitation
  * Migrated from Supabase Edge Function signup-with-invitation.
  * Handles user signup through invitation tokens.
+ *
+ * The invitation system stores SHA256-hashed tokens in the
+ * `organization_invitations.token_hash` column. The plain token
+ * arrives from the client and must be hashed before lookup.
  */
 import type { Request, Response } from "express";
-import { getServiceClient, AuthError } from "./supabaseAdmin";
+import { createHash } from "crypto";
+import { getServiceClient } from "./supabaseAdmin";
+
+/**
+ * Hash a plain token the same way the DB function does:
+ *   encode(sha256(token::bytea), 'hex')
+ */
+function hashToken(token: string): string {
+  return createHash("sha256").update(Buffer.from(token, "utf-8")).digest("hex");
+}
 
 export async function handleSignupWithInvitation(req: Request, res: Response) {
   if (req.method === "OPTIONS") {
@@ -19,20 +32,22 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
     }
 
     const serviceClient = getServiceClient();
+    const tokenHash = hashToken(token);
 
-    // Find the invitation
+    // Find the invitation by token_hash in organization_invitations
     const { data: invitation, error: invError } = await serviceClient
-      .from("invitations")
+      .from("organization_invitations")
       .select("*")
-      .eq("token", token)
+      .eq("token_hash", tokenHash)
       .single();
 
     if (invError || !invitation) {
+      console.error("[signup-with-invitation] Invitation lookup error:", invError?.message);
       return res.json({ error: "invitation_not_found" });
     }
 
     // Check invitation status
-    if (invitation.status === "accepted") {
+    if (invitation.status === "accepted" || invitation.accepted === true) {
       return res.json({ error: "invitation_already_accepted" });
     }
     if (invitation.status === "revoked") {
@@ -76,7 +91,7 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
         email: email.trim(),
         name,
         organization_id: invitation.organization_id,
-        role: invitation.role || "team_member",
+        role: invitation.role || "member",
       });
 
     if (profileError) {
@@ -89,24 +104,35 @@ export async function handleSignupWithInvitation(req: Request, res: Response) {
       .upsert({
         user_id: userId,
         organization_id: invitation.organization_id,
-        role: invitation.role || "team_member",
+        role: invitation.role || "member",
       });
 
     if (memberError) {
       console.error("[signup-with-invitation] Member creation error:", memberError);
     }
 
-    // Mark invitation as accepted
+    // Mark invitation as accepted in organization_invitations
     await serviceClient
-      .from("invitations")
+      .from("organization_invitations")
       .update({
         status: "accepted",
+        accepted: true,
         accepted_at: new Date().toISOString(),
-        accepted_by: userId,
       })
       .eq("id", invitation.id);
 
-    return res.json({ success: true, userId });
+    // Get organization name for the response
+    const { data: orgData } = await serviceClient
+      .from("organizations")
+      .select("name")
+      .eq("id", invitation.organization_id)
+      .single();
+
+    return res.json({
+      success: true,
+      userId,
+      organization_name: orgData?.name || "la organización",
+    });
   } catch (error: any) {
     console.error("[signup-with-invitation] Error:", error);
     return res.status(500).json({ error: "signup_failed", message: error?.message || "Error desconocido" });

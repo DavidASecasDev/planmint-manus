@@ -133,3 +133,4 @@
 - [x] Trigger: Sincronizar automáticamente vehículos nuevos de fleet_vehicles a vehicles
 - [x] Trigger: Sincronizar actualizaciones de matrícula/modelo/categoría de fleet_vehicles a vehicles
 - [x] Trigger: Marcar como archivado en vehicles cuando se elimina de fleet_vehicles
+- [x] Bug: Invitación no encontrada al aceptar invitación - RESUELTO: signupWithInvitation.ts buscaba en tabla 'invitations' (no existe), cambiado a 'organization_invitations' con token_hash SHA256
