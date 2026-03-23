@@ -158,35 +158,32 @@ describe('Permission Override System', () => {
   });
 
   describe('Backend: handleCreateAreaSecure respects user overrides', () => {
-    const coreEndpointsPath = path.join(projectRoot, 'server/coreEndpoints.ts');
-    let code: string;
+    let coreCode: string;
+    let helperCode: string;
 
     beforeAll(() => {
-      code = fs.readFileSync(coreEndpointsPath, 'utf-8');
+      coreCode = fs.readFileSync(path.join(projectRoot, 'server/coreEndpoints.ts'), 'utf-8');
+      helperCode = fs.readFileSync(path.join(projectRoot, 'server/permissionHelper.ts'), 'utf-8');
     });
 
-    it('should check user_permissions for areas.create override', () => {
-      // The area creation endpoint must check user overrides
-      const areaSection = code.indexOf('handleCreateAreaSecure');
-      const areaEnd = code.indexOf('handleCreateTaskSecure');
-      const areaCode = code.substring(areaSection, areaEnd);
+    it('should use checkUserPermission helper for areas.create', () => {
+      // The area creation endpoint must use the shared permission helper
+      const areaSection = coreCode.indexOf('handleCreateAreaSecure');
+      const areaEnd = coreCode.indexOf('handleCreateTaskSecure');
+      const areaCode = coreCode.substring(areaSection, areaEnd);
 
-      expect(areaCode).toContain('user_permissions');
+      expect(areaCode).toContain('checkUserPermission');
       expect(areaCode).toContain('areas.create');
     });
 
-    it('should apply user override as highest priority (can override role denial)', () => {
-      const areaSection = code.indexOf('handleCreateAreaSecure');
-      const areaEnd = code.indexOf('handleCreateTaskSecure');
-      const areaCode = code.substring(areaSection, areaEnd);
-
-      // User override must come after role check
-      const roleCheck = areaCode.indexOf('role_permissions');
-      const userOverrideCheck = areaCode.indexOf('user_permissions');
+    it('permissionHelper should apply user override as highest priority', () => {
+      // In the helper, user_permissions must come AFTER role_permissions
+      const roleCheck = helperCode.indexOf('.from("role_permissions")');
+      const userOverrideCheck = helperCode.indexOf('.from("user_permissions")');
       expect(userOverrideCheck).toBeGreaterThan(roleCheck);
 
       // Must use userOverride.enabled (can be true or false)
-      expect(areaCode).toContain('userOverride.enabled');
+      expect(helperCode).toContain('userOverride.enabled');
     });
   });
 

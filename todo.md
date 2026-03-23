@@ -183,3 +183,12 @@
 - [x] Fix: BrokerSelect, ProviderSelect, TransferItemBlock, BrokerTable usan permisos granulares
 - [x] Fix: handleCreateAreaSecure respeta user_permissions overrides
 - [x] Tests: 20 tests nuevos de permisos, 353 total pasando
+- [x] Vista de permisos efectivos en panel de admin (mostrar permisos finales por usuario)
+- [x] Auditar todos los endpoints protegidos para verificar que respetan user_permissions overrides
+- [x] Fix: handleCreateTaskSecure usa checkUserPermission para tasks.create
+- [x] Fix: createInvitation.ts usa checkUserPermission para members.invite
+- [x] Fix: invitationEndpoints.ts revoke usa checkUserPermission para members.invite
+- [x] Fix: applyTemplate.ts usa checkUserPermission para templates.apply
+- [x] Fix: handleCreateAreaSecure refactorizado para usar checkUserPermission
+- [x] Creado permissionHelper.ts como helper reutilizable para todos los endpoints
+- [x] Tests para la vista de permisos efectivos y endpoints corregidos (400 tests pasando)

@@ -14,13 +14,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MoreHorizontal, Shield, UserPlus, Users, Crown, AlertTriangle, Settings, Layers, Bug, Trash2, Mail } from 'lucide-react';
+import { Loader2, MoreHorizontal, Shield, UserPlus, Users, Crown, AlertTriangle, Settings, Layers, Bug, Trash2, Mail, Eye } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { PERMISSION_CATEGORIES as PERMISSION_CATEGORIES_DEF } from '@/lib/permissionDefinitions';
 import { MemberPermissionsEditor } from '@/components/admin/MemberPermissionsEditor';
 import { RoleEditor } from '@/components/admin/RoleEditor';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { PendingInvitationsList } from '@/components/admin/PendingInvitationsList';
+import { EffectivePermissionsView } from '@/components/admin/EffectivePermissionsView';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -179,6 +180,10 @@ export default function Admin() {
               Invitaciones
             </TabsTrigger>
             <TabsTrigger value="defaults">Permisos por defecto</TabsTrigger>
+            <TabsTrigger value="effective">
+              <Eye className="h-4 w-4 mr-2" />
+              Permisos efectivos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="mt-6">
@@ -338,6 +343,10 @@ export default function Admin() {
                 <RolePermissionsTable />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="effective" className="mt-6">
+            <EffectivePermissionsView />
           </TabsContent>
         </Tabs>
 

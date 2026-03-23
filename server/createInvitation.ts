@@ -14,6 +14,7 @@ import {
   AuthError,
   getServiceClient,
 } from "./supabaseAdmin";
+import { checkUserPermission } from "./permissionHelper";
 
 /** Allowed invitation roles */
 const VALID_ROLES = ["owner", "admin", "manager", "member", "read_only"];
@@ -42,16 +43,12 @@ export async function handleCreateInvitation(req: Request, res: Response) {
       return res.json({ success: false, error: "invalid_role" });
     }
 
-    // 3. Check caller has permission (must be owner or admin)
+    // 3. Check caller has permission (respects role + custom role + user overrides)
     const serviceClient = getServiceClient();
-    const { data: callerProfile } = await serviceClient
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    const callerRole = callerProfile?.role;
-    if (!callerRole || !["owner", "admin"].includes(callerRole)) {
+    const { allowed: canInvite } = await checkUserPermission(
+      serviceClient, organizationId, userId, "members.invite"
+    );
+    if (!canInvite) {
       return res.json({ success: false, error: "insufficient_permissions" });
     }
 

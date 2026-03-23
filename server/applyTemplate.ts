@@ -5,6 +5,7 @@
  */
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
+import { checkUserPermission } from "./permissionHelper";
 
 interface TemplateConfig {
   areas?: Array<{ name: string; color?: string; icon?: string }>;
@@ -34,12 +35,19 @@ export async function handleApplyTemplate(req: Request, res: Response) {
   try {
     const { userId, organizationId } = await authenticateSupabaseRequest(req.headers.authorization);
     const { version_id, user_template_id, options } = req.body || {};
+    const serviceClient = getServiceClient();
+
+    // Check permission to apply templates (respects role + custom role + user overrides)
+    const { allowed: canApply } = await checkUserPermission(
+      serviceClient, organizationId, userId, "templates.apply"
+    );
+    if (!canApply) {
+      return res.status(403).json({ success: false, error: "No permission to apply templates" });
+    }
 
     if (!version_id && !user_template_id) {
       return res.status(400).json({ success: false, error: "version_id or user_template_id is required" });
     }
-
-    const serviceClient = getServiceClient();
     let config: TemplateConfig | null = null;
 
     if (user_template_id) {

@@ -19,6 +19,7 @@ import {
   getServiceClient,
   extractBearerToken,
 } from "./supabaseAdmin";
+import { checkUserPermission } from "./permissionHelper";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(Buffer.from(token, "utf-8")).digest("hex");
@@ -314,15 +315,11 @@ export async function handleRevokeInvitation(req: Request, res: Response) {
 
     const serviceClient = getServiceClient();
 
-    // Check caller has permission (must be owner or admin)
-    const { data: callerMember } = await serviceClient
-      .from("organization_members")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("organization_id", organizationId)
-      .single();
-
-    if (!callerMember?.role || !["owner", "admin"].includes(callerMember.role)) {
+    // Check caller has permission (respects role + custom role + user overrides)
+    const { allowed: canRevoke } = await checkUserPermission(
+      serviceClient, organizationId, userId, "members.invite"
+    );
+    if (!canRevoke) {
       return res.json({ success: false, error: "insufficient_permissions" });
     }
 

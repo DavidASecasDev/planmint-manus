@@ -9,6 +9,7 @@ import {
   extractBearerToken,
   AuthError,
 } from "./supabaseAdmin";
+import { checkUserPermission } from "./permissionHelper";
 
 // ─── Helper: authenticate but allow users without organization ────────────────
 async function authenticateUser(
@@ -146,47 +147,13 @@ export async function handleCreateAreaSecure(req: Request, res: Response) {
 
     const serviceClient = getServiceClient();
 
-    // Check user has permission to create areas
-    const { data: member } = await serviceClient
-      .from("organization_members")
-      .select("role")
-      .eq("organization_id", organizationId)
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .single();
-
-    if (!member) {
+    // Check permission to create areas (respects role + custom role + user overrides)
+    const { allowed: canCreate, memberStatus } = await checkUserPermission(
+      serviceClient, organizationId, userId, "areas.create"
+    );
+    if (!memberStatus || memberStatus !== "active") {
       return res.status(403).json({ error: "Not an active member", code: "42501" });
     }
-
-    // Check permission to create areas using the unified permission resolution
-    let canCreate = ["owner", "admin", "manager"].includes(member.role);
-
-    // Check role_permissions table
-    if (!canCreate) {
-      const { data: perm } = await serviceClient
-        .from("role_permissions")
-        .select("id")
-        .eq("organization_id", organizationId)
-        .eq("role", member.role)
-        .eq("permission_key", "areas.create")
-        .single();
-      if (perm) canCreate = true;
-    }
-
-    // Check user-specific permission overrides (highest priority)
-    const { data: userOverride } = await serviceClient
-      .from("user_permissions")
-      .select("enabled")
-      .eq("organization_id", organizationId)
-      .eq("user_id", userId)
-      .eq("permission_key", "areas.create")
-      .single();
-    
-    if (userOverride) {
-      canCreate = userOverride.enabled;
-    }
-
     if (!canCreate) {
       return res.status(403).json({ error: "No permission to create areas", code: "42501" });
     }
@@ -256,6 +223,14 @@ export async function handleCreateTaskSecure(req: Request, res: Response) {
     }
 
     const serviceClient = getServiceClient();
+
+    // Check permission to create tasks (respects role + custom role + user overrides)
+    const { allowed: canCreate } = await checkUserPermission(
+      serviceClient, organizationId, userId, "tasks.create"
+    );
+    if (!canCreate) {
+      return res.status(403).json({ error: "No permission to create tasks", code: "42501" });
+    }
 
     // Insert the task using service client (bypasses RLS)
     const { data: newTask, error: taskError } = await serviceClient
