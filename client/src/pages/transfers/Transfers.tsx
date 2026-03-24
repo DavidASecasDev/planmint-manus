@@ -5,11 +5,13 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Ship, Loader2, ShieldAlert } from 'lucide-react';
+import { Plus, Ship, Loader2, ShieldAlert, Download } from 'lucide-react';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { usePermissions } from '@/hooks/usePermissions';
 import { TransferRequestCard } from '@/components/transfers/TransferRequestCard';
 import { TransferFilters } from '@/components/transfers/TransferFilters';
+import { downloadTransfersCsv } from '@/utils/exportTransfersCsv';
+import { toast } from 'sonner';
 import type { TransferFilters as TFilters } from '@/types/transfers';
 
 export default function Transfers() {
@@ -37,6 +39,15 @@ export default function Transfers() {
     const unique = new Set(requests.map(r => r.broker_name));
     return Array.from(unique).sort();
   }, [requests]);
+
+  const handleExportCsv = () => {
+    if (requests.length === 0) {
+      toast.info('No hay solicitudes para exportar');
+      return;
+    }
+    downloadTransfersCsv(requests);
+    toast.success(`${requests.length} solicitudes exportadas a CSV`);
+  };
 
   // Loading state
   if (permissionsLoading) {
@@ -73,12 +84,20 @@ export default function Transfers() {
             </h1>
             <p className="text-muted-foreground">Gestión de traslados para brokers de yates</p>
           </div>
-          {canCreate && (
-            <Button onClick={() => navigate('/transfers/new')} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nueva Solicitud
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {requests.length > 0 && (
+              <Button variant="outline" onClick={handleExportCsv} className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar CSV
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => navigate('/transfers/new')} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nueva Solicitud
+              </Button>
+            )}
+          </div>
         </div>
 
         <TransferFilters 
@@ -86,6 +105,13 @@ export default function Transfers() {
           onFiltersChange={setFilters}
           brokers={brokers}
         />
+
+        {/* Results count */}
+        {!isLoading && requests.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {requests.length} solicitud{requests.length !== 1 ? 'es' : ''} encontrada{requests.length !== 1 ? 's' : ''}
+          </p>
+        )}
 
         {isLoading ? (
           <div className="space-y-3">

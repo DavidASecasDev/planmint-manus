@@ -57,8 +57,23 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
         };
       }) as TransferRequest[];
 
+      // Filter by date range (based on first_transfer_date from items)
+      let filtered = processed;
+      if (filters?.dateFrom) {
+        filtered = filtered.filter(r => {
+          if (!r.first_transfer_date) return false;
+          return r.first_transfer_date >= filters.dateFrom!;
+        });
+      }
+      if (filters?.dateTo) {
+        filtered = filtered.filter(r => {
+          if (!r.first_transfer_date) return false;
+          return r.first_transfer_date <= filters.dateTo!;
+        });
+      }
+
       // Sort by first_transfer_date (requests without date go to the end)
-      return processed.sort((a, b) => {
+      return filtered.sort((a, b) => {
         if (!a.first_transfer_date && !b.first_transfer_date) return 0;
         if (!a.first_transfer_date) return 1;
         if (!b.first_transfer_date) return -1;

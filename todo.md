@@ -278,3 +278,10 @@
 - [x] Tests para calculateRequestTotals (12 tests: zone_tariff, provider_quote, rounding, edge cases)
 - [x] Adaptar generador de facturas PDF con lógica de totales desde items (ya implementado: quote e invoice usan el mismo generatePdf con calculatePdfTotals)
 - [x] Añadir filtro por modo de precio (Zona/Proveedor) en la lista de solicitudes de transfer
+- [x] Filtro por rango de fechas: añadir date pickers para dateFrom/dateTo en TransferFilters UI
+- [x] Filtro por rango de fechas: filtrar solicitudes por first_transfer_date en useTransferRequests
+- [x] Exportar listado a Excel/CSV: botón de descarga con solicitudes filtradas, totales y modo de precio
+- [x] Dashboard de métricas transfers: totales facturados, margen bruto acumulado
+- [x] Dashboard de métricas transfers: distribución por modo de precio (zona vs proveedor)
+- [x] Dashboard de métricas transfers: gráficos con recharts
+- [x] Tests para lógica de exportación y cálculos del dashboard

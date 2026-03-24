@@ -30,6 +30,16 @@ export interface TransferBrokerStats {
   byStatus: Record<string, number>;
 }
 
+export interface PricingModeStats {
+  mode: string;
+  label: string;
+  count: number;
+  revenue: number;
+  cost: number;
+  margin: number;
+  marginPercent: number;
+}
+
 export interface TransferReportData {
   kpis: {
     total: number;
@@ -39,21 +49,31 @@ export interface TransferReportData {
     totalRevenue: number;
     totalCost: number;
     totalMargin: number;
+    marginPercent: number;
   };
   byStatus: { status: string; count: number }[];
+  byPricingMode: PricingModeStats[];
   dailyTrend: { date: string; count: number }[];
   brokerStats: TransferBrokerStats[];
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  borrador: 'Borrador',
-  presupuesto_enviado: 'Presupuesto enviado',
-  aceptado: 'Aceptado',
-  rechazado: 'Rechazado',
-  en_curso: 'En curso',
+  pendiente: 'Pendiente',
+  en_gestion: 'En gestión',
+  presupuesto_enviado: 'Ppto. enviado',
+  confirmado: 'Confirmado',
   completado: 'Completado',
   cancelado: 'Cancelado',
   facturado: 'Facturado',
+  borrador: 'Borrador',
+  aceptado: 'Aceptado',
+  rechazado: 'Rechazado',
+  en_curso: 'En curso',
+};
+
+const PRICING_MODE_LABELS: Record<string, string> = {
+  zone_tariff: 'Tarifa por zona',
+  provider_quote: 'Presupuesto proveedor',
 };
 
 export function useTransferReports(filters: ReportFilters) {
@@ -67,7 +87,7 @@ export function useTransferReports(filters: ReportFilters) {
 
       const { data, error } = await supabase
         .from('transfer_requests')
-        .select('id, status, broker_id, broker_name, client_total, provider_cost, internal_margin, created_at')
+        .select('id, status, broker_id, broker_name, client_total, provider_cost, internal_margin, pricing_mode, created_at')
         .eq('organization_id', organization.id)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
@@ -89,6 +109,7 @@ export function useTransferReports(filters: ReportFilters) {
     const statusMap = new Map<string, number>();
     const dailyMap = new Map<string, number>();
     const brokerMap = new Map<string, TransferBrokerStats>();
+    const pricingModeMap = new Map<string, { count: number; revenue: number; cost: number; margin: number }>();
 
     for (const r of requests) {
       // Status counts
@@ -107,6 +128,17 @@ export function useTransferReports(filters: ReportFilters) {
       // Daily trend
       const day = format(new Date(r.created_at), 'yyyy-MM-dd');
       dailyMap.set(day, (dailyMap.get(day) || 0) + 1);
+
+      // Pricing mode distribution
+      const mode = r.pricing_mode || 'zone_tariff';
+      if (!pricingModeMap.has(mode)) {
+        pricingModeMap.set(mode, { count: 0, revenue: 0, cost: 0, margin: 0 });
+      }
+      const pm = pricingModeMap.get(mode)!;
+      pm.count++;
+      pm.revenue += r.client_total || 0;
+      pm.cost += r.provider_cost || 0;
+      pm.margin += r.internal_margin || 0;
 
       // Broker stats
       const bKey = r.broker_name || 'Sin broker';
@@ -134,15 +166,28 @@ export function useTransferReports(filters: ReportFilters) {
       count,
     }));
 
+    const byPricingMode: PricingModeStats[] = Array.from(pricingModeMap.entries()).map(([mode, stats]) => ({
+      mode,
+      label: PRICING_MODE_LABELS[mode] || mode,
+      count: stats.count,
+      revenue: stats.revenue,
+      cost: stats.cost,
+      margin: stats.margin,
+      marginPercent: stats.revenue > 0 ? (stats.margin / stats.revenue) * 100 : 0,
+    }));
+
     const dailyTrend = Array.from(dailyMap.entries())
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
     const brokerStats = Array.from(brokerMap.values()).sort((a, b) => b.totalRequests - a.totalRequests);
 
+    const marginPercent = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
+
     return {
-      kpis: { total, completed, pending, cancelled, totalRevenue, totalCost, totalMargin },
+      kpis: { total, completed, pending, cancelled, totalRevenue, totalCost, totalMargin, marginPercent },
       byStatus,
+      byPricingMode,
       dailyTrend,
       brokerStats,
     };
