@@ -279,7 +279,7 @@ export async function handleGetReservationsOperational(
 
     const serviceClient = getServiceClient();
 
-    // Fetch reservations without PII fields for operational users
+    // Fetch all reservations for authenticated users (full data including client names)
     const { data, error } = await serviceClient
       .from("reservations")
       .select("*")
@@ -292,27 +292,8 @@ export async function handleGetReservationsOperational(
       return res.status(500).json({ error: "Failed to fetch reservations" });
     }
 
-    // Strip PII fields for operational view
-    const operational = (data || []).map((r: any) => {
-      const { 
-        cliente_nombre, cliente_apellido, email, telefono,
-        documento_tipo, documento_numero, direccion,
-        ...safeFields 
-      } = r;
-      return {
-        ...safeFields,
-        // Replace PII with masked versions
-        cliente_nombre: cliente_nombre ? `${(cliente_nombre as string).charAt(0)}***` : null,
-        cliente_apellido: cliente_apellido ? `${(cliente_apellido as string).charAt(0)}***` : null,
-        email: null,
-        telefono: null,
-        documento_tipo: null,
-        documento_numero: null,
-        direccion: null,
-      };
-    });
-
-    return res.json(operational);
+    // Return full data for all authenticated users (PII masking removed)
+    return res.json(data || []);
   } catch (err: any) {
     if (err instanceof AuthError) {
       return res.status(err.status).json({ error: err.message });

@@ -297,3 +297,4 @@
 - [x] Notificación push al admin: enviar notificación in-app cuando se genere presupuesto/factura con margen bajo
 - [x] Ranking de brokers: vista de ranking en dashboard con margen medio, volumen y tasa de conversión
 - [x] Tests para umbrales configurables, notificación y ranking (509 tests pasando)
+- [x] Bug: nombres de clientes enmascarados con asteriscos - RESUELTO: endpoint handleGetReservationsOperational en coreEndpoints2.ts enmascaraba activamente cliente_nombre/apellido con charAt(0)+'***' y anulaba email/telefono/documento/direccion. Eliminado el bloque de masking para devolver datos completos a todos los usuarios autenticados

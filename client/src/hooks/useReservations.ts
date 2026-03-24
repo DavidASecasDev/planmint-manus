@@ -15,8 +15,8 @@ export function useReservations() {
   const queryClient = useQueryClient();
   const organizationId = profile?.organization_id;
   
-  // Owner and Admin get full access to base table (includes PII)
-  // Manager and other roles with reservations.view get operational view (no PII)
+  // Owner and Admin query base table directly via Supabase client
+  // Other roles use the Express endpoint (same full data, bypasses RLS restrictions)
   const isFullAccess = role === 'owner' || role === 'admin';
 
   const { data: reservations = [], isLoading, error } = useQuery({
@@ -36,7 +36,7 @@ export function useReservations() {
         if (error) throw error;
         return data as Reservation[];
       } else {
-        // Operational users: Use Express endpoint that returns view without PII
+        // Operational users: Use Express endpoint that returns full data (bypasses RLS)
         const { data, error } = await apiInvoke<Reservation[]>('get-reservations-operational', {
           body: { p_organization_id: organizationId },
         });
