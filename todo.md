@@ -291,3 +291,9 @@
 - [x] Filtro por broker en dashboard de reportes: añadir selector de broker en ReportsTransfers
 - [x] Filtro por broker en dashboard de reportes: filtrar datos en useTransferReports
 - [x] Tests para lógica de alertas de margen bajo
+- [x] Umbrales configurables: añadir columnas margin_threshold_danger y margin_threshold_warning a transfer_invoice_settings en Supabase
+- [x] Umbrales configurables: UI en Settings para ajustar los porcentajes de alerta
+- [x] Umbrales configurables: cargar umbrales desde BD y usarlos en marginAlerts en vez de constantes fijas
+- [x] Notificación push al admin: enviar notificación in-app cuando se genere presupuesto/factura con margen bajo
+- [x] Ranking de brokers: vista de ranking en dashboard con margen medio, volumen y tasa de conversión
+- [x] Tests para umbrales configurables, notificación y ranking (509 tests pasando)

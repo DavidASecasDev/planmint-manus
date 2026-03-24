@@ -16,7 +16,8 @@ import { TransferStatusBadge } from './TransferStatusBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert } from 'lucide-react';
-import { getMarginPercent, getMarginAlertLevel, MARGIN_THRESHOLD_DANGER } from '@/utils/marginAlerts';
+import { getMarginPercent, getMarginAlertLevel } from '@/utils/marginAlerts';
+import { useMarginThresholds } from '@/hooks/useMarginThresholds';
 import type { TransferRequest } from '@/types/transfers';
 
 interface TransferRequestCardProps {
@@ -30,6 +31,7 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
   const formattedDate = request.first_transfer_date
     ? format(new Date(request.first_transfer_date), "d MMM yyyy", { locale: es })
     : 'Sin fecha';
+  const thresholds = useMarginThresholds();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -37,11 +39,11 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
 
   const pricingMode = request.pricing_mode || 'zone_tariff';
 
-  // Calculate margin alert from request-level totals
+  // Calculate margin alert from request-level totals with configurable thresholds
   const clientTotal = request.client_total || request.total_amount || 0;
   const providerCost = request.provider_cost || 0;
   const marginPercent = getMarginPercent(providerCost, clientTotal);
-  const marginLevel = providerCost > 0 ? getMarginAlertLevel(marginPercent) : 'ok';
+  const marginLevel = providerCost > 0 ? getMarginAlertLevel(marginPercent, { danger: thresholds.danger, warning: thresholds.warning }) : 'ok';
 
   return (
     <Card 

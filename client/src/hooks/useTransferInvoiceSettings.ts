@@ -19,6 +19,8 @@ export interface TransferInvoiceSettings {
   next_invoice_number: number;
   footer_text: string | null;
   bank_details: string | null;
+  margin_threshold_danger: number | null;
+  margin_threshold_warning: number | null;
   created_at: string;
   updated_at: string;
 }

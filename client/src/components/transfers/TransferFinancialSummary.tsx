@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronDown, TrendingUp, AlertTriangle, ShieldAlert, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { formatCurrency } from '@/utils/transferCalculations';
-import { evaluateMarginAlert, MARGIN_THRESHOLD_DANGER, MARGIN_THRESHOLD_WARNING } from '@/utils/marginAlerts';
+import { evaluateMarginAlert } from '@/utils/marginAlerts';
+import { useMarginThresholds } from '@/hooks/useMarginThresholds';
 import { cn } from '@/lib/utils';
 import type { TransferItem, PricingMode } from '@/types/transfers';
 
@@ -26,9 +27,13 @@ export function TransferFinancialSummary({
   items = [],
 }: TransferFinancialSummaryProps) {
   const [open, setOpen] = useState(true);
+  const thresholds = useMarginThresholds();
 
-  // Evaluate margin alert from items
-  const alert = evaluateMarginAlert(items, pricingMode);
+  // Evaluate margin alert from items with configurable thresholds
+  const alert = evaluateMarginAlert(items, pricingMode, {
+    danger: thresholds.danger,
+    warning: thresholds.warning,
+  });
 
   // Use items-based totals as primary, fall back to request-level
   const effectiveClientTotal = alert.clientTotal > 0 ? alert.clientTotal : (clientTotal ?? 0);
@@ -162,7 +167,7 @@ export function TransferFinancialSummary({
                   <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400 bg-red-500/10 border border-red-300/30 rounded-lg p-3">
                     <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">Margen inferior al {MARGIN_THRESHOLD_DANGER}%</p>
+                      <p className="font-medium">Margen inferior al {thresholds.danger}%</p>
                       <p className="text-red-600/80 dark:text-red-400/80 mt-0.5">{alert.message}</p>
                     </div>
                   </div>
@@ -172,7 +177,7 @@ export function TransferFinancialSummary({
                   <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-300/30 rounded-lg p-3">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">Margen por debajo del {MARGIN_THRESHOLD_WARNING}%</p>
+                      <p className="font-medium">Margen por debajo del {thresholds.warning}%</p>
                       <p className="text-amber-600/80 dark:text-amber-400/80 mt-0.5">{alert.message}</p>
                     </div>
                   </div>

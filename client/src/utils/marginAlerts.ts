@@ -1,11 +1,16 @@
 import type { PricingMode } from '@/types/transfers';
 import { calculateRequestTotals } from './syncRequestTotals.pure';
 
-// Margin thresholds (as percentage of provider cost)
+// Default margin thresholds (used as fallback when settings aren't loaded)
 export const MARGIN_THRESHOLD_DANGER = 15;  // Red alert: < 15%
 export const MARGIN_THRESHOLD_WARNING = 20; // Yellow warning: < 20%
 
 export type MarginAlertLevel = 'ok' | 'warning' | 'danger';
+
+export interface MarginThresholdConfig {
+  danger: number;
+  warning: number;
+}
 
 export interface MarginAlertInfo {
   level: MarginAlertLevel;
@@ -14,7 +19,13 @@ export interface MarginAlertInfo {
   providerCost: number;
   internalMargin: number;
   message: string;
+  thresholds: MarginThresholdConfig;
 }
+
+const DEFAULT_THRESHOLDS: MarginThresholdConfig = {
+  danger: MARGIN_THRESHOLD_DANGER,
+  warning: MARGIN_THRESHOLD_WARNING,
+};
 
 /**
  * Calculate margin percentage from provider cost and client total.
@@ -26,11 +37,14 @@ export function getMarginPercent(providerCost: number, clientTotal: number): num
 }
 
 /**
- * Determine the alert level based on margin percentage.
+ * Determine the alert level based on margin percentage and configurable thresholds.
  */
-export function getMarginAlertLevel(marginPercent: number): MarginAlertLevel {
-  if (marginPercent < MARGIN_THRESHOLD_DANGER) return 'danger';
-  if (marginPercent < MARGIN_THRESHOLD_WARNING) return 'warning';
+export function getMarginAlertLevel(
+  marginPercent: number,
+  thresholds: MarginThresholdConfig = DEFAULT_THRESHOLDS
+): MarginAlertLevel {
+  if (marginPercent < thresholds.danger) return 'danger';
+  if (marginPercent < thresholds.warning) return 'warning';
   return 'ok';
 }
 
@@ -51,6 +65,7 @@ export function getMarginAlertMessage(level: MarginAlertLevel, marginPercent: nu
 /**
  * Evaluate margin alert for a set of transfer items.
  * Returns full alert info including level, percentage, and message.
+ * Accepts optional configurable thresholds (defaults to 15% danger, 20% warning).
  */
 export function evaluateMarginAlert(
   items: Array<{
@@ -58,11 +73,12 @@ export function evaluateMarginAlert(
     base_price: number | null;
     provider_cost: number | null;
   }>,
-  pricingMode: PricingMode
+  pricingMode: PricingMode,
+  thresholds: MarginThresholdConfig = DEFAULT_THRESHOLDS
 ): MarginAlertInfo {
   const { clientTotal, providerCost, internalMargin } = calculateRequestTotals(items, pricingMode);
   const marginPercent = getMarginPercent(providerCost, clientTotal);
-  const level = getMarginAlertLevel(marginPercent);
+  const level = getMarginAlertLevel(marginPercent, thresholds);
   const message = getMarginAlertMessage(level, marginPercent);
 
   return {
@@ -72,5 +88,6 @@ export function evaluateMarginAlert(
     providerCost,
     internalMargin,
     message,
+    thresholds,
   };
 }

@@ -4,6 +4,7 @@ import { ReportFiltersBar } from '@/components/reports/ReportFiltersBar';
 import { KPICard } from '@/components/reports/KPICard';
 import { TransfersByStatusChart, TransfersTrendChart, PricingModeDistributionChart } from '@/components/reports/TransferReportsCharts';
 import { TransferReportsTable } from '@/components/reports/TransferReportsTable';
+import { BrokerRankingTable } from '@/components/reports/BrokerRankingTable';
 import { useTransferReports } from '@/hooks/useTransferReports';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { ReportFilters } from '@/types/reports';
@@ -149,7 +150,10 @@ export default function ReportsTransfers() {
         {/* Chart — Pricing Mode Distribution */}
         <PricingModeDistributionChart data={report?.byPricingMode || []} isLoading={isLoading} />
 
-        {/* Broker Table */}
+        {/* Broker Ranking */}
+        <BrokerRankingTable brokers={report?.brokerStats || []} isLoading={isLoading} />
+
+        {/* Broker Detail Table */}
         <TransferReportsTable brokers={report?.brokerStats || []} isLoading={isLoading} />
       </div>
     </ReportsLayout>

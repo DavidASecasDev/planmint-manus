@@ -5254,6 +5254,8 @@ export type Database = {
           id: string
           invoice_prefix: string | null
           logo_url: string | null
+          margin_threshold_danger: number | null
+          margin_threshold_warning: number | null
           next_invoice_number: number | null
           next_quote_number: number | null
           organization_id: string
@@ -5272,6 +5274,8 @@ export type Database = {
           id?: string
           invoice_prefix?: string | null
           logo_url?: string | null
+          margin_threshold_danger?: number | null
+          margin_threshold_warning?: number | null
           next_invoice_number?: number | null
           next_quote_number?: number | null
           organization_id: string
@@ -5290,6 +5294,8 @@ export type Database = {
           id?: string
           invoice_prefix?: string | null
           logo_url?: string | null
+          margin_threshold_danger?: number | null
+          margin_threshold_warning?: number | null
           next_invoice_number?: number | null
           next_quote_number?: number | null
           organization_id?: string

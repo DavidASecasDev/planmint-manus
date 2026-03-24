@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Upload, Trash2, FileText, Building2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Upload, Trash2, FileText, Building2, ShieldAlert } from 'lucide-react';
 import { useTransferInvoiceSettings } from '@/hooks/useTransferInvoiceSettings';
 
 export function TransferInvoiceSettings() {
@@ -22,6 +23,8 @@ export function TransferInvoiceSettings() {
   const [invoicePrefix, setInvoicePrefix] = useState('FAC-');
   const [footerText, setFooterText] = useState('');
   const [bankDetails, setBankDetails] = useState('');
+  const [marginDanger, setMarginDanger] = useState('15');
+  const [marginWarning, setMarginWarning] = useState('20');
 
   // Load existing settings
   useEffect(() => {
@@ -35,10 +38,24 @@ export function TransferInvoiceSettings() {
       setInvoicePrefix(settings.invoice_prefix || 'FAC-');
       setFooterText(settings.footer_text || '');
       setBankDetails(settings.bank_details || '');
+      setMarginDanger(String(settings.margin_threshold_danger ?? 15));
+      setMarginWarning(String(settings.margin_threshold_warning ?? 20));
     }
   }, [settings]);
 
+  // Validate margin thresholds
+  const marginDangerNum = parseFloat(marginDanger) || 0;
+  const marginWarningNum = parseFloat(marginWarning) || 0;
+  const marginError = marginDangerNum >= marginWarningNum 
+    ? 'El umbral de peligro debe ser menor que el de advertencia'
+    : marginDangerNum < 0 || marginWarningNum < 0
+    ? 'Los umbrales no pueden ser negativos'
+    : marginWarningNum > 100
+    ? 'Los umbrales no pueden superar el 100%'
+    : null;
+
   const handleSave = async () => {
+    if (marginError) return;
     await saveSettings({
       company_name: companyName || null,
       tax_id: taxId || null,
@@ -49,6 +66,8 @@ export function TransferInvoiceSettings() {
       invoice_prefix: invoicePrefix,
       footer_text: footerText || null,
       bank_details: bankDetails || null,
+      margin_threshold_danger: marginDangerNum,
+      margin_threshold_warning: marginWarningNum,
     });
   };
 
@@ -240,6 +259,65 @@ export function TransferInvoiceSettings() {
 
         <Separator />
 
+        {/* Margin thresholds */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-amber-500" />
+            <h4 className="font-medium">Umbrales de margen</h4>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Define los porcentajes de margen que activan alertas visuales y confirmaciones al generar documentos. 
+            El margen se calcula como: (Total cliente - Coste proveedor) / Coste proveedor × 100.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="marginDanger" className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                Umbral de peligro (%)
+              </Label>
+              <Input
+                id="marginDanger"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={marginDanger}
+                onChange={(e) => setMarginDanger(e.target.value)}
+                placeholder="15"
+              />
+              <p className="text-xs text-muted-foreground">
+                Por debajo de este valor se muestra alerta roja y se pide confirmación antes de generar documentos.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="marginWarning" className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                Umbral de advertencia (%)
+              </Label>
+              <Input
+                id="marginWarning"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={marginWarning}
+                onChange={(e) => setMarginWarning(e.target.value)}
+                placeholder="20"
+              />
+              <p className="text-xs text-muted-foreground">
+                Por debajo de este valor se muestra advertencia amarilla en el resumen financiero.
+              </p>
+            </div>
+          </div>
+          {marginError && (
+            <Alert variant="destructive">
+              <AlertDescription>{marginError}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <Separator />
+
         {/* Footer text */}
         <div className="space-y-4">
           <h4 className="font-medium">Textos personalizables</h4>
@@ -266,7 +344,7 @@ export function TransferInvoiceSettings() {
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+          <Button onClick={handleSave} disabled={isSaving || !!marginError} className="gap-2">
             {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
             Guardar configuración
           </Button>

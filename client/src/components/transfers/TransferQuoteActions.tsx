@@ -16,7 +16,10 @@ import {
 import { FileText, Download, Loader2, AlertCircle, Settings, ShieldAlert } from 'lucide-react';
 import { useTransferQuotePdf, type PdfLanguage } from '@/hooks/useTransferQuotePdf';
 import { useNavigate } from 'react-router-dom';
-import { evaluateMarginAlert, MARGIN_THRESHOLD_DANGER } from '@/utils/marginAlerts';
+import { evaluateMarginAlert } from '@/utils/marginAlerts';
+import { useMarginThresholds } from '@/hooks/useMarginThresholds';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/transferCalculations';
 import type { TransferRequest, TransferItem, PricingMode } from '@/types/transfers';
 
@@ -28,6 +31,9 @@ interface TransferQuoteActionsProps {
 export function TransferQuoteActions({ request, items }: TransferQuoteActionsProps) {
   const { generateQuotePdf, generateInvoicePdf, isGenerating, settingsComplete, calculatePdfTotals } = useTransferQuotePdf();
   const navigate = useNavigate();
+  const thresholds = useMarginThresholds();
+  const { createNotification } = useNotifications();
+  const { profile } = useAuth();
   const [language, setLanguage] = useState<PdfLanguage>('es');
   const [showLowMarginDialog, setShowLowMarginDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<'quote' | 'invoice' | null>(null);
@@ -38,8 +44,29 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
   const pricingMode: PricingMode = request.pricing_mode || 'zone_tariff';
   const { total } = calculatePdfTotals(items, pricingMode);
 
-  // Evaluate margin alert
-  const marginAlert = evaluateMarginAlert(items, pricingMode);
+  // Evaluate margin alert with configurable thresholds
+  const marginAlert = evaluateMarginAlert(items, pricingMode, {
+    danger: thresholds.danger,
+    warning: thresholds.warning,
+  });
+
+  const sendLowMarginNotification = async (docType: 'quote' | 'invoice') => {
+    try {
+      const docName = docType === 'quote' ? 'presupuesto' : 'factura';
+      const clientName = request.client_name || 'Sin nombre';
+      await createNotification({
+        user_id: profile?.id || '',
+        title: `Alerta: ${docName} con margen bajo (${marginAlert.marginPercent}%) - ${clientName}`,
+        body: `Se ha generado un ${docName} para "${clientName}" (Ref: ${request.request_number || request.id?.slice(0, 8)}) con un margen del ${marginAlert.marginPercent}% (umbral: ${thresholds.danger}%). Coste proveedor: ${formatCurrency(marginAlert.providerCost)}, Total cliente: ${formatCurrency(marginAlert.clientTotal)}.`,
+        type: 'transfer_note',
+        entity_type: 'transfer_request',
+        entity_id: request.id || '',
+      });
+    } catch {
+      // Notification failure should not block document generation
+      console.error('Failed to send low margin notification');
+    }
+  };
 
   const handleGenerateQuote = () => {
     if (marginAlert.level === 'danger') {
@@ -59,8 +86,12 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
     generateInvoicePdf(request, items, language);
   };
 
-  const handleConfirmLowMargin = () => {
+  const handleConfirmLowMargin = async () => {
     setShowLowMarginDialog(false);
+    // Send notification to admin about low-margin document generation
+    if (pendingAction) {
+      await sendLowMarginNotification(pendingAction);
+    }
     if (pendingAction === 'quote') {
       generateQuotePdf(request, items, language);
     } else if (pendingAction === 'invoice') {
@@ -116,7 +147,7 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
             <Alert variant="destructive">
               <ShieldAlert className="h-4 w-4" />
               <AlertDescription>
-                El margen es solo del {marginAlert.marginPercent}% (mínimo recomendado: {MARGIN_THRESHOLD_DANGER}%). 
+                El margen es solo del {marginAlert.marginPercent}% (mínimo configurado: {thresholds.danger}%). 
                 Se pedirá confirmación antes de generar documentos.
               </AlertDescription>
             </Alert>
@@ -179,13 +210,13 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
               <ShieldAlert className="h-5 w-5" />
-              Margen inferior al {MARGIN_THRESHOLD_DANGER}%
+              Margen inferior al {thresholds.danger}%
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
                   El margen actual de esta solicitud es del <strong className="text-red-600">{marginAlert.marginPercent}%</strong>, 
-                  por debajo del mínimo recomendado del {MARGIN_THRESHOLD_DANGER}%.
+                  por debajo del mínimo configurado del {thresholds.danger}%.
                 </p>
                 <div className="bg-muted rounded-lg p-3 space-y-1 text-sm">
                   <div className="flex justify-between">
@@ -203,6 +234,8 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
                 </div>
                 <p className="text-sm">
                   ¿Deseas continuar y generar el {pendingAction === 'quote' ? 'presupuesto' : 'factura'} con este margen?
+                  <br />
+                  <span className="text-muted-foreground text-xs">Se enviará una notificación al administrador.</span>
                 </p>
               </div>
             </AlertDialogDescription>

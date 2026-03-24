@@ -147,4 +147,58 @@ describe('marginAlerts', () => {
       expect(MARGIN_THRESHOLD_WARNING).toBe(20);
     });
   });
+
+  describe('configurable thresholds', () => {
+    it('getMarginAlertLevel uses custom thresholds', () => {
+      const custom = { danger: 10, warning: 25 };
+      // 12% would be warning with defaults (15/20), but ok with custom (10/25)? No: 12 < 25 → warning
+      expect(getMarginAlertLevel(12, custom)).toBe('warning');
+      // 8% would be danger with custom (< 10)
+      expect(getMarginAlertLevel(8, custom)).toBe('danger');
+      // 30% would be ok with custom (>= 25)
+      expect(getMarginAlertLevel(30, custom)).toBe('ok');
+    });
+
+    it('getMarginAlertLevel with very low custom thresholds', () => {
+      const custom = { danger: 5, warning: 10 };
+      expect(getMarginAlertLevel(3, custom)).toBe('danger');
+      expect(getMarginAlertLevel(7, custom)).toBe('warning');
+      expect(getMarginAlertLevel(12, custom)).toBe('ok');
+    });
+
+    it('getMarginAlertLevel with very high custom thresholds', () => {
+      const custom = { danger: 30, warning: 50 };
+      expect(getMarginAlertLevel(25, custom)).toBe('danger');
+      expect(getMarginAlertLevel(40, custom)).toBe('warning');
+      expect(getMarginAlertLevel(55, custom)).toBe('ok');
+    });
+
+    it('evaluateMarginAlert uses custom thresholds', () => {
+      const items = [
+        { price_with_commission: 112, base_price: 100, provider_cost: null },
+      ];
+      // With defaults: margin = 12% → danger (< 15)
+      const defaultResult = evaluateMarginAlert(items, 'zone_tariff');
+      expect(defaultResult.level).toBe('danger');
+
+      // With custom thresholds (danger=10, warning=15): 12% → warning
+      const customResult = evaluateMarginAlert(items, 'zone_tariff', { danger: 10, warning: 15 });
+      expect(customResult.level).toBe('warning');
+      expect(customResult.thresholds.danger).toBe(10);
+      expect(customResult.thresholds.warning).toBe(15);
+    });
+
+    it('evaluateMarginAlert custom thresholds make previously ok margin a warning', () => {
+      const items = [
+        { price_with_commission: 130, base_price: 100, provider_cost: null },
+      ];
+      // margin = 30% → ok with defaults
+      const defaultResult = evaluateMarginAlert(items, 'zone_tariff');
+      expect(defaultResult.level).toBe('ok');
+
+      // With strict thresholds (danger=25, warning=40): 30% → warning
+      const strictResult = evaluateMarginAlert(items, 'zone_tariff', { danger: 25, warning: 40 });
+      expect(strictResult.level).toBe('warning');
+    });
+  });
 });
