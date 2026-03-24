@@ -1,13 +1,15 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'azul-cars-v3';
+const CACHE_NAME = 'azul-cars-v4';
+
+// Only cache the bare minimum for offline fallback
 const STATIC_ASSETS = [
-  '/',
   '/icon-192.png',
   '/icon-512.png',
 ];
 
 // ── Install: pre-cache essential assets ──
+// Do NOT call skipWaiting() here — let the user control when to activate
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -16,10 +18,14 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  self.skipWaiting();
+  // NOTE: We intentionally do NOT call self.skipWaiting() here.
+  // This prevents the new SW from taking over active tabs and causing
+  // unexpected page reloads that interrupt user work.
 });
 
 // ── Activate: clean old caches ──
+// Do NOT call clients.claim() — existing tabs keep using the old SW
+// until the user naturally navigates or refreshes.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -30,55 +36,56 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  self.clients.claim();
+  // NOTE: We intentionally do NOT call self.clients.claim() here.
+  // This prevents the new SW from hijacking existing tabs mid-session.
 });
 
-// ── Fetch: network-first for navigation, stale-while-revalidate for assets ──
+// ── Fetch: network-first strategy ──
+// Only intercept navigation requests for offline fallback.
+// Let all other requests go directly to the network to avoid
+// stale cache issues that cause the app to show outdated content.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Only handle same-origin GET requests
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+  
+  // Never intercept API calls or auth endpoints
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
 
+  // For navigation requests: network-first with offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request).then((cached) => {
-            return cached || caches.match('/');
-          });
-        })
-    );
-    return;
-  }
-
-  if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf)$/) ||
-    url.pathname.startsWith('/assets/')
-  ) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || fetchPromise;
+      fetch(request).catch(() => {
+        // Only serve from cache when truly offline
+        return caches.match(request).then((cached) => {
+          return cached || caches.match('/');
+        });
       })
     );
     return;
   }
+
+  // For static assets (icons only): cache-first
+  if (url.pathname.match(/\/(icon-\d+\.png|favicon\.ico)$/)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        return cached || fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // All other requests: go directly to network (no caching)
+  // This prevents stale JS/CSS from being served after deploys
 });
 
 // ── Push Notification Handler ──
@@ -189,6 +196,7 @@ self.addEventListener('notificationclose', (event) => {
 
 // ── Message Handler ──
 self.addEventListener('message', (event) => {
+  // Only skip waiting when explicitly requested by the user (e.g., "Update available" banner)
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
   }

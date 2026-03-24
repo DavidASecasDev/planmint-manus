@@ -210,3 +210,9 @@
 - [x] Fix: Implementada función syncVehicleStatuses() que reconcilia estados de vehículos con reservas (libera alquilados con reserva completada/cancelada, marca como alquilado los de reserva en curso)
 - [x] Fix: Se ejecuta automáticamente al final de cada sync completo de Rently + disponible manualmente via action='sync_vehicles'
 - [x] 5 vehículos identificados para liberar: 2471MGR, 9592MTB, 7767MWH, 8762NKJ, 4471MYS
+- [x] Bug: App tarda 15-30 segundos en cargar (error 429 en /api/get-my-profile - rate limiting)
+- [x] Causa raíz: AuthContext hacía doble fetch de perfil (onAuthStateChange + getSession simultáneos), generando 4 requests al cargar. Rate limit 429 bloqueaba la carga.
+- [x] Fix: Refactorizado AuthContext con deduplicación (profileFetchInFlight ref + lastFetchedUserId). INITIAL_SESSION event se ignora para evitar duplicación.
+- [x] Bug: App se refresca automáticamente cada X tiempo, perdiendo el trabajo del usuario
+- [x] Causa raíz: Service Worker usaba skipWaiting() + clients.claim() agresivamente, tomando control de tabs activos en cada deploy. Además, main.tsx ejecutaba reg.update() cada hora.
+- [x] Fix: SW reescrito sin skipWaiting/clients.claim automáticos. Solo se activa skipWaiting por mensaje explícito. Eliminado setInterval de update. Cache reducido a íconos solamente (no JS/CSS).

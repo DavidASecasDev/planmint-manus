@@ -12,15 +12,17 @@ if (storedTheme === 'dark' || (storedTheme === 'system' && window.matchMedia('(p
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// ── Register Service Worker for PWA install prompt ──
+// ── Register Service Worker for PWA + push notifications ──
+// The SW is registered for push notification support and offline fallback.
+// It does NOT aggressively take over tabs or auto-refresh the page.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((reg) => {
         console.log('[PWA] Service Worker registered, scope:', reg.scope);
-        // Check for updates periodically
-        setInterval(() => reg.update(), 60 * 60 * 1000); // every hour
+        // No periodic update checks — the SW will update naturally
+        // when the user navigates to the app after a deploy.
       })
       .catch((err) => {
         console.warn('[PWA] Service Worker registration failed:', err);

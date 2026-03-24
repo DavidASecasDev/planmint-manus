@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
@@ -115,8 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
   const isInitialLoad = useRef(true);
+  
+  // Deduplication: track in-flight profile fetch to prevent double calls
+  const profileFetchInFlight = useRef<Promise<void> | null>(null);
+  const lastFetchedUserId = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string, accessToken?: string): Promise<Profile | null> => {
+  const fetchProfileData = useCallback(async (userId: string, accessToken?: string): Promise<Profile | null> => {
     // Try backend first (bypasses RLS)
     if (accessToken) {
       const backendProfile = await fetchProfileViaBackend(accessToken);
@@ -137,9 +141,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return data as Profile | null;
-  };
+  }, []);
 
-  const fetchOrganization = async (orgId: string, accessToken?: string): Promise<Organization | null> => {
+  const fetchOrganizationData = useCallback(async (orgId: string, accessToken?: string): Promise<Organization | null> => {
     // Try backend first (bypasses RLS)
     if (accessToken) {
       const backendOrg = await fetchOrganizationViaBackend(accessToken, orgId);
@@ -160,124 +164,141 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return data as Organization | null;
-  };
+  }, []);
+
+  /**
+   * Load profile + organization for a given user, with deduplication.
+   * If a fetch for the same user is already in-flight, reuse it.
+   */
+  const loadUserData = useCallback(async (
+    userId: string,
+    accessToken: string | undefined,
+    event: string | null,
+    sessionObj: Session | null,
+  ) => {
+    // Deduplicate: if we're already fetching for this user, return the existing promise
+    if (lastFetchedUserId.current === userId && profileFetchInFlight.current) {
+      return profileFetchInFlight.current;
+    }
+
+    lastFetchedUserId.current = userId;
+
+    const fetchPromise = (async () => {
+      try {
+        setProfileLoading(true);
+
+        const profileData = await fetchProfileData(userId, accessToken);
+        setProfile(profileData);
+
+        // If user exists in auth but has no profile, allow navigation
+        if (!profileData) {
+          log.warn('User has session but no profile — allowing onboarding flow');
+          setLoading(false);
+          setProfileLoading(false);
+          return;
+        }
+
+        if (profileData.organization_id) {
+          const orgData = await fetchOrganizationData(profileData.organization_id, accessToken);
+          setOrganization(orgData);
+        } else {
+          setOrganization(null);
+        }
+
+        // Create a session record only on real logins, not session restores
+        if (event === 'SIGNED_IN' && !isInitialLoad.current && profileData.organization_id && sessionObj?.user) {
+          const existingSessionId = localStorage.getItem('current_session_id');
+          if (!existingSessionId) {
+            supabase.from('user_sessions').insert({
+              user_id: sessionObj.user.id,
+              organization_id: profileData.organization_id,
+              user_agent: navigator.userAgent,
+              device_name: parseUserAgent(navigator.userAgent),
+            }).select('id').single().then(({ data: sessionData }) => {
+              if (sessionData?.id) {
+                localStorage.setItem('current_session_id', sessionData.id);
+              }
+            }, () => {
+              // Silently ignore session creation errors — auth still works
+            });
+          }
+        }
+
+        // Mark initial load as done after first event
+        if (isInitialLoad.current) {
+          isInitialLoad.current = false;
+        }
+      } catch (err) {
+        log.error('Error loading user data:', err);
+      } finally {
+        setLoading(false);
+        setProfileLoading(false);
+        profileFetchInFlight.current = null;
+      }
+    })();
+
+    profileFetchInFlight.current = fetchPromise;
+    return fetchPromise;
+  }, [fetchProfileData, fetchOrganizationData]);
 
   const refreshProfile = async () => {
     if (!user) return;
     
-    setProfileLoading(true);
+    // Force a fresh fetch by clearing the deduplication state
+    lastFetchedUserId.current = null;
+    profileFetchInFlight.current = null;
+    
     // Get fresh access token for backend calls
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData?.session?.access_token;
     
-    const profileData = await fetchProfile(user.id, accessToken);
-    setProfile(profileData);
-
-    if (profileData?.organization_id) {
-      const orgData = await fetchOrganization(profileData.organization_id, accessToken);
-      setOrganization(orgData);
-    } else {
-      setOrganization(null);
-    }
-    setProfileLoading(false);
+    await loadUserData(user.id, accessToken, null, sessionData?.session ?? null);
   };
 
   useEffect(() => {
+    let initialSessionHandled = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-        if (session?.user) {
-          // Indicate profile is loading when auth changes
-          setProfileLoading(true);
+        if (currentSession?.user) {
+          // If this is the INITIAL_SESSION event triggered by getSession(),
+          // we already handle it below — skip to avoid double fetch
+          if (event === 'INITIAL_SESSION') {
+            // Let the getSession() handler below take care of this
+            return;
+          }
+
+          const accessToken = currentSession.access_token;
           
-          const accessToken = session.access_token;
-          
-          // Defer profile fetch with setTimeout to prevent deadlock
+          // Defer to prevent Supabase auth deadlock
           setTimeout(() => {
-            fetchProfile(session.user.id, accessToken).then((profileData) => {
-              setProfile(profileData);
-
-              // If user exists in auth but has no profile, allow navigation
-              // (the create-org RPC will self-heal the profile)
-              if (!profileData) {
-                log.warn('User has session but no profile — allowing onboarding flow');
-                setProfileLoading(false);
-                return;
-              }
-
-              if (profileData?.organization_id) {
-                fetchOrganization(profileData.organization_id, accessToken).then((org) => {
-                  setOrganization(org);
-                  setProfileLoading(false);
-                });
-              } else {
-                setOrganization(null);
-                setProfileLoading(false);
-              }
-
-              // Create a session record only on real logins, not session restores
-              if (event === 'SIGNED_IN' && !isInitialLoad.current && profileData?.organization_id) {
-                const existingSessionId = localStorage.getItem('current_session_id');
-                if (!existingSessionId) {
-                  supabase.from('user_sessions').insert({
-                    user_id: session.user.id,
-                    organization_id: profileData.organization_id,
-                    user_agent: navigator.userAgent,
-                    device_name: parseUserAgent(navigator.userAgent),
-                  }).select('id').single().then(({ data: sessionData }) => {
-                    if (sessionData?.id) {
-                      localStorage.setItem('current_session_id', sessionData.id);
-                    }
-                  }, () => {
-                    // Silently ignore session creation errors — auth still works
-                  });
-                }
-              }
-
-              // Mark initial load as done after first event
-              if (isInitialLoad.current) {
-                isInitialLoad.current = false;
-              }
-            }, () => {
-              setProfileLoading(false);
-            });
+            loadUserData(currentSession.user.id, accessToken, event, currentSession);
           }, 0);
         } else {
           setProfile(null);
           setOrganization(null);
+          setLoading(false);
           setProfileLoading(false);
           localStorage.removeItem('current_session_id');
         }
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // THEN check for existing session (this is the single source of truth for initial load)
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      if (initialSessionHandled) return;
+      initialSessionHandled = true;
 
-      if (session?.user) {
-        const accessToken = session.access_token;
-        
-        fetchProfile(session.user.id, accessToken).then((profileData) => {
-          setProfile(profileData);
-          if (profileData?.organization_id) {
-            fetchOrganization(profileData.organization_id, accessToken).then((org) => {
-              setOrganization(org);
-              setLoading(false);
-              setProfileLoading(false);
-            });
-          } else {
-            setLoading(false);
-            setProfileLoading(false);
-          }
-        }).catch(() => {
-          setLoading(false);
-          setProfileLoading(false);
-        });
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+
+      if (existingSession?.user) {
+        const accessToken = existingSession.access_token;
+        loadUserData(existingSession.user.id, accessToken, null, existingSession);
       } else {
         setLoading(false);
         setProfileLoading(false);
@@ -285,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Proactively refresh session when app returns from background
+    // This only refreshes the Supabase auth token, NOT the full profile
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         supabase.auth.getSession();
@@ -296,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [loadUserData]);
 
   const signUp = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
