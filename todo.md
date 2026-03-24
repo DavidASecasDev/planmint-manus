@@ -285,3 +285,9 @@
 - [x] Dashboard de métricas transfers: distribución por modo de precio (zona vs proveedor)
 - [x] Dashboard de métricas transfers: gráficos con recharts
 - [x] Tests para lógica de exportación y cálculos del dashboard
+- [x] Alertas de margen bajo: detectar margen < 15% en solicitudes de transfer
+- [x] Alertas de margen bajo: mostrar warning visual en TransferDetail y TransferFinancialSummary
+- [x] Alertas de margen bajo: bloquear/advertir antes de enviar presupuesto con margen bajo
+- [x] Filtro por broker en dashboard de reportes: añadir selector de broker en ReportsTransfers
+- [x] Filtro por broker en dashboard de reportes: filtrar datos en useTransferReports
+- [x] Tests para lógica de alertas de margen bajo

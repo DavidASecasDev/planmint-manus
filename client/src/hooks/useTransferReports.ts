@@ -85,12 +85,18 @@ export function useTransferReports(filters: ReportFilters) {
       if (!organization?.id) return null;
       const { start, end } = getDateRange(filters);
 
-      const { data, error } = await supabase
+      let q = supabase
         .from('transfer_requests')
         .select('id, status, broker_id, broker_name, client_total, provider_cost, internal_margin, pricing_mode, created_at')
         .eq('organization_id', organization.id)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
+
+      if (filters.brokerId) {
+        q = q.eq('broker_id', filters.brokerId);
+      }
+
+      const { data, error } = await q;
 
       if (error) throw error;
       return data || [];

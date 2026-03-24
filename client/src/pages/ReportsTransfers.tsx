@@ -5,8 +5,12 @@ import { KPICard } from '@/components/reports/KPICard';
 import { TransfersByStatusChart, TransfersTrendChart, PricingModeDistributionChart } from '@/components/reports/TransferReportsCharts';
 import { TransferReportsTable } from '@/components/reports/TransferReportsTable';
 import { useTransferReports } from '@/hooks/useTransferReports';
+import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { ReportFilters } from '@/types/reports';
-import { Repeat2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Repeat2, Users, X } from 'lucide-react';
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
@@ -15,6 +19,20 @@ function formatCurrency(value: number): string {
 export default function ReportsTransfers() {
   const [filters, setFilters] = useState<ReportFilters>({ dateRange: '30d' });
   const { data: report, isLoading } = useTransferReports(filters);
+  const { allBrokers, isLoading: isLoadingBrokers } = useTransferBrokers();
+
+  const selectedBroker = allBrokers.find(b => b.id === filters.brokerId);
+
+  const handleBrokerChange = (value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      brokerId: value === 'all' ? undefined : value,
+    }));
+  };
+
+  const clearBrokerFilter = () => {
+    setFilters(prev => ({ ...prev, brokerId: undefined }));
+  };
 
   return (
     <ReportsLayout>
@@ -30,15 +48,69 @@ export default function ReportsTransfers() {
           </div>
         </div>
 
-        <ReportFiltersBar
-          filters={filters}
-          onFiltersChange={setFilters}
-          showAreaFilter={false}
-          showTagFilter={false}
-          showAssigneeFilter={false}
-          showStatusFilter={false}
-          showTypeFilter={false}
-        />
+        {/* Filters row */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <ReportFiltersBar
+              filters={filters}
+              onFiltersChange={setFilters}
+              showAreaFilter={false}
+              showTagFilter={false}
+              showAssigneeFilter={false}
+              showStatusFilter={false}
+              showTypeFilter={false}
+            />
+          </div>
+
+          {/* Broker filter */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Broker:</span>
+            </div>
+            <Select
+              value={filters.brokerId || 'all'}
+              onValueChange={handleBrokerChange}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Todos los brokers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los brokers</SelectItem>
+                {allBrokers.map((broker) => (
+                  <SelectItem key={broker.id} value={broker.id}>
+                    {broker.name}
+                    {broker.company && (
+                      <span className="text-muted-foreground ml-1">({broker.company})</span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedBroker && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearBrokerFilter}
+                className="gap-1 text-muted-foreground h-8"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="text-xs">Quitar filtro</span>
+              </Button>
+            )}
+          </div>
+
+          {/* Active broker filter indicator */}
+          {selectedBroker && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="gap-1.5 px-3 py-1">
+                <Users className="h-3.5 w-3.5" />
+                Filtrando por: {selectedBroker.name}
+                {selectedBroker.company && ` (${selectedBroker.company})`}
+              </Badge>
+            </div>
+          )}
+        </div>
 
         {/* KPIs — Row 1: Counts */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -15,7 +15,8 @@ import {
 import { TransferStatusBadge } from './TransferStatusBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText } from 'lucide-react';
+import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert } from 'lucide-react';
+import { getMarginPercent, getMarginAlertLevel, MARGIN_THRESHOLD_DANGER } from '@/utils/marginAlerts';
 import type { TransferRequest } from '@/types/transfers';
 
 interface TransferRequestCardProps {
@@ -36,14 +37,22 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
 
   const pricingMode = request.pricing_mode || 'zone_tariff';
 
+  // Calculate margin alert from request-level totals
+  const clientTotal = request.client_total || request.total_amount || 0;
+  const providerCost = request.provider_cost || 0;
+  const marginPercent = getMarginPercent(providerCost, clientTotal);
+  const marginLevel = providerCost > 0 ? getMarginAlertLevel(marginPercent) : 'ok';
+
   return (
     <Card 
-      className="p-4 cursor-pointer hover:bg-muted/50 transition-colors border"
+      className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors border ${
+        marginLevel === 'danger' ? 'border-red-300/50' : ''
+      }`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-mono text-sm text-muted-foreground">
               {request.request_number}
             </span>
@@ -57,6 +66,12 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-blue-300 text-blue-700 bg-blue-50">
                 <MapPin className="h-3 w-3 mr-0.5" />
                 Zona
+              </Badge>
+            )}
+            {marginLevel === 'danger' && (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-0.5">
+                <ShieldAlert className="h-3 w-3" />
+                {marginPercent}%
               </Badge>
             )}
           </div>
@@ -128,10 +143,12 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
             ) : (
               <span className="text-sm text-muted-foreground">Interno</span>
             )}
-            {request.total_amount != null && request.total_amount > 0 && (
-              <div className="flex items-center justify-end gap-1 text-sm font-medium text-foreground">
+            {clientTotal > 0 && (
+              <div className={`flex items-center justify-end gap-1 text-sm font-medium ${
+                marginLevel === 'danger' ? 'text-red-600' : 'text-foreground'
+              }`}>
                 <Euro className="h-3.5 w-3.5" />
-                <span>{(request.total_amount * 1.21).toFixed(2)} €</span>
+                <span>{(clientTotal * 1.21).toFixed(2)} €</span>
               </div>
             )}
           </div>

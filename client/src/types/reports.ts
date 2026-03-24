@@ -7,6 +7,7 @@ export interface ReportFilters {
   assigneeId?: string;
   status?: string;
   taskType?: 'simple' | 'goal_numeric' | 'goal_milestones' | 'all';
+  brokerId?: string;
 }
 
 export interface TaskMetrics {

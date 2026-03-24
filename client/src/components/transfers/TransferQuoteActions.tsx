@@ -3,9 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Download, Loader2, AlertCircle, Settings } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { FileText, Download, Loader2, AlertCircle, Settings, ShieldAlert } from 'lucide-react';
 import { useTransferQuotePdf, type PdfLanguage } from '@/hooks/useTransferQuotePdf';
 import { useNavigate } from 'react-router-dom';
+import { evaluateMarginAlert, MARGIN_THRESHOLD_DANGER } from '@/utils/marginAlerts';
+import { formatCurrency } from '@/utils/transferCalculations';
 import type { TransferRequest, TransferItem, PricingMode } from '@/types/transfers';
 
 interface TransferQuoteActionsProps {
@@ -17,106 +29,197 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
   const { generateQuotePdf, generateInvoicePdf, isGenerating, settingsComplete, calculatePdfTotals } = useTransferQuotePdf();
   const navigate = useNavigate();
   const [language, setLanguage] = useState<PdfLanguage>('es');
+  const [showLowMarginDialog, setShowLowMarginDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'quote' | 'invoice' | null>(null);
 
   const canGenerate = items.length > 0;
-
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (amount == null) return '0,00 €';
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(amount);
-  };
 
   // Use the same calculation as the PDF for consistency
   const pricingMode: PricingMode = request.pricing_mode || 'zone_tariff';
   const { total } = calculatePdfTotals(items, pricingMode);
 
+  // Evaluate margin alert
+  const marginAlert = evaluateMarginAlert(items, pricingMode);
+
+  const handleGenerateQuote = () => {
+    if (marginAlert.level === 'danger') {
+      setPendingAction('quote');
+      setShowLowMarginDialog(true);
+      return;
+    }
+    generateQuotePdf(request, items, language);
+  };
+
+  const handleGenerateInvoice = () => {
+    if (marginAlert.level === 'danger') {
+      setPendingAction('invoice');
+      setShowLowMarginDialog(true);
+      return;
+    }
+    generateInvoicePdf(request, items, language);
+  };
+
+  const handleConfirmLowMargin = () => {
+    setShowLowMarginDialog(false);
+    if (pendingAction === 'quote') {
+      generateQuotePdf(request, items, language);
+    } else if (pendingAction === 'invoice') {
+      generateInvoicePdf(request, items, language);
+    }
+    setPendingAction(null);
+  };
+
+  const handleCancelLowMargin = () => {
+    setShowLowMarginDialog(false);
+    setPendingAction(null);
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <FileText className="h-5 w-5" />
-          Documentos Cliente
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!settingsComplete && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>Configura los datos de facturación para generar documentos</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => navigate('/settings?tab=transfers')}
-                className="ml-4 gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                Configurar
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-5 w-5" />
+            Documentos Cliente
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!settingsComplete && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>Configura los datos de facturación para generar documentos</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate('/settings?tab=transfers')}
+                  className="ml-4 gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Configurar
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
-        {!canGenerate && settingsComplete && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Añade trayectos para poder generar documentos
-            </AlertDescription>
-          </Alert>
-        )}
+          {!canGenerate && settingsComplete && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Añade trayectos para poder generar documentos
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">Idioma:</span>
-          <Select value={language} onValueChange={(value: PdfLanguage) => setLanguage(value)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="es">🇪🇸 Español</SelectItem>
-              <SelectItem value="en">🇬🇧 English</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          {/* Low margin warning in documents section */}
+          {marginAlert.level === 'danger' && canGenerate && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>
+                El margen es solo del {marginAlert.marginPercent}% (mínimo recomendado: {MARGIN_THRESHOLD_DANGER}%). 
+                Se pedirá confirmación antes de generar documentos.
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => generateQuotePdf(request, items, language)}
-            disabled={!canGenerate || !settingsComplete || isGenerating}
-            className="gap-2"
-          >
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Descargar Presupuesto
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={() => generateInvoicePdf(request, items, language)}
-            disabled={!canGenerate || !settingsComplete || isGenerating}
-            className="gap-2"
-          >
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Descargar Factura
-          </Button>
-        </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Idioma:</span>
+            <Select value={language} onValueChange={(value: PdfLanguage) => setLanguage(value)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="es">Español</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        {total > 0 && (
-          <p className="text-sm text-muted-foreground">
-            Total a facturar: <span className="font-medium text-foreground">{formatCurrency(total)}</span>
-            <span className="text-xs ml-1">(IVA incl.)</span>
-          </p>
-        )}
-      </CardContent>
-    </Card>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={handleGenerateQuote}
+              disabled={!canGenerate || !settingsComplete || isGenerating}
+              className="gap-2"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Descargar Presupuesto
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={handleGenerateInvoice}
+              disabled={!canGenerate || !settingsComplete || isGenerating}
+              className="gap-2"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Descargar Factura
+            </Button>
+          </div>
+
+          {total > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Total a facturar: <span className="font-medium text-foreground">{formatCurrency(total)}</span>
+              <span className="text-xs ml-1">(IVA incl.)</span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Low margin confirmation dialog */}
+      <AlertDialog open={showLowMarginDialog} onOpenChange={setShowLowMarginDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <ShieldAlert className="h-5 w-5" />
+              Margen inferior al {MARGIN_THRESHOLD_DANGER}%
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  El margen actual de esta solicitud es del <strong className="text-red-600">{marginAlert.marginPercent}%</strong>, 
+                  por debajo del mínimo recomendado del {MARGIN_THRESHOLD_DANGER}%.
+                </p>
+                <div className="bg-muted rounded-lg p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Total cliente:</span>
+                    <span className="font-medium">{formatCurrency(marginAlert.clientTotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Coste proveedor:</span>
+                    <span className="font-medium">{formatCurrency(marginAlert.providerCost)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 mt-1">
+                    <span>Margen bruto:</span>
+                    <span className="font-medium text-red-600">{formatCurrency(marginAlert.internalMargin)}</span>
+                  </div>
+                </div>
+                <p className="text-sm">
+                  ¿Deseas continuar y generar el {pendingAction === 'quote' ? 'presupuesto' : 'factura'} con este margen?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelLowMargin}>
+              Cancelar y revisar precios
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmLowMargin}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Generar igualmente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
