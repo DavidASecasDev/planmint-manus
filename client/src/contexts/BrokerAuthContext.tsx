@@ -145,7 +145,7 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
         let status: { has_request: boolean; status?: string; rejection_reason?: string } | null = null;
         try {
           const { data: regData } = await (supabase as any)
-            .from('broker_registrations')
+            .from('broker_registration_requests')
             .select('status, rejection_reason')
             .eq('user_id', data.user.id)
             .maybeSingle();
