@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +15,7 @@ import {
 import { TransferStatusBadge } from './TransferStatusBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Building2, User, Trash2, Euro } from 'lucide-react';
+import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText } from 'lucide-react';
 import type { TransferRequest } from '@/types/transfers';
 
 interface TransferRequestCardProps {
@@ -33,6 +34,8 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
     e.stopPropagation();
   };
 
+  const pricingMode = request.pricing_mode || 'zone_tariff';
+
   return (
     <Card 
       className="p-4 cursor-pointer hover:bg-muted/50 transition-colors border"
@@ -45,6 +48,17 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
               {request.request_number}
             </span>
             <TransferStatusBadge status={request.status} />
+            {pricingMode === 'provider_quote' ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-amber-300 text-amber-700 bg-amber-50">
+                <FileText className="h-3 w-3 mr-0.5" />
+                Proveedor
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-blue-300 text-blue-700 bg-blue-50">
+                <MapPin className="h-3 w-3 mr-0.5" />
+                Zona
+              </Badge>
+            )}
           </div>
           
           <h3 className="font-semibold text-lg truncate">

@@ -5383,6 +5383,7 @@ export type Database = {
           position: number
           price_manually_set: boolean | null
           price_with_commission: number | null
+          provider_cost: number | null
           request_id: string
           return_dropoff_enabled: boolean
           return_dropoff_location: string | null
@@ -5416,6 +5417,7 @@ export type Database = {
           position?: number
           price_manually_set?: boolean | null
           price_with_commission?: number | null
+          provider_cost?: number | null
           request_id: string
           return_dropoff_enabled?: boolean
           return_dropoff_location?: string | null
@@ -5449,6 +5451,7 @@ export type Database = {
           position?: number
           price_manually_set?: boolean | null
           price_with_commission?: number | null
+          provider_cost?: number | null
           request_id?: string
           return_dropoff_enabled?: boolean
           return_dropoff_location?: string | null
@@ -5527,6 +5530,7 @@ export type Database = {
           is_external_provider: boolean
           notes: string | null
           organization_id: string
+          pricing_mode: string | null
           provider_cost: number | null
           quote_generated_at: string | null
           quote_number: string | null
@@ -5549,6 +5553,7 @@ export type Database = {
           is_external_provider?: boolean
           notes?: string | null
           organization_id: string
+          pricing_mode?: string | null
           provider_cost?: number | null
           quote_generated_at?: string | null
           quote_number?: string | null
@@ -5571,6 +5576,7 @@ export type Database = {
           is_external_provider?: boolean
           notes?: string | null
           organization_id?: string
+          pricing_mode?: string | null
           provider_cost?: number | null
           quote_generated_at?: string | null
           quote_number?: string | null

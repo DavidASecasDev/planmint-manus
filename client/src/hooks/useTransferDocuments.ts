@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { syncRequestTotals } from '@/utils/syncRequestTotals';
 import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -228,6 +229,8 @@ export function useTransferDocuments(requestId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['transfer-request', requestId] });
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-items', requestId] });
+      // Sync totals from items to request after applying provider cost
+      if (requestId) syncRequestTotals(requestId).catch(console.error);
       
       if (createdItemsCount > 0) {
         toast.success(`Coste aplicado y ${createdItemsCount} trayecto${createdItemsCount !== 1 ? 's' : ''} creado${createdItemsCount !== 1 ? 's' : ''}`);

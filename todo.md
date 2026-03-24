@@ -269,3 +269,10 @@
 - [x] Cargar pricing_mode desde BD: TransferDetail debe inicializar pricingMode desde existingRequest.pricing_mode
 - [x] Actualizar generación de PDF: adaptar presupuesto/factura para reflejar modo de precio seleccionado
 - [x] Tests para persistencia de pricing_mode y generación de PDF actualizada
+- [x] Sincronizar client_total y provider_cost a nivel de request: crear syncRequestTotals utility
+- [x] Sincronizar client_total: wired into useTransferItems (createItem, updateItem, deleteItem, createMultipleItems)
+- [x] Sincronizar client_total: wired into useTransferDocuments (applyProviderCost)
+- [x] Añadir badge visual del modo de precio en TransferRequestCard (Zona/Proveedor)
+- [x] Añadir provider_cost a transfer_items en Supabase types
+- [x] Añadir pricing_mode a transfer_requests en Supabase types
+- [x] Tests para calculateRequestTotals (12 tests: zone_tariff, provider_quote, rounding, edge cases)

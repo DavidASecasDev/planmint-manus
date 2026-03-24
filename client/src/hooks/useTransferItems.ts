@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { syncRequestTotals } from '@/utils/syncRequestTotals';
 import type { TransferItem, TransferItemStatus } from '@/types/transfers';
 
 export function useTransferItems(requestId: string | undefined) {
@@ -65,6 +66,8 @@ export function useTransferItems(requestId: string | undefined) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-request', requestId] });
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      // Sync totals to the request after item creation
+      if (requestId) syncRequestTotals(requestId).catch(console.error);
     },
     onError: (error: Error) => {
       toast.error(`Error al crear transfer: ${error.message}`);
@@ -125,8 +128,10 @@ export function useTransferItems(requestId: string | undefined) {
       toast.error(`Error al actualizar transfer: ${error.message}`);
     },
     onSettled: () => {
-      // Only invalidate the list view (lightweight), NOT the detail
+      // Invalidate the list view
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      // Sync totals to the request after item update
+      if (requestId) syncRequestTotals(requestId).catch(console.error);
     },
   });
 
@@ -162,6 +167,8 @@ export function useTransferItems(requestId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['transfer-request', requestId] });
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       toast.success('Transfer eliminado');
+      // Sync totals to the request after item deletion
+      if (requestId) syncRequestTotals(requestId).catch(console.error);
     },
     onError: (error: Error) => {
       toast.error(`Error al eliminar: ${error.message}`);
@@ -208,6 +215,8 @@ export function useTransferItems(requestId: string | undefined) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-request', requestId] });
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      // Sync totals to the request after bulk creation
+      if (requestId) syncRequestTotals(requestId).catch(console.error);
     },
     onError: (error: Error) => {
       toast.error(`Error al crear transfers: ${error.message}`);
