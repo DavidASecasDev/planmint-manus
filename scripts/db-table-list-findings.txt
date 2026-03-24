@@ -1,0 +1,11 @@
+Table Editor findings:
+- transfer_request_notes: VISIBLE in table list (confirmed created)
+- transfer_status_history: Should be visible (created earlier)
+- task_comments: NOT visible in table list between "tasks" and "team_members"
+- vehicle_audits: Need to scroll further to check
+
+The CREATE TABLE IF NOT EXISTS for vehicle_audits and task_comments returned "Success. No rows returned" 
+but the tables were never actually created. The SQL Editor may have a bug where it shows success 
+but doesn't commit the transaction.
+
+Strategy: Use the "New table" button in Table Editor UI to create these tables manually.

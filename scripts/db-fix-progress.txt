@@ -1,0 +1,6 @@
+DB Fix Progress:
+1. transfer_status_history: ✓ CREATED
+2. transfer_request_notes: ✓ CREATED
+3. vehicle_audits: ✓ CREATED
+4. task_comments: ✓ CREATED
+5. transfer_brokers columns (email, phone, company, user_id): ✓ ADDED

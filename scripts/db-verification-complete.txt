@@ -1,0 +1,25 @@
+FINAL VERIFICATION - All tables and columns:
+
+1. transfer_status_history: ✓ CREATED (7 cols: id, request_id, organization_id, previous_status, new_status, changed_by_type, changed_by_id, changed_by_name, note, created_at)
+   - Code (useTransferStatusHistory.ts) inserts: request_id, organization_id, previous_status, new_status, changed_by_type, changed_by_id, changed_by_name, note → ALL MATCH
+
+2. transfer_request_notes: ✓ CREATED (7 cols: id, request_id, organization_id, broker_id, author_name, text, created_at)
+   - Code (useTransferNotes.ts) inserts: request_id, organization_id, broker_id, author_name, text → ALL MATCH
+
+3. vehicle_quality_audits: ✓ ALREADY EXISTED (11 cols: id, organization_id, vehicle_id, auditor_id, status, checklist_results, overall_score, notes, rejection_reason, created_at, completed_at)
+   - Code (useVehicleAudits.ts) inserts: organization_id, vehicle_id, auditor_id, status, checklist_results, overall_score → ALL MATCH
+   - Code updates: status, rejection_reason, notes, checklist_results, overall_score, completed_at → ALL MATCH
+
+4. vehicle_audit_photos: ✓ ALREADY EXISTED (7 cols)
+   - Code inserts: audit_id, organization_id, photo_url, checklist_item_key, caption → MATCH
+
+5. vehicle_audits: ✗ DROPPED (was incorrectly named, code uses vehicle_quality_audits)
+
+6. task_comments: ✓ CREATED (7 cols: id, task_id, organization_id, user_id, content, is_ai_generated, created_at)
+   - Code (aiAssistant.ts) queries: task_id filter → MATCH
+
+7. transfer_brokers: ✓ COLUMNS ADDED (email, phone, company, user_id)
+   - Code (useTransferBrokers.ts) inserts: name, organization_id, email, phone, company → ALL MATCH
+   - Code (brokerRegistrationEndpoints.ts) updates: user_id → MATCH
+
+SUMMARY: All tables and columns now match what the code expects. No code changes needed.

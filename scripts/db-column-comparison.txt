@@ -1,0 +1,40 @@
+transfer_request_notes table columns (from Supabase):
+1. id (uuid, NOT NULL, default gen_random_uuid())
+2. request_id (uuid, NOT NULL)
+3. organization_id (uuid, NOT NULL)
+4. broker_id (uuid, YES/nullable)
+5. author_name (text, NOT NULL)
+6. text (text, NOT NULL)
+7. created_at (timestamptz, NOT NULL, default now())
+
+Code in useTransferNotes.ts inserts:
+- request_id ✓ matches
+- organization_id ✓ matches
+- broker_id ✓ matches
+- author_name ✓ matches
+- text ✓ matches (code uses "text: text.trim()")
+
+RESULT: transfer_request_notes columns MATCH the code perfectly. No fix needed.
+
+transfer_brokers columns (from Supabase - 19 rows total):
+1. id (uuid, NOT NULL)
+2. organization_id (uuid, NOT NULL)
+3. name (text, NOT NULL)
+4. is_active (boolean, NOT NULL)
+5. created_at (timestamptz, NOT NULL)
+6. email (text, YES) - NEW
+7. phone (text, YES) - NEW
+8. company (text, YES) - NEW
+9. user_id (uuid, YES) - NEW
+
+transfer_status_history columns (visible in results):
+10. id (uuid, NOT NULL)
+11. request_id (uuid, NOT NULL)
+... (need to scroll for remaining columns)
+
+RESULT: transfer_brokers has all 9 columns including the 4 new ones. ✓
+
+Now need to read the code hooks to verify column name matches:
+- useTransferStatusHistory.ts
+- FleetAudits page for vehicle_audits
+- aiAssistant.ts for task_comments

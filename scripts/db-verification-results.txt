@@ -1,0 +1,11 @@
+DB Verification Results:
+
+Tables vehicles (19 cols) and tasks (29 cols) BOTH EXIST.
+So the FK references in vehicle_audits and task_comments should work.
+
+The "0 columns" result for vehicle_audits and task_comments in the earlier verification
+was likely because CREATE TABLE IF NOT EXISTS silently skipped if the table already existed
+but was empty, OR the SQL ran with "Success. No rows returned" which means it executed
+but the verification query may have cached old results.
+
+Let me re-verify specifically for vehicle_audits and task_comments.

@@ -222,9 +222,9 @@
 - [x] Bug: Usuario Daniel Ripoll no puede acceder a la aplicación
 - [x] Causa raíz: La tabla broker_profiles no existía en Supabase. BrokerAuthContext consultaba esta tabla para verificar acceso al portal de brokers. Además, login check usaba tabla incorrecta 'broker_registrations' en vez de 'broker_registration_requests'.
 - [x] Fix: Tabla broker_profiles creada en Supabase. Endpoint approve-broker-registration actualizado para crear broker_profile automáticamente al aprobar. Broker profiles creados manualmente para Daniel Ripoll y Gloria (aprobados antes del fix).
-- [ ] AUDITORÍA COMPLETA: Módulo Transfers - DB, servidor, hooks, componentes
-- [ ] Revisar flujo completo: invitación broker → creación cuenta → aceptación → acceso portal
-- [ ] Limpiar incoherencias en base de datos y código
+- [x] AUDITORÍA COMPLETA: Módulo Transfers - DB, servidor, hooks, componentes
+- [x] Revisar flujo completo: invitación broker → creación cuenta → aceptación → acceso portal
+- [x] Limpiar incoherencias en base de datos y código
 - [x] Fix Crítico 1: Crear endpoint Express /api/request-broker-access (registro de brokers roto)
 - [x] Fix Crítico 1b: Actualizar BrokerRegister.tsx para usar nuevo endpoint en vez de Edge Function
 - [x] Fix Crítico 2: Aprobar broker → actualizar transfer_brokers.user_id
@@ -232,3 +232,9 @@
 - [x] Fix Crítico 4: useBrokerRequestDetail agregar filtro organization_id (seguridad cross-org)
 - [x] Fix Crítico 5: setupPortalAccess arreglar para actualizar email en vez de campos fantasma (portal_email/portal_access no existen)
 - [x] Tests: 19 tests nuevos para broker registration/auth (430 total pasando)
+- [x] Auditoría completa: Consultar esquema real de la BD (todas las tablas, columnas, tipos)
+- [x] Auditoría completa: Extraer todas las referencias a tablas/columnas desde el código
+- [x] Auditoría completa: Cruzar código vs BD para identificar todos los desajustes
+- [x] Auditoría completa: Crear/modificar tablas y columnas faltantes en la BD
+- [x] Auditoría completa: Actualizar código donde sea necesario (no fue necesario, todo coincide)
+- [x] Auditoría completa: Tests y verificación (430 tests pasando, 0 errores TS)

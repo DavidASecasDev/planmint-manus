@@ -1,0 +1,18 @@
+CRITICAL FINDINGS - Table name verification:
+
+Tables that exist in Supabase:
+1. task_comments: 7 columns ✓ (code uses 'task_comments' - MATCH)
+2. vehicle_audit_photos: 7 columns ✓ (code uses 'vehicle_audit_photos' - MATCH)
+3. vehicle_audits: 17 columns (I created this - WRONG NAME, code uses 'vehicle_quality_audits')
+4. vehicle_quality_audits: 11 columns ✓ (code uses 'vehicle_quality_audits' - MATCH)
+
+CONCLUSION:
+- vehicle_quality_audits ALREADY EXISTED with 11 columns! The code references this correctly.
+- vehicle_audit_photos ALREADY EXISTED with 7 columns! The code references this correctly.
+- I created vehicle_audits (17 cols) unnecessarily - it's the WRONG table name. Should be dropped.
+- task_comments: 7 columns - created correctly, code matches.
+
+ACTION NEEDED:
+1. DROP TABLE vehicle_audits (wrong name, not used by code)
+2. Verify vehicle_quality_audits has all columns the code expects
+3. Verify vehicle_audit_photos has all columns the code expects

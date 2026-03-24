@@ -1,0 +1,462 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+=== TABLE EXISTENCE CHECK ===
+
+✓ profiles
+✓ organizations
+✓ organization_members
+? roles — PGRST205: Could not find the table 'public.roles' in the schema cache
+? permissions — PGRST205: Could not find the table 'public.permissions' in the schema cache
+✓ role_permissions
+? member_roles — PGRST205: Could not find the table 'public.member_roles' in the schema cache
+? invitations — PGRST205: Could not find the table 'public.invitations' in the schema cache
+✓ transfer_brokers
+✓ transfer_requests
+✓ transfer_items
+✓ transfer_documents
+? transfer_notes — PGRST205: Could not find the table 'public.transfer_notes' in the schema cache
+? transfer_status_history — PGRST205: Could not find the table 'public.transfer_status_history' in the schema cache
+✓ transfer_providers
+✓ transfer_invoice_settings
+✓ transfer_item_vehicles
+? transfer_reports — PGRST205: Could not find the table 'public.transfer_reports' in the schema cache
+✓ broker_profiles
+✓ broker_registration_requests
+? broker_notifications — PGRST205: Could not find the table 'public.broker_notifications' in the schema cache
+✓ vehicles
+? vehicle_categories — PGRST205: Could not find the table 'public.vehicle_categories' in the schema cache
+? vehicle_maintenance — PGRST205: Could not find the table 'public.vehicle_maintenance' in the schema cache
+? vehicle_documents — PGRST205: Could not find the table 'public.vehicle_documents' in the schema cache
+? vehicle_prep_checklists — PGRST205: Could not find the table 'public.vehicle_prep_checklists' in the schema cache
+? vehicle_prep_items — PGRST205: Could not find the table 'public.vehicle_prep_items' in the schema cache
+? vehicle_prep_alerts — PGRST205: Could not find the table 'public.vehicle_prep_alerts' in the schema cache
+? fleet_audit_logs — PGRST205: Could not find the table 'public.fleet_audit_logs' in the schema cache
+? fleet_categories — PGRST205: Could not find the table 'public.fleet_categories' in the schema cache
+? billing_records — PGRST205: Could not find the table 'public.billing_records' in the schema cache
+? billing_settings — PGRST205: Could not find the table 'public.billing_settings' in the schema cache
+? properties — PGRST205: Could not find the table 'public.properties' in the schema cache
+? property_units — PGRST205: Could not find the table 'public.property_units' in the schema cache
+✓ reservations
+? drivers — PGRST205: Could not find the table 'public.drivers' in the schema cache
+? driver_documents — PGRST205: Could not find the table 'public.driver_documents' in the schema cache
+✓ notifications
+✓ notification_preferences
+? user_preferences — PGRST205: Could not find the table 'public.user_preferences' in the schema cache
+? app_settings — PGRST205: Could not find the table 'public.app_settings' in the schema cache
+? transfer_pricing_rules — PGRST205: Could not find the table 'public.transfer_pricing_rules' in the schema cache
+? transfer_vehicle_assignments — PGRST205: Could not find the table 'public.transfer_vehicle_assignments' in the schema cache
+? organization_settings — PGRST205: Could not find the table 'public.organization_settings' in the schema cache
+✓ audit_logs
+? member_permissions — PGRST205: Could not find the table 'public.member_permissions' in the schema cache
+
+--- Summary: 46 exist, 0 missing ---
+Missing: 
+
+
+=== COLUMN DETAILS ===
+
+
+profiles (7 columns):
+  avatar_url [string] = "https://quilsunfhfqqnibheqzl.supabase.co/storage/v1/object/
+  created_at [string] = "2025-12-23T16:02:36.077118+00:00"
+  id [string] = "1672f6cd-9ca6-4fd5-8e64-ffb515cbd651"
+  name [string] = "Mikaela"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  role [string] = "manager"
+  theme_pref [string] = "light"
+
+organizations (6 columns):
+  created_at [string] = "2026-03-06T10:24:45.875449+00:00"
+  id [string] = "3091fe94-1de2-4d0f-a468-b7e6f36484bf"
+  logo_url [null] = null
+  name [string] = "Bluebnc"
+  status [string] = "active"
+  vertical_preset [null] = null
+
+organization_members (7 columns):
+  created_at [string] = "2026-03-06T10:24:45.875449+00:00"
+  id [string] = "1fa34ae5-03a4-4c4b-afa1-0c7078c900c4"
+  organization_id [string] = "3091fe94-1de2-4d0f-a468-b7e6f36484bf"
+  role [string] = "owner"
+  status [string] = "active"
+  updated_at [string] = "2026-03-06T10:24:45.875449+00:00"
+  user_id [string] = "ef7ab11b-c5db-4cc5-b9a4-e3e67f54c90c"
+
+roles: Error — Could not find the table 'public.roles' in the schema cache
+
+permissions: Error — Could not find the table 'public.permissions' in the schema cache
+
+role_permissions (5 columns):
+  created_at [string] = "2026-03-20T09:25:38.521746+00:00"
+  enabled [boolean] = true
+  id [string] = "2dbc7abb-2d51-45b0-bb26-5078b17f486e"
+  permission_key [string] = "areas.create"
+  role [string] = "admin"
+
+member_roles: Error — Could not find the table 'public.member_roles' in the schema cache
+
+invitations: Error — Could not find the table 'public.invitations' in the schema cache
+
+transfer_brokers (5 columns):
+  created_at [string] = "2026-02-05T14:46:09.090462+00:00"
+  id [string] = "7df85633-407b-4330-9205-57da3ee1be5d"
+  is_active [boolean] = true
+  name [string] = "Laura Seguí"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+
+transfer_requests (20 columns):
+  broker_id [null] = null
+  broker_name [string] = "Laura Seguí Test"
+  client_name [string] = "Petición Dani (real)"
+  client_total [null] = null
+  created_at [string] = "2026-02-06T11:43:21.264626+00:00"
+  created_by [null] = null
+  external_provider_name [null] = null
+  id [string] = "a4946aa4-a664-44f8-8e08-59bad71c5dc1"
+  internal_margin [null] = null
+  invoice_generated_at [null] = null
+  invoice_number [null] = null
+  is_external_provider [boolean] = false
+  notes [null] = null
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  provider_cost [null] = null
+  quote_generated_at [null] = null
+  quote_number [null] = null
+  request_number [string] = "TRF-2026-0007"
+  status [string] = "en_gestion"
+  updated_at [string] = "2026-03-21T22:50:10.002676+00:00"
+
+transfer_items (31 columns):
+  base_price [number] = 158
+  created_at [string] = "2026-03-24T11:51:38.27284+00:00"
+  driver_name [null] = null
+  driver_pending [boolean] = true
+  driver_phone [null] = null
+  dropoff_enabled [boolean] = true
+  dropoff_location [string] = "aereopuerto"
+  dropoff_time [string] = "17:00:00"
+  has_return [boolean] = false
+  id [string] = "5a733d0e-39c6-470d-b5af-8a855ec29bf3"
+  notes [null] = null
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  pax_count [number] = 9
+  pickup_enabled [boolean] = true
+  pickup_location [string] = "Hotel Son Bunyola"
+  pickup_time [string] = "15:55:00"
+  position [number] = 1
+  price_manually_set [boolean] = true
+  price_with_commission [number] = 0
+  request_id [string] = "8ac43695-812f-444d-8ca8-401f96e3cf20"
+  return_dropoff_enabled [boolean] = false
+  return_dropoff_location [null] = null
+  return_dropoff_time [null] = null
+  return_pickup_enabled [boolean] = false
+  return_pickup_location [null] = null
+  return_pickup_time [null] = null
+  status [string] = "pendiente"
+  transfer_date [string] = "2026-04-09"
+  vehicle_type [string] = "v_class"
+  zone [string] = "valldemossa"
+  zone_address [string] = "Hotel Son Bunyola, Ctra. C, 710, 07191 Banyalbufar, Illes B
+
+transfer_documents (14 columns):
+  ai_raw_data [null] = null
+  ai_status [string] = "processing"
+  created_at [string] = "2026-03-24T11:41:47.356864+00:00"
+  detected_amount [null] = null
+  detected_date [null] = null
+  detected_items [array] = []
+  detected_provider [null] = null
+  document_type [string] = "presupuesto"
+  file_name [string] = "Fact.Proforma97.pdf"
+  id [string] = "91fde116-a400-4ca2-8106-4b68736c4668"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  request_id [string] = "0a0c19ae-c508-4024-9794-ce88d3b5f23a"
+  storage_path [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714/0a0c19ae-c508-4024-979
+  uploaded_by [string] = "9f446098-69ed-4e30-b7cf-1c06fdc86c7c"
+
+transfer_notes: Error — Could not find the table 'public.transfer_notes' in the schema cache
+
+transfer_status_history: Error — Could not find the table 'public.transfer_status_history' in the schema cache
+
+transfer_providers (5 columns):
+  created_at [string] = "2026-02-02T16:46:32.540425+00:00"
+  id [string] = "c603bc90-213e-4829-9065-63db28271c49"
+  is_active [boolean] = true
+  name [string] = "LimoMallorca"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+
+transfer_invoice_settings (16 columns):
+  address [string] = "Carrer Canal de Sant Jordi 29, Local 3, 07610 Palma"
+  bank_details [null] = null
+  company_name [string] = "Azul Cars"
+  created_at [string] = "2026-02-04T11:44:06.242282+00:00"
+  email [string] = "info@azulcars.com"
+  footer_text [string] = "Gracias por confiar en Azul Cars"
+  id [string] = "cb3f90fd-32c8-4f88-96e2-7b07fb5e3148"
+  invoice_prefix [string] = "FAC-"
+  logo_url [string] = "https://quilsunfhfqqnibheqzl.supabase.co/storage/v1/object/
+  next_invoice_number [number] = 1
+  next_quote_number [number] = 19
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  phone [string] = "971 10 13 32"
+  quote_prefix [string] = "PRE-"
+  tax_id [string] = "B72770365"
+  updated_at [string] = "2026-03-21T22:48:48.89814+00:00"
+
+transfer_item_vehicles (10 columns):
+  created_at [string] = "2026-02-26T17:09:09.012526+00:00"
+  driver_name [null] = null
+  driver_phone [null] = null
+  id [string] = "4b72ebfa-7108-4a42-b0ed-cef436ef9b1c"
+  notes [null] = null
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  position [number] = 0
+  transfer_item_id [string] = "e41b878a-208d-4d33-9ebc-6054afa50a8f"
+  vehicle_label [null] = null
+  vehicle_type [string] = "v_class"
+
+transfer_reports: Error — Could not find the table 'public.transfer_reports' in the schema cache
+
+broker_profiles (12 columns):
+  broker_id [string] = "de23328f-67be-4239-a692-ccc1d79f975e"
+  company [string] = "Bluebnc"
+  created_at [string] = "2026-03-24T12:33:34.614672+00:00"
+  email [string] = "daniel@bluebnc.com"
+  id [string] = "c5d1c2d9-8e3e-4e49-89d5-9f8360a0ba56"
+  is_active [boolean] = true
+  name [string] = "Daniel Ripoll"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  organization_logo [null] = null
+  organization_name [string] = "Azul Cars"
+  phone [string] = "634867899"
+  user_id [string] = "7a0d9c90-d92f-4bee-9376-7eb7ad855840"
+
+broker_registration_requests (12 columns):
+  company [string] = "Azul Cars"
+  created_at [string] = "2026-02-05T14:45:18.087358+00:00"
+  email [string] = "lauraseguicollado@gmail.com"
+  id [string] = "038711cc-5ae2-46d7-a755-7a49994595e8"
+  name [string] = "Laura Seguí Test"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  phone [string] = "laura@azulcars.com"
+  rejection_reason [null] = null
+  reviewed_at [string] = "2026-02-05T14:46:09.090462+00:00"
+  reviewed_by [string] = "71caf346-fc53-4506-a06f-ea86cd347937"
+  status [string] = "approved"
+  user_id [null] = null
+
+broker_notifications: Error — Could not find the table 'public.broker_notifications' in the schema cache
+
+vehicles (19 columns):
+  archived_at [null] = null
+  archived_by [null] = null
+  categoria [string] = "Compact Premium"
+  cleaned_at [null] = null
+  cleaned_by [null] = null
+  created_at [string] = "2026-03-08T11:20:04.474696+00:00"
+  current_reservation_id [null] = null
+  fleet_vehicle_id [string] = "48966824-0436-433c-b93e-d7bdfe304203"
+  id [string] = "15737a51-9f81-4981-a69d-6002296afd38"
+  is_archived [boolean] = false
+  last_status_change [string] = "2026-03-08T11:20:04.474696+00:00"
+  location_id [string] = "4914b942-8174-4189-88c7-5a77ad88acbd"
+  matricula [string] = "0074NKC"
+  modelo [string] = "Clase A"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  service_notes [null] = null
+  service_type [null] = null
+  status [string] = "sucio"
+  updated_at [string] = "2026-03-23T08:51:27.554536+00:00"
+
+vehicle_categories: Error — Could not find the table 'public.vehicle_categories' in the schema cache
+
+vehicle_maintenance: Error — Could not find the table 'public.vehicle_maintenance' in the schema cache
+
+vehicle_documents: Error — Could not find the table 'public.vehicle_documents' in the schema cache
+
+vehicle_prep_checklists: Error — Could not find the table 'public.vehicle_prep_checklists' in the schema cache
+
+vehicle_prep_items: Error — Could not find the table 'public.vehicle_prep_items' in the schema cache
+
+vehicle_prep_alerts: Error — Could not find the table 'public.vehicle_prep_alerts' in the schema cache
+
+fleet_audit_logs: Error — Could not find the table 'public.fleet_audit_logs' in the schema cache
+
+fleet_categories: Error — Could not find the table 'public.fleet_categories' in the schema cache
+
+billing_records: Error — Could not find the table 'public.billing_records' in the schema cache
+
+billing_settings: Error — Could not find the table 'public.billing_settings' in the schema cache
+
+properties: Error — Could not find the table 'public.properties' in the schema cache
+
+property_units: Error — Could not find the table 'public.property_units' in the schema cache
+
+reservations (111 columns):
+  a_pedido [null] = null
+  acuerdo_comercial [null] = null
+  acuerdo_precios [null] = null
+  archived_at [string] = "2026-01-30T11:14:49.581803+00:00"
+  asignado_escoba_devolucion_id [null] = null
+  asignado_escoba_devolucion_team_id [null] = null
+  asignado_escoba_entrega_id [null] = null
+  asignado_escoba_entrega_team_id [null] = null
+  asignado_escoba_id [null] = null
+  asignado_escoba_team_id [null] = null
+  asignado_rental_devolucion_id [null] = null
+  asignado_rental_devolucion_team_id [null] = null
+  asignado_rental_entrega_id [null] = null
+  asignado_rental_entrega_team_id [null] = null
+  asignado_rental_id [null] = null
+  asignado_rental_team_id [null] = null
+  auto [string] = "4148MSX"
+  balance [number] = 0
+  categoria [string] = "SUV Premium"
+  checkin [null] = null
+  checkin_devolucion [null] = null
+  checkin_entrega [null] = null
+  cliente_apellido [string] = "Thorson"
+  cliente_carnet_expiracion [string] = "2028-07-06T00:00:00"
+  cliente_carnet_numero [null] = null
+  cliente_carnet_pais [null] = null
+  cliente_ciudad [null] = null
+  cliente_direccion [string] = "Twain Street, Unit 101"
+  cliente_edad [number] = 30
+  cliente_estado_provincia [null] = null
+  cliente_fecha_nacimiento [string] = "1995-07-06T00:00:00"
+  cliente_nombre [string] = "Joshua"
+  cliente_notas [null] = null
+  cliente_pais [string] = "United States of America"
+  codigo [null] = null
+  comision_ventas [null] = null
+  conductores_adicionales [null] = null
+  contacto [null] = null
+  contacto_devolucion [null] = null
+  contacto_entrega [null] = null
+  creado_por [null] = null
+  created_at [string] = "2026-01-27T10:44:24.711739+00:00"
+  desde [string] = "2024-09-20T08:30:00+00:00"
+  desglose_precios [string] = "[{\"descripcion\":\"Reserva por 1 días (€ 102.91 x día)\",\
+  devolucion [string] = "2024-09-21T05:13:45.277+00:00"
+  devolucion_completada [boolean] = false
+  documento_cliente [string] = "539251171"
+  duracion [string] = "1"
+  email [string] = "joshthorson5@gmail.com"
+  entrega_completada [boolean] = false
+  es_cotizacion [boolean] = false
+  es_transferencia [boolean] = false
+  estado [string] = "Completada"
+  estado_devolucion [null] = null
+  estado_entrega [null] = null
+  estado_terminada_at [string] = "2026-03-24T14:21:12.334+00:00"
+  external_reservation_id [string] = "832"
+  extras_contratados [string] = "[{\"cantidad\":1},{\"cantidad\":1}]"
+  fecha_creacion [string] = "2024-09-19T12:09:25.993+00:00"
+  hasta [string] = "2024-09-21T06:00:00+00:00"
+  hosp [null] = null
+  hosp_devolucion [null] = null
+  hosp_entrega [null] = null
+  id [string] = "1cfc0d59-770b-4498-a9a2-2fae797a01d1"
+  imported_at [string] = "2026-01-27T10:44:24.711739+00:00"
+  imported_by [string] = "71caf346-fc53-4506-a06f-ea86cd347937"
+  km_ilimitados [null] = null
+  km_max_permitidos [null] = null
+  km_max_por_dia [null] = null
+  lugar_devolucion [string] = "Aeropuerto de Palma"
+  lugar_devolucion_ciudad [string] = "Palma"
+  lugar_devolucion_direccion [string] = "Aeropuerto Palma de Mallorca 07611, Palma de Mallorca, Espa
+  lugar_entrega [string] = "Norte de Mallorca - Entrega a domicilio"
+  lugar_entrega_ciudad [string] = "Soller"
+  lugar_entrega_direccion [string] = "Carrer de Sa Mar, 28, Sóller, Illes Balears 07100, Spain, S
+  lugar_operacion [null] = null
+  modelo [string] = "GLC"
+  moneda [null] = null
+  notas [null] = null
+  notas_devolucion [null] = null
+  notas_entrega [null] = null
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  origen_reserva [string] = "Web"
+  pagado [null] = null
+  pagado_devolucion [null] = null
+  pagado_entrega [null] = null
+  pagado_por_agencia [number] = 0
+  pagado_por_cliente [number] = 299.51
+  precio [number] = 299.51
+  prepago [number] = 0
+  rently_detail_synced_at [string] = "2026-03-22T10:49:31.394+00:00"
+  rently_status_code [number] = 3
+  rently_status_date [string] = "2026-03-22T10:49:31.394+00:00"
+  rently_version [null] = null
+  tarifa [null] = null
+  tarifa_dia_extra [null] = null
+  tarifa_diaria [null] = null
+  tarifa_hora [null] = null
+  tarifa_hora_extra [null] = null
+  telefono [string] = "+17274583224"
+  tipo_actividad [null] = null
+  tipo_documento_cliente [string] = "Pasaporte"
+  total_pagado_rently [number] = 299.51
+  transfer_completado [boolean] = false
+  updated_at [string] = "2026-03-24T14:21:12.473701+00:00"
+  vehiculo_anio [number] = 2023
+  vehiculo_chasis [null] = null
+  vehiculo_color [string] = "Grey"
+  vehiculo_combustible [null] = null
+  vehiculo_kms [null] = null
+  vehiculo_tipo_combustible [null] = null
+
+drivers: Error — Could not find the table 'public.drivers' in the schema cache
+
+driver_documents: Error — Could not find the table 'public.driver_documents' in the schema cache
+
+notifications (10 columns):
+  body [string] = "Se te ha asignado una tarea urgente: \"Preparar 1399MTN\""
+  created_at [string] = "2026-03-20T12:12:30.804585+00:00"
+  entity_id [string] = "1dc1f4d2-f72c-4b71-b705-6d49deb273a0"
+  entity_type [string] = "task"
+  id [string] = "afc90e9b-a03a-4548-b528-634693fffd75"
+  is_read [boolean] = false
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  title [string] = "🔴 URGENTE: Preparar 1399MTN"
+  type [string] = "assignment"
+  user_id [string] = "9f446098-69ed-4e30-b7cf-1c06fdc86c7c"
+
+notification_preferences (13 columns):
+  channel_email [boolean] = false
+  channel_in_app [boolean] = true
+  channel_push [boolean] = false
+  channel_slack [boolean] = false
+  channel_whatsapp [boolean] = false
+  created_at [string] = "2026-01-07T13:33:10.027251+00:00"
+  events_json [object] = {"mention":true,"reminder":true,"ai_insight":false,"assignme
+  id [string] = "ca9a42c3-bbeb-4a85-a9bd-16766e49b29e"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  quiet_hours_end [string] = "08:00"
+  quiet_hours_start [string] = "22:00"
+  timezone [string] = "Europe/Madrid"
+  user_id [string] = "1672f6cd-9ca6-4fd5-8e64-ffb515cbd651"
+
+user_preferences: Error — Could not find the table 'public.user_preferences' in the schema cache
+
+app_settings: Error — Could not find the table 'public.app_settings' in the schema cache
+
+transfer_pricing_rules: Error — Could not find the table 'public.transfer_pricing_rules' in the schema cache
+
+transfer_vehicle_assignments: Error — Could not find the table 'public.transfer_vehicle_assignments' in the schema cache
+
+organization_settings: Error — Could not find the table 'public.organization_settings' in the schema cache
+
+audit_logs (11 columns):
+  action [string] = "invitation.created"
+  actor_role [string] = "owner"
+  actor_user_id [string] = "71caf346-fc53-4506-a06f-ea86cd347937"
+  created_at [string] = "2026-03-16T11:20:14.352343+00:00"
+  entity_id [string] = "0064c00d-b001-491d-99e8-e70e962d2fb8"
+  entity_type [string] = "organization_invitation"
+  id [string] = "439cef42-60f8-46ac-8adb-2db5c67add3c"
+  ip_address [null] = null
+  metadata_json [string] = "{\"role\":\"member\",\"email\":\"pedro.uceda.13@gmail.com\"
+  organization_id [string] = "a23a0d42-5af7-4cda-9955-569c10cc6714"
+  user_agent [null] = null
+
+member_permissions: Error — Could not find the table 'public.member_permissions' in the schema cache
