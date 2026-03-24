@@ -20,12 +20,13 @@ import {
   calculatePriceWithCommission,
   getCommissionAmount,
 } from '@/lib/transferPricing';
-import type { TransferItem, TransferItemStatus } from '@/types/transfers';
+import type { TransferItem, TransferItemStatus, PricingMode } from '@/types/transfers';
 
 interface TransferItemBlockProps {
   item: TransferItem;
   index: number;
   requestId: string;
+  pricingMode?: PricingMode;
 }
 
 const ITEM_STATUS_OPTIONS: { value: TransferItemStatus; label: string }[] = [
@@ -53,7 +54,7 @@ function getLocalFieldsFromItem(item: TransferItem): Record<LocalTextFieldKey, s
   }, {} as Record<LocalTextFieldKey, string>);
 }
 
-export function TransferItemBlock({ item, index, requestId }: TransferItemBlockProps) {
+export function TransferItemBlock({ item, index, requestId, pricingMode = 'zone_tariff' }: TransferItemBlockProps) {
   const [isOpen, setIsOpen] = useState(true);
   const { updateItem, updateItemStatus, deleteItem } = useTransferItems(requestId);
   const { vehicles, addVehicle, updateVehicle, deleteVehicle } = useTransferItemVehicles(item.id);
@@ -232,6 +233,23 @@ export function TransferItemBlock({ item, index, requestId }: TransferItemBlockP
     }
   };
 
+  // Handle provider cost change per item (provider_quote mode)
+  const handleProviderCostChange = (cost: number) => {
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
+    // Calculate client price from provider cost: cost + 50% commission
+    const clientPrice = Math.round(cost * 1.5 * 100) / 100;
+    updateItem({
+      id: item.id,
+      provider_cost: cost,
+      base_price: cost,
+      price_with_commission: item.price_manually_set ? (item.price_with_commission ?? clientPrice) : clientPrice,
+    });
+    setTimeout(() => {
+      isSubmitting.current = false;
+    }, 100);
+  };
+
   // Calculate display values
   const basePrice = item.base_price ?? 0;
   const commissionAmount = getCommissionAmount(basePrice);
@@ -368,81 +386,106 @@ export function TransferItemBlock({ item, index, requestId }: TransferItemBlockP
               </div>
 
               {/* Price Display Box */}
-              {item.zone && (
-                <div className="mt-4 p-4 rounded-lg bg-background border">
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-medium flex items-center gap-2">
-                      <Euro className="h-4 w-4" /> Precio Estimado
-                    </h5>
-                    {item.price_manually_set && canEditPrice && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleRecalculatePrice}
-                        className="h-7 text-xs"
-                      >
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        Recalcular
-                      </Button>
-                    )}
+              <div className="mt-4 p-4 rounded-lg bg-background border">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="font-medium flex items-center gap-2">
+                    <Euro className="h-4 w-4" /> Precio
+                  </h5>
+                  {pricingMode === 'zone_tariff' && item.price_manually_set && canEditPrice && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRecalculatePrice}
+                      className="h-7 text-xs"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Recalcular
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-2 text-sm">
+                  {pricingMode === 'zone_tariff' && item.zone && (
+                    <>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Precio proveedor (tarifa zona):</span>
+                        <span>{basePrice} €</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>+ Comisión (50%):</span>
+                        <span>{commissionAmount} €</span>
+                      </div>
+                    </>
+                  )}
+
+                  {pricingMode === 'provider_quote' && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Coste proveedor (trayecto):</span>
+                      <div className="flex items-center gap-2">
+                        {canEditPrice ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={item.provider_cost ?? ''}
+                            onChange={(e) => {
+                              const cost = parseFloat(e.target.value) || 0;
+                              handleProviderCostChange(cost);
+                            }}
+                            className="w-24 h-8 text-right"
+                          />
+                        ) : (
+                          <span>{item.provider_cost ?? 0}</span>
+                        )}
+                        <span>€</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">PRECIO CLIENTE (sin IVA):</span>
+                      <div className="flex items-center gap-2">
+                        {canEditPrice ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={displayPrice || ''}
+                            onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
+                            className={`w-24 h-8 text-right font-bold ${
+                              item.price_manually_set ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : ''
+                            }`}
+                          />
+                        ) : (
+                          <span className="font-bold text-lg">{displayPrice}</span>
+                        )}
+                        <span className="font-bold">€</span>
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Precio proveedor:</span>
-                      <span>{basePrice} €</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>+ Comisión (50%):</span>
-                      <span>{commissionAmount} €</span>
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">PRECIO CLIENTE:</span>
-                        <div className="flex items-center gap-2">
-                          {canEditPrice ? (
-                            <Input
-                              type="number"
-                              value={displayPrice || ''}
-                              onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
-                              className={`w-24 h-8 text-right font-bold ${
-                                item.price_manually_set ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : ''
-                              }`}
-                            />
-                          ) : (
-                            <span className="font-bold text-lg">{displayPrice}</span>
-                          )}
-                          <span className="font-bold">€</span>
-                        </div>
+                  {displayPrice > 0 && (
+                    <div className="mt-2 pt-2 border-t border-dashed">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>IVA 21%:</span>
+                        <span>{new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayPrice * 0.21)} €</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-primary mt-1">
+                        <span>TOTAL CON IVA:</span>
+                        <span>{new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayPrice * 1.21)} €</span>
                       </div>
                     </div>
-                    
-                    <p className="text-xs text-muted-foreground mt-2">
-                      (sin IVA)
-                    </p>
-                    
-                    {displayPrice > 0 && (
-                      <div className="mt-2 pt-2 border-t border-dashed">
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>IVA 21%:</span>
-                          <span>{new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayPrice * 0.21)} €</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-primary mt-1">
-                          <span>TOTAL CON IVA:</span>
-                          <span>{new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayPrice * 1.21)} €</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {item.price_manually_set && (
-                      <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs mt-2">
-                        <AlertTriangle className="h-3 w-3" />
-                        <span>Precio modificado manualmente</span>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                  
+                  {item.price_manually_set && (
+                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs mt-2">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>Precio modificado manualmente</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Additional Vehicles */}

@@ -241,3 +241,25 @@
 - [x] Bug: Sistema de lectura de presupuestos se queda en "Analizando..." indefinidamente (5 fixes: storage_path vs file_url, ai_status 'failed' vs 'error', prompt transporte, polling 3s, signed URL)
 - [x] Feature: Botón "Aplicar datos" en documentos analizados para crear items de transfer automáticamente desde datos AI (ya existía - applyProviderCost + UI en TransferDocumentsSection; no aparecía porque el parsing nunca completaba)
 - [x] Fix: Resetear documentos atascados en estado "processing" que nunca se completaron → 2 documentos reseteados a "failed" via SQL
+- [x] Investigar: Cálculos financieros en Transfers no cuadran (Total cliente, Margen bruto, Resumen Total)
+- [x] Unificar fórmula de cálculo: coste proveedor + 10% IVA = coste con IVA → +50% comisión → base cliente + 21% IVA = total cliente
+- [x] Reescribir transferCalculations.ts con la fórmula correcta
+- [x] Actualizar transferPricing.ts para usar la misma fórmula en precios por zona
+- [x] Actualizar TransferItemBlock: mostrar desglose correcto (proveedor, IVA 10%, comisión 50%, base cliente, IVA 21%, total)
+- [x] Actualizar Resumen Financiero para derivar de items reales
+- [x] Actualizar Resumen Total con la fórmula unificada
+- [x] Actualizar applyProviderCost para usar la nueva fórmula
+- [x] Mantener posibilidad de modificar precio final por trayecto manualmente
+- [x] Tests para la nueva fórmula de cálculo
+- [x] Fase 4: Añadir columna pricing_mode a transfer_requests en Supabase (default: zone_tariff)
+- [x] Fase 4: Añadir columna provider_cost a transfer_items en Supabase
+- [x] Fase 4: Actualizar tipos TypeScript (PricingMode, TransferRequest.pricing_mode, TransferItem.provider_cost)
+- [x] Fase 4: Implementar selector de modo de precio en TransferDetail (Opción A: presupuesto proveedor, Opción B: tarifas por zona)
+- [x] Fase 4: Pasar pricingMode a TransferItemBlock para adaptar UI según modo
+- [x] Fase 4: Implementar campo editable de coste proveedor por trayecto (modo provider_quote)
+- [x] Fase 4: Hacer precio cliente editable en ambos modos (con indicador de precio manual)
+- [x] Fase 4: Reescribir TransferFinancialSummary para derivar totales de items reales
+- [x] Fase 4: TransferFinancialSummary muestra margen, IVA 21%, total con IVA
+- [x] Fase 4: Verificar que vistas broker calculan totales correctamente (sum price_with_commission)
+- [x] Fase 4: Tests pricingModes.test.ts (zone_tariff, provider_quote, financial summary, formatCurrency)
+- [x] Fase 4: 454 tests pasando, 0 errores TypeScript

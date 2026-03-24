@@ -6,6 +6,8 @@ export type TransferItemStatus = 'pendiente' | 'confirmado' | 'completado' | 'ca
 
 export type TransferDocumentType = 'presupuesto' | 'factura';
 
+export type PricingMode = 'zone_tariff' | 'provider_quote';
+
 export type AIStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'error';
 
 export interface TransferRequest {
@@ -22,6 +24,8 @@ export interface TransferRequest {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Pricing mode
+  pricing_mode: PricingMode;
   // Financial fields
   provider_cost: number | null;
   client_total: number | null;
@@ -75,6 +79,7 @@ export interface TransferItem {
   base_price: number | null;
   price_with_commission: number | null;
   price_manually_set: boolean;
+  provider_cost: number | null;
 }
 
 export interface ExtractedTransferItem {

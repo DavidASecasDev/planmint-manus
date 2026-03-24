@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem } from '@/types/transfers';
+import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem, PricingMode } from '@/types/transfers';
 
 export function useTransferRequests(filters?: Partial<TransferFilters>) {
   const { profile } = useAuth();
@@ -79,6 +79,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           client_name: data.client_name!,
           is_external_provider: data.is_external_provider ?? false,
           external_provider_name: data.external_provider_name,
+          pricing_mode: data.pricing_mode || 'zone_tariff',
           notes: data.notes,
           created_by: profile.id,
         }])
