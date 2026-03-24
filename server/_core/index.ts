@@ -42,6 +42,10 @@ import {
   handleGetMyOrganization,
 } from "../authEndpoints";
 import {
+  handleApproveBrokerRegistration,
+  handleRejectBrokerRegistration,
+} from "../brokerRegistrationEndpoints";
+import {
   handleGetOrgModules,
   handleGetOrgCustomRoles,
   handleGetRolePermissions,
@@ -120,6 +124,10 @@ async function startServer() {
   // ─── Auth data endpoints (bypass RLS for profile/org loading) ─────────────
   app.post("/api/get-my-profile", handleGetMyProfile);
   app.post("/api/get-my-organization", handleGetMyOrganization);
+
+  // ─── Broker registration endpoints ────────────────────────────────────────
+  app.post("/api/approve-broker-registration", handleApproveBrokerRegistration);
+  app.post("/api/reject-broker-registration", handleRejectBrokerRegistration);
 
   // ─── Org data endpoints (bypass RLS for non-owner users) ──────────────────
   app.post("/api/get-org-modules", handleGetOrgModules);

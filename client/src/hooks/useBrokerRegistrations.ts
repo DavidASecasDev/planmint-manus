@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { apiInvoke } from '@/lib/apiClient';
 
 export interface BrokerRegistrationRequest {
   id: string;
@@ -91,15 +92,14 @@ export function useBrokerRegistrations() {
   // Approve a registration request
   const approveRequest = useMutation({
     mutationFn: async (requestId: string) => {
-      // Update broker_registrations status directly instead of broken RPC
-      const { error } = await (supabase as any)
-        .from('broker_registrations')
-        .update({ status: 'approved', reviewed_at: new Date().toISOString() })
-        .eq('id', requestId);
-      
-      if (error) throw error;
-      
-      return { success: true };
+      // Use backend endpoint to approve (handles both updating the request
+      // and creating the broker in transfer_brokers)
+      const result = await apiInvoke('approve-broker-registration', {
+        body: { requestId },
+      });
+
+      if (result.error) throw new Error(result.error.message);
+      return result;
     },
     onSuccess: () => {
       toast.success('Solicitud aprobada. El broker ya puede acceder al portal.');
@@ -115,19 +115,13 @@ export function useBrokerRegistrations() {
   // Reject a registration request
   const rejectRequest = useMutation({
     mutationFn: async ({ requestId, reason }: { requestId: string; reason?: string }) => {
-      // Update broker_registrations status directly instead of broken RPC
-      const { error } = await (supabase as any)
-        .from('broker_registrations')
-        .update({ 
-          status: 'rejected', 
-          rejection_reason: reason || null,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', requestId);
-      
-      if (error) throw error;
-      
-      return { success: true };
+      // Use backend endpoint to reject
+      const result = await apiInvoke('reject-broker-registration', {
+        body: { requestId, reason },
+      });
+
+      if (result.error) throw new Error(result.error.message);
+      return result;
     },
     onSuccess: () => {
       toast.success('Solicitud rechazada');

@@ -216,3 +216,6 @@
 - [x] Bug: App se refresca automáticamente cada X tiempo, perdiendo el trabajo del usuario
 - [x] Causa raíz: Service Worker usaba skipWaiting() + clients.claim() agresivamente, tomando control de tabs activos en cada deploy. Además, main.tsx ejecutaba reg.update() cada hora.
 - [x] Fix: SW reescrito sin skipWaiting/clients.claim automáticos. Solo se activa skipWaiting por mensaje explícito. Eliminado setInterval de update. Cache reducido a íconos solamente (no JS/CSS).
+- [x] Bug: Error al aprobar broker - "Could not find the table 'public.broker_registrations' in the schema cache"
+- [x] Causa raíz: Las mutations de approve/reject usaban tabla 'broker_registrations' (inexistente) en vez de 'broker_registration_requests' (tabla real). Además usaban Supabase directo con anon key.
+- [x] Fix: Creados endpoints backend /api/approve-broker-registration y /api/reject-broker-registration que usan service role. Approve también crea el broker en transfer_brokers si no existe.

@@ -140,12 +140,16 @@ describe('Non-core RPC Fail-Graceful Migration', () => {
     expect(code).toContain("broker_profiles");
   });
 
-  it('useBrokerRegistrations should not use any supabase.rpc calls', async () => {
+  it('useBrokerRegistrations should use apiInvoke for approve/reject', async () => {
     const source = await import('../hooks/useBrokerRegistrations?raw');
     const code = (source as any).default || '';
     expect(code).not.toContain("supabase.rpc('approve_broker_registration'");
     expect(code).not.toContain("supabase.rpc('reject_broker_registration'");
-    expect(code).toContain("broker_registrations");
+    // Mutations should use apiInvoke to backend endpoints
+    expect(code).toContain("apiInvoke('approve-broker-registration'");
+    expect(code).toContain("apiInvoke('reject-broker-registration'");
+    // Queries should still read from broker_registration_requests
+    expect(code).toContain("broker_registration_requests");
   });
 
   it('useTransferBrokers should not use setup_broker_access RPC', async () => {
