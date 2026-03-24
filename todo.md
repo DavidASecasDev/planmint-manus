@@ -238,3 +238,4 @@
 - [x] Auditoría completa: Crear/modificar tablas y columnas faltantes en la BD
 - [x] Auditoría completa: Actualizar código donde sea necesario (no fue necesario, todo coincide)
 - [x] Auditoría completa: Tests y verificación (430 tests pasando, 0 errores TS)
+- [x] Bug: Sistema de lectura de presupuestos se queda en "Analizando..." indefinidamente (5 fixes: storage_path vs file_url, ai_status 'failed' vs 'error', prompt transporte, polling 3s, signed URL)

@@ -1,0 +1,57 @@
+PARSE TRANSFER DOCUMENT FLOW ANALYSIS
+======================================
+
+1. User uploads a PDF → useTransferDocuments.uploadDocument()
+2. File uploaded to Supabase Storage bucket 'transfer-documents'
+3. Document record created in 'transfer_documents' table with ai_status='pending'
+4. processWithAI(doc.id) called non-blocking
+
+5. processWithAI calls apiInvoke('parse-transfer-document', { body: { documentId } })
+   → This calls POST /api/parse-transfer-document on our Express server
+
+6. Express endpoint (parseTransferDocument.ts):
+   a. authenticateSupabaseRequest(req.headers.authorization) ← PROBLEM 1: Uses Supabase JWT auth
+   b. Gets document from DB
+   c. Updates ai_status to 'processing'
+   d. Gets document.file_url ← PROBLEM 2: The document was stored with storage_path, NOT file_url
+   e. Calls invokeLLM with vision to parse
+   f. Updates ai_status to 'completed' or 'error'
+
+IDENTIFIED PROBLEMS:
+
+PROBLEM 1 - AUTH MISMATCH:
+- apiInvoke() sends the Supabase access_token as Authorization header
+- authenticateSupabaseRequest() validates this Supabase JWT
+- This SHOULD work if the user has a valid Supabase session
+- But if the session is expired/invalid, it will fail silently (processWithAI catches errors)
+
+PROBLEM 2 - file_url vs storage_path (CRITICAL):
+- The document is stored with storage_path (e.g., "org_id/request_id/filename.pdf")
+- But parseTransferDocument.ts line 43: `const fileUrl = document.file_url;`
+- The column 'file_url' may NOT exist or be populated! The hook stores 'storage_path'
+- If file_url is null/undefined, it throws "Document has no file URL"
+- This would set ai_status to 'error', but the UI checks for 'failed' not 'error'
+
+PROBLEM 3 - UI STATUS MISMATCH:
+- Server sets ai_status to 'error' on failure (line 119)
+- But UI checks for 'failed' (line 153: doc.ai_status === 'failed')
+- So if it errors, the UI won't show the error state, it will show nothing
+- And if it stays at 'processing' (server crashes mid-process), UI shows "Analizando..." forever
+
+PROBLEM 4 - LLM PROMPT MISMATCH:
+- The LLM prompt asks for vehicle transfer data (matrícula, VIN, comprador, vendedor)
+- But this is for TRANSPORT TRANSFER QUOTES (presupuestos de transporte)
+- The prompt should extract: routes, dates, prices, pax count, vehicle types
+- This is a completely wrong prompt for the use case
+
+PROBLEM 5 - NO POLLING:
+- After calling processWithAI, the hook invalidates queries once
+- But there's no polling mechanism to check when processing completes
+- The document data comes from the parent component's props (not a live query)
+- So even if processing completes, the UI won't update until the user refreshes
+
+ROOT CAUSE SUMMARY:
+1. file_url column likely doesn't exist → server throws error
+2. ai_status set to 'error' but UI checks 'failed' → stuck in 'processing' visually
+3. No polling → even if fixed, UI won't auto-update
+4. Wrong LLM prompt → even if file was accessible, results would be wrong

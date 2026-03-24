@@ -169,7 +169,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
 export function useTransferRequest(id: string | undefined) {
   const { profile } = useAuth();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['transfer-request', id],
     queryFn: async (): Promise<TransferRequest | null> => {
       if (!id) return null;
@@ -201,5 +201,16 @@ export function useTransferRequest(id: string | undefined) {
       } as TransferRequest;
     },
     enabled: !!id && !!profile?.organization_id,
+    // Poll every 3 seconds when any document is being processed by AI
+    refetchInterval: (query) => {
+      const request = query.state.data;
+      if (!request) return false;
+      const hasProcessing = request.documents?.some(
+        (d: TransferDocument) => d.ai_status === 'pending' || d.ai_status === 'processing'
+      );
+      return hasProcessing ? 3000 : false;
+    },
   });
+
+  return query;
 }

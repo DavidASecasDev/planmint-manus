@@ -150,7 +150,7 @@ export function TransferDocumentsSection({ requestId, documents, onApplyCost, is
                   <Check className="h-3 w-3" /> Analizado
                 </span>
               )}
-              {doc.ai_status === 'failed' && (
+              {(doc.ai_status === 'failed' || doc.ai_status === 'error') && (
                 <div className="flex items-center gap-2">
                   <span className="text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" /> Error

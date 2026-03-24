@@ -6,7 +6,7 @@ export type TransferItemStatus = 'pendiente' | 'confirmado' | 'completado' | 'ca
 
 export type TransferDocumentType = 'presupuesto' | 'factura';
 
-export type AIStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type AIStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'error';
 
 export interface TransferRequest {
   id: string;
