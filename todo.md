@@ -202,3 +202,5 @@
 - [x] Tests: 11 tests nuevos de migración auth, 411 total pasando
 - [x] Bug: Botón "Nueva Solicitud" en Transfers no funciona al hacer clic
 - [x] Causa: La ruta /transfers/new renderizaba <Transfers/> (lista) en vez de <TransferDetail/> (formulario). Eliminada ruta estática duplicada; ahora /transfers/:id captura id='new' correctamente
+- [x] Bug: Error al crear transfer - "Could not find the 'broker_id' column of 'transfer_requests' in the schema cache"
+- [x] Fix: Columna broker_id (UUID, FK a transfer_brokers) añadida a tabla transfer_requests en Supabase. Backfill de 3 registros existentes completado.
