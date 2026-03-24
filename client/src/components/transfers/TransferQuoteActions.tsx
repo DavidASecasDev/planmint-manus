@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FileText, Download, Loader2, AlertCircle, Settings } from 'lucide-react';
 import { useTransferQuotePdf, type PdfLanguage } from '@/hooks/useTransferQuotePdf';
 import { useNavigate } from 'react-router-dom';
-import type { TransferRequest, TransferItem } from '@/types/transfers';
+import type { TransferRequest, TransferItem, PricingMode } from '@/types/transfers';
 
 interface TransferQuoteActionsProps {
   request: TransferRequest;
@@ -14,7 +14,7 @@ interface TransferQuoteActionsProps {
 }
 
 export function TransferQuoteActions({ request, items }: TransferQuoteActionsProps) {
-  const { generateQuotePdf, generateInvoicePdf, isGenerating, settingsComplete } = useTransferQuotePdf();
+  const { generateQuotePdf, generateInvoicePdf, isGenerating, settingsComplete, calculatePdfTotals } = useTransferQuotePdf();
   const navigate = useNavigate();
   const [language, setLanguage] = useState<PdfLanguage>('es');
 
@@ -28,8 +28,9 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
     }).format(amount);
   };
 
-  const subtotal = items.reduce((sum, item) => sum + (item.price_with_commission || item.base_price || 0), 0);
-  const calculatedTotal = request.client_total || (subtotal * 1.21);
+  // Use the same calculation as the PDF for consistency
+  const pricingMode: PricingMode = request.pricing_mode || 'zone_tariff';
+  const { total } = calculatePdfTotals(items, pricingMode);
 
   return (
     <Card>
@@ -109,9 +110,10 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
           </Button>
         </div>
 
-        {calculatedTotal > 0 && (
+        {total > 0 && (
           <p className="text-sm text-muted-foreground">
-            Total a facturar: <span className="font-medium text-foreground">{formatCurrency(calculatedTotal)}</span>
+            Total a facturar: <span className="font-medium text-foreground">{formatCurrency(total)}</span>
+            <span className="text-xs ml-1">(IVA incl.)</span>
           </p>
         )}
       </CardContent>

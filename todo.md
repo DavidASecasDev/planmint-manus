@@ -263,3 +263,9 @@
 - [x] Fase 4: Verificar que vistas broker calculan totales correctamente (sum price_with_commission)
 - [x] Fase 4: Tests pricingModes.test.ts (zone_tariff, provider_quote, financial summary, formatCurrency)
 - [x] Fase 4: 454 tests pasando, 0 errores TypeScript
+- [x] Persistir pricing_mode en Supabase: useTransferRequests.createRequest debe escribir pricing_mode
+- [x] Persistir pricing_mode en Supabase: useTransferRequests.updateRequest debe escribir pricing_mode
+- [x] Persistir pricing_mode en Supabase: useBrokerRequests no aplica (brokers no eligen modo de precio, es decisión del admin)
+- [x] Cargar pricing_mode desde BD: TransferDetail debe inicializar pricingMode desde existingRequest.pricing_mode
+- [x] Actualizar generación de PDF: adaptar presupuesto/factura para reflejar modo de precio seleccionado
+- [x] Tests para persistencia de pricing_mode y generación de PDF actualizada

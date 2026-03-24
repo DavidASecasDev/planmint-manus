@@ -8,8 +8,7 @@ import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
-import type { TransferRequest, TransferItem, TransferItemVehicle } from '@/types/transfers';
-import { calculateClientInvoice } from '@/utils/transferCalculations';
+import type { TransferRequest, TransferItem, TransferItemVehicle, PricingMode } from '@/types/transfers';
 import { getVehicleInfo } from '@/lib/transferPricing';
 
 type DocumentType = 'quote' | 'invoice';
@@ -46,6 +45,8 @@ const TRANSLATIONS: Record<PdfLanguage, Record<string, string>> = {
     iban: 'IBAN',
     swift: 'SWIFT/BIC',
     bank: 'BANCO',
+    providerQuoteNote: 'Servicio operado por proveedor externo',
+    zoneTariffNote: 'Tarifas según zona y tipo de vehículo',
   },
   en: {
     quote: 'QUOTATION',
@@ -69,6 +70,8 @@ const TRANSLATIONS: Record<PdfLanguage, Record<string, string>> = {
     iban: 'IBAN',
     swift: 'SWIFT/BIC',
     bank: 'BANK',
+    providerQuoteNote: 'Service operated by external provider',
+    zoneTariffNote: 'Rates based on zone and vehicle type',
   },
 };
 
@@ -156,6 +159,25 @@ export function useTransferQuotePdf() {
     pdf.line(x, y + 1.5, x + pdf.getTextWidth(label), y + 1.5);
   };
 
+  /**
+   * Calculate PDF totals from items (unified source of truth).
+   * The client-facing price is always price_with_commission (regardless of pricing mode).
+   * IVA is always 21%.
+   */
+  const calculatePdfTotals = (items: TransferItem[], pricingMode: PricingMode) => {
+    const subtotal = items.reduce((sum, item) => sum + (item.price_with_commission || item.base_price || 0), 0);
+    const vatRate = 21;
+    const vatAmount = Math.round(subtotal * 0.21 * 100) / 100;
+    const total = Math.round((subtotal + vatAmount) * 100) / 100;
+
+    // Internal-only: provider cost for margin calculation
+    const providerCost = pricingMode === 'provider_quote'
+      ? items.reduce((sum, it) => sum + (it.provider_cost || it.base_price || 0), 0)
+      : items.reduce((sum, it) => sum + (it.base_price || 0), 0);
+
+    return { subtotal, vatRate, vatAmount, total, providerCost };
+  };
+
   const generatePdf = async ({ request, items, documentType, language }: GenerateOptions) => {
     if (!settings) {
       toast.error('Configura los datos de facturación primero');
@@ -193,6 +215,7 @@ export function useTransferQuotePdf() {
     }
     const t = TRANSLATIONS[language];
     const dateLocale = language === 'es' ? es : enUS;
+    const pricingMode: PricingMode = request.pricing_mode || 'zone_tariff';
 
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -373,6 +396,7 @@ export function useTransferQuotePdf() {
           const timeStr = item.pickup_time ? item.pickup_time.slice(0, 5) : '';
           const dateTime = timeStr ? `${dateStr}\n${timeStr}` : dateStr;
 
+          // Client-facing price is always price_with_commission
           const price = item.price_with_commission || item.base_price || 0;
 
           // Build vehicle display string including additional vehicles
@@ -453,13 +477,10 @@ export function useTransferQuotePdf() {
 
       // ═══════════════════════════════════════════════════════════
       // TOTALS BOX - Premium right-aligned
+      // Calculated from items (unified source of truth)
       // ═══════════════════════════════════════════════════════════
       
-      // Calculate totals using the transfer calculation utility
-      const subtotal = items.reduce((sum, item) => sum + (item.price_with_commission || item.base_price || 0), 0);
-      const vatRate = 21;
-      const vatAmount = subtotal * 0.21;
-      const total = request.client_total || (subtotal + vatAmount);
+      const { subtotal, vatRate, vatAmount, total } = calculatePdfTotals(items, pricingMode);
 
       const totalsBoxWidth = 85;
       const totalsBoxX = pageWidth - marginRight - totalsBoxWidth;
@@ -504,6 +525,21 @@ export function useTransferQuotePdf() {
       pdf.text(t.total, labelX, rowY);
       pdf.setFontSize(13);
       pdf.text(formatCurrency(total), valueX, rowY, { align: 'right' });
+
+      // ═══════════════════════════════════════════════════════════
+      // PRICING MODE NOTE (subtle, left of totals box)
+      // ═══════════════════════════════════════════════════════════
+      
+      if (request.is_external_provider && pricingMode === 'provider_quote') {
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'italic');
+        pdf.setTextColor(...COLORS.lightGray);
+        pdf.text(
+          t.providerQuoteNote,
+          marginLeft,
+          yPos + totalsBoxHeight - 4
+        );
+      }
 
       // ═══════════════════════════════════════════════════════════
       // VALIDITY (for quotes only)
@@ -605,5 +641,6 @@ export function useTransferQuotePdf() {
     generateInvoicePdf,
     isGenerating,
     settingsComplete: !!(settings?.company_name && settings?.tax_id),
+    calculatePdfTotals,
   };
 }

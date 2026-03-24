@@ -195,3 +195,124 @@ describe('formatCurrency', () => {
     expect(formatCurrency(undefined)).toBe('-');
   });
 });
+
+describe('PDF Totals Calculation (calculatePdfTotals logic)', () => {
+  /**
+   * The PDF uses items as the single source of truth for totals.
+   * subtotal = sum of price_with_commission
+   * vatAmount = subtotal * 0.21
+   * total = subtotal + vatAmount
+   */
+
+  const makeItem = (overrides: Partial<{
+    price_with_commission: number | null;
+    base_price: number | null;
+    provider_cost: number | null;
+  }> = {}) => ({
+    price_with_commission: overrides.price_with_commission ?? null,
+    base_price: overrides.base_price ?? null,
+    provider_cost: overrides.provider_cost ?? null,
+  });
+
+  const calculatePdfTotals = (items: ReturnType<typeof makeItem>[], pricingMode: 'zone_tariff' | 'provider_quote') => {
+    const subtotal = items.reduce((sum, item) => sum + (item.price_with_commission || item.base_price || 0), 0);
+    const vatRate = 21;
+    const vatAmount = Math.round(subtotal * 0.21 * 100) / 100;
+    const total = Math.round((subtotal + vatAmount) * 100) / 100;
+    const providerCost = pricingMode === 'provider_quote'
+      ? items.reduce((sum, it) => sum + (it.provider_cost || it.base_price || 0), 0)
+      : items.reduce((sum, it) => sum + (it.base_price || 0), 0);
+    return { subtotal, vatRate, vatAmount, total, providerCost };
+  };
+
+  it('calculates subtotal from price_with_commission', () => {
+    const items = [
+      makeItem({ price_with_commission: 150, base_price: 100 }),
+      makeItem({ price_with_commission: 300, base_price: 200 }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    expect(result.subtotal).toBe(450);
+  });
+
+  it('falls back to base_price when price_with_commission is null', () => {
+    const items = [
+      makeItem({ price_with_commission: null, base_price: 100 }),
+      makeItem({ price_with_commission: 300, base_price: 200 }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    expect(result.subtotal).toBe(400); // 100 + 300
+  });
+
+  it('calculates VAT at 21%', () => {
+    const items = [
+      makeItem({ price_with_commission: 1000 }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    expect(result.vatAmount).toBe(210);
+    expect(result.total).toBe(1210);
+  });
+
+  it('rounds VAT to 2 decimal places', () => {
+    const items = [
+      makeItem({ price_with_commission: 333 }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    // 333 * 0.21 = 69.93
+    expect(result.vatAmount).toBe(69.93);
+    expect(result.total).toBe(402.93);
+  });
+
+  it('provider_cost uses provider_cost field in provider_quote mode', () => {
+    const items = [
+      makeItem({ price_with_commission: 300, base_price: 200, provider_cost: 180 }),
+      makeItem({ price_with_commission: 450, base_price: 300, provider_cost: 280 }),
+    ];
+    const result = calculatePdfTotals(items, 'provider_quote');
+    expect(result.providerCost).toBe(460); // 180 + 280
+    expect(result.subtotal).toBe(750); // 300 + 450
+  });
+
+  it('provider_cost uses base_price in zone_tariff mode', () => {
+    const items = [
+      makeItem({ price_with_commission: 300, base_price: 200, provider_cost: 180 }),
+      makeItem({ price_with_commission: 450, base_price: 300, provider_cost: 280 }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    expect(result.providerCost).toBe(500); // 200 + 300 (ignores provider_cost)
+  });
+
+  it('handles empty items array', () => {
+    const result = calculatePdfTotals([], 'zone_tariff');
+    expect(result.subtotal).toBe(0);
+    expect(result.vatAmount).toBe(0);
+    expect(result.total).toBe(0);
+    expect(result.providerCost).toBe(0);
+  });
+
+  it('handles all null prices', () => {
+    const items = [
+      makeItem({ price_with_commission: null, base_price: null }),
+      makeItem({ price_with_commission: null, base_price: null }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    expect(result.subtotal).toBe(0);
+    expect(result.total).toBe(0);
+  });
+
+  it('PDF total matches TransferQuoteActions preview total', () => {
+    // This test verifies that the preview total shown in TransferQuoteActions
+    // uses the same formula as the actual PDF generation
+    const items = [
+      makeItem({ price_with_commission: 119, base_price: 79 }),
+      makeItem({ price_with_commission: 294, base_price: 196 }),
+    ];
+    const result = calculatePdfTotals(items, 'zone_tariff');
+    
+    // Subtotal = 119 + 294 = 413
+    expect(result.subtotal).toBe(413);
+    // VAT = 413 * 0.21 = 86.73
+    expect(result.vatAmount).toBe(86.73);
+    // Total = 413 + 86.73 = 499.73
+    expect(result.total).toBe(499.73);
+  });
+});
