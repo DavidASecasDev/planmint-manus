@@ -239,3 +239,5 @@
 - [x] Auditoría completa: Actualizar código donde sea necesario (no fue necesario, todo coincide)
 - [x] Auditoría completa: Tests y verificación (430 tests pasando, 0 errores TS)
 - [x] Bug: Sistema de lectura de presupuestos se queda en "Analizando..." indefinidamente (5 fixes: storage_path vs file_url, ai_status 'failed' vs 'error', prompt transporte, polling 3s, signed URL)
+- [x] Feature: Botón "Aplicar datos" en documentos analizados para crear items de transfer automáticamente desde datos AI (ya existía - applyProviderCost + UI en TransferDocumentsSection; no aparecía porque el parsing nunca completaba)
+- [x] Fix: Resetear documentos atascados en estado "processing" que nunca se completaron → 2 documentos reseteados a "failed" via SQL

@@ -1,0 +1,6 @@
+Reset completed successfully. 2 documents updated:
+
+1. 91fde116-a400-4ca2-8106-4b68736c4668 | Fact.Proforma97.pdf | processing → failed
+2. cc5d4ad1-e06a-40fd-9d84-8a16b1f87de9 | Fact.Proforma97.pdf | processing → failed
+
+Users can now click "Reintentar" to re-process these documents with the fixed parsing endpoint.
