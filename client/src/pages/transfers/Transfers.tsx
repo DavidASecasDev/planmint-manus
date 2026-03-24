@@ -25,6 +25,7 @@ export default function Transfers() {
     search: '',
     broker: '',
     status: 'all',
+    pricingMode: 'all',
     dateFrom: '',
     dateTo: '',
   });

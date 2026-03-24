@@ -160,6 +160,7 @@ export interface TransferFilters {
   search: string;
   broker: string;
   status: TransferRequestStatus | 'all';
+  pricingMode: PricingMode | 'all';
   dateFrom: string;
   dateTo: string;
 }

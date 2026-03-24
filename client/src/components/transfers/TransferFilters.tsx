@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X } from 'lucide-react';
-import type { TransferRequestStatus, TransferFilters } from '@/types/transfers';
+import { Search, X, MapPin, FileText } from 'lucide-react';
+import type { TransferRequestStatus, TransferFilters, PricingMode } from '@/types/transfers';
 
 interface TransferFiltersProps {
   filters: TransferFilters;
@@ -21,14 +20,21 @@ const STATUS_OPTIONS: { value: TransferRequestStatus | 'all'; label: string }[] 
   { value: 'cancelado', label: 'Cancelado' },
 ];
 
+const PRICING_MODE_OPTIONS: { value: PricingMode | 'all'; label: string }[] = [
+  { value: 'all', label: 'Todos los modos' },
+  { value: 'zone_tariff', label: 'Tarifa por zona' },
+  { value: 'provider_quote', label: 'Presupuesto proveedor' },
+];
+
 export function TransferFilters({ filters, onFiltersChange, brokers }: TransferFiltersProps) {
-  const hasActiveFilters = filters.search || filters.broker || (filters.status && filters.status !== 'all');
+  const hasActiveFilters = filters.search || filters.broker || (filters.status && filters.status !== 'all') || (filters.pricingMode && filters.pricingMode !== 'all');
 
   const handleClear = () => {
     onFiltersChange({
       search: '',
       broker: '',
       status: 'all',
+      pricingMode: 'all',
       dateFrom: '',
       dateTo: '',
     });
@@ -74,6 +80,26 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
           {STATUS_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={filters.pricingMode || 'all'}
+        onValueChange={(value) => onFiltersChange({ ...filters, pricingMode: value as PricingMode | 'all' })}
+      >
+        <SelectTrigger className="w-[200px]">
+          <SelectValue placeholder="Modo de precio" />
+        </SelectTrigger>
+        <SelectContent>
+          {PRICING_MODE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              <span className="flex items-center gap-1.5">
+                {option.value === 'zone_tariff' && <MapPin className="h-3.5 w-3.5 text-blue-600" />}
+                {option.value === 'provider_quote' && <FileText className="h-3.5 w-3.5 text-amber-600" />}
+                {option.label}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

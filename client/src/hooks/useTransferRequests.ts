@@ -25,6 +25,9 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
       if (filters?.status && filters.status !== 'all') {
         query = query.eq('status', filters.status);
       }
+      if (filters?.pricingMode && filters.pricingMode !== 'all') {
+        query = query.eq('pricing_mode', filters.pricingMode);
+      }
       if (filters?.broker) {
         query = query.ilike('broker_name', `%${filters.broker}%`);
       }

@@ -276,3 +276,5 @@
 - [x] Añadir provider_cost a transfer_items en Supabase types
 - [x] Añadir pricing_mode a transfer_requests en Supabase types
 - [x] Tests para calculateRequestTotals (12 tests: zone_tariff, provider_quote, rounding, edge cases)
+- [x] Adaptar generador de facturas PDF con lógica de totales desde items (ya implementado: quote e invoice usan el mismo generatePdf con calculatePdfTotals)
+- [x] Añadir filtro por modo de precio (Zona/Proveedor) en la lista de solicitudes de transfer
