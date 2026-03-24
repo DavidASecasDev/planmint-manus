@@ -378,6 +378,147 @@ function enrichReservationWithDetail(
   };
 }
 
+// ─── Vehicle Status Sync ────────────────────────────────────────────────────
+
+/**
+ * Reconcile vehicle statuses with their linked reservations.
+ * Vehicles with status='alquilado' whose reservation is 'Completada' or 'Cancelada'
+ * should be released back to 'sucio' (ready for cleaning cycle).
+ * Also handles setting vehicles to 'alquilado' for active reservations.
+ */
+async function syncVehicleStatuses(
+  serviceClient: ReturnType<typeof getServiceClient>,
+  organizationId: string
+): Promise<{ released: number; rented: number; errors: number }> {
+  let released = 0;
+  let rented = 0;
+  let errors = 0;
+
+  try {
+    // 1. Find all vehicles currently marked as 'alquilado' with a current_reservation_id
+    const { data: rentedVehicles, error: vehError } = await serviceClient
+      .from("vehicles")
+      .select("id, matricula, current_reservation_id")
+      .eq("organization_id", organizationId)
+      .eq("status", "alquilado")
+      .eq("is_archived", false)
+      .not("current_reservation_id", "is", null);
+
+    if (vehError) {
+      console.error("[sync-vehicles] Error fetching rented vehicles:", vehError);
+      return { released: 0, rented: 0, errors: 1 };
+    }
+
+    if (rentedVehicles && rentedVehicles.length > 0) {
+      // Get the reservation statuses
+      const reservationIds = rentedVehicles.map(v => v.current_reservation_id).filter(Boolean) as string[];
+      const { data: reservations } = await serviceClient
+        .from("reservations")
+        .select("id, estado")
+        .in("id", reservationIds);
+
+      const reservationMap = new Map<string, string>();
+      if (reservations) {
+        reservations.forEach(r => reservationMap.set(r.id, r.estado || ""));
+      }
+
+      // Release vehicles whose reservation is completed or cancelled
+      for (const vehicle of rentedVehicles) {
+        const resStatus = reservationMap.get(vehicle.current_reservation_id!);
+        if (resStatus === "Completada" || resStatus === "Cancelada") {
+          try {
+            // Reset cleaning tasks
+            await serviceClient
+              .from("vehicle_cleaning_tasks")
+              .update({
+                completed: false,
+                completed_at: null,
+                completed_by: null,
+              })
+              .eq("vehicle_id", vehicle.id);
+
+            // Update vehicle status to sucio and clear reservation link
+            const { error: updateErr } = await serviceClient
+              .from("vehicles")
+              .update({
+                status: "sucio",
+                current_reservation_id: null,
+                last_status_change: new Date().toISOString(),
+                cleaned_by: null,
+                cleaned_at: null,
+              })
+              .eq("id", vehicle.id);
+
+            if (updateErr) {
+              console.error(`[sync-vehicles] Error releasing ${vehicle.matricula}:`, updateErr);
+              errors++;
+            } else {
+              console.log(`[sync-vehicles] Released ${vehicle.matricula} (reservation ${resStatus})`);
+              released++;
+            }
+          } catch (err) {
+            console.error(`[sync-vehicles] Exception releasing ${vehicle.matricula}:`, err);
+            errors++;
+          }
+        }
+      }
+    }
+
+    // 2. Find active reservations (En curso) that should mark vehicles as alquilado
+    const now = new Date().toISOString();
+    const { data: activeReservations } = await serviceClient
+      .from("reservations")
+      .select("id, auto, cliente_nombre, cliente_apellido")
+      .eq("organization_id", organizationId)
+      .eq("estado", "En curso")
+      .not("auto", "is", null);
+
+    if (activeReservations && activeReservations.length > 0) {
+      for (const res of activeReservations) {
+        if (!res.auto) continue;
+
+        // Check if the vehicle exists and is not already alquilado
+        const { data: vehicle } = await serviceClient
+          .from("vehicles")
+          .select("id, status, current_reservation_id")
+          .eq("organization_id", organizationId)
+          .eq("matricula", res.auto)
+          .eq("is_archived", false)
+          .single();
+
+        if (vehicle && vehicle.status !== "alquilado" && vehicle.status !== "en_servicio") {
+          const { error: updateErr } = await serviceClient
+            .from("vehicles")
+            .update({
+              status: "alquilado",
+              current_reservation_id: res.id,
+              last_status_change: new Date().toISOString(),
+            })
+            .eq("id", vehicle.id);
+
+          if (!updateErr) {
+            console.log(`[sync-vehicles] Set ${res.auto} to alquilado (reservation ${res.id})`);
+            rented++;
+          }
+        } else if (vehicle && vehicle.status === "alquilado" && vehicle.current_reservation_id !== res.id) {
+          // Update the reservation link if it points to a different reservation
+          await serviceClient
+            .from("vehicles")
+            .update({ current_reservation_id: res.id })
+            .eq("id", vehicle.id);
+        }
+      }
+    }
+
+    console.log(`[sync-vehicles] Done: ${released} released, ${rented} rented, ${errors} errors`);
+  } catch (err) {
+    console.error("[sync-vehicles] Unexpected error:", err);
+    errors++;
+  }
+
+  return { released, rented, errors };
+}
+
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 export async function handleSyncRently(req: Request, res: Response) {
@@ -411,7 +552,19 @@ export async function handleSyncRently(req: Request, res: Response) {
     const clientId = settings.rently_client_id;
     const clientSecret = settings.rently_client_secret;
 
-    const { continue_sync, reset, test_only } = req.body || {};
+    const { continue_sync, reset, test_only, action } = req.body || {};
+
+    // Handle sync_vehicles action separately (no Rently API needed)
+    if (action === "sync_vehicles") {
+      const result = await syncVehicleStatuses(serviceClient, organizationId);
+      return res.json({
+        success: true,
+        vehicles_created: 0,
+        vehicles_updated: result.rented,
+        vehicles_released: result.released,
+        errors: result.errors,
+      });
+    }
 
     // Get OAuth token from Rently
     const rentlyToken = await getRentlyToken(host, clientId, clientSecret);
@@ -657,8 +810,9 @@ export async function handleSyncRently(req: Request, res: Response) {
       `[sync-rently] Page ${currentPage} complete: ${insertedCount} inserted, ${duplicateCount} duplicates, ${detailsFetched} enriched, hasMore: ${hasMore}`
     );
 
-    // Archive old reservations if sync is complete
+    // Archive old reservations and sync vehicle statuses if sync is complete
     let archivedCount = 0;
+    let vehicleSyncResult = { released: 0, rented: 0, errors: 0 };
     if (!hasMore) {
       try {
         console.log("[sync-rently] Sync complete, archiving old reservations...");
@@ -672,6 +826,14 @@ export async function handleSyncRently(req: Request, res: Response) {
         }
       } catch (archiveError) {
         console.error("[sync-rently] Error archiving:", archiveError);
+      }
+
+      // Sync vehicle statuses after all reservations are updated
+      try {
+        console.log("[sync-rently] Syncing vehicle statuses...");
+        vehicleSyncResult = await syncVehicleStatuses(serviceClient, organizationId);
+      } catch (vehicleSyncError) {
+        console.error("[sync-rently] Error syncing vehicle statuses:", vehicleSyncError);
       }
     }
 

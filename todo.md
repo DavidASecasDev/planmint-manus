@@ -204,3 +204,9 @@
 - [x] Causa: La ruta /transfers/new renderizaba <Transfers/> (lista) en vez de <TransferDetail/> (formulario). Eliminada ruta estática duplicada; ahora /transfers/:id captura id='new' correctamente
 - [x] Bug: Error al crear transfer - "Could not find the 'broker_id' column of 'transfer_requests' in the schema cache"
 - [x] Fix: Columna broker_id (UUID, FK a transfer_brokers) añadida a tabla transfer_requests en Supabase. Backfill de 3 registros existentes completado.
+- [x] Bug: Estado Coches no actualiza correctamente - vehículo 7767MWH sigue como "Alquilado" aunque la reserva fue devuelta
+- [x] Investigar flujo completo de sincronización de estado de vehículos con reservas Rently
+- [x] Causa raíz: syncRently.ts solo actualizaba reservas pero NUNCA tocaba la tabla vehicles. No existía lógica para liberar vehículos cuando su reserva se completaba
+- [x] Fix: Implementada función syncVehicleStatuses() que reconcilia estados de vehículos con reservas (libera alquilados con reserva completada/cancelada, marca como alquilado los de reserva en curso)
+- [x] Fix: Se ejecuta automáticamente al final de cada sync completo de Rently + disponible manualmente via action='sync_vehicles'
+- [x] 5 vehículos identificados para liberar: 2471MGR, 9592MTB, 7767MWH, 8762NKJ, 4471MYS
