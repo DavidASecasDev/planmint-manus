@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/env';
+// SUPABASE_URL/SUPABASE_ANON_KEY no longer needed - using Express endpoint
 import { decodeBrokerInviteCode } from '@/lib/brokerInvite';
 import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
@@ -105,12 +105,11 @@ export default function BrokerRegister() {
 
     try {
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/request-broker-access`,
+        `/api/request-broker-access`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             organization_id: organization.id,

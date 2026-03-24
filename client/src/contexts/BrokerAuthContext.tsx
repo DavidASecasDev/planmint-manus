@@ -6,7 +6,10 @@ import type { User } from '@supabase/supabase-js';
 const log = createLogger({ context: 'BrokerAuth' });
 
 export interface BrokerProfile {
+  /** The broker's ID in transfer_brokers table (used for request ownership) */
   id: string;
+  /** The broker_profiles row ID (internal, rarely needed) */
+  profile_id: string;
   name: string;
   email: string | null;
   phone: string | null;
@@ -16,6 +19,8 @@ export interface BrokerProfile {
   organization_logo: string | null;
   is_active: boolean;
   user_id: string;
+  /** Same as id, explicit FK to transfer_brokers */
+  broker_id: string | null;
 }
 
 interface BrokerAuthContextType {
@@ -53,8 +58,25 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
         return null;
       }
       
-      const profile = data as unknown as BrokerProfile;
-      if (profile && typeof profile === 'object' && 'id' in profile) {
+      // Remap: broker.id should be broker_profiles.broker_id (FK to transfer_brokers)
+      // so that broker.id matches transfer_requests.broker_id for ownership checks
+      const raw = data as any;
+      if (raw && typeof raw === 'object' && 'id' in raw) {
+        const profile: BrokerProfile = {
+          // CRITICAL: id = broker_id (FK to transfer_brokers), NOT broker_profiles.id
+          id: raw.broker_id || raw.id,
+          profile_id: raw.id,
+          name: raw.name || '',
+          email: raw.email || null,
+          phone: raw.phone || null,
+          company: raw.company || null,
+          organization_id: raw.organization_id,
+          organization_name: raw.organization_name || '',
+          organization_logo: raw.organization_logo || null,
+          is_active: raw.is_active ?? true,
+          user_id: raw.user_id,
+          broker_id: raw.broker_id || null,
+        };
         return profile;
       }
       

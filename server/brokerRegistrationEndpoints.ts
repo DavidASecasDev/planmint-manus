@@ -66,19 +66,36 @@ export async function handleApproveBrokerRegistration(req: Request, res: Respons
 
     const { data: existingBroker } = await sb
       .from("transfer_brokers")
-      .select("id")
+      .select("id, email, phone, company")
       .eq("organization_id", organizationId)
       .eq("name", brokerName)
       .maybeSingle();
 
     if (existingBroker) {
       brokerId = existingBroker.id;
+      // Update existing broker with user_id and contact info from registration
+      if (request.user_id) {
+        await sb
+          .from("transfer_brokers")
+          .update({
+            user_id: request.user_id,
+            email: request.email || existingBroker.email || null,
+            phone: request.phone || existingBroker.phone || null,
+            company: request.company || existingBroker.company || null,
+          })
+          .eq("id", existingBroker.id);
+        console.log(`[approve-broker-registration] Updated transfer_brokers.user_id for broker ${existingBroker.id}`);
+      }
     } else {
       const { data: newBroker, error: insertError } = await sb
         .from("transfer_brokers")
         .insert({
           organization_id: organizationId,
           name: brokerName,
+          email: request.email || null,
+          phone: request.phone || null,
+          company: request.company || null,
+          user_id: request.user_id || null,
           is_active: true,
         })
         .select("id")

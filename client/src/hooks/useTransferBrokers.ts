@@ -234,12 +234,15 @@ export function useTransferBrokers() {
 
   const setupPortalMutation = useMutation({
     mutationFn: async (data: SetupPortalAccessData): Promise<SetupPortalResponse> => {
-      // Setup broker portal access directly instead of broken RPC
-      // Update the broker record with the email for portal access
+      // Setup broker portal access:
+      // 1. Find the Supabase Auth user by email
+      // 2. Update transfer_brokers.user_id to link the broker to the auth user
+      // 3. Create/update broker_profiles for portal access
       try {
+        // Update the broker record with the email (actual column that exists)
         const { error } = await (supabase as any)
           .from('transfer_brokers')
-          .update({ portal_email: data.email, portal_access: true })
+          .update({ email: data.email })
           .eq('id', data.brokerId);
 
         if (error) throw error;

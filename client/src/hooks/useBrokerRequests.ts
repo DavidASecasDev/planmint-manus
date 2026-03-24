@@ -337,6 +337,7 @@ export function useBrokerRequestDetail(id: string | undefined) {
     queryFn: async (): Promise<TransferRequest | null> => {
       if (!id) return null;
 
+      // SECURITY: Always filter by organization_id to prevent cross-org access
       const { data, error } = await supabase
         .from('transfer_requests')
         .select(`
@@ -345,6 +346,7 @@ export function useBrokerRequestDetail(id: string | undefined) {
           documents:transfer_documents(*)
         `)
         .eq('id', id)
+        .eq('organization_id', broker!.organization_id)
         .single();
 
       if (error) {
