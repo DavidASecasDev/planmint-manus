@@ -301,3 +301,7 @@
 - [x] Bug: Sidebar no muestra todos los módulos - RESUELTO: Race condition donde useOrganizationModules y usePermissions reportaban isLoading=false mientras auth inicializaba (query deshabilitada), causando que DEFAULT_MODULES (transfers=false, etc.) se usaran. Fix: (1) useOrganizationModules ahora detecta auth inicializando como estado de carga real, (2) AppSidebar muestra todos los items durante carga en vez de filtrar, (3) Auth cache en servidor para deduplicar llamadas concurrentes a auth.getUser()
 - [x] Skeleton loading en sidebar: mostrar placeholders animados mientras módulos/permisos cargan
 - [x] Aumentar staleTime de módulos de 30s a 5 minutos para reducir llamadas innecesarias (también desactivado refetchOnWindowFocus)
+- [x] Skeleton loading en Dashboard: placeholders animados para KPIs, gráficos y tablas mientras cargan datos
+- [x] Skeleton loading en Reservas: placeholders animados para la lista/tabla de reservas mientras cargan datos
+- [x] Transición suave skeleton → contenido: animación fade-out en skeletons antes de mostrar contenido real (componente SkeletonTransition reutilizable)
+- [x] Indicador de reconexión: banner sutil cuando la conexión se pierde y se recupera (auto-dismiss 5s, invalidación de queries, animación slide-out)

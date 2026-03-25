@@ -3,6 +3,7 @@ import { useRentlySyncContextSafe } from '@/contexts/RentlySyncContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -79,24 +80,86 @@ export function OperationalPanel() {
   const rentlyCtx = useRentlySyncContextSafe();
   const navigate = useNavigate();
 
-  if (isLoading || !stats) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}
-        </div>
-        <Skeleton className="h-40" />
-      </div>
-    );
-  }
+  const needsPrep = stats ? stats.vehiclesByStatus.sucio + stats.vehiclesByStatus.incompleto : 0;
+  const vehiclesWithReservations = stats ? stats.vehiclesNeedingPrep.filter(v => v.nextReservationAt) : [];
+  const hasAlerts = stats ? (stats.contractsExpiringSoon > 0 || stats.pendingTasksHigh > 0) : false;
 
-  const needsPrep = stats.vehiclesByStatus.sucio + stats.vehiclesByStatus.incompleto;
-  const vehiclesWithReservations = stats.vehiclesNeedingPrep.filter(v => v.nextReservationAt);
-  const hasAlerts = stats.contractsExpiringSoon > 0 || stats.pendingTasksHigh > 0;
+  const dashboardSkeleton = (
+    <div className="space-y-5 sm:space-y-6">
+      {/* Fleet Status Bar skeleton */}
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-7 w-16" />
+          </div>
+          <Skeleton className="h-3 w-full rounded-full mb-3" />
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex items-center gap-1.5">
+                <Skeleton className="h-2.5 w-2.5 rounded-full" />
+                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-3 w-5" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* KPI Grid skeleton */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map(i => (
+          <Card key={i} className="border-border/50 shadow-sm">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2">
+                <Skeleton className="h-4 w-4 rounded" />
+                {i <= 2 && <Skeleton className="h-4 w-16 rounded-full" />}
+              </div>
+              <Skeleton className="h-7 w-10 mb-1" />
+              <Skeleton className="h-3 w-20" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Today's Operations skeleton */}
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-7 w-20" />
+          </div>
+          <div className="divide-y divide-border/50">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex items-center gap-3 py-2.5">
+                <Skeleton className="h-7 w-7 rounded-full" />
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-3 flex-1 max-w-[120px]" />
+                <Skeleton className="h-3 w-20 hidden sm:block" />
+                <Skeleton className="h-4 w-16 rounded-full hidden sm:block" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Access skeleton */}
+      <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map(i => (
+          <Card key={i} className="border-border/50 shadow-sm">
+            <CardContent className="p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3">
+              <Skeleton className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg" />
+              <Skeleton className="h-3.5 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <SkeletonTransition isLoading={isLoading || !stats} skeleton={dashboardSkeleton}>
+    {stats && <div className="space-y-5 sm:space-y-6">
       {/* ─── Fleet Status Bar ─── */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader className="pb-3 px-4 sm:px-6">
@@ -514,6 +577,7 @@ export function OperationalPanel() {
           </Card>
         ))}
       </div>
-    </div>
+    </div>}
+    </SkeletonTransition>
   );
 }

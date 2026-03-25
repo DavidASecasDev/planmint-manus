@@ -5,6 +5,8 @@ import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { ArrowUpDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Reservation, UpdateReservationData } from '@/types/reservations';
@@ -587,15 +589,53 @@ export function ReservationsTable() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+  const reservationsTableSkeleton = (
+    <div className="flex flex-col h-full gap-4">
+      {/* Search bar skeleton */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Skeleton className="h-9 flex-1 max-w-sm rounded-md" />
+        <Skeleton className="h-9 w-28 rounded-md" />
+        <Skeleton className="h-9 w-20 rounded-md" />
+        <Skeleton className="h-6 w-32 rounded-full" />
       </div>
-    );
-  }
+
+      {/* Table skeleton */}
+      <div className="rounded-lg border border-border/50 overflow-hidden">
+        {/* Table header */}
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/30 border-b border-border/50">
+          <Skeleton className="h-4 w-4 rounded" />
+          {[80, 60, 100, 130, 100, 80, 80, 60, 50, 50, 50, 200].map((w, i) => (
+            <Skeleton key={i} className="h-3.5 rounded" style={{ width: `${w}px` }} />
+          ))}
+        </div>
+        {/* Table rows */}
+        {Array.from({ length: 12 }).map((_, rowIdx) => (
+          <div
+            key={rowIdx}
+            className="flex items-center gap-2 px-3 py-3 border-b border-border/30 last:border-b-0"
+            style={{ opacity: 1 - rowIdx * 0.06 }}
+          >
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton className="h-3.5 w-20 rounded" />
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-3.5 w-14 rounded" />
+            <Skeleton className="h-3.5 flex-1 max-w-[120px] rounded" />
+            <Skeleton className="h-3.5 w-24 rounded" />
+            <Skeleton className="h-3.5 w-20 rounded" />
+            <Skeleton className="h-3.5 w-16 rounded" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-6 w-20 rounded" />
+            <Skeleton className="h-6 w-20 rounded" />
+            <Skeleton className="h-5 w-12 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
+    <SkeletonTransition isLoading={isLoading} skeleton={reservationsTableSkeleton}>
     <div className="flex flex-col h-full gap-4">
       {/* Search and filter controls */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -1009,5 +1049,6 @@ export function ReservationsTable() {
         archiveDays={reservationsArchiveDays}
       />
     </div>
+    </SkeletonTransition>
   );
 }
