@@ -87,10 +87,21 @@ export interface ExtractedTransferItem {
   pickup_time: string | null;
   pickup_location: string | null;
   dropoff_location: string | null;
+  dropoff_time: string | null;
   vehicle_type: string | null;
   pax_count: number | null;
   amount: number | null;
   notes: string | null;
+  // Enhanced fields from improved parsing
+  flight_number: string | null;
+  has_return: boolean;
+  return_pickup_location: string | null;
+  return_dropoff_location: string | null;
+  return_pickup_time: string | null;
+  return_date: string | null;
+  driver_name: string | null;
+  driver_phone: string | null;
+  confidence: number | null;
 }
 
 export interface TransferDocumentAIData {
@@ -98,7 +109,11 @@ export interface TransferDocumentAIData {
   total_amount?: number;
   date?: string | null;
   provider_name?: string | null;
+  provider_phone?: string | null;
+  provider_email?: string | null;
+  client_reference?: string | null;
   currency?: string;
+  confidence?: number;
   items?: ExtractedTransferItem[];
   // Legacy fields
   amount?: number;

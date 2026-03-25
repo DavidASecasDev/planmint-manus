@@ -12,6 +12,7 @@ import { handleSyncRently } from "../syncRently";
 import { handleAiAssistant } from "../aiAssistant";
 import { handleRentlyHub } from "../rentlyHub";
 import { handleParseTransferDocument } from "../parseTransferDocument";
+import { handleCreateMovementsFromTransfer } from "../createMovementsFromTransfer";
 import { handleSignupWithInvitation } from "../signupWithInvitation";
 import { handleGetVapidKey } from "../vapidKey";
 import { handleApplyTemplate } from "../applyTemplate";
@@ -96,6 +97,7 @@ async function startServer() {
   app.post("/api/ai-assistant", handleAiAssistant);
   app.post("/api/rently-hub", handleRentlyHub);
   app.post("/api/parse-transfer-document", handleParseTransferDocument);
+  app.post("/api/create-movements-from-transfer", handleCreateMovementsFromTransfer);
   app.post("/api/signup-with-invitation", handleSignupWithInvitation);
   app.post("/api/get-vapid-key", handleGetVapidKey);
   app.post("/api/apply-template", handleApplyTemplate);

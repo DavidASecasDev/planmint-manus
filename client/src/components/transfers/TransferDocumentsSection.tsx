@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, FileText, Trash2, RefreshCw, ExternalLink, Check, AlertCircle, Calculator, MapPin, Users, Car } from 'lucide-react';
+import { Loader2, Upload, FileText, Trash2, RefreshCw, ExternalLink, Check, AlertCircle, Calculator, MapPin, Users, Car, Truck } from 'lucide-react';
 import { useTransferDocuments } from '@/hooks/useTransferDocuments';
 import type { TransferDocument, TransferDocumentType, ExtractedTransferItem } from '@/types/transfers';
 import { cn } from '@/lib/utils';
 import { calculateClientInvoice, formatCurrency } from '@/utils/transferCalculations';
+import { TransferMovementReview } from './TransferMovementReview';
 
 interface TransferDocumentsSectionProps {
   requestId: string;
@@ -23,6 +24,7 @@ export function TransferDocumentsSection({ requestId, documents, onApplyCost, is
   const presupuestoInputRef = useRef<HTMLInputElement>(null);
   const facturaInputRef = useRef<HTMLInputElement>(null);
   const { uploadDocument, deleteDocument, getDocumentUrl, retryAI, isUploading, isDeleting } = useTransferDocuments(requestId);
+  const [reviewingDocument, setReviewingDocument] = useState<TransferDocument | null>(null);
 
   const presupuesto = documents.find(d => d.document_type === 'presupuesto');
   const factura = documents.find(d => d.document_type === 'factura');
@@ -41,14 +43,13 @@ export function TransferDocumentsSection({ requestId, documents, onApplyCost, is
   const formatItemDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
     try {
-      return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+      return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
     } catch {
       return dateStr;
     }
   };
 
   const getDetectedItems = (doc: TransferDocument): ExtractedTransferItem[] => {
-    // Try detected_items first, then fall back to ai_raw_data.items
     if (doc.detected_items && doc.detected_items.length > 0) {
       return doc.detected_items;
     }
@@ -57,6 +58,21 @@ export function TransferDocumentsSection({ requestId, documents, onApplyCost, is
     }
     return [];
   };
+
+  // If we're in review mode, show the full review panel
+  if (reviewingDocument) {
+    const detectedItems = getDetectedItems(reviewingDocument);
+    return (
+      <TransferMovementReview
+        requestId={requestId}
+        document={reviewingDocument}
+        items={detectedItems}
+        providerCost={reviewingDocument.detected_amount ?? null}
+        onComplete={() => setReviewingDocument(null)}
+        onCancel={() => setReviewingDocument(null)}
+      />
+    );
+  }
 
   const renderDocumentSlot = (
     type: TransferDocumentType,
@@ -172,7 +188,7 @@ export function TransferDocumentsSection({ requestId, documents, onApplyCost, is
               <div className="p-3 rounded bg-primary/5 border border-primary/20 space-y-3 text-sm">
                 <p className="font-medium text-primary">Datos detectados:</p>
                 <div className="grid grid-cols-3 gap-2 text-muted-foreground">
-                  {doc.detected_amount && (
+                  {doc.detected_amount != null && (
                     <div>
                       <span className="text-xs text-muted-foreground/70">Importe:</span>
                       <p className="font-medium text-foreground">{formatCurrency(doc.detected_amount)}</p>
@@ -233,36 +249,48 @@ export function TransferDocumentsSection({ requestId, documents, onApplyCost, is
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Se crearán {detectedItems.length} trayecto{detectedItems.length !== 1 ? 's' : ''} al aplicar
-                    </p>
                   </div>
                 )}
 
-                {/* Apply Cost Button */}
-                {doc.detected_amount && onApplyCost && (
-                  <div className="pt-2 border-t border-primary/10">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-muted-foreground">
-                        <p>Al aplicar se calculará:</p>
-                        <p className="font-medium text-foreground">
-                          Total cliente: {formatCurrency(calculateClientInvoice(doc.detected_amount).clientTotal)}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => onApplyCost(doc.detected_amount!, type, detectedItems.length > 0 ? detectedItems : undefined)}
-                        disabled={isApplyingCost}
-                        className="gap-2"
-                      >
-                        {isApplyingCost ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Calculator className="h-4 w-4" />
-                        )}
-                        {detectedItems.length > 0 ? 'Aplicar y Crear Items' : 'Aplicar Coste'}
-                      </Button>
+                {/* Action buttons */}
+                {doc.detected_amount != null && (
+                  <div className="pt-2 border-t border-primary/10 space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      <p>Al aplicar se calculará:</p>
+                      <p className="font-medium text-foreground">
+                        Total cliente: {formatCurrency(calculateClientInvoice(doc.detected_amount).clientTotal)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Legacy "Apply Cost" button - for quick cost-only application */}
+                      {onApplyCost && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onApplyCost(doc.detected_amount!, type, detectedItems.length > 0 ? detectedItems : undefined)}
+                          disabled={isApplyingCost}
+                          className="gap-2"
+                        >
+                          {isApplyingCost ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Calculator className="h-4 w-4" />
+                          )}
+                          {detectedItems.length > 0 ? 'Aplicar y Crear Items' : 'Aplicar Coste'}
+                        </Button>
+                      )}
+
+                      {/* NEW: Review & Create Movements button - for presupuesto only */}
+                      {type === 'presupuesto' && detectedItems.length > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={() => setReviewingDocument(doc)}
+                          className="gap-2"
+                        >
+                          <Truck className="h-4 w-4" />
+                          Revisar y crear movimientos
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}

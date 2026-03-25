@@ -338,3 +338,12 @@
 - [x] Bug PRODUCCIÓN: TypeError Failed to fetch dynamically imported module FleetList (lazyWithRetry reemplaza React.lazy en 94 componentes)
 - [x] Bug PRODUCCIÓN: Warnings aria-describedby=(undefined) en DialogContent (VisuallyHidden fallback Description en dialog.tsx)
 - [x] Bug PRODUCCIÓN: Pantalla en blanco en /fleet por cascada de errores anteriores (todos los errores upstream corregidos)
+- [x] Rediseño módulo PDF presupuestos: Auditar flujo actual de lectura de PDFs y estructura de movimientos
+- [x] Rediseño módulo PDF presupuestos: Mejorar parser de PDFs para extraer datos clave de presupuestos de transfers
+- [x] Rediseño módulo PDF presupuestos: Crear lógica backend de auto-creación de movimientos desde datos extraídos del PDF
+- [x] Rediseño módulo PDF presupuestos: Vincular movimientos generados al presupuesto/transfer original
+- [x] Rediseño módulo PDF presupuestos: Validación de datos extraídos (campos faltantes, ambigüedades, errores de parsing)
+- [x] Rediseño módulo PDF presupuestos: UI de revisión/confirmación antes de crear movimientos (preview de datos extraídos)
+- [x] Rediseño módulo PDF presupuestos: Solo disponible en panel interno (NO en portal de brokers)
+- [x] Rediseño módulo PDF presupuestos: Evitar duplicidades de movimientos
+- [x] Rediseño módulo PDF presupuestos: Tests para parsing y creación automática
