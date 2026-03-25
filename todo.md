@@ -315,10 +315,10 @@
 - [x] Skeleton en MovementDetail: aplicar SkeletonTransition a la página de detalle de movimiento
 - [x] Bug CRÍTICO: Referencias de transfer duplicadas (TRF-2026-0007 repetida 7 veces) - RESUELTO: Trigger usaba COUNT(*)+1 que se desincronizaba al borrar registros. Cambiado a MAX(número)+1. Reasignados 11 registros existentes (0001-0011). Añadido índice único (organization_id, request_number)
 - [x] AUDITORÍA COMPLETA: TypeError 'Cannot read properties of undefined (reading filter)' en VehicleStatus que crashea la página /vehicles
-- [ ] AUDITORÍA COMPLETA: Error 400 en Supabase (fecha_entrada.desc) - query malformada
-- [ ] AUDITORÍA COMPLETA: Warnings aria-describedby en DialogContent
+- [x] AUDITORÍA COMPLETA: Error 400 en Supabase (fecha_entrada.desc) - query malformada
+- [x] AUDITORÍA COMPLETA: Warnings aria-describedby en DialogContent
 - [x] AUDITORÍA COMPLETA: Revisar TODOS los hooks y componentes para null safety y guards de datos
-- [ ] AUDITORÍA COMPLETA: Revisar TODAS las queries a Supabase para errores de formato
+- [x] AUDITORÍA COMPLETA: Revisar TODAS las queries a Supabase para errores de formato
 - [x] Alerta de transfers sin respuesta: Notificar automáticamente cuando una solicitud lleva más de 48h en estado Pendiente sin actividad
 - [x] Fix CRÍTICO: Prefetch cache mismatch - usePrefetch.ts reescrito para usar invalidación en lugar de cache directo para queries complejas (vehicles, reservations, transfers, fleet, movements). Solo dashboard usa prefetchQuery directo porque devuelve datos planos
 - [x] Fix: Null safety en VehicleCleaningChecklist - cleaning_tasks accedido con || [] para prevenir crash cuando prefetch devuelve datos sin cleaning_tasks
@@ -332,3 +332,9 @@
 - [x] Alerta de transfers sin respuesta: Integrado en ciclo de auto-sync de Rently (RentlySyncContext) para ejecución periódica
 - [x] Alerta de transfers sin respuesta: Tipo transfer_stale_alert añadido a NotificationType, NotificationBell, y Notifications page
 - [x] Alerta de transfers sin respuesta: 17 tests (constants, formatting, threshold logic, dedup, integration). 597 tests pasando, 0 errores TypeScript
+- [x] Bug PRODUCCIÓN: Error 400 en Supabase query con fecha_entrada.desc - query malformada (SW cache v4→v5 fuerza limpieza de queries legacy)
+- [x] Bug PRODUCCIÓN: Error 429 en /api/get-my-profile - rate limiting (authEndpoints refactorizado para usar authenticateSupabaseRequest con cache 60s)
+- [x] Bug PRODUCCIÓN: Failed to load module script - assets sirven text/html (lazyWithRetry con auto-retry + cache-busting + page reload)
+- [x] Bug PRODUCCIÓN: TypeError Failed to fetch dynamically imported module FleetList (lazyWithRetry reemplaza React.lazy en 94 componentes)
+- [x] Bug PRODUCCIÓN: Warnings aria-describedby=(undefined) en DialogContent (VisuallyHidden fallback Description en dialog.tsx)
+- [x] Bug PRODUCCIÓN: Pantalla en blanco en /fleet por cascada de errores anteriores (todos los errores upstream corregidos)

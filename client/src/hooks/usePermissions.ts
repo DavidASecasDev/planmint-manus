@@ -175,7 +175,7 @@ export function usePermissions() {
     },
     enabled: !!organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
   const hasPermission = (permission: PermissionKey): boolean => {

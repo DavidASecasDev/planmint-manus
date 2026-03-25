@@ -279,19 +279,9 @@ export async function handleCreateTaskSecure(req: Request, res: Response) {
 // ─── 4. get_my_permissions ────────────────────────────────────────────────────
 export async function handleGetMyPermissions(req: Request, res: Response) {
   try {
-    const token = extractBearerToken(req.headers.authorization);
-    if (!token) {
-      return res.status(401).json({ error: "No authorization token provided" });
-    }
-
+    // Use the cached auth helper instead of direct auth.getUser()
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
     const serviceClient = getServiceClient();
-    const { data: userData, error: userError } =
-      await serviceClient.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return res.status(401).json({ error: "Invalid or expired token" });
-    }
-
-    const userId = userData.user.id;
     const { p_organization_id } = req.body;
 
     if (!p_organization_id) {

@@ -3,37 +3,29 @@
  * These replace direct Supabase frontend queries in AuthContext that fail
  * because the frontend anon key doesn't match the Supabase project.
  * All queries use serviceClient (service role key) to bypass RLS.
+ *
+ * IMPORTANT: Both endpoints now use authenticateSupabaseRequest() which
+ * caches auth.getUser() results for 60s, preventing Supabase rate limiting (429).
  */
 import { Request, Response } from "express";
 import {
   getServiceClient,
   extractBearerToken,
+  authenticateSupabaseRequest,
   AuthError,
 } from "./supabaseAdmin";
 
 // ─── 1. get-my-profile ──────────────────────────────────────────────────────
 // Returns the authenticated user's profile from the profiles table.
-// Replaces: supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+// Uses authenticateSupabaseRequest() for cached auth validation.
 export async function handleGetMyProfile(req: Request, res: Response) {
   try {
-    const token = extractBearerToken(req.headers.authorization);
-    if (!token) {
-      return res.status(401).json({ data: null, error: "No authorization token provided" });
-    }
+    // Use the cached auth helper instead of direct auth.getUser()
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
 
     const serviceClient = getServiceClient();
 
-    // Validate the user's JWT using the service role client
-    const { data: userData, error: userError } =
-      await serviceClient.auth.getUser(token);
-
-    if (userError || !userData?.user) {
-      return res.status(401).json({ data: null, error: "Invalid or expired token" });
-    }
-
-    const userId = userData.user.id;
-
-    // Fetch profile using service role client (bypasses RLS)
+    // Fetch full profile using service role client (bypasses RLS)
     const { data: profile, error: profileError } = await serviceClient
       .from("profiles")
       .select("*")
@@ -57,23 +49,11 @@ export async function handleGetMyProfile(req: Request, res: Response) {
 
 // ─── 2. get-my-organization ─────────────────────────────────────────────────
 // Returns the organization data for the given organization_id.
-// Replaces: supabase.from('organizations').select('*').eq('id', orgId).maybeSingle()
+// Uses authenticateSupabaseRequest() for cached auth validation.
 export async function handleGetMyOrganization(req: Request, res: Response) {
   try {
-    const token = extractBearerToken(req.headers.authorization);
-    if (!token) {
-      return res.status(401).json({ data: null, error: "No authorization token provided" });
-    }
-
-    const serviceClient = getServiceClient();
-
-    // Validate the user's JWT
-    const { data: userData, error: userError } =
-      await serviceClient.auth.getUser(token);
-
-    if (userError || !userData?.user) {
-      return res.status(401).json({ data: null, error: "Invalid or expired token" });
-    }
+    // Use the cached auth helper instead of direct auth.getUser()
+    const { userId, organizationId: userOrgId } = await authenticateSupabaseRequest(req.headers.authorization);
 
     const { organization_id } = req.body;
 
@@ -81,23 +61,22 @@ export async function handleGetMyOrganization(req: Request, res: Response) {
       return res.json({ data: null, error: null });
     }
 
-    // Verify the user belongs to this organization (security check)
-    const { data: member } = await serviceClient
-      .from("organization_members")
-      .select("id")
-      .eq("organization_id", organization_id)
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
+    const serviceClient = getServiceClient();
 
-    // Also check if user's profile has this org_id (for users not yet in members table)
-    const { data: profile } = await serviceClient
-      .from("profiles")
-      .select("organization_id")
-      .eq("id", userData.user.id)
-      .single();
+    // Security check: verify user belongs to this organization
+    // First check via the cached auth result (profile.organization_id)
+    if (userOrgId !== organization_id) {
+      // Fallback: check organization_members table
+      const { data: member } = await serviceClient
+        .from("organization_members")
+        .select("id")
+        .eq("organization_id", organization_id)
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (!member && profile?.organization_id !== organization_id) {
-      return res.status(403).json({ data: null, error: "Not authorized to access this organization" });
+      if (!member) {
+        return res.status(403).json({ data: null, error: "Not authorized to access this organization" });
+      }
     }
 
     // Fetch organization using service role client (bypasses RLS)

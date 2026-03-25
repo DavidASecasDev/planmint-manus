@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'azul-cars-v4';
+const CACHE_NAME = 'azul-cars-v5';
 
 // Only cache the bare minimum for offline fallback
 const STATIC_ASSETS = [
