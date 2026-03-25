@@ -313,3 +313,4 @@
 - [x] Skeleton en TransferDetail: aplicar SkeletonTransition a la página de detalle de transfer
 - [x] Skeleton en FleetDetail: aplicar SkeletonTransition a la página de detalle de vehículo
 - [x] Skeleton en MovementDetail: aplicar SkeletonTransition a la página de detalle de movimiento
+- [x] Bug CRÍTICO: Referencias de transfer duplicadas (TRF-2026-0007 repetida 7 veces) - RESUELTO: Trigger usaba COUNT(*)+1 que se desincronizaba al borrar registros. Cambiado a MAX(número)+1. Reasignados 11 registros existentes (0001-0011). Añadido índice único (organization_id, request_number)
