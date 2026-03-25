@@ -38,9 +38,9 @@ const DEFAULT_MODULES: OrganizationModules = {
 };
 
 export function useOrganizationModules() {
-  const { profile } = useAuth();
+  const { profile, profileLoading } = useAuth();
 
-  const { data: modules, isLoading, error, refetch } = useQuery({
+  const { data: modules, isLoading: queryLoading, error, refetch } = useQuery({
     queryKey: ['organization-modules', profile?.organization_id],
     queryFn: async (): Promise<OrganizationModules> => {
       if (!profile?.organization_id) return DEFAULT_MODULES;
@@ -78,6 +78,14 @@ export function useOrganizationModules() {
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
+
+  // CRITICAL: When auth is still initializing (profile not loaded yet),
+  // React Query reports isLoading=false because the query is disabled (enabled: false).
+  // This caused the sidebar to use DEFAULT_MODULES (transfers=false, reservations=false, etc.)
+  // and show "Módulo no activado" before the real modules were fetched.
+  // We must treat auth-initializing as a loading state.
+  const authInitializing = profileLoading || (!profile?.organization_id && !modules);
+  const isLoading = queryLoading || authInitializing;
 
   const isModuleEnabled = (moduleKey: ModuleKey): boolean => {
     // Core modules are always enabled (reminders, calendar)

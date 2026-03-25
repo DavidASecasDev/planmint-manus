@@ -143,8 +143,13 @@ const borderColor = 'rgba(255,255,255,0.08)';
 
 export function AppSidebar() {
   const { profile, organization, signOut } = useAuth();
-  const { role, canAccessAdminPanel, hasPermission, isManager } = usePermissions();
-  const { isModuleEnabled } = useOrganizationModules();
+  const { role, canAccessAdminPanel, hasPermission, isManager, isLoading: permissionsLoading } = usePermissions();
+  const { isModuleEnabled, isLoading: modulesLoading } = useOrganizationModules();
+
+  // CRITICAL: While auth/permissions/modules are still loading, show ALL menu items
+  // to prevent the sidebar from flickering or showing a reduced set of items.
+  // Once loading completes, the real filter will apply.
+  const dataReady = !permissionsLoading && !modulesLoading;
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
   const isCollapsed = state === 'collapsed';
@@ -174,6 +179,8 @@ export function AppSidebar() {
   }, [location.pathname]);
 
   const filteredMenuItems = useMemo(() => {
+    // While data is loading, show all menu items to prevent sidebar flicker
+    if (!dataReady) return menuItems;
     return menuItems.filter((item) => {
       const requiredPermission = MENU_PERMISSION_MAP[item.url];
       if (requiredPermission && !hasPermission(requiredPermission)) return false;
@@ -182,7 +189,7 @@ export function AppSidebar() {
       if (moduleKey && OPTIONAL_MODULES.includes(moduleKey)) return isModuleEnabled(moduleKey);
       return true;
     });
-  }, [isModuleEnabled, hasPermission]);
+  }, [isModuleEnabled, hasPermission, dataReady]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -472,29 +479,31 @@ export function AppSidebar() {
                         }
                       )}
 
-                      {item.url === '/vehicles' && isModuleEnabled('transfers') && hasPermission('transfers.view') &&
+                      {item.url === '/vehicles' && (!dataReady || (isModuleEnabled('transfers') && hasPermission('transfers.view'))) &&
                         renderCollapsibleMenu(
                           'Transfers', Ship, transfersOpen, setTransfersOpen, isTransfersActive,
                           transfersSubItems,
                           (subItem) => {
+                            if (!dataReady) return true;
                             if ('permission' in subItem && subItem.permission) return hasPermission(subItem.permission);
                             return true;
                           }
                         )
                       }
 
-                      {item.url === '/vehicles' && isModuleEnabled('garatech') && hasPermission('garatech.view') &&
+                      {item.url === '/vehicles' && (!dataReady || (isModuleEnabled('garatech') && hasPermission('garatech.view'))) &&
                         renderCollapsibleMenu(
                           'Garatech', Wrench, garatechOpen, setGaratechOpen, isGaratechActive,
                           garatechSubItems,
                           (subItem) => {
+                            if (!dataReady) return true;
                             if ('permission' in subItem && subItem.permission) return hasPermission(subItem.permission);
                             return true;
                           }
                         )
                       }
 
-                      {item.url === '/movements' && isModuleEnabled('fleet') && hasPermission('fleet.view') &&
+                      {item.url === '/movements' && (!dataReady || (isModuleEnabled('fleet') && hasPermission('fleet.view'))) &&
                         renderCollapsibleMenu(
                           'Flota', Warehouse, fleetOpen, setFleetOpen, isFleetActive,
                           fleetSubItems,

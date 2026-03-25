@@ -38,6 +38,31 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
   return authHeader.slice(7);
 }
 
+// ─── Auth Cache ──────────────────────────────────────────────────────────────
+// Cache auth results for 60 seconds to avoid hammering Supabase auth.getUser()
+// on every API call. On initial page load, 5-10+ hooks fire simultaneously,
+// each calling authenticateSupabaseRequest → auth.getUser() → profiles query.
+// Without caching, this causes rate limiting (429) and slow page loads.
+interface AuthCacheEntry {
+  userId: string;
+  organizationId: string;
+  timestamp: number;
+}
+
+const AUTH_CACHE = new Map<string, AuthCacheEntry>();
+const AUTH_CACHE_TTL_MS = 60_000; // 60 seconds
+const AUTH_INFLIGHT = new Map<string, Promise<AuthCacheEntry>>();
+
+// Periodically clean expired entries (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  Array.from(AUTH_CACHE.entries()).forEach(([key, entry]) => {
+    if (now - entry.timestamp > AUTH_CACHE_TTL_MS * 2) {
+      AUTH_CACHE.delete(key);
+    }
+  });
+}, 5 * 60 * 1000);
+
 /**
  * Authenticate a request using the Supabase JWT.
  * 
@@ -45,6 +70,9 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
  * The service role key has admin privileges and can validate ANY user JWT.
  * We cannot use the anon key client because the server-side SUPABASE_ANON_KEY
  * may differ from the one the browser uses, causing "Invalid API key" errors.
+ * 
+ * Results are cached for 60 seconds to prevent rate limiting when multiple
+ * API calls arrive simultaneously on page load.
  * 
  * Returns { userId, organizationId } or throws.
  */
@@ -56,30 +84,64 @@ export async function authenticateSupabaseRequest(
     throw new AuthError("No authorization token provided", 401);
   }
 
-  // Use service role client to validate the user's JWT
-  // This works because auth.getUser() sends the token to Supabase Auth server
-  // for verification, and the service role key has permission to do this.
-  const serviceClient = getServiceClient();
-  const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
-
-  if (userError || !userData?.user) {
-    throw new AuthError("Invalid or expired token", 401);
+  // Check cache first
+  const cached = AUTH_CACHE.get(token);
+  if (cached && Date.now() - cached.timestamp < AUTH_CACHE_TTL_MS) {
+    return { userId: cached.userId, organizationId: cached.organizationId };
   }
 
-  const userId = userData.user.id;
-
-  // Use service role client for profile lookup too (bypasses RLS)
-  const { data: profile, error: profileError } = await serviceClient
-    .from("profiles")
-    .select("organization_id")
-    .eq("id", userId)
-    .single();
-
-  if (profileError || !profile?.organization_id) {
-    throw new AuthError("User has no organization", 400);
+  // Deduplicate in-flight requests for the same token
+  const inflight = AUTH_INFLIGHT.get(token);
+  if (inflight) {
+    const result = await inflight;
+    return { userId: result.userId, organizationId: result.organizationId };
   }
 
-  return { userId, organizationId: profile.organization_id };
+  // Create the actual auth verification promise
+  const authPromise = (async (): Promise<AuthCacheEntry> => {
+    const serviceClient = getServiceClient();
+    const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
+
+    if (userError || !userData?.user) {
+      throw new AuthError("Invalid or expired token", 401);
+    }
+
+    const userId = userData.user.id;
+
+    // Use service role client for profile lookup too (bypasses RLS)
+    const { data: profile, error: profileError } = await serviceClient
+      .from("profiles")
+      .select("organization_id")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile?.organization_id) {
+      throw new AuthError("User has no organization", 400);
+    }
+
+    const entry: AuthCacheEntry = {
+      userId,
+      organizationId: profile.organization_id,
+      timestamp: Date.now(),
+    };
+
+    // Store in cache
+    AUTH_CACHE.set(token, entry);
+
+    return entry;
+  })();
+
+  // Register in-flight
+  AUTH_INFLIGHT.set(token, authPromise);
+
+  try {
+    const result = await authPromise;
+    return { userId: result.userId, organizationId: result.organizationId };
+  } catch (err) {
+    throw err;
+  } finally {
+    AUTH_INFLIGHT.delete(token);
+  }
 }
 
 export class AuthError extends Error {
