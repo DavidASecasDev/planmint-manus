@@ -18,6 +18,8 @@ import { MovementKanbanCard } from './MovementKanbanCard';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import { CircleDot, CheckCircle2, XCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 
 const COLUMNS: { status: MovementStatus; label: string; icon: React.ElementType; colorClass: string }[] = [
   { status: 'en_curso', label: 'En curso', icon: CircleDot, colorClass: 'border-t-primary' },
@@ -124,17 +126,38 @@ export function MovementsKanban({ movements, isLoading, onUpdateStatus }: Moveme
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="animate-pulse rounded-xl bg-muted/20 h-[300px]" />
-        ))}
-      </div>
-    );
-  }
+  const kanbanSkeleton = (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {COLUMNS.map((col) => (
+        <div key={col.status} className={cn('flex flex-col rounded-xl border-t-4 bg-muted/20 min-h-[300px]', col.colorClass)}>
+          <div className="p-3 border-b border-border/30">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-4 w-20 rounded" />
+              <Skeleton className="h-5 w-5 rounded-full ml-auto" />
+            </div>
+          </div>
+          <div className="p-2 space-y-2">
+            {Array.from({ length: col.status === 'en_curso' ? 3 : col.status === 'completado' ? 2 : 1 }).map((_, j) => (
+              <div key={j} className="rounded-lg border border-border/50 p-3 space-y-2" style={{ opacity: 1 - j * 0.15 }}>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-20 rounded" />
+                  <Skeleton className="h-4 w-14 rounded-full" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3 w-16 rounded" />
+                  <Skeleton className="h-3 w-20 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
+    <SkeletonTransition isLoading={isLoading} skeleton={kanbanSkeleton}>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
@@ -159,5 +182,6 @@ export function MovementsKanban({ movements, isLoading, onUpdateStatus }: Moveme
         ) : null}
       </DragOverlay>
     </DndContext>
+    </SkeletonTransition>
   );
 }

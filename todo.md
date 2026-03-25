@@ -305,3 +305,6 @@
 - [x] Skeleton loading en Reservas: placeholders animados para la lista/tabla de reservas mientras cargan datos
 - [x] Transición suave skeleton → contenido: animación fade-out en skeletons antes de mostrar contenido real (componente SkeletonTransition reutilizable)
 - [x] Indicador de reconexión: banner sutil cuando la conexión se pierde y se recupera (auto-dismiss 5s, invalidación de queries, animación slide-out)
+- [x] Aplicar SkeletonTransition a la página de Transfers
+- [x] Aplicar SkeletonTransition a la página de Flota
+- [x] Aplicar SkeletonTransition a la página de Movimientos (lista + kanban)
