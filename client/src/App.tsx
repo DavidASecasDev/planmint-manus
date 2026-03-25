@@ -15,6 +15,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 import { ModuleRoute } from "@/components/modules/ModuleRoute";
 import { BrokerProtectedRoute } from "@/components/broker/BrokerProtectedRoute";
+import { ErrorBoundary, RouteErrorBoundary } from "@/components/ErrorBoundary";
 
 // PWA Components
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -162,7 +163,19 @@ function PageLoader() {
   );
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      staleTime: 30_000, // 30s default stale time
+      refetchOnWindowFocus: false, // Avoid unnecessary refetches
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 // Componente wrapper para rutas principales (con AuthProvider)
 function MainAppRoutes() {
@@ -172,6 +185,7 @@ function MainAppRoutes() {
         <RentlySyncProvider>
         <OfflineProvider>
           <InstallPrompt />
+          <RouteErrorBoundary>
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Root: redirect to login or dashboard */}
@@ -964,6 +978,7 @@ function MainAppRoutes() {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </RouteErrorBoundary>
         </OfflineProvider>
         </RentlySyncProvider>
       </ThemeProvider>
@@ -1010,22 +1025,24 @@ function BrokerPortalRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <NetworkErrorToast />
-      <BrowserRouter>
-        <Routes>
-          {/* Broker Portal Routes - FUERA de AuthProvider */}
-          <Route path="/broker/*" element={<BrokerPortalRoutes />} />
-          
-          {/* Todas las demás rutas - CON AuthProvider */}
-          <Route path="/*" element={<MainAppRoutes />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <NetworkErrorToast />
+        <BrowserRouter>
+          <Routes>
+            {/* Broker Portal Routes - FUERA de AuthProvider */}
+            <Route path="/broker/*" element={<BrokerPortalRoutes />} />
+            
+            {/* Todas las demás rutas - CON AuthProvider */}
+            <Route path="/*" element={<MainAppRoutes />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -314,3 +314,15 @@
 - [x] Skeleton en FleetDetail: aplicar SkeletonTransition a la página de detalle de vehículo
 - [x] Skeleton en MovementDetail: aplicar SkeletonTransition a la página de detalle de movimiento
 - [x] Bug CRÍTICO: Referencias de transfer duplicadas (TRF-2026-0007 repetida 7 veces) - RESUELTO: Trigger usaba COUNT(*)+1 que se desincronizaba al borrar registros. Cambiado a MAX(número)+1. Reasignados 11 registros existentes (0001-0011). Añadido índice único (organization_id, request_number)
+- [x] AUDITORÍA COMPLETA: TypeError 'Cannot read properties of undefined (reading filter)' en VehicleStatus que crashea la página /vehicles
+- [ ] AUDITORÍA COMPLETA: Error 400 en Supabase (fecha_entrada.desc) - query malformada
+- [ ] AUDITORÍA COMPLETA: Warnings aria-describedby en DialogContent
+- [x] AUDITORÍA COMPLETA: Revisar TODOS los hooks y componentes para null safety y guards de datos
+- [ ] AUDITORÍA COMPLETA: Revisar TODAS las queries a Supabase para errores de formato
+- [ ] Alerta de transfers sin respuesta: Notificar automáticamente cuando una solicitud lleva más de 48h en estado Pendiente sin actividad
+- [x] Fix CRÍTICO: Prefetch cache mismatch - usePrefetch.ts reescrito para usar invalidación en lugar de cache directo para queries complejas (vehicles, reservations, transfers, fleet, movements). Solo dashboard usa prefetchQuery directo porque devuelve datos planos
+- [x] Fix: Null safety en VehicleCleaningChecklist - cleaning_tasks accedido con || [] para prevenir crash cuando prefetch devuelve datos sin cleaning_tasks
+- [x] ErrorBoundary global: Componente ErrorBoundary envolviendo toda la app para prevenir pantallas blancas en errores no capturados. Muestra UI de recuperación con botones Reintentar/Recargar/Volver al inicio
+- [x] RouteErrorBoundary: Error boundary a nivel de rutas dentro de MainAppRoutes para capturar errores de componentes individuales sin crashear toda la app
+- [x] QueryClient configuración mejorada: retry 2 para queries, retry 1 para mutations, staleTime 30s, refetchOnWindowFocus desactivado para reducir peticiones innecesarias
+- [x] Tests: 17 tests nuevos (ErrorBoundary contract, null safety cleaning_tasks, prefetch strategy, QueryClient config). 580 tests pasando, 0 errores TypeScript

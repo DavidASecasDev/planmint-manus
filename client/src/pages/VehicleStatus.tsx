@@ -77,7 +77,7 @@ export default function VehicleStatus() {
 
       // Cleaning status filter
       if (filters.cleaningStatus !== 'all') {
-        const completedTasks = vehicle.cleaning_tasks.filter(t => t.completed).length;
+        const completedTasks = (vehicle.cleaning_tasks || []).filter(t => t.completed).length;
         const totalTasks = 6; // Fixed number of tasks
         
         if (filters.cleaningStatus === 'none' && completedTasks > 0) return false;

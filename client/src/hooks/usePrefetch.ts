@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiInvoke } from '@/lib/apiClient';
 
@@ -8,6 +7,15 @@ import { apiInvoke } from '@/lib/apiClient';
  * Hook that provides a prefetch handler for sidebar navigation items.
  * When the user hovers over a sidebar link, we prefetch the main data
  * for that page so it's already cached when they click.
+ *
+ * IMPORTANT: Prefetch queries MUST use the exact same queryKey AND queryFn
+ * as the actual page hooks. If the prefetch returns a different shape
+ * (e.g., raw rows vs. enriched objects), the page component will crash
+ * when it tries to access properties that don't exist on the prefetched data.
+ *
+ * For complex queries (vehicles with cleaning_tasks, reservations via
+ * Express endpoints), we simply invalidate the cache to trigger a fresh
+ * fetch when the user navigates, rather than risk shape mismatches.
  *
  * Uses a debounce (150ms) to avoid prefetching on quick mouse sweeps.
  * Each route is only prefetched once per session to avoid redundant calls.
@@ -25,11 +33,11 @@ export function usePrefetch() {
       if (prefetchedRef.current.has(route)) return;
       prefetchedRef.current.add(route);
 
-      // Prefetch with a short staleTime so we don't refetch if data is fresh
       const opts = { staleTime: 60_000 }; // 1 minute
 
       switch (route) {
         case '/dashboard':
+          // Dashboard uses apiInvoke — safe to prefetch with same shape
           queryClient.prefetchQuery({
             queryKey: ['operational-dashboard', orgId],
             queryFn: async () => {
@@ -41,88 +49,46 @@ export function usePrefetch() {
           break;
 
         case '/reservations':
-          queryClient.prefetchQuery({
-            queryKey: ['reservations', orgId, true],
-            queryFn: async () => {
-              const { data, error } = await supabase
-                .from('reservations')
-                .select('*')
-                .eq('organization_id', orgId)
-                .order('fecha_entrada', { ascending: false });
-              if (error) throw error;
-              return data;
-            },
-            ...opts,
+          // Reservations use either Supabase direct or Express endpoint
+          // depending on user role. Just warm the cache by invalidating
+          // so the actual hook fetches fresh data quickly.
+          queryClient.invalidateQueries({
+            queryKey: ['reservations', orgId],
           });
           break;
 
         case '/transfers':
-          queryClient.prefetchQuery({
-            queryKey: ['transfer-requests', orgId, {}],
-            queryFn: async () => {
-              const { data, error } = await supabase
-                .from('transfer_requests')
-                .select('*')
-                .eq('organization_id', orgId)
-                .order('created_at', { ascending: false });
-              if (error) throw error;
-              return data;
-            },
-            ...opts,
+          // Transfer requests — invalidate to trigger fresh fetch
+          queryClient.invalidateQueries({
+            queryKey: ['transfer-requests', orgId],
           });
           break;
 
         case '/fleet':
-          queryClient.prefetchQuery({
+          // Fleet vehicles — invalidate to trigger fresh fetch
+          queryClient.invalidateQueries({
             queryKey: ['fleet-vehicles', orgId],
-            queryFn: async () => {
-              const { data, error } = await supabase
-                .from('fleet_vehicles')
-                .select('*')
-                .eq('organization_id', orgId)
-                .order('matricula');
-              if (error) throw error;
-              return data;
-            },
-            ...opts,
           });
           break;
 
         case '/movements':
-          queryClient.prefetchQuery({
-            queryKey: ['vehicle-movements', orgId, {}],
-            queryFn: async () => {
-              const { data, error } = await supabase
-                .from('vehicle_movements')
-                .select('*')
-                .eq('organization_id', orgId)
-                .order('started_at', { ascending: false })
-                .limit(50);
-              if (error) throw error;
-              return data;
-            },
-            ...opts,
+          // Vehicle movements — invalidate to trigger fresh fetch
+          queryClient.invalidateQueries({
+            queryKey: ['vehicle-movements', orgId],
           });
           break;
 
         case '/vehicles':
-          queryClient.prefetchQuery({
+          // Vehicles use a complex queryFn that joins cleaning_tasks,
+          // reservations, locations, etc. A simple select('*') prefetch
+          // would return raw rows without cleaning_tasks, causing crashes.
+          // Just invalidate so the actual hook fetches with full joins.
+          queryClient.invalidateQueries({
             queryKey: ['vehicles', orgId],
-            queryFn: async () => {
-              const { data, error } = await supabase
-                .from('vehicles')
-                .select('*')
-                .eq('organization_id', orgId)
-                .order('matricula');
-              if (error) throw error;
-              return data;
-            },
-            ...opts,
           });
           break;
 
         default:
-          // No prefetch configured for this route
           break;
       }
     },

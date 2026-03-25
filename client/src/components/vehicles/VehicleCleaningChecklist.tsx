@@ -78,12 +78,13 @@ export function VehicleCleaningChecklist({ vehicle }: VehicleCleaningChecklistPr
     );
   }
 
-  const completedTasks = vehicle.cleaning_tasks.filter(t => t.completed).length;
+  const tasks = vehicle.cleaning_tasks || [];
+  const completedTasks = tasks.filter(t => t.completed).length;
   const totalTasks = CLEANING_TASKS.length;
   const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   const getTaskByKey = (key: CleaningTaskKey) => {
-    return vehicle.cleaning_tasks.find(t => t.task_key === key);
+    return tasks.find(t => t.task_key === key);
   };
 
   const handleToggle = (taskKey: CleaningTaskKey) => {

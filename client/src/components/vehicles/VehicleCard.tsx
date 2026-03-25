@@ -35,7 +35,7 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
   const { data: auditStatuses } = useVehicleAuditStatuses();
   const auditInfo = auditStatuses?.get(vehicle.id);
   
-  const completedTasks = vehicle.cleaning_tasks.filter(t => t.completed).length;
+  const completedTasks = (vehicle.cleaning_tasks || []).filter(t => t.completed).length;
   const totalTasks = CLEANING_TASKS.length;
   const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
