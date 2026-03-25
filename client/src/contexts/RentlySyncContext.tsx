@@ -4,6 +4,7 @@ import { apiInvoke } from '@/lib/apiClient';
 import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { useVehiclePrepAlerts } from '@/hooks/useVehiclePrepAlerts';
+import { useStaleTransferAlerts } from '@/hooks/useStaleTransferAlerts';
 import { toast } from 'sonner';
 import type { RentlySyncPageResponse, RentlySyncResult, RentlySyncStatus } from '@/types/rently';
 
@@ -53,6 +54,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
   const { settings, loading: settingsLoading } = useIntegrationSettings();
   const { hasRently, loading: flagsLoading } = useIntegrationFlags();
   const { checkAndAlert: checkAndAlertVehiclePrep } = useVehiclePrepAlerts();
+  const { checkAndAlert: checkAndAlertStaleTransfers } = useStaleTransferAlerts();
 
   const [syncing, setSyncing] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -266,6 +268,16 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
       }
 
+      // Check for stale transfer requests (>48h pendiente) and send alerts
+      try {
+        const staleAlertsSent = await checkAndAlertStaleTransfers();
+        if (staleAlertsSent > 0) {
+          console.log(`[AutoSync] Sent ${staleAlertsSent} stale transfer alert(s)`);
+        }
+      } catch (staleErr) {
+        console.warn('[AutoSync] Stale transfer alert check failed:', staleErr);
+      }
+
       return finalResult;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
@@ -287,7 +299,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         resetCountdown();
       }
     }
-  }, [syncVehiclesAfterReservations, checkAndAlertVehiclePrep, autoSyncEnabled, isConfigured, resetCountdown]);
+  }, [syncVehiclesAfterReservations, checkAndAlertVehiclePrep, checkAndAlertStaleTransfers, autoSyncEnabled, isConfigured, resetCountdown]);
 
   const pauseSync = useCallback(() => { pauseRequestedRef.current = true; }, []);
   const cancelSync = useCallback(() => { cancelRequestedRef.current = true; }, []);

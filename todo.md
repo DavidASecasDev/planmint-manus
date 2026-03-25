@@ -319,10 +319,16 @@
 - [ ] AUDITORÍA COMPLETA: Warnings aria-describedby en DialogContent
 - [x] AUDITORÍA COMPLETA: Revisar TODOS los hooks y componentes para null safety y guards de datos
 - [ ] AUDITORÍA COMPLETA: Revisar TODAS las queries a Supabase para errores de formato
-- [ ] Alerta de transfers sin respuesta: Notificar automáticamente cuando una solicitud lleva más de 48h en estado Pendiente sin actividad
+- [x] Alerta de transfers sin respuesta: Notificar automáticamente cuando una solicitud lleva más de 48h en estado Pendiente sin actividad
 - [x] Fix CRÍTICO: Prefetch cache mismatch - usePrefetch.ts reescrito para usar invalidación en lugar de cache directo para queries complejas (vehicles, reservations, transfers, fleet, movements). Solo dashboard usa prefetchQuery directo porque devuelve datos planos
 - [x] Fix: Null safety en VehicleCleaningChecklist - cleaning_tasks accedido con || [] para prevenir crash cuando prefetch devuelve datos sin cleaning_tasks
 - [x] ErrorBoundary global: Componente ErrorBoundary envolviendo toda la app para prevenir pantallas blancas en errores no capturados. Muestra UI de recuperación con botones Reintentar/Recargar/Volver al inicio
 - [x] RouteErrorBoundary: Error boundary a nivel de rutas dentro de MainAppRoutes para capturar errores de componentes individuales sin crashear toda la app
 - [x] QueryClient configuración mejorada: retry 2 para queries, retry 1 para mutations, staleTime 30s, refetchOnWindowFocus desactivado para reducir peticiones innecesarias
 - [x] Tests: 17 tests nuevos (ErrorBoundary contract, null safety cleaning_tasks, prefetch strategy, QueryClient config). 580 tests pasando, 0 errores TypeScript
+- [x] Alerta de transfers sin respuesta: Hook useStaleTransferAlerts.ts con detección de transfers >48h en estado pendiente (basado en updated_at)
+- [x] Alerta de transfers sin respuesta: Deduplicación 24h por transfer+usuario para evitar spam
+- [x] Alerta de transfers sin respuesta: Notificación a equipo operativo (owner, admin, manager) con icono Timer y color amber
+- [x] Alerta de transfers sin respuesta: Integrado en ciclo de auto-sync de Rently (RentlySyncContext) para ejecución periódica
+- [x] Alerta de transfers sin respuesta: Tipo transfer_stale_alert añadido a NotificationType, NotificationBell, y Notifications page
+- [x] Alerta de transfers sin respuesta: 17 tests (constants, formatting, threshold logic, dedup, integration). 597 tests pasando, 0 errores TypeScript
