@@ -2719,6 +2719,78 @@ export type Database = {
           },
         ]
       }
+      provider_parsing_templates: {
+        Row: {
+          id: string
+          organization_id: string
+          provider_name: string
+          provider_aliases: string[]
+          description: string | null
+          parsing_hints: string
+          field_mappings: Record<string, unknown>
+          sample_fields: Record<string, unknown>
+          default_vehicle_type: string | null
+          default_currency: string
+          is_active: boolean
+          usage_count: number
+          last_used_at: string | null
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          provider_name: string
+          provider_aliases?: string[]
+          description?: string | null
+          parsing_hints: string
+          field_mappings?: Record<string, unknown>
+          sample_fields?: Record<string, unknown>
+          default_vehicle_type?: string | null
+          default_currency?: string
+          is_active?: boolean
+          usage_count?: number
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          provider_name?: string
+          provider_aliases?: string[]
+          description?: string | null
+          parsing_hints?: string
+          field_mappings?: Record<string, unknown>
+          sample_fields?: Record<string, unknown>
+          default_vehicle_type?: string | null
+          default_currency?: string
+          is_active?: boolean
+          usage_count?: number
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_parsing_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_parsing_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_events: {
         Row: {
           code: string

@@ -3,12 +3,15 @@
  * Parses transport transfer quotes/invoices using Manus LLM with vision.
  * Extracts: routes, dates, prices, pax count, vehicle types, provider info,
  * return trips, flight numbers, and confidence scores for automation.
+ * 
+ * Now integrates provider-specific parsing templates to improve accuracy
+ * for recurring providers.
  */
 import type { Request, Response } from "express";
 import { invokeLLM } from "./_core/llm";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 
-const SYSTEM_PROMPT = `Eres un experto en documentos de transporte y transfers turísticos. Tu tarea es analizar presupuestos y facturas de servicios de transporte (transfers de pasajeros, excursiones, traslados aeropuerto-hotel, etc.) y extraer la información relevante con la mayor precisión posible.
+const BASE_SYSTEM_PROMPT = `Eres un experto en documentos de transporte y transfers turísticos. Tu tarea es analizar presupuestos y facturas de servicios de transporte (transfers de pasajeros, excursiones, traslados aeropuerto-hotel, etc.) y extraer la información relevante con la mayor precisión posible.
 
 Responde SOLO con un JSON válido según este esquema:
 {
@@ -56,13 +59,124 @@ Reglas IMPORTANTES:
 - El campo confidence (0.0-1.0) indica tu nivel de certeza: 1.0 = datos claros y legibles, 0.5 = datos parcialmente legibles, <0.3 = datos muy inciertos.
 - Responde SOLO con el JSON, sin texto adicional ni bloques de código markdown.`;
 
+/**
+ * Build provider-specific hints to append to the system prompt.
+ * Returns null if no matching template is found.
+ */
+function buildProviderHints(template: {
+  provider_name: string;
+  parsing_hints: string;
+  field_mappings?: Record<string, unknown>;
+  sample_fields?: Record<string, unknown>;
+  default_vehicle_type?: string | null;
+}): string {
+  const parts: string[] = [];
+  
+  parts.push(`\n\n--- INSTRUCCIONES ESPECÍFICAS DEL PROVEEDOR: ${template.provider_name} ---`);
+  parts.push(template.parsing_hints);
+
+  // Add field mappings if present
+  const mappings = template.field_mappings || {};
+  const mappingEntries = Object.entries(mappings).filter(([, v]) => v);
+  if (mappingEntries.length > 0) {
+    parts.push('\nMapeo de campos del proveedor:');
+    for (const [field, label] of mappingEntries) {
+      parts.push(`- "${label}" en el PDF → campo "${field}" en el JSON`);
+    }
+  }
+
+  // Add vehicle type mappings from sample_fields
+  const sampleFields = template.sample_fields || {};
+  const vehicleMappings = (sampleFields as Record<string, unknown>).vehicle_type_mappings as Record<string, string> | undefined;
+  if (vehicleMappings && Object.keys(vehicleMappings).length > 0) {
+    parts.push('\nMapeo de tipos de vehículo del proveedor:');
+    for (const [providerName, systemType] of Object.entries(vehicleMappings)) {
+      parts.push(`- "${providerName}" → "${systemType}"`);
+    }
+  }
+
+  // Add default vehicle type
+  if (template.default_vehicle_type) {
+    parts.push(`\nSi no se especifica tipo de vehículo, usar por defecto: "${template.default_vehicle_type}"`);
+  }
+
+  // Add common locations
+  const commonPickups = (sampleFields as Record<string, unknown>).common_pickup_locations as string[] | undefined;
+  const commonDropoffs = (sampleFields as Record<string, unknown>).common_dropoff_locations as string[] | undefined;
+  if (commonPickups && commonPickups.length > 0) {
+    parts.push(`\nUbicaciones de recogida habituales: ${commonPickups.join(', ')}`);
+  }
+  if (commonDropoffs && commonDropoffs.length > 0) {
+    parts.push(`\nUbicaciones de destino habituales: ${commonDropoffs.join(', ')}`);
+  }
+
+  parts.push('\n--- FIN INSTRUCCIONES PROVEEDOR ---');
+  return parts.join('\n');
+}
+
+/**
+ * Find matching provider template from the organization's templates.
+ * First tries to match by the transfer request's external_provider_name,
+ * then falls back to checking all active templates.
+ */
+async function findProviderTemplate(
+  serviceClient: ReturnType<typeof getServiceClient>,
+  orgId: string,
+  requestId: string | null,
+): Promise<{ id: string; provider_name: string; parsing_hints: string; field_mappings: Record<string, unknown>; sample_fields: Record<string, unknown>; default_vehicle_type: string | null } | null> {
+  // Get all active templates for this org
+  const { data: templates, error } = await serviceClient
+    .from('provider_parsing_templates')
+    .select('*')
+    .eq('organization_id', orgId)
+    .eq('is_active', true)
+    .order('usage_count', { ascending: false });
+
+  if (error || !templates || templates.length === 0) return null;
+
+  // If we have a request_id, try to match by the request's external_provider_name
+  if (requestId) {
+    const { data: request } = await serviceClient
+      .from('transfer_requests')
+      .select('external_provider_name')
+      .eq('id', requestId)
+      .single();
+
+    if (request?.external_provider_name) {
+      const providerName = request.external_provider_name.toLowerCase().trim();
+      
+      for (const t of templates) {
+        const tName = (t.provider_name as string).toLowerCase().trim();
+        const aliases = (t.provider_aliases as string[] || []).map((a: string) => a.toLowerCase().trim());
+        
+        if (tName === providerName || aliases.includes(providerName) ||
+            providerName.includes(tName) || tName.includes(providerName) ||
+            aliases.some((a: string) => providerName.includes(a) || a.includes(providerName))) {
+          return {
+            id: t.id as string,
+            provider_name: t.provider_name as string,
+            parsing_hints: t.parsing_hints as string,
+            field_mappings: (t.field_mappings || {}) as Record<string, unknown>,
+            sample_fields: (t.sample_fields || {}) as Record<string, unknown>,
+            default_vehicle_type: t.default_vehicle_type as string | null,
+          };
+        }
+      }
+    }
+  }
+
+  // No match found by request provider name - the LLM will extract the provider name
+  // and we can try to match after parsing (for future use)
+  return null;
+}
+
 export async function handleParseTransferDocument(req: Request, res: Response) {
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
+    const authResult = await authenticateSupabaseRequest(req.headers.authorization);
     const { documentId } = req.body || {};
 
     if (!documentId) {
@@ -71,7 +185,7 @@ export async function handleParseTransferDocument(req: Request, res: Response) {
 
     const serviceClient = getServiceClient();
 
-    // Get the document
+    // Get the document with its request_id
     const { data: document, error: docError } = await serviceClient
       .from("transfer_documents")
       .select("*")
@@ -82,6 +196,9 @@ export async function handleParseTransferDocument(req: Request, res: Response) {
       return res.status(404).json({ error: "Document not found" });
     }
 
+    const orgId = document.organization_id as string;
+    const requestId = document.request_id as string | null;
+
     // Update status to processing
     await serviceClient
       .from("transfer_documents")
@@ -89,10 +206,20 @@ export async function handleParseTransferDocument(req: Request, res: Response) {
       .eq("id", documentId);
 
     try {
-      // Generate a signed URL from the storage_path
+      // ── Step 1: Find matching provider template ──
+      const providerTemplate = await findProviderTemplate(serviceClient, orgId, requestId);
+      
+      // Build the system prompt with optional provider-specific hints
+      let systemPrompt = BASE_SYSTEM_PROMPT;
+      if (providerTemplate) {
+        systemPrompt += buildProviderHints(providerTemplate);
+        console.log(`[parse-transfer-document] Using provider template: ${providerTemplate.provider_name} (${providerTemplate.id})`);
+      }
+
+      // ── Step 2: Generate signed URL ──
       const { data: signedUrlData, error: signedUrlError } = await serviceClient.storage
         .from("transfer-documents")
-        .createSignedUrl(document.storage_path, 3600); // 1 hour
+        .createSignedUrl(document.storage_path, 3600);
 
       if (signedUrlError || !signedUrlData?.signedUrl) {
         throw new Error(`Cannot generate signed URL for document: ${signedUrlError?.message || "Unknown error"}`);
@@ -101,7 +228,7 @@ export async function handleParseTransferDocument(req: Request, res: Response) {
       const fileUrl = signedUrlData.signedUrl;
       const isPdf = document.file_name?.toLowerCase().endsWith(".pdf");
 
-      // Build the message content based on file type
+      // ── Step 3: Build LLM message ──
       const userContent: Array<{ type: string; text?: string; image_url?: { url: string; detail: string }; file_url?: { url: string; mime_type: string } }> = [
         {
           type: "text",
@@ -127,34 +254,33 @@ export async function handleParseTransferDocument(req: Request, res: Response) {
         });
       }
 
-      // Use LLM with structured output to parse the transport document
+      // ── Step 4: Invoke LLM ──
       const response = await invokeLLM({
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userContent as any },
         ],
       });
 
       const rawContent = response.choices?.[0]?.message?.content?.toString() || "{}";
 
-      // Try to parse JSON from the response
+      // ── Step 5: Parse response ──
       let parsedData: Record<string, unknown> = {};
       try {
-        // Remove markdown code blocks if present
         const cleanJson = rawContent.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
         parsedData = JSON.parse(cleanJson);
       } catch {
         parsedData = { raw_text: rawContent };
       }
 
-      // Extract key fields for direct column storage
+      // Extract key fields
       const totalAmount = typeof parsedData.total_amount === "number" ? parsedData.total_amount : null;
       const detectedDate = typeof parsedData.date === "string" ? parsedData.date : null;
       const providerName = typeof parsedData.provider_name === "string" ? parsedData.provider_name : null;
       const detectedItems = Array.isArray(parsedData.items) ? parsedData.items : null;
       const confidence = typeof parsedData.confidence === "number" ? parsedData.confidence : null;
 
-      // Update document with parsed data
+      // ── Step 6: Update document with parsed data ──
       await serviceClient
         .from("transfer_documents")
         .update({
@@ -167,11 +293,47 @@ export async function handleParseTransferDocument(req: Request, res: Response) {
         })
         .eq("id", documentId);
 
-      return res.json({ success: true, data: parsedData, confidence });
+      // ── Step 7: Update provider template usage stats ──
+      if (providerTemplate) {
+        await serviceClient
+          .from("provider_parsing_templates")
+          .update({
+            usage_count: (providerTemplate as any).usage_count ? (providerTemplate as any).usage_count + 1 : 1,
+            last_used_at: new Date().toISOString(),
+          })
+          .eq("id", providerTemplate.id);
+      }
+
+      // ── Step 8: Try to auto-match a template if none was pre-matched ──
+      // If we didn't have a template but the LLM detected a provider name,
+      // try to find a matching template for future reference
+      let matchedTemplateId: string | null = providerTemplate?.id || null;
+      if (!providerTemplate && providerName) {
+        const postMatchTemplate = await findProviderTemplate(serviceClient, orgId, null);
+        // We can't re-run with the template, but we log it for next time
+        if (postMatchTemplate) {
+          matchedTemplateId = postMatchTemplate.id;
+          // Increment usage count for tracking
+          await serviceClient
+            .from("provider_parsing_templates")
+            .update({
+              usage_count: (postMatchTemplate as any).usage_count ? (postMatchTemplate as any).usage_count + 1 : 1,
+              last_used_at: new Date().toISOString(),
+            })
+            .eq("id", postMatchTemplate.id);
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        data: parsedData, 
+        confidence,
+        provider_template_used: providerTemplate ? providerTemplate.provider_name : null,
+        matched_template_id: matchedTemplateId,
+      });
     } catch (parseError: any) {
       console.error("[parse-transfer-document] Parse error:", parseError);
 
-      // Use 'failed' status to match what the UI expects
       await serviceClient
         .from("transfer_documents")
         .update({

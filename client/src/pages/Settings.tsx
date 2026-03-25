@@ -18,6 +18,7 @@ import {
 import { PageHeader } from '@/components/ui/page-header';
 import { useOrganizationModules } from '@/hooks/useOrganizationModules';
 import { TransferSettingsSection } from '@/components/transfers/TransferSettingsSection';
+import { ProviderTemplateManager } from '@/components/transfers/ProviderTemplateManager';
 
 import { UsageDashboard } from '@/components/analytics/UsageDashboard';
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection';
@@ -358,6 +359,24 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <TransferSettingsSection />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Provider Parsing Templates (Admin Only, Transfers Enabled) */}
+          {isAdmin && transfersEnabled && (
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  Plantillas de Presupuesto
+                </CardTitle>
+                <CardDescription>Configura reglas de parsing por proveedor para mejorar la lectura automática de PDFs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProviderTemplateManager />
               </CardContent>
             </Card>
           )}

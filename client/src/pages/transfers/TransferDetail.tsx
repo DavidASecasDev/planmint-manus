@@ -23,6 +23,7 @@ import { TransferDocumentsSection } from '@/components/transfers/TransferDocumen
 import { TransferFinancialSummary } from '@/components/transfers/TransferFinancialSummary';
 import { TransferQuoteActions } from '@/components/transfers/TransferQuoteActions';
 import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
+import { TransferAutoMovements } from '@/components/transfers/TransferAutoMovements';
 import { StatusTimeline } from '@/components/transfers/StatusTimeline';
 import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import { BrokerSelect } from '@/components/transfers/BrokerSelect';
@@ -530,6 +531,14 @@ export default function TransferDetail() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+        )}
+
+        {/* Auto-generated Movements History */}
+        {!isNew && existingRequest && existingRequest.documents && existingRequest.documents.length > 0 && (
+          <TransferAutoMovements
+            requestId={existingRequest.id}
+            documentIds={existingRequest.documents.map(d => d.id)}
+          />
         )}
 
         {/* Financial Summary - Internal only */}

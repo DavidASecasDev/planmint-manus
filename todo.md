@@ -347,3 +347,11 @@
 - [x] Rediseño módulo PDF presupuestos: Solo disponible en panel interno (NO en portal de brokers)
 - [x] Rediseño módulo PDF presupuestos: Evitar duplicidades de movimientos
 - [x] Rediseño módulo PDF presupuestos: Tests para parsing y creación automática
+- [x] Historial movimientos auto-creados: Badge/sección en TransferDetail mostrando movimientos generados desde PDF
+- [x] Historial movimientos auto-creados: Indicar origen (manual vs auto-PDF) en cada movimiento
+- [x] Historial movimientos auto-creados: Enlace directo al movimiento desde el historial
+- [x] Plantillas parsing por proveedor: Crear tabla provider_parsing_templates en Supabase
+- [x] Plantillas parsing por proveedor: UI de gestión de plantillas (crear/editar/eliminar)
+- [x] Plantillas parsing por proveedor: Integrar plantillas en el flujo de parsing del LLM
+- [x] Plantillas parsing por proveedor: Auto-detectar proveedor del PDF y aplicar plantilla correspondiente
+- [x] Plantillas parsing por proveedor: Tests para ambas funcionalidades
