@@ -429,7 +429,45 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
               <DockContainer>
-                {filteredMenuItems.map((item, index) => {
+                {/* ── Skeleton loading state ── */}
+                {!dataReady && (
+                  <>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <SidebarMenuItem
+                        key={`skeleton-${i}`}
+                        className="opacity-0 animate-sidebar-item-in"
+                        style={{ animationDelay: `${i * 30}ms` }}
+                      >
+                        <div
+                          className={cn(
+                            "flex items-center gap-3 px-3",
+                            isCollapsed ? "justify-center py-2.5" : "py-2.5"
+                          )}
+                        >
+                          {/* Icon placeholder */}
+                          <div
+                            className="h-[18px] w-[18px] shrink-0 rounded animate-pulse"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                          />
+                          {/* Text placeholder */}
+                          {!isCollapsed && (
+                            <div
+                              className="h-3.5 rounded animate-pulse"
+                              style={{
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                width: `${60 + (i % 4) * 20}px`,
+                                animationDelay: `${i * 80}ms`,
+                              }}
+                            />
+                          )}
+                        </div>
+                      </SidebarMenuItem>
+                    ))}
+                  </>
+                )}
+
+                {/* ── Real menu items (only when data is ready) ── */}
+                {dataReady && filteredMenuItems.map((item, index) => {
                   const isItemActive = location.pathname === item.url ||
                     (item.url !== '/dashboard' && location.pathname.startsWith(item.url + '/'));
 
@@ -513,8 +551,8 @@ export function AppSidebar() {
                   );
                 })}
                 
-                {/* Admin Panel */}
-                {canAccessAdminPanel && (
+                {/* Admin Panel — only show when data is ready */}
+                {dataReady && canAccessAdminPanel && (
                   <SidebarMenuItem>
                     <DockItem>
                       <Tooltip>
@@ -546,8 +584,8 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 )}
 
-                {/* Ayuda */}
-                <SidebarMenuItem>
+                {/* Ayuda — always visible once data is ready */}
+                {dataReady && <SidebarMenuItem>
                   <DockItem>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -575,7 +613,7 @@ export function AppSidebar() {
                       )}
                     </Tooltip>
                   </DockItem>
-                </SidebarMenuItem>
+                </SidebarMenuItem>}
               </DockContainer>
               </SidebarMenu>
             </SidebarGroupContent>
@@ -626,34 +664,12 @@ export function AppSidebar() {
                 >
                   Organización
                 </p>
-                <p
-                  className="truncate text-sm"
-                  style={{
-                    fontFamily: 'Barlow, sans-serif',
-                    fontWeight: 600,
-                    color: textWhite,
-                  }}
-                >
-                  {organization?.name || 'Sin organización'}
-                </p>
-              </div>
-              
-              {/* User */}
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 shadow-sm" style={{ border: `2px solid ${borderColor}` }}>
-                  <AvatarFallback
-                    className="text-sm font-semibold"
-                    style={{
-                      backgroundColor: goldAccent,
-                      color: navyBg,
-                      fontFamily: 'Montserrat, sans-serif',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {getInitials(profile?.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
+                {!dataReady ? (
+                  <div
+                    className="h-4 w-24 rounded animate-pulse"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                  />
+                ) : (
                   <p
                     className="truncate text-sm"
                     style={{
@@ -662,18 +678,70 @@ export function AppSidebar() {
                       color: textWhite,
                     }}
                   >
-                    {profile?.name || 'Usuario'}
+                    {organization?.name || 'Sin organización'}
                   </p>
-                  <p
-                    className="text-xs"
-                    style={{
-                      fontFamily: 'Barlow, sans-serif',
-                      color: textMuted,
-                    }}
-                  >
-                    {getRoleBadge(displayRole)}
-                  </p>
-                </div>
+                )}
+              </div>
+              
+              {/* User */}
+              <div className="flex items-center gap-3">
+                {!dataReady ? (
+                  /* Skeleton avatar + text */
+                  <>
+                    <div
+                      className="h-10 w-10 rounded-full animate-pulse shrink-0"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                    />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div
+                        className="h-3.5 w-20 rounded animate-pulse"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                      />
+                      <div
+                        className="h-3 w-14 rounded animate-pulse"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  /* Real avatar + text */
+                  <>
+                    <Avatar className="h-10 w-10 shadow-sm" style={{ border: `2px solid ${borderColor}` }}>
+                      <AvatarFallback
+                        className="text-sm font-semibold"
+                        style={{
+                          backgroundColor: goldAccent,
+                          color: navyBg,
+                          fontFamily: 'Montserrat, sans-serif',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {getInitials(profile?.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="truncate text-sm"
+                        style={{
+                          fontFamily: 'Barlow, sans-serif',
+                          fontWeight: 600,
+                          color: textWhite,
+                        }}
+                      >
+                        {profile?.name || 'Usuario'}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{
+                          fontFamily: 'Barlow, sans-serif',
+                          color: textMuted,
+                        }}
+                      >
+                        {getRoleBadge(displayRole)}
+                      </p>
+                    </div>
+                  </>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button

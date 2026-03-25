@@ -299,3 +299,5 @@
 - [x] Tests para umbrales configurables, notificación y ranking (509 tests pasando)
 - [x] Bug: nombres de clientes enmascarados con asteriscos - RESUELTO: endpoint handleGetReservationsOperational en coreEndpoints2.ts enmascaraba activamente cliente_nombre/apellido con charAt(0)+'***' y anulaba email/telefono/documento/direccion. Eliminado el bloque de masking para devolver datos completos a todos los usuarios autenticados
 - [x] Bug: Sidebar no muestra todos los módulos - RESUELTO: Race condition donde useOrganizationModules y usePermissions reportaban isLoading=false mientras auth inicializaba (query deshabilitada), causando que DEFAULT_MODULES (transfers=false, etc.) se usaran. Fix: (1) useOrganizationModules ahora detecta auth inicializando como estado de carga real, (2) AppSidebar muestra todos los items durante carga en vez de filtrar, (3) Auth cache en servidor para deduplicar llamadas concurrentes a auth.getUser()
+- [x] Skeleton loading en sidebar: mostrar placeholders animados mientras módulos/permisos cargan
+- [x] Aumentar staleTime de módulos de 30s a 5 minutos para reducir llamadas innecesarias (también desactivado refetchOnWindowFocus)

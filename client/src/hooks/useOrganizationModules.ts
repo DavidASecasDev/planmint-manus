@@ -74,9 +74,9 @@ export function useOrganizationModules() {
       }
     },
     enabled: !!profile?.organization_id,
-    staleTime: 30000, // Cache for 30 seconds
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes — org modules rarely change
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // No need to refetch on focus with 5min cache
   });
 
   // CRITICAL: When auth is still initializing (profile not loaded yet),
