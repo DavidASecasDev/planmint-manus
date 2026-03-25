@@ -22,6 +22,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -159,15 +161,73 @@ export default function MovementDetail() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <AppLayout title="Movimiento">
-        <div className="flex justify-center py-12">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+  const movementDetailSkeleton = (
+    <div className="space-y-6 max-w-2xl mx-auto animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+        <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-7 w-36" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
         </div>
-      </AppLayout>
-    );
-  }
+        <Skeleton className="h-9 w-9 rounded-md" />
+      </div>
+
+      {/* Details card */}
+      <div className="rounded-lg border bg-card">
+        <div className="p-6 pb-3">
+          <Skeleton className="h-5 w-20" />
+        </div>
+        <div className="px-6 pb-6 space-y-1">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 py-3" style={{ opacity: 1 - i * 0.15 }}>
+              <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+              <div className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Photos section */}
+      <div className="rounded-lg border bg-card">
+        <div className="p-6 pb-3">
+          <Skeleton className="h-5 w-16" />
+        </div>
+        <div className="px-6 pb-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="aspect-video w-full rounded-lg" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="aspect-video w-full rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Notes section */}
+      <div className="rounded-lg border bg-card p-6 space-y-2">
+        <Skeleton className="h-5 w-16" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-3">
+        <Skeleton className="h-10 flex-1 rounded-md" />
+        <Skeleton className="h-10 w-32 rounded-md" />
+      </div>
+    </div>
+  );
 
   if (!movement) {
     return (
@@ -183,6 +243,7 @@ export default function MovementDetail() {
 
   return (
     <AppLayout title="Detalle Movimiento">
+      <SkeletonTransition isLoading={isLoading} skeleton={movementDetailSkeleton}>
       <div className="space-y-6 max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -488,6 +549,7 @@ export default function MovementDetail() {
           />
         )}
       </div>
+      </SkeletonTransition>
     </AppLayout>
   );
 }

@@ -308,3 +308,8 @@
 - [x] Aplicar SkeletonTransition a la página de Transfers
 - [x] Aplicar SkeletonTransition a la página de Flota
 - [x] Aplicar SkeletonTransition a la página de Movimientos (lista + kanban)
+- [x] Prefetch de datos en hover del sidebar: precargar datos de la página destino al pasar el ratón (usePrefetch hook con debounce 150ms)
+- [x] Toast de errores de red: mostrar toast discreto cuando una petición API falla por timeout o error de servidor, con opción de reintentar (NetworkErrorToast con debounce 5s)
+- [x] Skeleton en TransferDetail: aplicar SkeletonTransition a la página de detalle de transfer
+- [x] Skeleton en FleetDetail: aplicar SkeletonTransition a la página de detalle de vehículo
+- [x] Skeleton en MovementDetail: aplicar SkeletonTransition a la página de detalle de movimiento

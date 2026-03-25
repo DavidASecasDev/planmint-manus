@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check } from 'lucide-react';
 import { useTransferRequest, useTransferRequests } from '@/hooks/useTransferRequests';
@@ -183,16 +184,100 @@ export default function TransferDetail() {
     }
   };
 
-  if (isLoading && !isNew) {
-    return (
-      <AppLayout title="Transfer">
-        <div className="container max-w-4xl py-6 space-y-6">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-64 w-full" />
+  const showSkeleton = isLoading && !isNew;
+
+  const transferDetailSkeleton = (
+    <div className="container max-w-4xl py-6 space-y-6 animate-in fade-in duration-300">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-6 w-24 rounded-full" />
         </div>
-      </AppLayout>
-    );
-  }
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-24 rounded-md" />
+          <Skeleton className="h-9 w-32 rounded-md" />
+        </div>
+      </div>
+
+      {/* Status timeline skeleton */}
+      <div className="flex gap-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 flex-1 rounded-md" style={{ opacity: 1 - i * 0.15 }} />
+        ))}
+      </div>
+
+      {/* General info card skeleton */}
+      <div className="rounded-lg border bg-card p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-5 w-40" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+        </div>
+      </div>
+
+      {/* Transfer items skeleton */}
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="rounded-lg border bg-card p-6 space-y-4" style={{ opacity: 1 - i * 0.2 }}>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-14" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Financial summary skeleton */}
+      <div className="rounded-lg border bg-card p-6 space-y-3">
+        <Skeleton className="h-5 w-36" />
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex justify-between">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+          <div className="border-t pt-2 flex justify-between">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-5 w-24" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   // Show informative message when the transfer request was deleted or doesn't exist
   if (!isNew && !isLoading && (isError || !existingRequest)) {
@@ -233,6 +318,10 @@ export default function TransferDetail() {
 
   return (
     <AppLayout title={isNew ? 'Nuevo Transfer' : 'Transfer'}>
+      <SkeletonTransition
+        isLoading={showSkeleton}
+        skeleton={transferDetailSkeleton}
+      >
       <div className="container max-w-4xl py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -573,6 +662,7 @@ export default function TransferDetail() {
           </div>
         )}
       </div>
+      </SkeletonTransition>
     </AppLayout>
   );
 }

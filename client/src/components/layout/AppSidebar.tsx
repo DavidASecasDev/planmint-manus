@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FeedbackModal } from '@/components/feedback/FeedbackModal';
+import { usePrefetch } from '@/hooks/usePrefetch';
 
 import { PermissionKey } from '@/hooks/usePermissions';
 
@@ -145,6 +146,7 @@ export function AppSidebar() {
   const { profile, organization, signOut } = useAuth();
   const { role, canAccessAdminPanel, hasPermission, isManager, isLoading: permissionsLoading } = usePermissions();
   const { isModuleEnabled, isLoading: modulesLoading } = useOrganizationModules();
+  const { handlePrefetch, cancelPrefetch } = usePrefetch();
 
   // CRITICAL: While auth/permissions/modules are still loading, show ALL menu items
   // to prevent the sidebar from flickering or showing a reduced set of items.
@@ -319,6 +321,8 @@ export function AppSidebar() {
                             fontWeight: isSubActive ? 600 : 400,
                           }}
                           activeClassName=""
+                          onMouseEnter={() => handlePrefetch(subItem.url)}
+                          onMouseLeave={cancelPrefetch}
                         >
                           <subItem.icon className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
                           <span>{subItem.title}</span>
@@ -491,6 +495,8 @@ export function AppSidebar() {
                                     ...(isItemActive ? menuItemActive : {}),
                                   }}
                                   activeClassName=""
+                                  onMouseEnter={() => handlePrefetch(item.url)}
+                                  onMouseLeave={cancelPrefetch}
                                 >
                                   <item.icon className="h-[18px] w-[18px] shrink-0" />
                                   {!isCollapsed && <span>{item.title}</span>}

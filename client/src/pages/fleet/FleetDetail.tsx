@@ -12,6 +12,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 
 interface SettingsRowProps {
   icon: React.ReactNode;
@@ -38,15 +40,62 @@ export default function FleetDetail() {
   const { data: vehicle, isLoading } = useFleetVehicle(id);
   const { data: inspections = [], isLoading: inspsLoading } = useFleetInspections(id);
 
-  if (isLoading) {
-    return (
-      <AppLayout title="Detalle Vehículo">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  const fleetDetailSkeleton = (
+    <div className="max-w-2xl mx-auto space-y-5 pb-8 animate-in fade-in duration-300">
+      {/* Back button */}
+      <Skeleton className="h-9 w-20 rounded-xl" />
+
+      {/* Hero header */}
+      <div className="text-center py-4 space-y-3">
+        <Skeleton className="h-20 w-20 mx-auto rounded-full" />
+        <Skeleton className="h-7 w-32 mx-auto" />
+        <Skeleton className="h-4 w-24 mx-auto" />
+        <Skeleton className="h-6 w-20 mx-auto rounded-full" />
+      </div>
+
+      {/* Contract card */}
+      <div className="rounded-2xl border border-border/50 p-4 space-y-1">
+        <Skeleton className="h-3 w-20 mb-3" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3">
+            <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+            <Skeleton className="h-4 flex-1" style={{ maxWidth: `${80 + (i % 3) * 20}px` }} />
+            <Skeleton className="h-4 w-24 ml-auto" />
+          </div>
+        ))}
+      </div>
+
+      {/* Vehicle details card */}
+      <div className="rounded-2xl border border-border/50 p-4 space-y-1">
+        <Skeleton className="h-3 w-20 mb-3" />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3" style={{ opacity: 1 - i * 0.08 }}>
+            <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+            <Skeleton className="h-4 flex-1" style={{ maxWidth: `${60 + (i % 4) * 25}px` }} />
+            <Skeleton className="h-4 w-20 ml-auto" />
+          </div>
+        ))}
+      </div>
+
+      {/* Inspections section */}
+      <div className="space-y-3">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-12 w-full rounded-2xl" />
+        <div className="rounded-2xl border border-border/50 overflow-hidden">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 p-4 border-b border-border/50 last:border-0" style={{ opacity: 1 - i * 0.2 }}>
+              <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-4 w-4" />
+            </div>
+          ))}
         </div>
-      </AppLayout>
-    );
-  }
+      </div>
+    </div>
+  );
 
   if (!vehicle) {
     return (
@@ -89,7 +138,8 @@ export default function FleetDetail() {
   };
 
   return (
-    <AppLayout title={vehicle.matricula}>
+    <AppLayout title={isLoading ? 'Detalle Vehículo' : vehicle.matricula}>
+      <SkeletonTransition isLoading={isLoading} skeleton={fleetDetailSkeleton}>
       <div className="max-w-2xl mx-auto space-y-5 pb-8">
         <Button variant="ghost" onClick={() => navigate('/fleet')} className="rounded-xl -ml-2">
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -331,6 +381,7 @@ export default function FleetDetail() {
           )}
         </motion.div>
       </div>
+      </SkeletonTransition>
     </AppLayout>
   );
 }
