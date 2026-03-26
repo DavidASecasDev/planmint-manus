@@ -340,6 +340,7 @@ export default function FleetInspectionEdit() {
                                 alt={photo.description || photo.file_name}
                                 className="w-full aspect-square object-cover"
                                 loading="lazy"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; const p = document.createElement('div'); p.className = 'w-full aspect-square bg-muted/50 flex items-center justify-center'; p.innerHTML = '<span class="text-xs text-muted-foreground/60">No disponible</span>'; e.currentTarget.parentElement?.appendChild(p); }}
                               />
                             </button>
                             <button
@@ -441,7 +442,7 @@ export default function FleetInspectionEdit() {
                     onClick={() => setLightboxUrl(receiptUrl)}
                     className="rounded-xl overflow-hidden border border-border/50 shadow-sm hover:shadow-md transition-all active:scale-95 w-full max-w-xs mx-auto block"
                   >
-                    <img src={receiptUrl} alt="Justificante" className="w-full aspect-[4/3] object-cover" />
+                    <img src={receiptUrl} alt="Justificante" className="w-full aspect-[4/3] object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; const p = document.createElement('div'); p.className = 'w-full aspect-[4/3] bg-muted/50 flex items-center justify-center'; p.innerHTML = '<span class="text-xs text-muted-foreground/60">No disponible</span>'; e.currentTarget.parentElement?.appendChild(p); }} />
                   </button>
                 )
               ) : (

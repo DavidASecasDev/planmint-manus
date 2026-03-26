@@ -355,3 +355,8 @@
 - [x] Plantillas parsing por proveedor: Integrar plantillas en el flujo de parsing del LLM
 - [x] Plantillas parsing por proveedor: Auto-detectar proveedor del PDF y aplicar plantilla correspondiente
 - [x] Plantillas parsing por proveedor: Tests para ambas funcionalidades
+- [x] Investigar fotos de inspecciones/auditorías que no cargan o faltan - CAUSA: 328 registros en BD sin archivo físico en Storage (fotos del periodo Lovable Cloud no se migraron)
+- [x] Importar 315 fotos desde carpeta Azul Manager a Supabase Storage bucket repair-files (328/328 registros mapeados y subidos con éxito)
+- [x] Mapear fotos locales a registros huérfanos por matrícula+fecha+categoría (matching por matricula|tipo|categoria|filename)
+- [x] Limpiar registros huérfanos sin foto recuperable (0 huérfanos restantes - todas las 328 fotos encontradas y subidas)
+- [x] Mejorar UI para manejar fotos faltantes con placeholder elegante (onError handler en FleetInspectionDetail y FleetInspectionEdit)
