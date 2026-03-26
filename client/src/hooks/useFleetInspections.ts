@@ -260,6 +260,103 @@ export function useAddInspectionPhoto() {
   });
 }
 
+export function useReplaceInspectionPhoto() {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const orgId = profile?.organization_id;
+
+  return useMutation({
+    mutationFn: async ({
+      photoId,
+      oldStoragePath,
+      inspectionId,
+      vehicleId,
+      file,
+    }: {
+      photoId: string;
+      oldStoragePath: string;
+      inspectionId: string;
+      vehicleId: string;
+      file: File;
+    }) => {
+      // Compress the new file
+      const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+      const compressedFile = compressed.file;
+      const newPath = `${orgId}/fleet/${vehicleId}/photos/${Date.now()}_${compressedFile.name}`;
+
+      // Upload new file
+      const { error: upErr } = await supabase.storage.from('repair-files').upload(newPath, compressedFile);
+      if (upErr) throw upErr;
+
+      // Update the DB record with new path
+      const { error: updateErr } = await supabase
+        .from('fleet_inspection_photos')
+        .update({ storage_path: newPath, file_name: file.name } as any)
+        .eq('id', photoId);
+      if (updateErr) throw updateErr;
+
+      // Try to remove old file (non-blocking)
+      supabase.storage.from('repair-files').remove([oldStoragePath]).catch(() => {});
+
+      return { inspectionId, vehicleId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['fleet-inspection', data.inspectionId] });
+      queryClient.invalidateQueries({ queryKey: ['fleet-inspections', data.vehicleId] });
+      toast.success('Foto reemplazada correctamente');
+    },
+    onError: (err: Error) => toast.error(`Error al reemplazar foto: ${err.message}`),
+  });
+}
+
+export function useAddMultipleInspectionPhotos() {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const orgId = profile?.organization_id;
+
+  return useMutation({
+    mutationFn: async ({
+      inspectionId,
+      vehicleId,
+      files,
+      category,
+    }: {
+      inspectionId: string;
+      vehicleId: string;
+      files: File[];
+      category: string;
+    }) => {
+      let uploaded = 0;
+      for (const file of files) {
+        const compressed = await compressImage(file, { maxDimension: 1200, quality: 0.82 });
+        const compressedFile = compressed.file;
+        const path = `${orgId}/fleet/${vehicleId}/photos/${Date.now()}_${uploaded}_${compressedFile.name}`;
+        const { error: upErr } = await supabase.storage.from('repair-files').upload(path, compressedFile);
+        if (upErr) throw upErr;
+
+        const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
+          inspection_id: inspectionId,
+          organization_id: orgId!,
+          storage_path: path,
+          file_name: file.name,
+          photo_category: category,
+          description: null,
+          uploaded_by: profile?.id || null,
+        } as any);
+        if (photoErr) throw photoErr;
+        uploaded++;
+      }
+      return { inspectionId, vehicleId, count: uploaded };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['fleet-inspection', data.inspectionId] });
+      queryClient.invalidateQueries({ queryKey: ['fleet-inspections', data.vehicleId] });
+      toast.success(`${data.count} foto${data.count > 1 ? 's' : ''} añadida${data.count > 1 ? 's' : ''}`);
+    },
+    onError: (err: Error) => toast.error(`Error al subir fotos: ${err.message}`),
+  });
+}
+
 export function useDeleteInspectionPhoto() {
   const queryClient = useQueryClient();
 

@@ -360,3 +360,4 @@
 - [x] Mapear fotos locales a registros huérfanos por matrícula+fecha+categoría (matching por matricula|tipo|categoria|filename)
 - [x] Limpiar registros huérfanos sin foto recuperable (0 huérfanos restantes - todas las 328 fotos encontradas y subidas)
 - [x] Mejorar UI para manejar fotos faltantes con placeholder elegante (onError handler en FleetInspectionDetail y FleetInspectionEdit)
+- [x] Subida manual de fotos desde la página de detalles de inspección (reemplazar fotos faltantes, subida múltiple, drag & drop, categorías sin fotos)

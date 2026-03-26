@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import {
@@ -7,6 +7,8 @@ import {
   useDeleteInspection,
   useAddInspectionPhoto,
   useDeleteInspectionPhoto,
+  useReplaceInspectionPhoto,
+  useAddMultipleInspectionPhotos,
   useUploadInspectionReceipt,
   useDeleteInspectionReceipt,
 } from '@/hooks/useFleetInspections';
@@ -17,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Loader2, X, Camera, Calendar, Gauge, Fuel, User,
   Pencil, Trash2, Plus, FileText, Upload, Download, ExternalLink,
+  ImagePlus, RefreshCw, Images,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -25,12 +28,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { PHOTO_CATEGORIES, DAMAGE_ZONES } from '@/types/fleet';
+import { PHOTO_CATEGORIES, PHOTO_CATEGORY_GROUPS, DAMAGE_ZONES } from '@/types/fleet';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { FleetInspectionPhoto } from '@/types/fleet';
+import type { FleetInspectionPhoto, PhotoCategory } from '@/types/fleet';
 import { toast } from 'sonner';
 
 function useSignedUrls(photos: FleetInspectionPhoto[] | undefined) {
@@ -94,14 +97,23 @@ export default function FleetInspectionDetail() {
   const deleteInspection = useDeleteInspection();
   const addPhoto = useAddInspectionPhoto();
   const deletePhoto = useDeleteInspectionPhoto();
+  const replacePhoto = useReplaceInspectionPhoto();
+  const addMultiplePhotos = useAddMultipleInspectionPhotos();
   const uploadReceipt = useUploadInspectionReceipt();
   const deleteReceipt = useDeleteInspectionReceipt();
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'current' | 'compare'>('current');
-  const [addPhotoCategory, setAddPhotoCategory] = useState('general');
+  const [addPhotoCategory, setAddPhotoCategory] = useState<string>('general');
+  const [failedPaths, setFailedPaths] = useState<Set<string>>(new Set());
+  const [isDragging, setIsDragging] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const multiPhotoInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const categoryUploadRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
+  const [replaceTarget, setReplaceTarget] = useState<{ photoId: string; storagePath: string } | null>(null);
+  const [categoryUploadTarget, setCategoryUploadTarget] = useState<PhotoCategory | null>(null);
 
   const counterpart = inspection
     ? allInspections.find(
@@ -116,6 +128,11 @@ export default function FleetInspectionDetail() {
   const signedUrls = useSignedUrls(allPhotos);
   const receiptUrl = useSignedUrl(inspection?.receipt_url);
 
+  // Track which photos failed to load
+  const handleImageError = useCallback((storagePath: string) => {
+    setFailedPaths(prev => new Set(prev).add(storagePath));
+  }, []);
+
   const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !inspId || !id) return;
@@ -128,10 +145,105 @@ export default function FleetInspectionDetail() {
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
+  const handleMultiPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !inspId || !id) return;
+    await addMultiplePhotos.mutateAsync({
+      inspectionId: inspId,
+      vehicleId: id,
+      files: Array.from(files),
+      category: addPhotoCategory,
+    });
+    if (multiPhotoInputRef.current) multiPhotoInputRef.current.value = '';
+  };
+
+  const handleReplacePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !replaceTarget || !inspId || !id) return;
+    await replacePhoto.mutateAsync({
+      photoId: replaceTarget.photoId,
+      oldStoragePath: replaceTarget.storagePath,
+      inspectionId: inspId,
+      vehicleId: id,
+      file,
+    });
+    setReplaceTarget(null);
+    setFailedPaths(prev => {
+      const next = new Set(prev);
+      next.delete(replaceTarget.storagePath);
+      return next;
+    });
+    if (replaceInputRef.current) replaceInputRef.current.value = '';
+  };
+
+  const handleCategoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !categoryUploadTarget || !inspId || !id) return;
+    if (files.length === 1) {
+      await addPhoto.mutateAsync({
+        inspectionId: inspId,
+        vehicleId: id,
+        file: files[0],
+        category: categoryUploadTarget,
+      });
+    } else {
+      await addMultiplePhotos.mutateAsync({
+        inspectionId: inspId,
+        vehicleId: id,
+        files: Array.from(files),
+        category: categoryUploadTarget,
+      });
+    }
+    setCategoryUploadTarget(null);
+    if (categoryUploadRef.current) categoryUploadRef.current.value = '';
+  };
+
   const handleDeletePhoto = async (photoId: string, storagePath: string) => {
     if (!inspId || !id) return;
     await deletePhoto.mutateAsync({ photoId, storagePath, inspectionId: inspId, vehicleId: id });
   };
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (canManage) setIsDragging(true);
+  }, [canManage]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (!canManage || !inspId || !id) return;
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) {
+      toast.error('Solo se permiten archivos de imagen');
+      return;
+    }
+
+    if (files.length === 1) {
+      await addPhoto.mutateAsync({
+        inspectionId: inspId,
+        vehicleId: id,
+        file: files[0],
+        category: addPhotoCategory,
+      });
+    } else {
+      await addMultiplePhotos.mutateAsync({
+        inspectionId: inspId,
+        vehicleId: id,
+        files,
+        category: addPhotoCategory,
+      });
+    }
+  }, [canManage, inspId, id, addPhotoCategory, addPhoto, addMultiplePhotos]);
 
   const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -183,6 +295,27 @@ export default function FleetInspectionDetail() {
 
   const isPdf = (path: string | null | undefined) => path?.toLowerCase().endsWith('.pdf');
 
+  // Compute which categories have photos and which are missing
+  const photosPerCategory = useMemo(() => {
+    const map = new Map<string, FleetInspectionPhoto[]>();
+    for (const p of (inspection.photos || [])) {
+      const existing = map.get(p.photo_category) || [];
+      existing.push(p);
+      map.set(p.photo_category, existing);
+    }
+    return map;
+  }, [inspection.photos]);
+
+  // Categories that are expected but have no photos (excluding 'general' and 'dano_detalle')
+  const missingCategories = useMemo(() => {
+    const expectedKeys = PHOTO_CATEGORY_GROUPS
+      .flatMap(g => g.items.map(i => i.key))
+      .filter(k => k !== 'general' && k !== 'dano_detalle');
+    return expectedKeys.filter(k => !photosPerCategory.has(k));
+  }, [photosPerCategory]);
+
+  const isUploading = addPhoto.isPending || addMultiplePhotos.isPending || replacePhoto.isPending;
+
   const renderPhotos = (photos: typeof inspection.photos, editable = false) => {
     if (!photos || photos.length === 0) return null;
     return PHOTO_CATEGORIES.map(cat => {
@@ -190,11 +323,68 @@ export default function FleetInspectionDetail() {
       if (catPhotos.length === 0) return null;
       return (
         <div key={cat.key} className="space-y-2">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 pb-1 border-b border-border/30">{cat.label}</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 pb-1 border-b border-border/30 flex-1">{cat.label}</h4>
+            {editable && canManage && (
+              <button
+                onClick={() => {
+                  setCategoryUploadTarget(cat.key);
+                  setTimeout(() => categoryUploadRef.current?.click(), 50);
+                }}
+                className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                title={`Añadir foto a ${cat.label}`}
+              >
+                <Plus className="h-3 w-3" />
+                Añadir
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {catPhotos.map(photo => {
               const url = signedUrls[photo.storage_path];
-              if (!url) return null;
+              const isFailed = failedPaths.has(photo.storage_path) || !url;
+
+              if (isFailed) {
+                // Show "missing photo" placeholder with upload option
+                return (
+                  <div key={photo.id} className="relative group">
+                    <div className="rounded-xl overflow-hidden border-2 border-dashed border-amber-400/60 w-full">
+                      <div className="w-full aspect-square bg-amber-50/50 dark:bg-amber-950/20 flex flex-col items-center justify-center gap-1.5 p-2">
+                        <Camera className="h-6 w-6 text-amber-500/60" />
+                        <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 text-center leading-tight">
+                          No disponible
+                        </span>
+                        {canManage && (
+                          <button
+                            onClick={() => {
+                              setReplaceTarget({ photoId: photo.id, storagePath: photo.storage_path });
+                              setTimeout(() => replaceInputRef.current?.click(), 50);
+                            }}
+                            disabled={replacePhoto.isPending}
+                            className="mt-1 flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 rounded-lg px-2 py-1 transition-all"
+                          >
+                            {replacePhoto.isPending && replaceTarget?.photoId === photo.id
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <Upload className="h-3 w-3" />
+                            }
+                            Subir foto
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {editable && canManage && (
+                      <button
+                        onClick={() => handleDeletePhoto(photo.id, photo.storage_path)}
+                        className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                        title="Eliminar registro"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <div key={photo.id} className="relative group">
                   <button
@@ -206,24 +396,29 @@ export default function FleetInspectionDetail() {
                       alt={photo.description || photo.file_name}
                       className="w-full aspect-square object-cover"
                       loading="lazy"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        target.style.display = 'none';
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'w-full aspect-square bg-muted/50 flex flex-col items-center justify-center gap-1';
-                        placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/40"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span class="text-xs text-muted-foreground/60">No disponible</span>';
-                        target.parentElement?.appendChild(placeholder);
-                      }}
+                      onError={() => handleImageError(photo.storage_path)}
                     />
                   </button>
                   {editable && canManage && (
-                    <button
-                      onClick={() => handleDeletePhoto(photo.id, photo.storage_path)}
-                      className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                      title="Eliminar foto"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    <div className="absolute -top-1.5 -right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => {
+                          setReplaceTarget({ photoId: photo.id, storagePath: photo.storage_path });
+                          setTimeout(() => replaceInputRef.current?.click(), 50);
+                        }}
+                        className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md"
+                        title="Reemplazar foto"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePhoto(photo.id, photo.storage_path)}
+                        className="w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-md"
+                        title="Eliminar foto"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -360,8 +555,12 @@ export default function FleetInspectionDetail() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="space-y-4"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
-              <div className="flex items-center justify-between">
+              {/* Header with upload controls */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
                   Fotos ({inspection.photos?.length || 0})
                 </h3>
@@ -382,10 +581,20 @@ export default function FleetInspectionDetail() {
                       size="sm"
                       className="rounded-xl text-xs gap-1"
                       onClick={() => photoInputRef.current?.click()}
-                      disabled={addPhoto.isPending}
+                      disabled={isUploading}
                     >
-                      {addPhoto.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                       Añadir
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs gap-1"
+                      onClick={() => multiPhotoInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      <Images className="h-3 w-3" />
+                      Varias
                     </Button>
                     <input
                       ref={photoInputRef}
@@ -394,28 +603,98 @@ export default function FleetInspectionDetail() {
                       className="hidden"
                       onChange={handleAddPhoto}
                     />
+                    <input
+                      ref={multiPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleMultiPhotoUpload}
+                    />
                   </div>
                 )}
               </div>
-              {inspection.photos && inspection.photos.length > 0
+
+              {/* Drag & drop overlay */}
+              {isDragging && canManage && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="rounded-2xl border-2 border-dashed border-primary bg-primary/5 p-8 text-center"
+                >
+                  <ImagePlus className="h-10 w-10 mx-auto mb-2 text-primary/60" />
+                  <p className="text-sm font-medium text-primary">Suelta las fotos aquí</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Se añadirán a la categoría: {PHOTO_CATEGORIES.find(c => c.key === addPhotoCategory)?.label || addPhotoCategory}
+                  </p>
+                </motion.div>
+              )}
+
+              {/* Photo grid */}
+              {!isDragging && inspection.photos && inspection.photos.length > 0
                 ? renderPhotos(inspection.photos, true)
-                : (
+                : !isDragging && (
                   <div className="text-center py-10 rounded-2xl bg-card border border-border/50">
                     <Camera className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">Sin fotos en esta inspección</p>
                     {canManage && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 rounded-xl text-xs gap-1"
-                        onClick={() => photoInputRef.current?.click()}
-                      >
-                        <Plus className="h-3 w-3" />
-                        Añadir primera foto
-                      </Button>
+                      <div className="flex flex-col items-center gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs gap-1"
+                          onClick={() => photoInputRef.current?.click()}
+                        >
+                          <Plus className="h-3 w-3" />
+                          Añadir primera foto
+                        </Button>
+                        <p className="text-xs text-muted-foreground">o arrastra imágenes aquí</p>
+                      </div>
                     )}
                   </div>
                 )}
+
+              {/* Missing categories section */}
+              {!isDragging && canManage && missingCategories.length > 0 && inspection.photos && inspection.photos.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl bg-card border border-border/50 shadow-sm overflow-hidden"
+                >
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+                    <ImagePlus className="h-4 w-4 text-amber-500" />
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Categorías sin fotos ({missingCategories.length})
+                    </h4>
+                  </div>
+                  <div className="p-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {missingCategories.map(catKey => {
+                        const catLabel = PHOTO_CATEGORIES.find(c => c.key === catKey)?.label || catKey;
+                        return (
+                          <button
+                            key={catKey}
+                            onClick={() => {
+                              setCategoryUploadTarget(catKey as PhotoCategory);
+                              setTimeout(() => categoryUploadRef.current?.click(), 50);
+                            }}
+                            disabled={isUploading}
+                            className="flex items-center gap-2 rounded-xl border border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 p-3 transition-all group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-muted/40 group-hover:bg-primary/10 flex items-center justify-center transition-colors shrink-0">
+                              <Camera className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                            </div>
+                            <div className="text-left min-w-0">
+                              <p className="text-xs font-medium text-foreground/80 truncate">{catLabel}</p>
+                              <p className="text-[10px] text-muted-foreground">Subir foto</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           )}
           {activeTab === 'compare' && counterpart?.photos && (
@@ -590,6 +869,23 @@ export default function FleetInspectionDetail() {
           </motion.div>
         )}
       </div>
+
+      {/* Hidden inputs for replace and category upload */}
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleReplacePhoto}
+      />
+      <input
+        ref={categoryUploadRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleCategoryUpload}
+      />
 
       {/* Lightbox */}
       <AnimatePresence>
