@@ -35,6 +35,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FleetInspectionPhoto, PhotoCategory } from '@/types/fleet';
 import { toast } from 'sonner';
+import { useInspectionPdf } from '@/hooks/useInspectionPdf';
 
 function useSignedUrls(photos: FleetInspectionPhoto[] | undefined) {
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -101,6 +102,7 @@ export default function FleetInspectionDetail() {
   const addMultiplePhotos = useAddMultipleInspectionPhotos();
   const uploadReceipt = useUploadInspectionReceipt();
   const deleteReceipt = useDeleteInspectionReceipt();
+  const { generatePdf: generateInspectionPdf, isGenerating: isPdfGenerating } = useInspectionPdf();
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'current' | 'compare'>('current');
@@ -445,6 +447,16 @@ export default function FleetInspectionDetail() {
         >
           {/* Action buttons */}
           <div className="absolute top-4 right-0 flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => generateInspectionPdf(inspection, vehicle)}
+              disabled={isPdfGenerating}
+              className="rounded-xl"
+              title="Descargar PDF"
+            >
+              {isPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            </Button>
             <Button
               variant="ghost"
               size="icon"

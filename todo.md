@@ -361,3 +361,5 @@
 - [x] Limpiar registros huérfanos sin foto recuperable (0 huérfanos restantes - todas las 328 fotos encontradas y subidas)
 - [x] Mejorar UI para manejar fotos faltantes con placeholder elegante (onError handler en FleetInspectionDetail y FleetInspectionEdit)
 - [x] Subida manual de fotos desde la página de detalles de inspección (reemplazar fotos faltantes, subida múltiple, drag & drop, categorías sin fotos)
+- [x] Generar PDF profesional de inspecciones con diseño corporativo Azul Cars (cabecera navy+gold, datos vehículo, tabla daños, galería fotos por categoría, gauge combustible, 36 tests)
+
