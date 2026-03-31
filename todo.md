@@ -363,3 +363,4 @@
 - [x] Subida manual de fotos desde la página de detalles de inspección (reemplazar fotos faltantes, subida múltiple, drag & drop, categorías sin fotos)
 - [x] Generar PDF profesional de inspecciones con diseño corporativo Azul Cars (cabecera navy+gold, datos vehículo, tabla daños, galería fotos por categoría, gauge combustible, 36 tests)
 
+- [x] PDF comparativo recogida vs devolución: landscape A4, tabla datos lado a lado, gauges combustible, daños pareados, fotos por categoría, alerta nuevos daños, 40 tests

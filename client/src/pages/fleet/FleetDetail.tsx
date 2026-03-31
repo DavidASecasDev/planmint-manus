@@ -5,9 +5,10 @@ import { useFleetInspections } from '@/hooks/useFleetInspections';
 import { VehicleDamageHistory } from '@/components/fleet/VehicleDamageHistory';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Camera, Calendar, ChevronRight, Car, FileText, Gauge, Fuel, StickyNote, Building2, Pencil, Palette, Zap, Settings, Hash } from 'lucide-react';
+import { ArrowLeft, Plus, Camera, Calendar, ChevronRight, Car, FileText, Gauge, Fuel, StickyNote, Building2, Pencil, Palette, Zap, Settings, Hash, FileDown } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FLEET_STATUS_OPTIONS } from '@/types/fleet';
+import { useComparativeInspectionPdf } from '@/hooks/useComparativeInspectionPdf';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2 } from 'lucide-react';
@@ -39,6 +40,12 @@ export default function FleetDetail() {
   const navigate = useNavigate();
   const { data: vehicle, isLoading } = useFleetVehicle(id);
   const { data: inspections = [], isLoading: inspsLoading } = useFleetInspections(id);
+  const { generateComparativePdf, isGenerating: isComparativePdfGenerating } = useComparativeInspectionPdf();
+
+  // Check if we have both recogida and devolución inspections for comparative PDF
+  const recogidaInsp = inspections.find(i => i.inspection_type === 'recogida');
+  const devolucionInsp = inspections.find(i => i.inspection_type === 'devolucion');
+  const canCompare = !!(recogidaInsp && devolucionInsp);
 
   const fleetDetailSkeleton = (
     <div className="max-w-2xl mx-auto space-y-5 pb-8 animate-in fade-in duration-300">
@@ -315,13 +322,30 @@ export default function FleetDetail() {
           </div>
 
           {/* New Inspection Button */}
-          <Button
-            onClick={() => navigate(`/fleet/${id}/inspection/new`)}
-            className="w-full rounded-2xl h-12 text-base"
-          >
-            <Camera className="h-5 w-5 mr-2" />
-            Nueva Inspección
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => navigate(`/fleet/${id}/inspection/new`)}
+              className="flex-1 rounded-2xl h-12 text-base"
+            >
+              <Camera className="h-5 w-5 mr-2" />
+              Nueva Inspección
+            </Button>
+            {canCompare && (
+              <Button
+                variant="outline"
+                onClick={() => generateComparativePdf(recogidaInsp!, devolucionInsp!, vehicle)}
+                disabled={isComparativePdfGenerating}
+                className="rounded-2xl h-12 px-4 border-primary/30 hover:bg-primary/5"
+                title="Generar PDF comparativo Recogida vs Devolución"
+              >
+                {isComparativePdfGenerating ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <FileDown className="h-5 w-5" />
+                )}
+              </Button>
+            )}
+          </div>
 
           {inspsLoading ? (
             <div className="flex justify-center py-8">

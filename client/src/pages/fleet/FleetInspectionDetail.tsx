@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Loader2, X, Camera, Calendar, Gauge, Fuel, User,
   Pencil, Trash2, Plus, FileText, Upload, Download, ExternalLink,
-  ImagePlus, RefreshCw, Images,
+  ImagePlus, RefreshCw, Images, FileDown,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -36,6 +36,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { FleetInspectionPhoto, PhotoCategory } from '@/types/fleet';
 import { toast } from 'sonner';
 import { useInspectionPdf } from '@/hooks/useInspectionPdf';
+import { useComparativeInspectionPdf } from '@/hooks/useComparativeInspectionPdf';
 
 function useSignedUrls(photos: FleetInspectionPhoto[] | undefined) {
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -103,6 +104,13 @@ export default function FleetInspectionDetail() {
   const uploadReceipt = useUploadInspectionReceipt();
   const deleteReceipt = useDeleteInspectionReceipt();
   const { generatePdf: generateInspectionPdf, isGenerating: isPdfGenerating } = useInspectionPdf();
+  const { generateComparativePdf, isGenerating: isComparativePdfGenerating } = useComparativeInspectionPdf();
+
+  // Find counterpart inspection for comparative PDF
+  const counterpartInsp = allInspections.find(
+    i => i.id !== inspId && i.inspection_type !== inspection?.inspection_type
+  );
+  const canCompare = !!(inspection && counterpartInsp);
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'current' | 'compare'>('current');
@@ -457,6 +465,22 @@ export default function FleetInspectionDetail() {
             >
               {isPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </Button>
+            {canCompare && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  const rec = inspection.inspection_type === 'recogida' ? inspection : counterpartInsp!;
+                  const dev = inspection.inspection_type === 'devolucion' ? inspection : counterpartInsp!;
+                  generateComparativePdf(rec, dev, vehicle);
+                }}
+                disabled={isComparativePdfGenerating}
+                className="rounded-xl"
+                title="PDF Comparativo (Recogida vs Devolución)"
+              >
+                {isComparativePdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
