@@ -130,6 +130,24 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
   if (!vehicle) return null;
 
+  // Cleaning history section - shared across all states
+  const CleaningHistorySection = canManageVehicles ? (
+    <>
+      <Separator />
+      <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+            <History className="h-4 w-4" />
+            Histórico de limpiezas
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <VehicleCleaningHistory vehicleId={vehicle.id} />
+        </CollapsibleContent>
+      </Collapsible>
+    </>
+  ) : null;
+
   return (<>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md">
@@ -145,11 +163,20 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
         <div className="mt-6 overflow-y-auto max-h-[calc(100vh-8rem)] pb-6">
           {vehicle.status === 'alquilado' ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium">Vehículo alquilado</p>
-              {clientName && <p className="text-sm">Cliente: {clientName}</p>}
-              <p className="text-xs mt-2">Las tareas se reiniciarán cuando termine el alquiler</p>
+            <div className="space-y-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">Vehículo alquilado</p>
+                {clientName && <p className="text-sm">Cliente: {clientName}</p>}
+                <p className="text-xs mt-2">Las tareas se reiniciarán cuando termine el alquiler</p>
+              </div>
+
+              {/* Cleaning history - also visible for rented vehicles */}
+              {CleaningHistorySection}
+
+              {/* Repair history */}
+              <Separator />
+              <VehicleRepairSummary vehicleId={vehicle.id} />
             </div>
           ) : vehicle.status === 'en_servicio' ? (
             <div className="space-y-6">
@@ -214,6 +241,13 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
                   El vehículo volverá a "Sucio" para iniciar el proceso de limpieza
                 </p>
               </div>
+
+              {/* Cleaning history - also visible for service vehicles */}
+              {CleaningHistorySection}
+
+              {/* Repair history */}
+              <Separator />
+              <VehicleRepairSummary vehicleId={vehicle.id} />
             </div>
           ) : (
             <div className="space-y-6">
@@ -283,22 +317,8 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
                 </>
               )}
 
-              {canManageVehicles && (
-                <>
-                  <Separator />
-                  <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <History className="h-4 w-4" />
-                        Histórico de limpiezas
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2">
-                      <VehicleCleaningHistory vehicleId={vehicle.id} />
-                    </CollapsibleContent>
-                  </Collapsible>
-                </>
-              )}
+              {/* Cleaning history */}
+              {CleaningHistorySection}
 
               {/* Garatech: Repair & Accident History */}
               <Separator />
