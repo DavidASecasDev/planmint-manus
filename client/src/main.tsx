@@ -21,11 +21,33 @@ if ('serviceWorker' in navigator) {
       .register('/sw.js', { scope: '/' })
       .then((reg) => {
         console.log('[PWA] Service Worker registered, scope:', reg.scope);
-        // No periodic update checks — the SW will update naturally
-        // when the user navigates to the app after a deploy.
+        
+        // Check for updates when a new SW is found
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New SW installed but waiting — tell it to activate immediately
+              // This ensures users get the latest version without manual refresh
+              console.log('[PWA] New Service Worker available, activating...');
+              newWorker.postMessage('skipWaiting');
+            }
+          });
+        });
       })
       .catch((err) => {
         console.warn('[PWA] Service Worker registration failed:', err);
       });
+
+    // When the new SW takes control, reload to use updated assets
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      console.log('[PWA] New Service Worker activated, refreshing page...');
+      window.location.reload();
+    });
   });
 }

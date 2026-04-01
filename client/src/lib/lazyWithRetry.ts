@@ -1,16 +1,15 @@
 import { lazy, ComponentType } from 'react';
 
 /**
- * Wraps React.lazy() with automatic retry and cache-busting for failed dynamic imports.
+ * Wraps React.lazy() with automatic retry for failed dynamic imports.
  *
  * After a new deployment, the old JS chunk hashes no longer exist on the server.
  * The server returns the SPA fallback (index.html with text/html MIME type) instead,
  * causing "Failed to fetch dynamically imported module" errors.
  *
  * This wrapper:
- * 1. Retries the import up to `maxRetries` times with exponential backoff
- * 2. On retry, appends a cache-busting query param to force a fresh fetch
- * 3. On final failure, triggers a full page reload (which fetches the new index.html
+ * 1. Retries the import up to `maxRetries` times with short delays
+ * 2. On final failure, triggers a full page reload (which fetches the new index.html
  *    with updated chunk references)
  *
  * @param importFn - The dynamic import function, e.g. () => import('./pages/Fleet')
@@ -46,8 +45,9 @@ async function retryImport<T extends ComponentType<any>>(
       throw error;
     }
 
-    // Wait with exponential backoff before retrying
-    const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+    // FIX: Use shorter delays (200ms, 400ms) instead of (1000ms, 2000ms)
+    // The original exponential backoff was too slow for chunk loading failures
+    const delay = Math.min(200 * Math.pow(2, attempt), 1000);
     await new Promise(resolve => setTimeout(resolve, delay));
 
     return retryImport(importFn, retriesLeft - 1, attempt + 1);

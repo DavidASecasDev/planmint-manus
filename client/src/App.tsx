@@ -167,10 +167,12 @@ function PageLoader() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-      staleTime: 30_000, // 30s default stale time
+      retry: 1,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+      staleTime: 60_000, // 60s stale time — reduces re-fetches on navigation
+      gcTime: 5 * 60_000, // Keep unused data in cache for 5 minutes
       refetchOnWindowFocus: false, // Avoid unnecessary refetches
+      refetchOnReconnect: 'always', // Refetch when coming back online
     },
     mutations: {
       retry: 1,
@@ -1032,7 +1034,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <NetworkErrorToast />
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             {/* Broker Portal Routes - FUERA de AuthProvider */}
             <Route path="/broker/*" element={<BrokerPortalRoutes />} />

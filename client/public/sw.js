@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'azul-cars-v5';
+const CACHE_NAME = 'azul-cars-v6';
 
-// Only cache the bare minimum for offline fallback
+// Only cache the bare minimum for icons
 const STATIC_ASSETS = [
   '/icon-192.png',
   '/icon-512.png',
@@ -40,10 +40,11 @@ self.addEventListener('activate', (event) => {
   // This prevents the new SW from hijacking existing tabs mid-session.
 });
 
-// ── Fetch: network-first strategy ──
-// Only intercept navigation requests for offline fallback.
-// Let all other requests go directly to the network to avoid
-// stale cache issues that cause the app to show outdated content.
+// ── Fetch: minimal interception ──
+// FIX: Do NOT intercept navigation requests. The SPA handles routing via
+// React Router — intercepting navigation can serve stale HTML from cache
+// and cause modules to appear blank until a manual refresh.
+// Only cache static icon assets.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -51,22 +52,13 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin GET requests
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
-  
+
+  // NEVER intercept navigation requests — let them go to the network
+  // This prevents stale index.html from being served after deploys
+  if (request.mode === 'navigate') return;
+
   // Never intercept API calls or auth endpoints
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
-
-  // For navigation requests: network-first with offline fallback
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => {
-        // Only serve from cache when truly offline
-        return caches.match(request).then((cached) => {
-          return cached || caches.match('/');
-        });
-      })
-    );
-    return;
-  }
 
   // For static assets (icons only): cache-first
   if (url.pathname.match(/\/(icon-\d+\.png|favicon\.ico)$/)) {

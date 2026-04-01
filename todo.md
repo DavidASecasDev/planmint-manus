@@ -364,3 +364,4 @@
 - [x] Generar PDF profesional de inspecciones con diseño corporativo Azul Cars (cabecera navy+gold, datos vehículo, tabla daños, galería fotos por categoría, gauge combustible, 36 tests)
 
 - [x] PDF comparativo recogida vs devolución: landscape A4, tabla datos lado a lado, gauges combustible, daños pareados, fotos por categoría, alerta nuevos daños, 40 tests
+- [x] Bug: Módulos no cargan en primera navegación (fix: auth INITIAL_SESSION race condition, SW navigation interception eliminada, QueryClient staleTime 60s, React Router v7 flags, lazyWithRetry backoff reducido)

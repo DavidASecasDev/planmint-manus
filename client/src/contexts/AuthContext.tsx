@@ -256,53 +256,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let initialSessionHandled = false;
+    // FIX: Use a single handler for all auth events including INITIAL_SESSION.
+    // Previously, INITIAL_SESSION was skipped, causing a race condition where
+    // the profile was never loaded if getSession().then() resolved too late.
+    let hasLoadedInitialData = false;
 
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+    const handleSession = (
+      event: string,
+      currentSession: Session | null,
+    ) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
 
-        if (currentSession?.user) {
-          // If this is the INITIAL_SESSION event triggered by getSession(),
-          // we already handle it below — skip to avoid double fetch
-          if (event === 'INITIAL_SESSION') {
-            // Let the getSession() handler below take care of this
-            return;
-          }
+      if (currentSession?.user) {
+        // For INITIAL_SESSION and getSession: only load once (whichever fires first)
+        if (event === 'INITIAL_SESSION' || event === '__GET_SESSION__') {
+          if (hasLoadedInitialData) return;
+          hasLoadedInitialData = true;
+        }
 
-          const accessToken = currentSession.access_token;
-          
-          // Defer to prevent Supabase auth deadlock
+        const accessToken = currentSession.access_token;
+
+        // Defer to prevent Supabase auth deadlock (only for listener events)
+        if (event !== '__GET_SESSION__') {
           setTimeout(() => {
             loadUserData(currentSession.user.id, accessToken, event, currentSession);
           }, 0);
         } else {
-          setProfile(null);
-          setOrganization(null);
-          setLoading(false);
-          setProfileLoading(false);
-          localStorage.removeItem('current_session_id');
+          loadUserData(currentSession.user.id, accessToken, null, currentSession);
         }
+      } else {
+        setProfile(null);
+        setOrganization(null);
+        setLoading(false);
+        setProfileLoading(false);
+        localStorage.removeItem('current_session_id');
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        handleSession(event, currentSession);
       }
     );
 
-    // THEN check for existing session (this is the single source of truth for initial load)
+    // Also check for existing session as a fallback
+    // (handles the case where onAuthStateChange hasn't fired yet)
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      if (initialSessionHandled) return;
-      initialSessionHandled = true;
-
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
-
-      if (existingSession?.user) {
-        const accessToken = existingSession.access_token;
-        loadUserData(existingSession.user.id, accessToken, null, existingSession);
-      } else {
-        setLoading(false);
-        setProfileLoading(false);
-      }
+      handleSession('__GET_SESSION__', existingSession);
     });
 
     // Proactively refresh session when app returns from background
