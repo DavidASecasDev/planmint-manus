@@ -367,3 +367,4 @@
 - [x] Bug: Módulos no cargan en primera navegación (fix: auth INITIAL_SESSION race condition, SW navigation interception eliminada, QueryClient staleTime 60s, React Router v7 flags, lazyWithRetry backoff reducido)
 - [x] Bug PERSISTENTE: Dashboard skeletons infinitos (fix: waitForSession() global en supabase client + apiClient, sessionReady en AuthContext, error state con retry en OperationalPanel)
 - [x] Bug: Historial de limpiezas no aparece en vehículos con estado "Alquilado" (fix: extraído CleaningHistorySection compartido, visible en todos los estados: alquilado, en_servicio, sucio, incompleto, limpio)
+- [x] Bug CRÍTICO: Página se recarga automáticamente interrumpiendo trabajo del usuario (fix: SW skipWaiting eliminado, controllerchange→reload eliminado, TOKEN_REFRESHED ignorado en AuthContext, lazyWithRetry sin auto-reload, PlanBillingSection usa invalidateQueries, banner de actualización no intrusivo)

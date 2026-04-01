@@ -9,15 +9,15 @@ import { lazy, ComponentType } from 'react';
  *
  * This wrapper:
  * 1. Retries the import up to `maxRetries` times with short delays
- * 2. On final failure, triggers a full page reload (which fetches the new index.html
- *    with updated chunk references)
+ * 2. On final failure, throws the error to be caught by ErrorBoundary
+ *    (NEVER auto-reloads — that would interrupt user work mid-task)
  *
  * @param importFn - The dynamic import function, e.g. () => import('./pages/Fleet')
- * @param maxRetries - Maximum number of retries (default: 2)
+ * @param maxRetries - Maximum number of retries (default: 3)
  */
 export function lazyWithRetry<T extends ComponentType<any>>(
   importFn: () => Promise<{ default: T }>,
-  maxRetries = 2
+  maxRetries = 3
 ) {
   return lazy(() => retryImport(importFn, maxRetries));
 }
@@ -31,33 +31,18 @@ async function retryImport<T extends ComponentType<any>>(
     return await importFn();
   } catch (error) {
     if (retriesLeft <= 0) {
-      // All retries exhausted — check if we've already tried reloading
-      const hasReloaded = sessionStorage.getItem('chunk-reload');
-      if (!hasReloaded) {
-        sessionStorage.setItem('chunk-reload', '1');
-        // Full reload to get the new index.html with updated chunk references
-        window.location.reload();
-        // Return a never-resolving promise to prevent React from rendering an error
-        return new Promise(() => {});
-      }
-      // Already reloaded once — throw the original error to show ErrorBoundary
-      sessionStorage.removeItem('chunk-reload');
+      // All retries exhausted.
+      // IMPORTANT: Do NOT auto-reload the page here.
+      // Auto-reloading interrupts user work (form data, unsaved changes).
+      // Instead, let the error propagate to ErrorBoundary which shows
+      // a "Reintentar" button the user can click when ready.
+      console.error('[LazyLoad] Failed to load chunk after retries:', error);
       throw error;
     }
 
-    // FIX: Use shorter delays (200ms, 400ms) instead of (1000ms, 2000ms)
-    // The original exponential backoff was too slow for chunk loading failures
+    // Short delays between retries: 200ms, 400ms, 800ms
     const delay = Math.min(200 * Math.pow(2, attempt), 1000);
     await new Promise(resolve => setTimeout(resolve, delay));
-
     return retryImport(importFn, retriesLeft - 1, attempt + 1);
   }
-}
-
-// Clear the reload flag on successful page load
-// This ensures the reload mechanism works again on the next deployment
-if (typeof window !== 'undefined') {
-  window.addEventListener('load', () => {
-    sessionStorage.removeItem('chunk-reload');
-  });
 }

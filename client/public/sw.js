@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'azul-cars-v6';
+const CACHE_NAME = 'azul-cars-v7';
 
 // Only cache the bare minimum for icons
 const STATIC_ASSETS = [
@@ -9,7 +9,8 @@ const STATIC_ASSETS = [
 ];
 
 // ── Install: pre-cache essential assets ──
-// Do NOT call skipWaiting() here — let the user control when to activate
+// Do NOT call skipWaiting() here — the new SW should wait until all tabs are closed
+// to prevent disrupting active user sessions.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -18,7 +19,7 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  // NOTE: We intentionally do NOT call self.skipWaiting() here.
+  // IMPORTANT: We intentionally do NOT call self.skipWaiting() here.
   // This prevents the new SW from taking over active tabs and causing
   // unexpected page reloads that interrupt user work.
 });
@@ -36,12 +37,12 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // NOTE: We intentionally do NOT call self.clients.claim() here.
+  // IMPORTANT: We intentionally do NOT call self.clients.claim() here.
   // This prevents the new SW from hijacking existing tabs mid-session.
 });
 
 // ── Fetch: minimal interception ──
-// FIX: Do NOT intercept navigation requests. The SPA handles routing via
+// NEVER intercept navigation requests. The SPA handles routing via
 // React Router — intercepting navigation can serve stale HTML from cache
 // and cause modules to appear blank until a manual refresh.
 // Only cache static icon assets.
@@ -54,7 +55,6 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   // NEVER intercept navigation requests — let them go to the network
-  // This prevents stale index.html from being served after deploys
   if (request.mode === 'navigate') return;
 
   // Never intercept API calls or auth endpoints
@@ -188,11 +188,11 @@ self.addEventListener('notificationclose', (event) => {
 
 // ── Message Handler ──
 self.addEventListener('message', (event) => {
-  // Only skip waiting when explicitly requested by the user (e.g., "Update available" banner)
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting();
-  }
-
+  // IMPORTANT: We no longer accept 'skipWaiting' messages.
+  // The old behavior (main.tsx sending skipWaiting + controllerchange → reload)
+  // was the primary cause of unexpected page refreshes during user work.
+  // The new SW will activate naturally when all tabs are closed.
+  
   // Handle show-notification messages from the app (foreground push)
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
     const { title, options } = event.data;

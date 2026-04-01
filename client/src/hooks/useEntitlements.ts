@@ -81,9 +81,9 @@ export const useEntitlements = () => {
       }
     },
     enabled: !!profile?.organization_id,
-    staleTime: 5000, // Cache for 5 seconds - faster refresh
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 60_000, // Cache for 60 seconds — avoid unnecessary refetches
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // Prevent UI flicker when switching tabs
   });
 
   // Helper functions

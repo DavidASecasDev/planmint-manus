@@ -271,10 +271,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       event: string,
       currentSession: Session | null,
     ) => {
+      // Always update the session/user objects (they contain the fresh token)
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
+        // TOKEN_REFRESHED fires every ~1 hour when Supabase auto-refreshes the JWT.
+        // We MUST NOT trigger a full profile reload on TOKEN_REFRESHED because:
+        // 1. setProfileLoading(true) causes components to show skeletons
+        // 2. This interrupts users mid-task (e.g., filling forms, creating tasks)
+        // 3. The profile data hasn't changed — only the JWT token has been renewed
+        // The session/user objects above already have the fresh token, which is enough.
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('[Auth] Token refreshed silently — no profile reload needed');
+          return;
+        }
+
         // For INITIAL_SESSION and getSession: only load once (whichever fires first)
         if (event === 'INITIAL_SESSION' || event === '__GET_SESSION__') {
           if (hasLoadedInitialData) return;

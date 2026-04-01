@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SuperAdminLayout } from './SuperAdminLayout';
 import { usePlatformOrganizations, usePlatformStats } from '@/hooks/useSuperAdmin';
@@ -39,7 +39,7 @@ import { toast } from 'sonner';
 export default function Subscriptions() {
   const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = usePlatformStats();
-  const { data: organizations, isLoading: orgsLoading } = usePlatformOrganizations();
+  const { data: organizations, isLoading: orgsLoading, refetch: refetchOrgs } = usePlatformOrganizations();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('all');
@@ -82,8 +82,8 @@ export default function Subscriptions() {
       if (data?.error) throw new Error(data.error);
 
       toast.success(`Suscripción sincronizada: plan ${data.plan?.toUpperCase()}, estado ${data.status}`);
-      // Reload data
-      window.location.reload();
+      // Refresh data without reloading the page
+      refetchOrgs?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al sincronizar la suscripción';
       console.error('superadmin-sync-subscription error:', err);

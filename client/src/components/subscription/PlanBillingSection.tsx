@@ -9,6 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { PlanType, PLAN_NAMES, PLAN_DESCRIPTIONS } from '@/types/subscription';
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { UpgradeModal } from './UpgradeModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export const PlanBillingSection = () => {
+  const queryClient = useQueryClient();
   const { currentPlan, subscription, isAdmin, isLoading: subLoading } = useSubscription();
   const { usage, limits, isLoading } = usePlanLimits();
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -30,9 +32,11 @@ export const PlanBillingSection = () => {
       toast.success('¡Pago completado! Tu plan se actualizará en unos momentos.');
       searchParams.delete('billing');
       setSearchParams(searchParams);
-      // Refresh subscription after a short delay
+      // Refresh subscription data without reloading the page
       setTimeout(() => {
-        window.location.reload();
+        queryClient.invalidateQueries({ queryKey: ['subscription'] });
+        queryClient.invalidateQueries({ queryKey: ['entitlements'] });
+        queryClient.invalidateQueries({ queryKey: ['plan-limits'] });
       }, 2000);
     } else if (billing === 'canceled') {
       toast.info('Proceso de pago cancelado');
