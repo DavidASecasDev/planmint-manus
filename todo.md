@@ -365,3 +365,4 @@
 
 - [x] PDF comparativo recogida vs devolución: landscape A4, tabla datos lado a lado, gauges combustible, daños pareados, fotos por categoría, alerta nuevos daños, 40 tests
 - [x] Bug: Módulos no cargan en primera navegación (fix: auth INITIAL_SESSION race condition, SW navigation interception eliminada, QueryClient staleTime 60s, React Router v7 flags, lazyWithRetry backoff reducido)
+- [x] Bug PERSISTENTE: Dashboard skeletons infinitos (fix: waitForSession() global en supabase client + apiClient, sessionReady en AuthContext, error state con retry en OperationalPanel)

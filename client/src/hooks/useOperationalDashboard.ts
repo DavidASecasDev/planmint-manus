@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, waitForSession } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface VehiclePrepItem {
@@ -71,13 +71,17 @@ function calculateUrgency(reservationDate: string | null): VehiclePrepItem['urge
 }
 
 export function useOperationalDashboard() {
-  const { profile } = useAuth();
+  const { profile, sessionReady } = useAuth();
   const orgId = profile?.organization_id;
 
-  const { data: stats, isLoading, refetch } = useQuery({
+  const { data: stats, isLoading, error, refetch } = useQuery({
     queryKey: ['operational-dashboard', orgId],
     queryFn: async (): Promise<OperationalStats> => {
       if (!orgId) throw new Error('No org');
+
+      // Wait for the initial session to be fully validated/refreshed.
+      // This prevents 401 errors when the token is being refreshed after hard reload.
+      await waitForSession();
 
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
@@ -226,6 +230,27 @@ export function useOperationalDashboard() {
           .order('desde', { ascending: true }),
       ]);
 
+      // Check for critical errors in any of the results
+      const results = [
+        vehiclesResult, activeReservationsResult, todayCheckInsResult,
+        todayCheckOutsResult, todayCheckInsDetailResult, todayCheckOutsDetailResult,
+        upcomingReservationsResult, activeMovementsResult, activeRepairsResult,
+        fleetResult, expiringContractsResult, pendingTasksHighResult,
+        pendingTasksTotalResult, dirtyVehiclesResult, upcomingReservationsDetailResult,
+      ];
+      
+      // If any query returned a 401/403 error, throw to trigger retry
+      for (const result of results) {
+        if (result.error) {
+          const code = (result.error as any)?.code;
+          const status = (result.error as any)?.status;
+          if (status === 401 || status === 403 || code === 'PGRST301') {
+            console.error('[Dashboard] Auth error in query:', result.error.message);
+            throw new Error(`Auth error: ${result.error.message}`);
+          }
+        }
+      }
+
       // Count vehicles by status
       const vehicles = vehiclesResult.data || [];
       const vehiclesByStatus = {
@@ -335,13 +360,20 @@ export function useOperationalDashboard() {
         totalDirtyVehicles: dirtyVehicles.length,
       };
     },
-    enabled: !!orgId,
+    // CRITICAL: Gate on sessionReady to prevent queries from firing before
+    // the Supabase token has been fully refreshed after a hard reload.
+    // Without this, queries fire with a stale/expired token → 401 → infinite skeleton.
+    enabled: !!orgId && sessionReady,
     refetchInterval: 60_000, // Refresh every minute
+    // Retry with increasing delay to handle token refresh timing
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   return {
     stats: stats || null,
     isLoading,
+    error,
     refetch,
   };
 }

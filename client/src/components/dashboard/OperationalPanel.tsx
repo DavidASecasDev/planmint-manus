@@ -76,7 +76,7 @@ function formatShortDate(dateStr: string | null): string {
 }
 
 export function OperationalPanel() {
-  const { stats, isLoading } = useOperationalDashboard();
+  const { stats, isLoading, error, refetch } = useOperationalDashboard();
   const rentlyCtx = useRentlySyncContextSafe();
   const navigate = useNavigate();
 
@@ -156,6 +156,22 @@ export function OperationalPanel() {
       </div>
     </div>
   );
+
+  // Show error state with retry button instead of infinite skeleton
+  if (error && !isLoading && !stats) {
+    return (
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground mb-3">No se pudieron cargar los datos del dashboard</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Reintentar
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <SkeletonTransition isLoading={isLoading || !stats} skeleton={dashboardSkeleton}>

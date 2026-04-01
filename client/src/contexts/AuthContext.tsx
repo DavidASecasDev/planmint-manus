@@ -32,6 +32,9 @@ interface AuthContextType {
   organization: Organization | null;
   loading: boolean;
   profileLoading: boolean;
+  /** True once the Supabase session has been fully validated/refreshed AND profile loaded.
+   *  Use this to gate data-fetching queries that depend on a valid auth token. */
+  sessionReady: boolean;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const isInitialLoad = useRef(true);
   
   // Deduplication: track in-flight profile fetch to prevent double calls
@@ -195,6 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           log.warn('User has session but no profile — allowing onboarding flow');
           setLoading(false);
           setProfileLoading(false);
+          // Still mark session as ready so queries can attempt (they'll be gated by orgId)
+          setSessionReady(true);
           return;
         }
 
@@ -233,6 +239,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         setLoading(false);
         setProfileLoading(false);
+        // Session is fully ready: token validated + profile loaded
+        setSessionReady(true);
         profileFetchInFlight.current = null;
       }
     })();
@@ -256,9 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // FIX: Use a single handler for all auth events including INITIAL_SESSION.
-    // Previously, INITIAL_SESSION was skipped, causing a race condition where
-    // the profile was never loaded if getSession().then() resolved too late.
+    // Use a single handler for all auth events including INITIAL_SESSION.
     let hasLoadedInitialData = false;
 
     const handleSession = (
@@ -290,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setOrganization(null);
         setLoading(false);
         setProfileLoading(false);
+        setSessionReady(true); // No user = session check complete
         localStorage.removeItem('current_session_id');
       }
     };
@@ -356,6 +363,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then(() => {}, () => {});
     }
     
+    setSessionReady(false);
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -379,6 +387,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       organization,
       loading,
       profileLoading,
+      sessionReady,
       signUp,
       signIn,
       signOut,

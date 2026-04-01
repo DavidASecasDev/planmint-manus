@@ -3,7 +3,7 @@
  * Automatically attaches the Supabase session token for authentication.
  * Replaces supabase.functions.invoke() calls.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, waitForSession } from "@/integrations/supabase/client";
 
 interface ApiResponse<T = unknown> {
   data: T | null;
@@ -13,12 +13,19 @@ interface ApiResponse<T = unknown> {
 /**
  * Call one of our Express API endpoints with the current Supabase auth token.
  * Drop-in replacement for supabase.functions.invoke().
+ * 
+ * Automatically waits for the initial Supabase session to be validated/refreshed
+ * before making the request. This prevents 401 errors after hard refresh.
  */
 export async function apiInvoke<T = unknown>(
   endpoint: string,
   options?: { body?: Record<string, unknown> }
 ): Promise<ApiResponse<T>> {
   try {
+    // Wait for the initial session to be fully validated/refreshed
+    // This is a no-op after the first resolution
+    await waitForSession();
+
     // Get fresh session token
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData?.session?.access_token;

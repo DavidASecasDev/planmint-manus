@@ -16,3 +16,51 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+/**
+ * Promise that resolves once the initial Supabase session has been validated/refreshed.
+ * This prevents queries from firing with a stale token after a hard refresh.
+ * 
+ * Usage in queryFn:
+ *   await waitForSession();
+ *   const { data } = await supabase.from('table').select('*');
+ * 
+ * This is a one-time gate — after the first resolution, it returns immediately.
+ */
+let _sessionReadyResolve: (() => void) | null = null;
+let _sessionReady = false;
+
+export const sessionReadyPromise = new Promise<void>((resolve) => {
+  _sessionReadyResolve = resolve;
+});
+
+// Listen for the first auth event to know the session is ready
+supabase.auth.onAuthStateChange((event) => {
+  // INITIAL_SESSION fires once when the SDK has finished restoring/refreshing the session
+  // SIGNED_IN fires on fresh login
+  // TOKEN_REFRESHED fires when an expired token has been refreshed
+  if (!_sessionReady && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+    _sessionReady = true;
+    _sessionReadyResolve?.();
+    _sessionReadyResolve = null;
+  }
+});
+
+// Safety timeout: if no auth event fires within 5 seconds, resolve anyway
+// (handles the case where there's no stored session at all)
+setTimeout(() => {
+  if (!_sessionReady) {
+    _sessionReady = true;
+    _sessionReadyResolve?.();
+    _sessionReadyResolve = null;
+  }
+}, 5000);
+
+/**
+ * Await this before making Supabase queries that depend on a valid session.
+ * Returns immediately after the first call resolves.
+ */
+export async function waitForSession(): Promise<void> {
+  if (_sessionReady) return;
+  return sessionReadyPromise;
+}
