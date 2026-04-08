@@ -484,9 +484,21 @@ export function useTransferQuotePdf() {
 
       const totalsBoxWidth = 85;
       const totalsBoxX = pageWidth - marginRight - totalsBoxWidth;
+      const totalsBoxHeight = 42;
+
+      // Calculate how much space we need for totals + validity + footer
+      // totalsBox: 42mm, validity: ~12mm, footer: ~50mm (bank + text + page number)
+      const footerReserve = 50; // space needed for footer section
+      const validitySpace = documentType === 'quote' ? 12 : 0;
+      const totalNeeded = totalsBoxHeight + validitySpace + footerReserve + 10;
+
+      // If totals box + footer won't fit on current page, add a new page
+      if (yPos + totalNeeded > pageHeight) {
+        pdf.addPage();
+        yPos = 25;
+      }
       
       // Totals container with subtle border
-      const totalsBoxHeight = 42;
       pdf.setFillColor(...COLORS.bgLight);
       pdf.setDrawColor(...COLORS.border);
       pdf.setLineWidth(0.3);
@@ -541,12 +553,14 @@ export function useTransferQuotePdf() {
         );
       }
 
+      // Move yPos past the totals box
+      yPos += totalsBoxHeight + 8;
+
       // ═══════════════════════════════════════════════════════════
       // VALIDITY (for quotes only)
       // ═══════════════════════════════════════════════════════════
       
       if (documentType === 'quote') {
-        yPos += totalsBoxHeight + 10;
         const validUntil = addDays(new Date(), 15);
         
         pdf.setFontSize(8);
@@ -558,59 +572,92 @@ export function useTransferQuotePdf() {
           yPos,
           { align: 'right' }
         );
+        yPos += 10;
       }
 
       // ═══════════════════════════════════════════════════════════
       // FOOTER - Professional bank details and terms
       // ═══════════════════════════════════════════════════════════
       
-      // Calculate safe footer position - ensure it's below all content
-      const contentEndY = yPos + totalsBoxHeight + 15;
-      const footerStartY = Math.max(contentEndY, pageHeight - 48);
-      
-      // Only draw footer if there's space, otherwise it goes on the page bottom
-      const actualFooterY = Math.min(footerStartY, pageHeight - 35);
-      
-      // Elegant footer divider
-      drawLine(pdf, actualFooterY, marginLeft, marginRight, COLORS.border);
-      let footerContentY = actualFooterY + 6;
+      // Footer always goes at the bottom of the current page
+      // Ensure minimum spacing from content above
+      const minFooterY = yPos + 8;
+      const preferredFooterY = pageHeight - 45;
+      const actualFooterY = Math.max(minFooterY, preferredFooterY);
 
-      // Bank details in structured format (left side)
-      if (settings.bank_details) {
+      // If footer doesn't fit on current page, add a new page
+      const totalPages = pdf.getNumberOfPages();
+      if (actualFooterY + 35 > pageHeight) {
+        pdf.addPage();
+        // Footer on new page at a comfortable position
+        const newPageFooterY = pageHeight - 45;
+        drawLine(pdf, newPageFooterY, marginLeft, marginRight, COLORS.border);
+        let footerContentY = newPageFooterY + 6;
+
+        if (settings.bank_details) {
+          pdf.setFontSize(7);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(...COLORS.slate);
+          pdf.text(t.bankDetails, marginLeft, footerContentY);
+          let bankY = footerContentY + 4;
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(...COLORS.coolGray);
+          pdf.setFontSize(7);
+          const bankLines = settings.bank_details.split('\n').slice(0, 3);
+          bankLines.forEach((line) => {
+            pdf.text(line.trim(), marginLeft, bankY);
+            bankY += 3.2;
+          });
+        }
+
+        if (settings.footer_text) {
+          const footerMaxWidth = contentWidth * 0.8;
+          pdf.setFontSize(7);
+          pdf.setFont('helvetica', 'italic');
+          pdf.setTextColor(...COLORS.lightGray);
+          const footerLines = pdf.splitTextToSize(settings.footer_text, footerMaxWidth);
+          pdf.text(footerLines, pageWidth / 2, footerContentY + 12, { align: 'center' });
+        }
+      } else {
+        // Footer fits on current page
+        drawLine(pdf, actualFooterY, marginLeft, marginRight, COLORS.border);
+        let footerContentY = actualFooterY + 6;
+
+        if (settings.bank_details) {
+          pdf.setFontSize(7);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(...COLORS.slate);
+          pdf.text(t.bankDetails, marginLeft, footerContentY);
+          let bankY = footerContentY + 4;
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(...COLORS.coolGray);
+          pdf.setFontSize(7);
+          const bankLines = settings.bank_details.split('\n').slice(0, 3);
+          bankLines.forEach((line) => {
+            pdf.text(line.trim(), marginLeft, bankY);
+            bankY += 3.2;
+          });
+        }
+
+        if (settings.footer_text) {
+          const footerMaxWidth = contentWidth * 0.8;
+          pdf.setFontSize(7);
+          pdf.setFont('helvetica', 'italic');
+          pdf.setTextColor(...COLORS.lightGray);
+          const footerLines = pdf.splitTextToSize(settings.footer_text, footerMaxWidth);
+          pdf.text(footerLines, pageWidth / 2, footerContentY + 12, { align: 'center' });
+        }
+      }
+
+      // Page numbers on all pages
+      const finalPageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= finalPageCount; i++) {
+        pdf.setPage(i);
         pdf.setFontSize(7);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(...COLORS.slate);
-        pdf.text(t.bankDetails, marginLeft, footerContentY);
-        
-        let bankY = footerContentY + 4;
         pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(...COLORS.coolGray);
-        pdf.setFontSize(7);
-        
-        // Parse bank details for better formatting
-        const bankLines = settings.bank_details.split('\n').slice(0, 3);
-        bankLines.forEach((line) => {
-          pdf.text(line.trim(), marginLeft, bankY);
-          bankY += 3.2;
-        });
-      }
-
-      // Footer text / conditions - centered below content
-      if (settings.footer_text) {
-        const footerMaxWidth = contentWidth * 0.8;
-        
-        pdf.setFontSize(7);
-        pdf.setFont('helvetica', 'italic');
         pdf.setTextColor(...COLORS.lightGray);
-        const footerLines = pdf.splitTextToSize(settings.footer_text, footerMaxWidth);
-        pdf.text(footerLines, pageWidth / 2, footerContentY + 12, { align: 'center' });
+        pdf.text(`${i} / ${finalPageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
       }
-
-      // Page number
-      pdf.setFontSize(7);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(...COLORS.lightGray);
-      pdf.text('1 / 1', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       // ═══════════════════════════════════════════════════════════
       // SAVE PDF

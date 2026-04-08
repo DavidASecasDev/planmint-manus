@@ -371,3 +371,4 @@
 - [x] Portal brokers: Todos los brokers ven todos los transfers de la org (fix: get_user_organization_id ahora busca también en broker_profiles, RLS permite acceso por organization_id)
 - [ ] Bug: Gloria no aparece en dropdown de brokers del panel interno de Transfers y sus solicitudes no llegan
 - [x] Fix 401 Unauthorized "Invalid or expired token" on all API endpoints (get-my-profile, get-my-permissions, get-one-integration, get-my-organization, get-org-modules) - app not loading for owner user
+- [x] Fix PDF quotation layout: pricing summary (SUBTOTAL/VAT/TOTAL) overlaps with footer text "Gracias por confiar en Azul Cars" and page number "1/1"
