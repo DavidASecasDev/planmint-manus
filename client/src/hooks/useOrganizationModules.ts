@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiInvoke } from '@/lib/apiClient';
+import { apiInvoke, AuthExpiredError } from '@/lib/apiClient';
 
 export type ModuleKey = 'reservations' | 'automations' | 'reports' | 'teams' | 'templates' | 'reminders' | 'calendar' | 'time_tracking' | 'forms' | 'vehicle_status' | 'daily_tasks' | 'garatech' | 'transfers' | 'movements' | 'fleet' | 'fleet';
 
@@ -69,6 +69,9 @@ export function useOrganizationModules() {
 
         return modulesMap;
       } catch (err) {
+        // Re-throw AuthExpiredError so React Query treats it as an error state
+        // (apiInvoke throws AuthExpiredError when session is truly expired)
+        if (err instanceof AuthExpiredError) throw err;
         console.error('[OrganizationModules] Error:', err);
         return DEFAULT_MODULES;
       }
@@ -77,6 +80,11 @@ export function useOrganizationModules() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes — org modules rarely change
     refetchOnMount: true,
     refetchOnWindowFocus: false, // No need to refetch on focus with 5min cache
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors — redirect to login is already in progress
+      if (error instanceof Error && error.name === 'AuthExpiredError') return false;
+      return failureCount < 2;
+    },
   });
 
   // CRITICAL: When auth is still initializing (profile not loaded yet),

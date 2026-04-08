@@ -13,6 +13,14 @@ interface ApiResponse<T = unknown> {
   error: { message: string } | null;
 }
 
+/** Sentinel error class so consumers can detect expired-session failures */
+export class AuthExpiredError extends Error {
+  constructor(message = 'Sesión expirada') {
+    super(message);
+    this.name = 'AuthExpiredError';
+  }
+}
+
 /** Prevent multiple simultaneous refresh attempts */
 let _refreshPromise: Promise<string | null> | null = null;
 
@@ -106,13 +114,13 @@ export async function apiInvoke<T = unknown>(
           // Refresh succeeded but token still rejected — session is truly invalid
           console.error(`[apiClient] 401 after refresh on /api/${endpoint} — redirecting to login`);
           redirectToLogin();
-          return { data: null, error: { message: "Sesión expirada. Redirigiendo al login..." } };
+          throw new AuthExpiredError();
         }
       } else {
         // Refresh failed — refresh_token is expired or revoked
         console.error(`[apiClient] Session refresh failed — redirecting to login`);
         redirectToLogin();
-        return { data: null, error: { message: "Sesión expirada. Redirigiendo al login..." } };
+        throw new AuthExpiredError();
       }
     }
 
@@ -127,6 +135,8 @@ export async function apiInvoke<T = unknown>(
     const data = await response.json();
     return { data: data as T, error: null };
   } catch (err: any) {
+    // Re-throw AuthExpiredError so React Query and consumers can detect it
+    if (err instanceof AuthExpiredError) throw err;
     return {
       data: null,
       error: { message: err?.message || "Error de red" },

@@ -176,6 +176,11 @@ export function usePermissions() {
     enabled: !!organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors — redirect to login is already in progress
+      if (error instanceof Error && error.name === 'AuthExpiredError') return false;
+      return failureCount < 2;
+    },
   });
 
   const hasPermission = (permission: PermissionKey): boolean => {

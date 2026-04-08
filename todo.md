@@ -374,3 +374,4 @@
 - [x] Fix PDF quotation layout: pricing summary (SUBTOTAL/VAT/TOTAL) overlaps with footer text "Gracias por confiar en Azul Cars" and page number "1/1"
 - [x] PDF presupuesto: ordenar trayectos por fecha ascendente (ya estaba implementado)
 - [x] PDF presupuesto: el solapamiento SUBTOTAL/TOTAL con footer persiste - fix estaba correcto pero plan-mint.com no tenía el build actualizado
+- [x] Bug crítico: Token de Supabase expira en producción causando que todos los usuarios pierdan módulos y permisos (sidebar solo muestra Dashboard, Tareas, Ajustes, Ayuda)
