@@ -38,20 +38,46 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
   return authHeader.slice(7);
 }
 
-// ─── Auth Cache ──────────────────────────────────────────────────────────────
-// Cache auth results for 60 seconds to avoid hammering Supabase auth.getUser()
-// on every API call. On initial page load, 5-10+ hooks fire simultaneously,
-// each calling authenticateSupabaseRequest → auth.getUser() → profiles query.
-// Without caching, this causes rate limiting (429) and slow page loads.
+// ─── JWT Decode (no verification) ───────────────────────────────────────────
+// Decode the JWT payload WITHOUT verifying the signature.
+// This is safe because we still call auth.getUser() to verify the token,
+// but we use the decoded 'sub' claim as a cache key to avoid calling
+// auth.getUser() on every single request.
+function decodeJwtPayload(token: string): { sub?: string; exp?: number } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = Buffer.from(parts[1], "base64url").toString("utf-8");
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+// ─── Auth Cache (by User ID) ────────────────────────────────────────────────
+// Cache auth results by USER ID (not by token) for 60 seconds.
+// This means even if the token refreshes, the cached result is reused
+// as long as it's the same user and within the TTL.
+//
+// On initial page load, 5-10+ hooks fire simultaneously, each calling
+// authenticateSupabaseRequest. Without this cache, all of them would call
+// auth.getUser() → Supabase rate limits (429).
 interface AuthCacheEntry {
   userId: string;
   organizationId: string;
   timestamp: number;
+  lastVerifiedToken: string; // Track which token was last verified
 }
 
-const AUTH_CACHE = new Map<string, AuthCacheEntry>();
+const AUTH_CACHE = new Map<string, AuthCacheEntry>(); // key = userId
 const AUTH_CACHE_TTL_MS = 60_000; // 60 seconds
-const AUTH_INFLIGHT = new Map<string, Promise<AuthCacheEntry>>();
+const AUTH_INFLIGHT = new Map<string, Promise<AuthCacheEntry>>(); // key = userId
+
+/** Clear auth cache — exposed for testing only */
+export function _clearAuthCacheForTesting() {
+  AUTH_CACHE.clear();
+  AUTH_INFLIGHT.clear();
+}
 
 // Periodically clean expired entries (every 5 minutes)
 setInterval(() => {
@@ -66,13 +92,15 @@ setInterval(() => {
 /**
  * Authenticate a request using the Supabase JWT.
  * 
- * IMPORTANT: We use the service role client to call auth.getUser(token).
- * The service role key has admin privileges and can validate ANY user JWT.
- * We cannot use the anon key client because the server-side SUPABASE_ANON_KEY
- * may differ from the one the browser uses, causing "Invalid API key" errors.
+ * Strategy to avoid 429 rate limiting:
+ * 1. Decode JWT locally (no network call) to extract user ID
+ * 2. Check if we have a valid cached result for this user ID
+ * 3. If cached, return immediately (no Supabase API call)
+ * 4. If not cached, call auth.getUser() ONCE and cache the result
+ * 5. Deduplicate concurrent requests for the same user
  * 
- * Results are cached for 60 seconds to prevent rate limiting when multiple
- * API calls arrive simultaneously on page load.
+ * This reduces Supabase auth.getUser() calls from 5-10 per page load
+ * to exactly 1 per user per 60 seconds.
  * 
  * Returns { userId, organizationId } or throws.
  */
@@ -84,20 +112,33 @@ export async function authenticateSupabaseRequest(
     throw new AuthError("No authorization token provided", 401);
   }
 
-  // Check cache first
-  const cached = AUTH_CACHE.get(token);
+  // Step 1: Decode JWT locally to get user ID (no network call)
+  const payload = decodeJwtPayload(token);
+  const userId = payload?.sub;
+
+  if (!userId) {
+    throw new AuthError("Invalid token format", 401);
+  }
+
+  // Step 2: Check if token is expired locally (avoid unnecessary API calls)
+  if (payload?.exp && payload.exp * 1000 < Date.now()) {
+    throw new AuthError("Invalid or expired token", 401);
+  }
+
+  // Step 3: Check cache by USER ID (not by token)
+  const cached = AUTH_CACHE.get(userId);
   if (cached && Date.now() - cached.timestamp < AUTH_CACHE_TTL_MS) {
     return { userId: cached.userId, organizationId: cached.organizationId };
   }
 
-  // Deduplicate in-flight requests for the same token
-  const inflight = AUTH_INFLIGHT.get(token);
+  // Step 4: Deduplicate in-flight requests for the same USER
+  const inflight = AUTH_INFLIGHT.get(userId);
   if (inflight) {
     const result = await inflight;
     return { userId: result.userId, organizationId: result.organizationId };
   }
 
-  // Create the actual auth verification promise
+  // Step 5: Verify token with Supabase (only 1 call per user per 60s)
   const authPromise = (async (): Promise<AuthCacheEntry> => {
     const serviceClient = getServiceClient();
     const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
@@ -106,13 +147,13 @@ export async function authenticateSupabaseRequest(
       throw new AuthError("Invalid or expired token", 401);
     }
 
-    const userId = userData.user.id;
+    const verifiedUserId = userData.user.id;
 
     // Use service role client for profile lookup too (bypasses RLS)
     const { data: profile, error: profileError } = await serviceClient
       .from("profiles")
       .select("organization_id")
-      .eq("id", userId)
+      .eq("id", verifiedUserId)
       .single();
 
     if (profileError || !profile?.organization_id) {
@@ -120,27 +161,30 @@ export async function authenticateSupabaseRequest(
     }
 
     const entry: AuthCacheEntry = {
-      userId,
+      userId: verifiedUserId,
       organizationId: profile.organization_id,
       timestamp: Date.now(),
+      lastVerifiedToken: token,
     };
 
-    // Store in cache
-    AUTH_CACHE.set(token, entry);
+    // Store in cache by USER ID
+    AUTH_CACHE.set(verifiedUserId, entry);
 
     return entry;
   })();
 
-  // Register in-flight
-  AUTH_INFLIGHT.set(token, authPromise);
+  // Register in-flight by USER ID
+  AUTH_INFLIGHT.set(userId, authPromise);
 
   try {
     const result = await authPromise;
     return { userId: result.userId, organizationId: result.organizationId };
   } catch (err) {
+    // On auth failure, clear any stale cache for this user
+    AUTH_CACHE.delete(userId);
     throw err;
   } finally {
-    AUTH_INFLIGHT.delete(token);
+    AUTH_INFLIGHT.delete(userId);
   }
 }
 

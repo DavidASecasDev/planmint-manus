@@ -375,3 +375,4 @@
 - [x] PDF presupuesto: ordenar trayectos por fecha ascendente (ya estaba implementado)
 - [x] PDF presupuesto: el solapamiento SUBTOTAL/TOTAL con footer persiste - fix estaba correcto pero plan-mint.com no tenía el build actualizado
 - [x] Bug crítico: Token de Supabase expira en producción causando que todos los usuarios pierdan módulos y permisos (sidebar solo muestra Dashboard, Tareas, Ajustes, Ayuda)
+- [x] Bug crítico: Todos los endpoints devuelven 429 Too Many Requests - rate limiting de Supabase auth.getUser() al cargar la página (5+ hooks simultáneos)
