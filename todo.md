@@ -368,3 +368,6 @@
 - [x] Bug PERSISTENTE: Dashboard skeletons infinitos (fix: waitForSession() global en supabase client + apiClient, sessionReady en AuthContext, error state con retry en OperationalPanel)
 - [x] Bug: Historial de limpiezas no aparece en vehículos con estado "Alquilado" (fix: extraído CleaningHistorySection compartido, visible en todos los estados: alquilado, en_servicio, sucio, incompleto, limpio)
 - [x] Bug CRÍTICO: Página se recarga automáticamente interrumpiendo trabajo del usuario (fix: SW skipWaiting eliminado, controllerchange→reload eliminado, TOKEN_REFRESHED ignorado en AuthContext, lazyWithRetry sin auto-reload, PlanBillingSection usa invalidateQueries, banner de actualización no intrusivo)
+- [x] Portal brokers: Todos los brokers ven todos los transfers de la org (fix: get_user_organization_id ahora busca también en broker_profiles, RLS permite acceso por organization_id)
+- [ ] Bug: Gloria no aparece en dropdown de brokers del panel interno de Transfers y sus solicitudes no llegan
+- [x] Fix 401 Unauthorized "Invalid or expired token" on all API endpoints (get-my-profile, get-my-permissions, get-one-integration, get-my-organization, get-org-modules) - app not loading for owner user

@@ -50,14 +50,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  */
 async function fetchProfileViaBackend(accessToken: string): Promise<Profile | null> {
   try {
-    const response = await fetch('/api/get-my-profile', {
+    const doFetch = (token: string) => fetch('/api/get-my-profile', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({}),
     });
+
+    let response = await doFetch(accessToken);
+
+    // On 401, attempt to refresh the session and retry once
+    if (response.status === 401) {
+      log.warn('Backend profile fetch got 401 — attempting session refresh');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData.session) {
+        log.error('Session refresh failed during profile fetch:', refreshError?.message);
+        // Session is truly expired — sign out to force re-login
+        await supabase.auth.signOut();
+        window.location.href = '/login';
+        return null;
+      }
+      // Retry with the fresh token
+      response = await doFetch(refreshData.session.access_token);
+    }
 
     if (!response.ok) {
       log.warn('Backend profile fetch failed with status:', response.status);
@@ -83,14 +100,27 @@ async function fetchProfileViaBackend(accessToken: string): Promise<Profile | nu
  */
 async function fetchOrganizationViaBackend(accessToken: string, orgId: string): Promise<Organization | null> {
   try {
-    const response = await fetch('/api/get-my-organization', {
+    const doFetch = (token: string) => fetch('/api/get-my-organization', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ organization_id: orgId }),
     });
+
+    let response = await doFetch(accessToken);
+
+    // On 401, attempt to refresh the session and retry once
+    if (response.status === 401) {
+      log.warn('Backend organization fetch got 401 — attempting session refresh');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData.session) {
+        log.error('Session refresh failed during org fetch:', refreshError?.message);
+        return null;
+      }
+      response = await doFetch(refreshData.session.access_token);
+    }
 
     if (!response.ok) {
       log.warn('Backend organization fetch failed with status:', response.status);
@@ -326,11 +356,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       handleSession('__GET_SESSION__', existingSession);
     });
 
-    // Proactively refresh session when app returns from background
-    // This only refreshes the Supabase auth token, NOT the full profile
+    // Proactively refresh session when app returns from background.
+    // Uses refreshSession() instead of getSession() to force a token refresh,
+    // which is critical when the access_token has expired while the app was
+    // in the background (e.g. phone screen off, tab inactive for hours/days).
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        supabase.auth.getSession();
+        supabase.auth.refreshSession().then(({ data, error }) => {
+          if (error) {
+            console.warn('[Auth] Visibility refresh failed:', error.message);
+            // If refresh fails, the session is truly expired — sign out
+            if (error.message?.includes('Invalid Refresh Token') ||
+                error.message?.includes('Refresh Token Not Found') ||
+                error.message?.includes('already used')) {
+              console.error('[Auth] Refresh token invalid — signing out');
+              supabase.auth.signOut();
+            }
+          }
+        });
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
