@@ -154,6 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileFetchInFlight = useRef<Promise<void> | null>(null);
   const lastFetchedUserId = useRef<string | null>(null);
 
+  // Throttle: prevent excessive session refreshes on tab switch
+  const lastVisibilityRefreshAt = useRef<number>(Date.now());
+
   const fetchProfileData = useCallback(async (userId: string, accessToken?: string): Promise<Profile | null> => {
     // Try backend first (bypasses RLS)
     if (accessToken) {
@@ -357,11 +360,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Proactively refresh session when app returns from background.
-    // Uses refreshSession() instead of getSession() to force a token refresh,
-    // which is critical when the access_token has expired while the app was
-    // in the background (e.g. phone screen off, tab inactive for hours/days).
+    // THROTTLED: Only refresh if the tab was hidden for at least 5 minutes.
+    // This prevents disruptive re-renders when quickly switching tabs,
+    // while still catching expired tokens after long periods in background.
+    const VISIBILITY_REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastVisibilityRefreshAt.current;
+        if (elapsed < VISIBILITY_REFRESH_COOLDOWN_MS) {
+          console.log('[Auth] Tab returned — skipping refresh (last refresh', Math.round(elapsed / 1000), 's ago)');
+          return;
+        }
+        lastVisibilityRefreshAt.current = Date.now();
+        console.log('[Auth] Tab returned after', Math.round(elapsed / 1000), 's — refreshing session');
         supabase.auth.refreshSession().then(({ data, error }) => {
           if (error) {
             console.warn('[Auth] Visibility refresh failed:', error.message);

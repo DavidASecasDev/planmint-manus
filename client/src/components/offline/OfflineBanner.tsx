@@ -26,14 +26,34 @@ export const OfflineBanner = ({ className }: OfflineBannerProps) => {
   const [isSliding, setIsSliding] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Track when we went offline to avoid false positives from brief tab-switch events
+  const wentOfflineAt = useRef<number>(0);
+
+  // Record when we go offline
+  useEffect(() => {
+    if (!isOnline) {
+      wentOfflineAt.current = Date.now();
+    }
+  }, [isOnline]);
+
   // When we come back online without pending changes, show the reconnected banner
+  // BUT only if we were actually offline for at least 10 seconds (not a brief tab-switch glitch)
   useEffect(() => {
     if (wasOffline && isOnline && pendingCount === 0) {
+      const offlineDuration = Date.now() - wentOfflineAt.current;
+      // Some browsers fire offline/online events when switching tabs.
+      // Only treat it as a real reconnection if offline for > 10 seconds.
+      if (offlineDuration < 10_000) {
+        console.log('[OfflineBanner] Ignoring brief offline blip (' + Math.round(offlineDuration / 1000) + 's)');
+        clearWasOffline();
+        return;
+      }
+
       setShowReconnected(true);
       setIsSliding(false);
 
-      // Invalidate all queries to refresh data
-      queryClient.invalidateQueries();
+      // Invalidate only stale queries instead of ALL queries to avoid disrupting forms
+      queryClient.invalidateQueries({ refetchType: 'active' });
 
       // Auto-dismiss after delay
       if (dismissTimer.current) clearTimeout(dismissTimer.current);

@@ -172,7 +172,7 @@ const queryClient = new QueryClient({
       staleTime: 60_000, // 60s stale time — reduces re-fetches on navigation
       gcTime: 5 * 60_000, // Keep unused data in cache for 5 minutes
       refetchOnWindowFocus: false, // Avoid unnecessary refetches
-      refetchOnReconnect: 'always', // Refetch when coming back online
+      refetchOnReconnect: false, // Disabled: OfflineBanner handles reconnect invalidation with duration guard
     },
     mutations: {
       retry: 1,
