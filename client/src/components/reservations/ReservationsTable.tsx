@@ -52,6 +52,7 @@ interface Column {
 const COLUMNS: Column[] = [
   { key: 'completado', label: '✓', width: 'w-10', type: 'checkbox', filterable: false },
   { key: 'fecha_hora', label: 'Fecha/Hora', width: 'w-36', sticky: false, type: 'datetime', filterable: true },
+  { key: 'hora_confirmada', label: 'Hora Confirmada', width: 'w-36', sticky: false, type: 'datetime', filterable: false },
   { key: 'detail', label: '', width: 'w-8', type: 'detail', filterable: false },
   { key: 'tipo_actividad', label: 'Tipo Actividad', width: 'w-24', type: 'chip', fieldName: 'tipo_actividad', filterable: true },
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
@@ -79,6 +80,7 @@ interface OperationRow {
   reservation: Reservation;
   tipoOperacion: TipoOperacion;
   fechaHora: string | null;
+  confirmedDatetime: string | null;
   lugar: string | null;
   isCompleted: boolean;
 }
@@ -182,6 +184,7 @@ export function ReservationsTable() {
           reservation: r,
           tipoOperacion: 'Transfer',
           fechaHora: r.desde,
+          confirmedDatetime: r.confirmed_entrega_datetime,
           lugar: r.lugar_entrega || r.lugar_devolucion,
           isCompleted: r.transfer_completado,
         });
@@ -193,6 +196,7 @@ export function ReservationsTable() {
           reservation: r,
           tipoOperacion: 'Entrega',
           fechaHora: r.desde,
+          confirmedDatetime: r.confirmed_entrega_datetime,
           lugar: r.lugar_entrega,
           isCompleted: r.entrega_completada,
         });
@@ -204,6 +208,7 @@ export function ReservationsTable() {
           reservation: r,
           tipoOperacion: 'Devolución',
           fechaHora: r.hasta,
+          confirmedDatetime: r.confirmed_devolucion_datetime,
           lugar: r.lugar_devolucion,
           isCompleted: r.devolucion_completada,
         });
@@ -336,6 +341,9 @@ export function ReservationsTable() {
       if (sortKey === 'fecha_hora') {
         aVal = a.fechaHora;
         bVal = b.fechaHora;
+      } else if (sortKey === 'hora_confirmada') {
+        aVal = a.confirmedDatetime;
+        bVal = b.confirmedDatetime;
       } else if (sortKey === 'tipo_actividad') {
         aVal = a.tipoOperacion;
         bVal = b.tipoOperacion;
@@ -439,6 +447,12 @@ export function ReservationsTable() {
   // Función para actualizar fecha según tipo de operación
   const handleDateUpdate = (row: OperationRow, newValue: string | null) => {
     const field = row.tipoOperacion === 'Entrega' ? 'desde' : 'hasta';
+    handleUpdate(row.reservationId, { [field]: newValue });
+  };
+
+  // Función para actualizar la hora confirmada
+  const handleConfirmedDateUpdate = (row: OperationRow, newValue: string | null) => {
+    const field = row.tipoOperacion === 'Devolución' ? 'confirmed_devolucion_datetime' : 'confirmed_entrega_datetime';
     handleUpdate(row.reservationId, { [field]: newValue });
   };
 
@@ -576,6 +590,8 @@ export function ReservationsTable() {
     switch (col.key) {
       case 'tipo_actividad':
         return row.tipoOperacion;
+      case 'hora_confirmada':
+        return row.confirmedDatetime || '—';
       case 'lugar':
         return row.lugar || '—';
       case 'cliente':
@@ -941,6 +957,16 @@ export function ReservationsTable() {
                               <EditableDateTimeCell
                                 value={row.fechaHora}
                                 onChange={(newValue) => handleDateUpdate(row, newValue)}
+                              />
+                            </div>
+                          )}
+                          {col.type === 'datetime' && col.key === 'hora_confirmada' && (
+                            <div className={cn(
+                              row.isCompleted && "line-through text-muted-foreground"
+                            )}>
+                              <EditableDateTimeCell
+                                value={row.confirmedDatetime}
+                                onChange={(newValue) => handleConfirmedDateUpdate(row, newValue)}
                               />
                             </div>
                           )}

@@ -302,6 +302,9 @@ function mapBookingToReservation(
     desde: booking.FromDate || null,
     hasta: booking.ToDate || null,
     devolucion: dropoffInfo.Date || null,
+    // Hora confirmada: se establece solo en la primera inserción, nunca se sobreescribe en syncs posteriores
+    confirmed_entrega_datetime: booking.FromDate || null,
+    confirmed_devolucion_datetime: booking.ToDate || null,
     duracion: booking.TotalDays ? String(booking.TotalDays) : null,
     lugar_entrega: deliveryPlace.Name || null,
     lugar_devolucion: returnPlace.Name || null,
@@ -771,6 +774,9 @@ export async function handleSyncRently(req: Request, res: Response) {
       delete updateData.organization_id;
       delete updateData.imported_by;
       delete updateData.external_reservation_id;
+      // NEVER overwrite confirmed datetimes on sync - these are manually managed
+      delete updateData.confirmed_entrega_datetime;
+      delete updateData.confirmed_devolucion_datetime;
 
       if (update.newStatus === "Completada") {
         updateData.estado_terminada_at = new Date().toISOString();

@@ -49,6 +49,9 @@ export interface Reservation {
   desde: string | null;
   hasta: string | null;
   devolucion: string | null;
+  // Hora confirmada con el cliente (no se sobreescribe en syncs de Rently)
+  confirmed_entrega_datetime: string | null;
+  confirmed_devolucion_datetime: string | null;
   lugar_entrega: string | null;
   lugar_devolucion: string | null;
   precio: number | null;
@@ -221,6 +224,9 @@ export interface UpdateReservationData {
   // Fechas editables
   desde?: string | null;
   hasta?: string | null;
+  // Hora confirmada con el cliente
+  confirmed_entrega_datetime?: string | null;
+  confirmed_devolucion_datetime?: string | null;
   // Campos editables de reserva
   lugar_entrega?: string | null;
   lugar_devolucion?: string | null;

@@ -376,3 +376,7 @@
 - [x] PDF presupuesto: el solapamiento SUBTOTAL/TOTAL con footer persiste - fix estaba correcto pero plan-mint.com no tenía el build actualizado
 - [x] Bug crítico: Token de Supabase expira en producción causando que todos los usuarios pierdan módulos y permisos (sidebar solo muestra Dashboard, Tareas, Ajustes, Ayuda)
 - [x] Bug crítico: Todos los endpoints devuelven 429 Too Many Requests - rate limiting de Supabase auth.getUser() al cargar la página (5+ hooks simultáneos)
+- [x] Reservas: Añadir columnas confirmed_entrega_datetime y confirmed_devolucion_datetime a la tabla reservations en Supabase
+- [x] Reservas: Poblar confirmed_datetime con fecha/hora actual de entrega/devolución para reservas existentes (401/402 entrega, 400/402 devolución)
+- [x] Reservas: Actualizar sync Rently para setear confirmed_datetime solo en primera inserción, nunca sobreescribir
+- [x] Reservas: Añadir columna "Hora Confirmada" en la tabla UI después de Fecha/Hora, editable inline con EditableDateTimeCell
