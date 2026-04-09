@@ -156,7 +156,7 @@ export function useStaleTransferAlerts() {
       });
 
     if (error) {
-      log.error(`Error creating stale alert for ${transfer.request_number}:`, error);
+      log.error(`Error creating stale alert for ${transfer.request_number}: ${error.message || error.code || JSON.stringify(error)}`);
       return false;
     }
     return true;

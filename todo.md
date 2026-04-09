@@ -383,3 +383,4 @@
 - [x] Reservas: Indicador visual (icono/color) cuando Hora Confirmada difiere de Fecha/Hora original de Rently
 - [x] Reservas: Filtro por Hora Confirmada en la vista de operaciones para planificar logística del día
 - [x] Bug: Ordenación por Hora Confirmada no funciona en la tabla de reservas - fix: sort usa Date.getTime() en vez de localeCompare, normaliza formatos de timezone (+00 -> +00:00), indicador visual claro con flechas direccionales ArrowUp/ArrowDown, secondary sort por la otra columna datetime cuando hay empate
+- [x] Bug: StaleTransferAlerts error creating stale alert for TRF-2026-* - fix: CHECK constraint en tabla notifications solo permitía 'mention','assignment','reminder'; añadidos 'transfer_stale_alert' y 'vehicle_prep_alert' al constraint type, y 'vehicle_prep','organization','feature_flag' al constraint entity_type. Mejorado logging de errores para serializar objetos Supabase correctamente
