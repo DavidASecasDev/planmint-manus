@@ -107,7 +107,7 @@ export function ReservationsTable() {
   const { reservationsArchiveDays } = useIntegrationFlags();
   const [urlFilters, setUrlFilters] = usePersistedFilters({
     search: '',
-    sortKey: 'fecha_hora',
+    sortKey: 'hora_confirmada',
     sortDir: 'asc' as string,
     showCancelled: false,
     dateFrom: '',

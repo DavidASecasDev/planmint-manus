@@ -388,3 +388,4 @@
 - [x] Bug: Agrupación por día incorrecta - reservas del 13/04 a las 22:00 y 23:30 aparecían bajo 'Martes 14 De Abril'. Fix: parseISO convertía a timezone local del navegador (UTC+2), causando que horas tardías (22:00+) saltaran al día siguiente. Ahora se extrae YYYY-MM-DD directamente del string ISO sin conversión de timezone. También corregido el filtro de rango de fechas con el mismo problema
 - [x] Feature: Vista resumen diario por franjas horarias (mañana/mediodía/tarde) agrupando operaciones confirmadas para optimizar rutas de conductores
 - [x] Feature: Toggle para activar/desactivar la vista de franjas horarias
+- [x] Cambio: Ordenar reservas por hora_confirmada por defecto en vez de fecha_hora
