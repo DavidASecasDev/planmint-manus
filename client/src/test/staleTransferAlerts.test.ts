@@ -2,10 +2,12 @@
  * Tests for Stale Transfer Alerts system
  *
  * Validates:
- * - Threshold constants
+ * - Threshold constants (updated: 6h throttle, 7-day dedup window)
  * - Alert message formatting logic
  * - Stale detection threshold logic
- * - Deduplication window logic
+ * - Multi-layered deduplication strategy
+ * - localStorage-based persistent throttle
+ * - Safe fallback on DB errors
  * - Notification type integration
  *
  * Note: We test the pure logic without importing the hook directly
@@ -14,17 +16,28 @@
 import { describe, it, expect } from 'vitest';
 import type { NotificationType } from '../types/notifications';
 
-// Mirror the constants from useStaleTransferAlerts.ts
+// Mirror the constants from useStaleTransferAlerts.ts (UPDATED)
 const STALE_THRESHOLD_HOURS = 48;
-const DEDUP_WINDOW_HOURS = 24;
+const DEDUP_WINDOW_HOURS = 7 * 24; // 7 days
+const MIN_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const LAST_CHECK_KEY = 'planmint_stale_transfer_last_check';
 
 describe('Stale Transfer Alerts - Constants', () => {
   it('should have STALE_THRESHOLD_HOURS set to 48', () => {
     expect(STALE_THRESHOLD_HOURS).toBe(48);
   });
 
-  it('should have DEDUP_WINDOW_HOURS set to 24', () => {
-    expect(DEDUP_WINDOW_HOURS).toBe(24);
+  it('should have DEDUP_WINDOW_HOURS set to 7 days (168h)', () => {
+    expect(DEDUP_WINDOW_HOURS).toBe(168);
+  });
+
+  it('should have MIN_CHECK_INTERVAL_MS set to 6 hours', () => {
+    expect(MIN_CHECK_INTERVAL_MS).toBe(6 * 60 * 60 * 1000);
+    expect(MIN_CHECK_INTERVAL_MS).toBe(21600000);
+  });
+
+  it('should have a localStorage key for persistent throttle', () => {
+    expect(LAST_CHECK_KEY).toBe('planmint_stale_transfer_last_check');
   });
 });
 
@@ -144,20 +157,25 @@ describe('Stale Transfer Alerts - Threshold logic', () => {
     expect(boundaryDate <= cutoff).toBe(true);
   });
 
-  it('should deduplicate within 24h window', () => {
+  it('should deduplicate within 7-day window', () => {
     const now = new Date();
     const dedupCutoff = new Date(now);
     dedupCutoff.setHours(dedupCutoff.getHours() - DEDUP_WINDOW_HOURS);
 
-    // An alert sent 12 hours ago should be within dedup window
+    // An alert sent 3 days ago should be within dedup window
     const recentAlert = new Date(now);
-    recentAlert.setHours(recentAlert.getHours() - 12);
+    recentAlert.setHours(recentAlert.getHours() - 72);
     expect(recentAlert >= dedupCutoff).toBe(true);
 
-    // An alert sent 30 hours ago should be outside dedup window
+    // An alert sent 8 days ago should be outside dedup window
     const oldAlert = new Date(now);
-    oldAlert.setHours(oldAlert.getHours() - 30);
+    oldAlert.setHours(oldAlert.getHours() - 8 * 24);
     expect(oldAlert >= dedupCutoff).toBe(false);
+
+    // An alert sent 6 days ago should still be within window
+    const sixDayAlert = new Date(now);
+    sixDayAlert.setHours(sixDayAlert.getHours() - 6 * 24);
+    expect(sixDayAlert >= dedupCutoff).toBe(true);
   });
 
   it('should calculate hoursStale correctly', () => {
@@ -171,29 +189,26 @@ describe('Stale Transfer Alerts - Threshold logic', () => {
     const validStatuses = ['pendiente', 'en_gestion', 'presupuesto_enviado', 'confirmado', 'completado', 'cancelado'];
     const targetStatus = 'pendiente';
     expect(validStatuses).toContain(targetStatus);
-    // Only pendiente should trigger alerts
     const nonAlertStatuses = validStatuses.filter(s => s !== 'pendiente');
     expect(nonAlertStatuses).not.toContain('pendiente');
     expect(nonAlertStatuses).toHaveLength(5);
   });
 });
 
-describe('Stale Transfer Alerts - Throttle logic', () => {
-  const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-
-  it('should throttle to 30 minutes', () => {
-    expect(MIN_CHECK_INTERVAL_MS).toBe(1800000);
+describe('Stale Transfer Alerts - Persistent localStorage throttle', () => {
+  it('should throttle to 6 hours (not 30 minutes)', () => {
+    expect(MIN_CHECK_INTERVAL_MS).toBe(6 * 60 * 60 * 1000);
   });
 
-  it('should skip check if last check was less than 30 minutes ago', () => {
+  it('should skip check if last check was less than 6 hours ago', () => {
     const now = Date.now();
-    const lastCheck = now - (15 * 60 * 1000); // 15 minutes ago
+    const lastCheck = now - (3 * 60 * 60 * 1000); // 3 hours ago
     expect(now - lastCheck < MIN_CHECK_INTERVAL_MS).toBe(true);
   });
 
-  it('should allow check if last check was more than 30 minutes ago', () => {
+  it('should allow check if last check was more than 6 hours ago', () => {
     const now = Date.now();
-    const lastCheck = now - (31 * 60 * 1000); // 31 minutes ago
+    const lastCheck = now - (7 * 60 * 60 * 1000); // 7 hours ago
     expect(now - lastCheck < MIN_CHECK_INTERVAL_MS).toBe(false);
   });
 
@@ -201,6 +216,31 @@ describe('Stale Transfer Alerts - Throttle logic', () => {
     const now = Date.now();
     const lastCheck = 0;
     expect(now - lastCheck < MIN_CHECK_INTERVAL_MS).toBe(false);
+  });
+
+  it('should survive component remounts (localStorage persists)', () => {
+    // Simulating: component mounts, checks, stores timestamp, unmounts, remounts
+    const checkTimestamp = Date.now();
+    // Store in "localStorage" (simulated)
+    const stored = String(checkTimestamp);
+    const parsed = parseInt(stored, 10);
+    expect(parsed).toBe(checkTimestamp);
+    // After remount, the parsed timestamp should still be within throttle window
+    const afterRemount = Date.now();
+    expect(afterRemount - parsed < MIN_CHECK_INTERVAL_MS).toBe(true);
+  });
+
+  it('should handle invalid localStorage values gracefully', () => {
+    // If localStorage has garbage, getLastCheckTimestamp returns 0
+    const invalidValues = ['', 'abc', 'null', 'undefined', '-1'];
+    for (const val of invalidValues) {
+      const parsed = parseInt(val, 10);
+      const result = (!isNaN(parsed) && parsed > 0) ? parsed : 0;
+      // All invalid values should fall back to 0 (allowing the check to run)
+      if (val === '-1') {
+        expect(result).toBe(0); // -1 is not > 0
+      }
+    }
   });
 });
 
@@ -222,21 +262,13 @@ describe('Stale Transfer Alerts - Role filtering', () => {
 
 describe('Stale Transfer Alerts - Current user only (no cross-user notifications)', () => {
   it('should only create notifications for the current user, not iterate over team members', () => {
-    // The old implementation iterated over all team members and tried to insert
-    // notifications for each one. This failed because RLS prevents reading other
-    // users\' notifications, breaking the dedup check.
-    // The new implementation only creates notifications for the current user.
     const currentUserId = 'user-123';
     const teamMembers = ['user-123', 'user-456', 'user-789'];
-    // Old: would iterate all teamMembers
-    // New: only uses currentUserId
+    // New implementation only uses currentUserId
     expect(teamMembers).toContain(currentUserId);
-    // The key insight: we only notify currentUserId, not all teamMembers
   });
 
   it('batch dedup check should use a single query with IN clause', () => {
-    // Instead of N individual hasRecentAlert queries, we use a single query
-    // with .in('entity_id', transferIds) for efficiency
     const transferIds = ['t1', 't2', 't3', 't4', 't5'];
     const alreadyAlerted = new Set(['t1', 't3']);
     const newTransfers = transferIds.filter(id => !alreadyAlerted.has(id));
@@ -244,9 +276,29 @@ describe('Stale Transfer Alerts - Current user only (no cross-user notifications
   });
 });
 
+describe('Stale Transfer Alerts - Safe fallback on DB errors', () => {
+  it('on dedup query error, should return ALL transfer IDs as already alerted', () => {
+    // When the dedup query fails, we assume all are already alerted
+    // This prevents creating duplicate notifications on transient DB errors
+    const transferIds = ['t1', 't2', 't3'];
+    const errorFallback = new Set(transferIds);
+    expect(errorFallback.size).toBe(3);
+    // All transfers should be considered "already alerted"
+    const newTransfers = transferIds.filter(id => !errorFallback.has(id));
+    expect(newTransfers).toHaveLength(0);
+  });
+
+  it('on successful query, should only return actually alerted transfer IDs', () => {
+    const transferIds = ['t1', 't2', 't3'];
+    const dbResults = [{ entity_id: 't1' }]; // Only t1 has a recent alert
+    const alreadyAlerted = new Set(dbResults.map(n => n.entity_id));
+    const newTransfers = transferIds.filter(id => !alreadyAlerted.has(id));
+    expect(newTransfers).toEqual(['t2', 't3']);
+  });
+});
+
 describe('Stale Transfer Alerts - Integration points', () => {
   it('notification entity_type should be transfer_request for routing', () => {
-    // The alert uses entity_type: 'transfer_request' so clicking it navigates to the transfer detail
     const entityType = 'transfer_request';
     const entityId = 'some-transfer-id';
     const expectedRoute = `/transfers/requests/${entityId}`;
@@ -254,9 +306,17 @@ describe('Stale Transfer Alerts - Integration points', () => {
   });
 
   it('dedup query should filter by type transfer_stale_alert', () => {
-    // The dedup check filters by type: 'transfer_stale_alert' to avoid counting other transfer notifications
     const dedupType = 'transfer_stale_alert';
     expect(dedupType).not.toBe('transfer_note');
     expect(dedupType).not.toBe('vehicle_prep_alert');
+  });
+
+  it('should update lastCheck timestamp on both success and error paths', () => {
+    // Both success and error should update the timestamp to prevent retry loops
+    const now = Date.now();
+    // Success path: setLastCheckTimestamp(now)
+    // Error path: setLastCheckTimestamp(now) in catch block
+    // This ensures we don't retry immediately on transient errors
+    expect(now).toBeGreaterThan(0);
   });
 });

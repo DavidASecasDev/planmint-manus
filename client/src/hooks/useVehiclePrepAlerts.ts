@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 
@@ -14,9 +13,18 @@ const ALERT_THRESHOLD_HOURS = 2;
 
 /**
  * Minimum interval between duplicate alerts for the same vehicle (in hours).
- * Prevents spamming the same alert every 5 minutes.
+ * Prevents spamming the same alert every sync cycle.
  */
-const DEDUP_WINDOW_HOURS = 2;
+const DEDUP_WINDOW_HOURS = 6;
+
+/** Minimum interval between full check cycles - 2 hours (in milliseconds) */
+const MIN_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000;
+
+/** localStorage key for persisting the last check timestamp */
+const LAST_CHECK_KEY = 'planmint_vehicle_prep_last_check';
+
+/** Roles that should receive prep alerts */
+const ALERT_ROLES = ['owner', 'admin', 'manager'];
 
 export interface UnpreparedVehicle {
   vehicleId: string;
@@ -30,14 +38,45 @@ export interface UnpreparedVehicle {
 }
 
 /**
+ * Get the last check timestamp from localStorage.
+ */
+function getLastCheckTimestamp(): number {
+  try {
+    const stored = localStorage.getItem(LAST_CHECK_KEY);
+    if (stored) {
+      const ts = parseInt(stored, 10);
+      if (!isNaN(ts) && ts > 0) return ts;
+    }
+  } catch {
+    // localStorage might be unavailable
+  }
+  return 0;
+}
+
+/**
+ * Save the last check timestamp to localStorage.
+ */
+function setLastCheckTimestamp(ts: number): void {
+  try {
+    localStorage.setItem(LAST_CHECK_KEY, String(ts));
+  } catch {
+    // localStorage might be unavailable
+  }
+}
+
+/**
  * Hook that checks for vehicles needing preparation with imminent reservations
- * and creates notifications for all org members with relevant permissions.
+ * and creates notifications for the CURRENT user only.
  *
- * Designed to be called after each Rently sync cycle.
+ * Multi-layered dedup:
+ * 1. localStorage throttle (2h) - prevents running too often, survives remounts
+ * 2. In-memory concurrent guard
+ * 3. DB dedup query (6h window) - prevents duplicate notifications per vehicle
+ * 4. On DB query error, assumes all are already alerted (safe fallback)
  */
 export function useVehiclePrepAlerts() {
   const { profile } = useAuth();
-  const lastCheckRef = useRef<string | null>(null);
+  const processingRef = useRef<boolean>(false);
 
   /**
    * Query vehicles in 'sucio' or 'incompleto' status that have a reservation
@@ -59,41 +98,32 @@ export function useVehiclePrepAlerts() {
       return [];
     }
 
-    // 2. Get upcoming reservations (next 2 hours) that match these vehicles
+    // 2. Get upcoming reservations within the threshold window
+    // Note: reservations table uses 'auto' (matricula) to link to vehicles, not vehicle_id
     const matriculas = dirtyVehicles.map(v => v.matricula);
-
-    const { data: upcomingReservations, error: resError } = await supabase
+    const { data: reservations, error: resError } = await supabase
       .from('reservations')
-      .select('id, auto, cliente_nombre, cliente_apellido, desde, estado')
+      .select('id, auto, desde, cliente_nombre')
       .in('auto', matriculas)
       .gte('desde', now.toISOString())
       .lte('desde', thresholdDate.toISOString())
-      .in('estado', ['Pendiente', 'Confirmada', 'En curso'])
-      .is('archived_at', null)
       .order('desde', { ascending: true });
 
-    if (resError || !upcomingReservations || upcomingReservations.length === 0) {
+    if (resError || !reservations || reservations.length === 0) {
       if (resError) log.error('Error fetching upcoming reservations:', resError);
       return [];
     }
 
-    // 3. Cross-reference: find vehicles that are dirty AND have an imminent reservation
-    const vehicleMap = new Map(dirtyVehicles.map(v => [v.matricula, v]));
+    // 3. Match vehicles with their imminent reservations by matricula
     const results: UnpreparedVehicle[] = [];
-    const seenVehicles = new Set<string>(); // Only one alert per vehicle
+    const vehicleByMatricula = new Map(dirtyVehicles.map(v => [v.matricula, v]));
 
-    for (const res of upcomingReservations) {
-      if (!res.auto || seenVehicles.has(res.auto)) continue;
-      const vehicle = vehicleMap.get(res.auto);
+    for (const res of reservations) {
+      const vehicle = vehicleByMatricula.get(res.auto ?? '');
       if (!vehicle) continue;
 
-      seenVehicles.add(res.auto);
-      const resDate = new Date(res.desde!);
-      const hoursUntil = (resDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-      const clienteName = [res.cliente_nombre, res.cliente_apellido]
-        .filter(Boolean)
-        .join(' ') || 'Cliente desconocido';
+      const hoursUntil = (new Date(res.desde!).getTime() - now.getTime()) / (1000 * 60 * 60);
+      const clienteName = res.cliente_nombre || 'Cliente desconocido';
 
       results.push({
         vehicleId: vehicle.id,
@@ -111,88 +141,67 @@ export function useVehiclePrepAlerts() {
   }, []);
 
   /**
-   * Get all organization members who should receive prep alerts.
-   * Targets: owner, admin, manager roles (operations team).
+   * Batch check which vehicles already have recent alerts for the current user.
+   * Returns a Set of vehicle IDs that already have alerts.
    */
-  const getOperationsTeamMembers = useCallback(async (orgId: string): Promise<string[]> => {
-    try {
-      const result = await apiInvoke<{ data: any[]; error: string | null }>('get-org-members', {
-        body: { p_organization_id: orgId },
-      });
-
-      if (result.error || !result.data?.data) {
-        log.error('Error fetching operations team:', result.error?.message);
-        return [];
-      }
-
-      return result.data.data
-        .filter((m: any) => ['owner', 'admin', 'manager'].includes(m.role))
-        .map((m: any) => m.user_id);
-    } catch (err) {
-      log.error('Error fetching operations team:', err);
-      return [];
-    }
-  }, []);
-
-  /**
-   * Check if a similar notification was already sent recently for this vehicle
-   * to avoid spamming the same alert every sync cycle.
-   */
-  const hasRecentAlert = useCallback(async (
-    vehicleId: string,
+  const getAlreadyAlertedVehicleIds = useCallback(async (
+    vehicleIds: string[],
     userId: string
-  ): Promise<boolean> => {
+  ): Promise<Set<string>> => {
+    if (vehicleIds.length === 0) return new Set();
+
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - DEDUP_WINDOW_HOURS);
 
     const { data, error } = await supabase
       .from('notifications')
-      .select('id')
-      .eq('entity_type', 'vehicle_prep')
-      .eq('entity_id', vehicleId)
+      .select('entity_id')
       .eq('user_id', userId)
-      .gte('created_at', cutoff.toISOString())
-      .limit(1);
+      .eq('type', 'vehicle_prep_alert')
+      .eq('entity_type', 'vehicle_prep')
+      .in('entity_id', vehicleIds)
+      .gte('created_at', cutoff.toISOString());
 
     if (error) {
-      log.error('Error checking recent alerts:', error);
-      return false; // Allow sending if we can't check
+      log.error('Error checking recent prep alerts:', error.message || error.code || JSON.stringify(error));
+      // On error, return ALL vehicle IDs as "already alerted" to prevent spam
+      return new Set(vehicleIds);
     }
 
-    return (data?.length || 0) > 0;
+    return new Set((data || []).map(n => n.entity_id));
   }, []);
 
   /**
-   * Create a notification for a specific user about an unprepared vehicle.
+   * Create a notification for the current user about an unprepared vehicle.
    */
   const createPrepAlert = useCallback(async (
     vehicle: UnpreparedVehicle,
     userId: string,
     orgId: string
   ): Promise<boolean> => {
-    const statusLabel = vehicle.status === 'sucio' ? 'sucio' : 'preparación incompleta';
+    const statusLabel = vehicle.status === 'sucio' ? '🧹 Sucio' : '⚠️ Incompleto';
     const timeLabel = vehicle.hoursUntilReservation < 1
-      ? `${Math.round(vehicle.hoursUntilReservation * 60)} minutos`
-      : `${vehicle.hoursUntilReservation.toFixed(1)} horas`;
+      ? `${Math.round(vehicle.hoursUntilReservation * 60)}min`
+      : `${vehicle.hoursUntilReservation}h`;
 
-    const title = `🔴 ${vehicle.matricula} — Reserva en ${timeLabel}`;
-    const body = `El vehículo ${vehicle.matricula}${vehicle.modelo ? ` (${vehicle.modelo})` : ''} está en estado "${statusLabel}" y tiene una reserva para ${vehicle.clienteNombre} en ${timeLabel}. Requiere preparación urgente.`;
+    const title = `${statusLabel}: ${vehicle.matricula} — Reserva en ${timeLabel}`;
+    const body = `El vehículo ${vehicle.matricula} (${vehicle.modelo || 'N/A'}) está en estado "${vehicle.status}" y tiene una reserva para ${vehicle.clienteNombre} en ${timeLabel}. Requiere preparación urgente.`;
 
     const { error } = await supabase
       .from('notifications')
       .insert({
         organization_id: orgId,
         user_id: userId,
-        type: 'vehicle_prep_alert',
+        type: 'vehicle_prep_alert' as any,
         title,
         body: body.substring(0, 500),
-        entity_type: 'vehicle_prep',
+        entity_type: 'vehicle_prep' as any,
         entity_id: vehicle.vehicleId,
         is_read: false,
       });
 
     if (error) {
-      log.error(`Error creating prep alert for ${vehicle.matricula}:`, error);
+      log.error(`Error creating prep alert for ${vehicle.matricula}: ${error.message || error.code || JSON.stringify(error)}`);
       return false;
     }
 
@@ -200,64 +209,91 @@ export function useVehiclePrepAlerts() {
   }, []);
 
   /**
-   * Main function: check for unprepared vehicles and send alerts.
-   * Called after each sync cycle completes.
+   * Main function: check for unprepared vehicles and send alerts to the CURRENT user.
+   *
+   * Multi-layered dedup:
+   * 1. localStorage throttle (2h)
+   * 2. In-memory concurrent guard
+   * 3. DB dedup query (6h window)
+   * 4. On error, assumes already alerted (safe fallback)
    *
    * Returns the number of alerts sent.
    */
   const checkAndAlert = useCallback(async (): Promise<number> => {
     const orgId = profile?.organization_id;
-    if (!orgId) {
-      log.warn('No organization ID, skipping prep alerts');
+    const userId = profile?.id;
+    const userRole = profile?.role;
+
+    if (!orgId || !userId) {
       return 0;
     }
+
+    // Only alert users with operations roles
+    if (!userRole || !ALERT_ROLES.includes(userRole)) {
+      return 0;
+    }
+
+    // Layer 1: Persistent throttle using localStorage
+    const now = Date.now();
+    const lastCheck = getLastCheckTimestamp();
+    if (now - lastCheck < MIN_CHECK_INTERVAL_MS) {
+      log.info(`Throttled: last check was ${Math.round((now - lastCheck) / 60000)}min ago`);
+      return 0;
+    }
+
+    // Layer 2: Prevent concurrent runs
+    if (processingRef.current) {
+      log.info('Skipped: already processing');
+      return 0;
+    }
+
+    processingRef.current = true;
 
     try {
       // 1. Find unprepared vehicles with imminent reservations
       const unprepared = await findUnpreparedVehicles();
       if (unprepared.length === 0) {
         log.info('No unprepared vehicles with imminent reservations');
+        setLastCheckTimestamp(now);
         return 0;
       }
 
       log.info(`Found ${unprepared.length} unprepared vehicle(s) with imminent reservations`);
 
-      // 2. Get operations team members
-      const teamMembers = await getOperationsTeamMembers(orgId);
-      if (teamMembers.length === 0) {
-        log.warn('No operations team members found');
+      // 2. Layer 3: Batch check which ones already have recent alerts for this user
+      const vehicleIds = unprepared.map(v => v.vehicleId);
+      const alreadyAlerted = await getAlreadyAlertedVehicleIds(vehicleIds, userId);
+
+      // 3. Filter out already-alerted vehicles
+      const newVehicles = unprepared.filter(v => !alreadyAlerted.has(v.vehicleId));
+
+      if (newVehicles.length === 0) {
+        log.info('All unprepared vehicles already have recent alerts, skipping');
+        setLastCheckTimestamp(now);
         return 0;
       }
 
-      // 3. Send alerts (with deduplication)
+      // 4. Create alerts for the current user only
       let alertsSent = 0;
-
-      for (const vehicle of unprepared) {
-        for (const userId of teamMembers) {
-          // Check if we already sent an alert for this vehicle recently
-          const alreadyAlerted = await hasRecentAlert(vehicle.vehicleId, userId);
-          if (alreadyAlerted) {
-            log.info(`Skipping duplicate alert for ${vehicle.matricula} to user ${userId}`);
-            continue;
-          }
-
-          const sent = await createPrepAlert(vehicle, userId, orgId);
-          if (sent) alertsSent++;
-        }
+      for (const vehicle of newVehicles) {
+        const sent = await createPrepAlert(vehicle, userId, orgId);
+        if (sent) alertsSent++;
       }
 
-      log.info(`Sent ${alertsSent} prep alert(s) to ${teamMembers.length} team member(s)`);
-      lastCheckRef.current = new Date().toISOString();
+      log.info(`Sent ${alertsSent} prep alert(s) for current user`);
+      setLastCheckTimestamp(now);
       return alertsSent;
     } catch (err) {
       log.error('Error in vehicle prep alert check:', err);
+      setLastCheckTimestamp(now);
       return 0;
+    } finally {
+      processingRef.current = false;
     }
-  }, [profile?.organization_id, findUnpreparedVehicles, getOperationsTeamMembers, hasRecentAlert, createPrepAlert]);
+  }, [profile?.organization_id, profile?.id, profile?.role, findUnpreparedVehicles, getAlreadyAlertedVehicleIds, createPrepAlert]);
 
   return {
     checkAndAlert,
     findUnpreparedVehicles,
-    lastCheck: lastCheckRef.current,
   };
 }
