@@ -3,7 +3,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
@@ -16,6 +16,7 @@ import { EditableCell } from './EditableCell';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
+import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
@@ -200,6 +201,7 @@ export function ReservationsTable() {
   };
 
   const [showFilters, setShowFilters] = useState(true);
+  const [showTimeSlots, setShowTimeSlots] = useState(false);
   const [showArchivedSheet, setShowArchivedSheet] = useState(false);
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
@@ -834,6 +836,22 @@ export function ReservationsTable() {
             </Button>
           )}
 
+          {/* Toggle Vista Franjas Horarias */}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="show-time-slots"
+              checked={showTimeSlots}
+              onCheckedChange={setShowTimeSlots}
+            />
+            <Label
+              htmlFor="show-time-slots"
+              className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap flex items-center gap-1"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Franjas
+            </Label>
+          </div>
+
           {/* Toggle Mostrar canceladas */}
           <div className="flex items-center gap-2">
             <Switch 
@@ -856,7 +874,13 @@ export function ReservationsTable() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Time Slot Summary View */}
+      {showTimeSlots ? (
+        <div className="border rounded-lg overflow-hidden bg-card flex-1 min-h-0 overflow-y-auto p-4">
+          <DailyTimeSlotSummary operations={filteredAndSorted} />
+        </div>
+      ) : (
+      /* Table */
       <div className="border rounded-lg overflow-hidden bg-card flex-1 min-h-0 flex flex-col">
         <ScrollArea className="w-full flex-1">
           <div className="min-w-max">
@@ -1279,6 +1303,7 @@ export function ReservationsTable() {
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
+      )}
 
       {/* Reservation Detail Sheet */}
       <ReservationDetailSheet
