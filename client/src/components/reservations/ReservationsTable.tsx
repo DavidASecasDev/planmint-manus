@@ -3,7 +3,7 @@ import { format, isSameDay, parseISO, startOfDay, isAfter, isBefore, addDays } f
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
@@ -384,36 +384,65 @@ export function ReservationsTable() {
       });
     });
 
+    // Helper to parse datetime string to timestamp for robust comparison
+    const toTimestamp = (s: string | null): number | null => {
+      if (!s) return null;
+      // Handle both 'T' and space separators in ISO strings
+      let normalized = s.replace(' ', 'T');
+      // Ensure timezone offset has colon: +00 -> +00:00, -05 -> -05:00
+      normalized = normalized.replace(/([+-]\d{2})$/, '$1:00');
+      const t = new Date(normalized).getTime();
+      return isNaN(t) ? null : t;
+    };
+
     // Sort
     result.sort((a, b) => {
-      let aVal: string | number | null = null;
-      let bVal: string | number | null = null;
-
-      if (sortKey === 'fecha_hora') {
-        aVal = a.fechaHora;
-        bVal = b.fechaHora;
-      } else if (sortKey === 'hora_confirmada') {
-        aVal = a.confirmedDatetime;
-        bVal = b.confirmedDatetime;
-      } else if (sortKey === 'tipo_actividad') {
-        aVal = a.tipoOperacion;
-        bVal = b.tipoOperacion;
-      } else if (sortKey === 'lugar') {
-        aVal = a.lugar;
-        bVal = b.lugar;
-      } else {
-        aVal = (a.reservation as unknown as Record<string, unknown>)[sortKey] as string | null;
-        bVal = (b.reservation as unknown as Record<string, unknown>)[sortKey] as string | null;
-      }
-      
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-      
       let comparison = 0;
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        comparison = aVal.localeCompare(bVal);
-      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
-        comparison = aVal - bVal;
+
+      if (sortKey === 'fecha_hora' || sortKey === 'hora_confirmada') {
+        // Use numeric timestamp comparison for datetime columns
+        const aRaw = sortKey === 'fecha_hora' ? a.fechaHora : a.confirmedDatetime;
+        const bRaw = sortKey === 'fecha_hora' ? b.fechaHora : b.confirmedDatetime;
+        const aTs = toTimestamp(aRaw);
+        const bTs = toTimestamp(bRaw);
+        
+        if (aTs === null && bTs === null) return 0;
+        if (aTs === null) return 1;
+        if (bTs === null) return -1;
+        
+        comparison = aTs - bTs;
+        
+        // Secondary sort: if primary datetime is equal, sort by the other datetime
+        if (comparison === 0) {
+          const aSecondary = toTimestamp(sortKey === 'fecha_hora' ? a.confirmedDatetime : a.fechaHora);
+          const bSecondary = toTimestamp(sortKey === 'fecha_hora' ? b.confirmedDatetime : b.fechaHora);
+          if (aSecondary !== null && bSecondary !== null) {
+            comparison = aSecondary - bSecondary;
+          }
+        }
+      } else {
+        let aVal: string | number | null = null;
+        let bVal: string | number | null = null;
+
+        if (sortKey === 'tipo_actividad') {
+          aVal = a.tipoOperacion;
+          bVal = b.tipoOperacion;
+        } else if (sortKey === 'lugar') {
+          aVal = a.lugar;
+          bVal = b.lugar;
+        } else {
+          aVal = (a.reservation as unknown as Record<string, unknown>)[sortKey] as string | null;
+          bVal = (b.reservation as unknown as Record<string, unknown>)[sortKey] as string | null;
+        }
+        
+        if (aVal === null || aVal === undefined) return 1;
+        if (bVal === null || bVal === undefined) return -1;
+        
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          comparison = aVal.localeCompare(bVal);
+        } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+          comparison = aVal - bVal;
+        }
       }
       
       return sortDir === 'asc' ? comparison : -comparison;
@@ -807,13 +836,21 @@ export function ReservationsTable() {
                 >
                   <button
                     onClick={() => handleSort(col.key)}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    className={cn(
+                      "flex items-center gap-1 hover:text-foreground transition-colors",
+                      sortKey === col.key && "text-primary font-semibold"
+                    )}
                   >
                     {col.label}
-                    <ArrowUpDown className={cn(
-                      "h-3 w-3",
-                      sortKey === col.key && "text-primary"
-                    )} />
+                    {sortKey === col.key ? (
+                      sortDir === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3" />
+                    )}
                   </button>
                 </div>
               ))}
