@@ -455,9 +455,12 @@ export function ReservationsTable() {
     const dayColors = ['bg-background', 'bg-muted/30'];
     let currentDayIndex = 0;
     let lastDate: Date | null = null;
+    // Usar confirmedDatetime para agrupar cuando se ordena por hora_confirmada
+    const useConfirmedForGrouping = sortKey === 'hora_confirmada';
 
     return filteredAndSorted.map((row, idx) => {
-      const rowDate = row.fechaHora ? parseISO(row.fechaHora) : null;
+      const dateStr = useConfirmedForGrouping ? (row.confirmedDatetime || row.fechaHora) : row.fechaHora;
+      const rowDate = dateStr ? parseISO(dateStr) : null;
       let isFirstOfDay = false;
       let dayColor = dayColors[currentDayIndex % 2];
 
@@ -480,7 +483,7 @@ export function ReservationsTable() {
         dayLabel: rowDate ? format(rowDate, "EEEE d 'de' MMMM", { locale: es }) : null,
       };
     });
-  }, [filteredAndSorted]);
+  }, [filteredAndSorted, sortKey]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {

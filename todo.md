@@ -382,3 +382,4 @@
 - [x] Reservas: Añadir columna "Hora Confirmada" en la tabla UI después de Fecha/Hora, editable inline con EditableDateTimeCell
 - [x] Reservas: Indicador visual (icono/color) cuando Hora Confirmada difiere de Fecha/Hora original de Rently
 - [x] Reservas: Filtro por Hora Confirmada en la vista de operaciones para planificar logística del día
+- [x] Bug: Ordenación por Hora Confirmada no funciona en la tabla de reservas - fix: agrupación por día ahora usa confirmedDatetime cuando se ordena por Hora Confirmada
