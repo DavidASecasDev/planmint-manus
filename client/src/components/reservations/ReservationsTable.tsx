@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { format, isSameDay, parseISO, startOfDay, isAfter, isBefore, addDays } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -315,41 +315,58 @@ export function ReservationsTable() {
     }
     // Note: Old "terminadas" (>10 days) are now filtered at database level via archived_at
 
+    // Helper: extract YYYY-MM-DD from an ISO string without timezone conversion.
+    // The stored datetimes use +00:00 offset but represent local operational times
+    // (Mallorca). Using parseISO converts to the browser's local timezone, which
+    // causes late-night operations (e.g., 22:00 stored as UTC) to shift to the
+    // next calendar day in UTC+2 timezones.
+    const extractDateKey = (isoStr: string): string | null => {
+      const m = isoStr.match(/^(\d{4}-\d{2}-\d{2})/);
+      return m ? m[1] : null;
+    };
+
+    const dateToKey = (d: Date): string => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     // Date range filter
     if (dateRange?.from) {
-      const fromDate = startOfDay(dateRange.from);
-      const toDate = dateRange.to ? startOfDay(dateRange.to) : fromDate;
+      const fromKey = dateToKey(dateRange.from);
+      const toKey = dateRange.to ? dateToKey(dateRange.to) : fromKey;
       
       result = result.filter(row => {
         if (!row.fechaHora) return false;
-        const rowDate = startOfDay(parseISO(row.fechaHora));
+        const rowKey = extractDateKey(row.fechaHora);
+        if (!rowKey) return false;
         
         // If only from date, filter for that single day
         if (!dateRange.to) {
-          return isSameDay(rowDate, fromDate);
+          return rowKey === fromKey;
         }
         
-        // If range, check if within interval
-        return (isSameDay(rowDate, fromDate) || isAfter(rowDate, fromDate)) && 
-               (isSameDay(rowDate, toDate) || isBefore(rowDate, toDate));
+        // If range, check if within interval (string comparison works for YYYY-MM-DD)
+        return rowKey >= fromKey && rowKey <= toKey;
       });
     }
 
     // Confirmed date range filter
     if (confirmedDateRange?.from) {
-      const fromDate = startOfDay(confirmedDateRange.from);
-      const toDate = confirmedDateRange.to ? startOfDay(confirmedDateRange.to) : fromDate;
+      const fromKey = dateToKey(confirmedDateRange.from);
+      const toKey = confirmedDateRange.to ? dateToKey(confirmedDateRange.to) : fromKey;
       
       result = result.filter(row => {
         if (!row.confirmedDatetime) return false;
-        const rowDate = startOfDay(parseISO(row.confirmedDatetime));
+        const rowKey = extractDateKey(row.confirmedDatetime);
+        if (!rowKey) return false;
         
         if (!confirmedDateRange.to) {
-          return isSameDay(rowDate, fromDate);
+          return rowKey === fromKey;
         }
         
-        return (isSameDay(rowDate, fromDate) || isAfter(rowDate, fromDate)) && 
-               (isSameDay(rowDate, toDate) || isBefore(rowDate, toDate));
+        return rowKey >= fromKey && rowKey <= toKey;
       });
     }
 
@@ -483,33 +500,51 @@ export function ReservationsTable() {
   const rowsWithDayInfo = useMemo(() => {
     const dayColors = ['bg-background', 'bg-muted/30'];
     let currentDayIndex = 0;
-    let lastDate: Date | null = null;
+    let lastDayKey: string | null = null;
     // Usar confirmedDatetime para agrupar cuando se ordena por hora_confirmada
     const useConfirmedForGrouping = sortKey === 'hora_confirmada';
 
+    // Extract the date part (YYYY-MM-DD) directly from the ISO string
+    // to avoid timezone conversion issues. The stored times use +00:00 offset
+    // but represent local operational times (Mallorca). Using parseISO + isSameDay
+    // would convert to the browser's local timezone, causing late-night operations
+    // (e.g., 22:00 UTC) to appear under the next day in UTC+2 timezones.
+    const extractDatePart = (dateStr: string): string | null => {
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return match ? match[0] : null;
+    };
+
+    // Create a Date from just the date part (noon to avoid DST edge cases)
+    // for formatting the day label with the correct day name
+    const dateLabelFromKey = (dayKey: string): string => {
+      const [year, month, day] = dayKey.split('-').map(Number);
+      const d = new Date(year, month - 1, day, 12, 0, 0);
+      return format(d, "EEEE d 'de' MMMM", { locale: es });
+    };
+
     return filteredAndSorted.map((row, idx) => {
       const dateStr = useConfirmedForGrouping ? (row.confirmedDatetime || row.fechaHora) : row.fechaHora;
-      const rowDate = dateStr ? parseISO(dateStr) : null;
+      const dayKey = dateStr ? extractDatePart(dateStr) : null;
       let isFirstOfDay = false;
       let dayColor = dayColors[currentDayIndex % 2];
 
-      if (rowDate && lastDate) {
-        if (!isSameDay(rowDate, lastDate)) {
+      if (dayKey && lastDayKey) {
+        if (dayKey !== lastDayKey) {
           currentDayIndex++;
           isFirstOfDay = true;
           dayColor = dayColors[currentDayIndex % 2];
         }
-      } else if (rowDate && idx === 0) {
+      } else if (dayKey && idx === 0) {
         isFirstOfDay = true;
       }
 
-      if (rowDate) lastDate = rowDate;
+      if (dayKey) lastDayKey = dayKey;
 
       return {
         ...row,
         isFirstOfDay,
         dayColor,
-        dayLabel: rowDate ? format(rowDate, "EEEE d 'de' MMMM", { locale: es }) : null,
+        dayLabel: dayKey ? dateLabelFromKey(dayKey) : null,
       };
     });
   }, [filteredAndSorted, sortKey]);

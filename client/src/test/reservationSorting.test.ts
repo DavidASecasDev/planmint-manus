@@ -203,3 +203,138 @@ describe('toTimestamp helper', () => {
     expect(t1).toBeLessThan(t2);
   });
 });
+
+// ============================================================================
+// Day grouping logic tests
+// ============================================================================
+
+// Mirrors the production extractDatePart function from ReservationsTable
+const extractDatePart = (dateStr: string): string | null => {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? match[0] : null;
+};
+
+// Mirrors the production dateLabelFromKey function
+const dateLabelFromKey = (dayKey: string): string => {
+  const [year, month, day] = dayKey.split('-').map(Number);
+  const d = new Date(year, month - 1, day, 12, 0, 0);
+  // Simplified label for testing (no locale formatting)
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
+
+// Mirrors the production dateToKey function
+const dateToKey = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+describe('Day Grouping - extractDatePart (timezone-safe)', () => {
+  it('extracts date from ISO string with T separator and +00:00 offset', () => {
+    expect(extractDatePart('2026-04-13T22:00:00+00:00')).toBe('2026-04-13');
+  });
+
+  it('extracts date from ISO string with late-night time that would shift day in UTC+2', () => {
+    // This is the critical case: 22:00 UTC = 00:00 next day in Madrid (UTC+2)
+    // The old code using parseISO would group this under April 14
+    expect(extractDatePart('2026-04-13T22:00:00+00:00')).toBe('2026-04-13');
+  });
+
+  it('extracts date from ISO string with 23:30 time', () => {
+    expect(extractDatePart('2026-04-13T23:30:00+00:00')).toBe('2026-04-13');
+  });
+
+  it('extracts date from ISO string with space separator', () => {
+    expect(extractDatePart('2026-04-13 22:00:00+00')).toBe('2026-04-13');
+  });
+
+  it('returns null for invalid string', () => {
+    expect(extractDatePart('not-a-date')).toBeNull();
+  });
+});
+
+describe('Day Grouping - dateToKey', () => {
+  it('converts Date to YYYY-MM-DD key', () => {
+    const d = new Date(2026, 3, 13); // April 13, 2026
+    expect(dateToKey(d)).toBe('2026-04-13');
+  });
+
+  it('pads single-digit month and day', () => {
+    const d = new Date(2026, 0, 5); // January 5, 2026
+    expect(dateToKey(d)).toBe('2026-01-05');
+  });
+});
+
+describe('Day Grouping - date range filter with string comparison', () => {
+  const rows = [
+    { fechaHora: '2026-04-13T08:00:00+00:00' },
+    { fechaHora: '2026-04-13T22:00:00+00:00' }, // Late night - would shift in UTC+2
+    { fechaHora: '2026-04-13T23:30:00+00:00' }, // Late night - would shift in UTC+2
+    { fechaHora: '2026-04-14T12:00:00+00:00' },
+  ];
+
+  it('filters for April 13 and includes late-night rows', () => {
+    const fromKey = '2026-04-13';
+    const filtered = rows.filter(row => {
+      const rowKey = extractDatePart(row.fechaHora);
+      return rowKey === fromKey;
+    });
+    expect(filtered).toHaveLength(3); // 08:00, 22:00, 23:30
+  });
+
+  it('filters for April 14 and excludes late-night April 13 rows', () => {
+    const fromKey = '2026-04-14';
+    const filtered = rows.filter(row => {
+      const rowKey = extractDatePart(row.fechaHora);
+      return rowKey === fromKey;
+    });
+    expect(filtered).toHaveLength(1); // Only 12:00
+  });
+
+  it('range filter April 13-14 includes all rows', () => {
+    const fromKey = '2026-04-13';
+    const toKey = '2026-04-14';
+    const filtered = rows.filter(row => {
+      const rowKey = extractDatePart(row.fechaHora);
+      return rowKey !== null && rowKey >= fromKey && rowKey <= toKey;
+    });
+    expect(filtered).toHaveLength(4);
+  });
+});
+
+describe('Day Grouping - row grouping assigns correct day', () => {
+  it('groups late-night UTC rows under the correct calendar day', () => {
+    const rows = [
+      { fechaHora: '2026-04-13T08:00:00+00:00' },
+      { fechaHora: '2026-04-13T22:00:00+00:00' },
+      { fechaHora: '2026-04-13T23:30:00+00:00' },
+      { fechaHora: '2026-04-14T12:00:00+00:00' },
+    ];
+
+    let lastDayKey: string | null = null;
+    const dayAssignments: string[] = [];
+
+    rows.forEach((row, idx) => {
+      const dayKey = extractDatePart(row.fechaHora);
+      let isFirstOfDay = false;
+
+      if (dayKey && lastDayKey) {
+        if (dayKey !== lastDayKey) {
+          isFirstOfDay = true;
+        }
+      } else if (dayKey && idx === 0) {
+        isFirstOfDay = true;
+      }
+
+      if (dayKey) lastDayKey = dayKey;
+      dayAssignments.push(dayKey || 'null');
+    });
+
+    // All three April 13 rows should have the same day key
+    expect(dayAssignments[0]).toBe('2026-04-13');
+    expect(dayAssignments[1]).toBe('2026-04-13'); // 22:00 - was incorrectly April 14
+    expect(dayAssignments[2]).toBe('2026-04-13'); // 23:30 - was incorrectly April 14
+    expect(dayAssignments[3]).toBe('2026-04-14');
+  });
+});
