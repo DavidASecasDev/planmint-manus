@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
@@ -205,6 +205,51 @@ export function ReservationsTable() {
   const [showArchivedSheet, setShowArchivedSheet] = useState(false);
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
+
+  // Ref for the scroll container to enable arrow key navigation
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Arrow key scroll navigation — scrolls the table viewport when
+  // no input/select/textarea is focused (so editable cells still work normally)
+  const SCROLL_STEP_Y = 60; // px per arrow press (roughly one row height)
+  const SCROLL_STEP_X = 120; // px per arrow press (roughly one column width)
+
+  const handleTableKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Don't intercept if user is typing in an input, textarea, select, or contenteditable
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if ((e.target as HTMLElement).isContentEditable) return;
+
+    // Find the Radix ScrollArea viewport (the actual scrollable element)
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const viewport = container.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    if (!viewport) return;
+
+    let handled = false;
+    switch (e.key) {
+      case 'ArrowDown':
+        viewport.scrollTop += SCROLL_STEP_Y;
+        handled = true;
+        break;
+      case 'ArrowUp':
+        viewport.scrollTop -= SCROLL_STEP_Y;
+        handled = true;
+        break;
+      case 'ArrowRight':
+        viewport.scrollLeft += SCROLL_STEP_X;
+        handled = true;
+        break;
+      case 'ArrowLeft':
+        viewport.scrollLeft -= SCROLL_STEP_X;
+        handled = true;
+        break;
+    }
+
+    if (handled) {
+      e.preventDefault();
+    }
+  }, []);
 
   // Expandir reservas a filas de operación
   const operationRows = useMemo(() => {
@@ -881,7 +926,14 @@ export function ReservationsTable() {
         </div>
       ) : (
       /* Table */
-      <div className="border rounded-lg overflow-hidden bg-card flex-1 min-h-0 flex flex-col">
+      <div
+        ref={scrollContainerRef}
+        className="border rounded-lg overflow-hidden bg-card flex-1 min-h-0 flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
+        tabIndex={0}
+        onKeyDown={handleTableKeyDown}
+        role="grid"
+        aria-label="Tabla de reservas — usa las flechas del teclado para desplazarte"
+      >
         <ScrollArea className="w-full flex-1">
           <div className="min-w-max">
             {/* Header */}
