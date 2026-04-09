@@ -389,3 +389,4 @@
 - [x] Feature: Vista resumen diario por franjas horarias (mañana/mediodía/tarde) agrupando operaciones confirmadas para optimizar rutas de conductores
 - [x] Feature: Toggle para activar/desactivar la vista de franjas horarias
 - [x] Cambio: Ordenar reservas por hora_confirmada por defecto en vez de fecha_hora
+- [x] Bug: Notificaciones de transfers stale se repiten una y otra vez - fix: RLS impedía verificar duplicados de otros usuarios, causando 70+ notificaciones por transfer. Reescrito hook para: solo notificar al usuario actual (dedup funciona con RLS), throttle de 30min entre checks, batch dedup con IN clause, batch insert, guard contra ejecuciones concurrentes. Limpiados todos los duplicados de la BD

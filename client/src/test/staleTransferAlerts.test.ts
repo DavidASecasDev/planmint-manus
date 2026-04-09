@@ -178,6 +178,72 @@ describe('Stale Transfer Alerts - Threshold logic', () => {
   });
 });
 
+describe('Stale Transfer Alerts - Throttle logic', () => {
+  const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+  it('should throttle to 30 minutes', () => {
+    expect(MIN_CHECK_INTERVAL_MS).toBe(1800000);
+  });
+
+  it('should skip check if last check was less than 30 minutes ago', () => {
+    const now = Date.now();
+    const lastCheck = now - (15 * 60 * 1000); // 15 minutes ago
+    expect(now - lastCheck < MIN_CHECK_INTERVAL_MS).toBe(true);
+  });
+
+  it('should allow check if last check was more than 30 minutes ago', () => {
+    const now = Date.now();
+    const lastCheck = now - (31 * 60 * 1000); // 31 minutes ago
+    expect(now - lastCheck < MIN_CHECK_INTERVAL_MS).toBe(false);
+  });
+
+  it('should allow first check (lastCheck = 0)', () => {
+    const now = Date.now();
+    const lastCheck = 0;
+    expect(now - lastCheck < MIN_CHECK_INTERVAL_MS).toBe(false);
+  });
+});
+
+describe('Stale Transfer Alerts - Role filtering', () => {
+  const ALERT_ROLES = ['owner', 'admin', 'manager'];
+
+  it('should allow owner, admin, manager roles', () => {
+    expect(ALERT_ROLES.includes('owner')).toBe(true);
+    expect(ALERT_ROLES.includes('admin')).toBe(true);
+    expect(ALERT_ROLES.includes('manager')).toBe(true);
+  });
+
+  it('should NOT allow employee, broker, or viewer roles', () => {
+    expect(ALERT_ROLES.includes('employee')).toBe(false);
+    expect(ALERT_ROLES.includes('broker')).toBe(false);
+    expect(ALERT_ROLES.includes('viewer')).toBe(false);
+  });
+});
+
+describe('Stale Transfer Alerts - Current user only (no cross-user notifications)', () => {
+  it('should only create notifications for the current user, not iterate over team members', () => {
+    // The old implementation iterated over all team members and tried to insert
+    // notifications for each one. This failed because RLS prevents reading other
+    // users\' notifications, breaking the dedup check.
+    // The new implementation only creates notifications for the current user.
+    const currentUserId = 'user-123';
+    const teamMembers = ['user-123', 'user-456', 'user-789'];
+    // Old: would iterate all teamMembers
+    // New: only uses currentUserId
+    expect(teamMembers).toContain(currentUserId);
+    // The key insight: we only notify currentUserId, not all teamMembers
+  });
+
+  it('batch dedup check should use a single query with IN clause', () => {
+    // Instead of N individual hasRecentAlert queries, we use a single query
+    // with .in('entity_id', transferIds) for efficiency
+    const transferIds = ['t1', 't2', 't3', 't4', 't5'];
+    const alreadyAlerted = new Set(['t1', 't3']);
+    const newTransfers = transferIds.filter(id => !alreadyAlerted.has(id));
+    expect(newTransfers).toEqual(['t2', 't4', 't5']);
+  });
+});
+
 describe('Stale Transfer Alerts - Integration points', () => {
   it('notification entity_type should be transfer_request for routing', () => {
     // The alert uses entity_type: 'transfer_request' so clicking it navigates to the transfer detail

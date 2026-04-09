@@ -2,18 +2,20 @@
  * useStaleTransferAlerts
  *
  * Detects transfer requests that have been in "pendiente" status for more than 48 hours
- * without any activity, and creates in-app notifications for the operations team.
+ * without any activity, and creates in-app notifications for the CURRENT user.
  *
  * Activity is determined by the `updated_at` timestamp on the transfer_request.
  * If updated_at is more than 48h ago and status is still 'pendiente', the request is stale.
  *
  * Deduplication: only one alert per transfer per user per 24h window.
- * Targets: owner, admin, manager roles.
+ * The check only creates notifications for the current user because RLS policies
+ * prevent reading other users' notifications, which would break dedup checks.
+ *
+ * Targets: owner, admin, manager roles (checked on the current user).
  */
 import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiInvoke } from '@/lib/apiClient';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ context: 'StaleTransferAlerts' });
@@ -23,6 +25,12 @@ export const STALE_THRESHOLD_HOURS = 48;
 
 /** Hours window for deduplication (don't re-alert for the same transfer) */
 export const DEDUP_WINDOW_HOURS = 24;
+
+/** Minimum interval between full check cycles (in milliseconds) - 30 minutes */
+const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+/** Roles that should receive stale transfer alerts */
+const ALERT_ROLES = ['owner', 'admin', 'manager'];
 
 export interface StaleTransfer {
   id: string;
@@ -36,7 +44,8 @@ export interface StaleTransfer {
 
 export function useStaleTransferAlerts() {
   const { profile } = useAuth();
-  const lastCheckRef = useRef<string | null>(null);
+  const lastCheckRef = useRef<number>(0); // timestamp of last check
+  const processingRef = useRef<boolean>(false); // prevent concurrent runs
 
   /**
    * Find transfer requests in "pendiente" status where updated_at is older than 48h.
@@ -76,145 +85,152 @@ export function useStaleTransferAlerts() {
   }, [profile?.organization_id]);
 
   /**
-   * Get all organization members who should receive stale transfer alerts.
-   * Targets: owner, admin, manager roles (operations team).
+   * Batch check which transfers already have recent alerts for the current user.
+   * Returns a Set of transfer IDs that already have alerts.
+   * Uses a single query instead of N queries for efficiency.
    */
-  const getOperationsTeamMembers = useCallback(async (orgId: string): Promise<string[]> => {
-    try {
-      const result = await apiInvoke<{ data: any[]; error: string | null }>('get-org-members', {
-        body: { p_organization_id: orgId },
-      });
-      if (result.error || !result.data?.data) {
-        log.error('Error fetching operations team:', result.error);
-        return [];
-      }
-      return result.data.data
-        .filter((m: any) => ['owner', 'admin', 'manager'].includes(m.role))
-        .map((m: any) => m.user_id);
-    } catch (err) {
-      log.error('Error fetching operations team:', err);
-      return [];
-    }
-  }, []);
-
-  /**
-   * Check if a similar notification was already sent recently for this transfer
-   * to avoid spamming the same alert every check cycle.
-   */
-  const hasRecentAlert = useCallback(async (
-    transferId: string,
+  const getAlreadyAlertedTransferIds = useCallback(async (
+    transferIds: string[],
     userId: string
-  ): Promise<boolean> => {
+  ): Promise<Set<string>> => {
+    if (transferIds.length === 0) return new Set();
+
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - DEDUP_WINDOW_HOURS);
 
     const { data, error } = await supabase
       .from('notifications')
-      .select('id')
-      .eq('entity_type', 'transfer_request')
-      .eq('entity_id', transferId)
+      .select('entity_id')
       .eq('user_id', userId)
       .eq('type', 'transfer_stale_alert')
-      .gte('created_at', cutoff.toISOString())
-      .limit(1);
+      .eq('entity_type', 'transfer_request')
+      .in('entity_id', transferIds)
+      .gte('created_at', cutoff.toISOString());
 
     if (error) {
-      log.error('Error checking recent alerts:', error);
-      return false; // Allow sending if we can't check
+      log.error('Error checking recent alerts:', error.message || error.code || JSON.stringify(error));
+      // Return empty set - will allow creating alerts (safe fallback)
+      return new Set();
     }
-    return (data?.length || 0) > 0;
+
+    return new Set((data || []).map(n => n.entity_id));
   }, []);
 
   /**
-   * Create a notification for a specific user about a stale transfer.
+   * Create notifications for the current user about stale transfers (batch insert).
    */
-  const createStaleAlert = useCallback(async (
-    transfer: StaleTransfer,
+  const createStaleAlerts = useCallback(async (
+    transfers: StaleTransfer[],
     userId: string,
     orgId: string
-  ): Promise<boolean> => {
-    const daysStale = Math.floor(transfer.hoursStale / 24);
-    const hoursRemainder = transfer.hoursStale % 24;
-    const timeLabel = daysStale > 0
-      ? `${daysStale}d ${hoursRemainder}h`
-      : `${transfer.hoursStale}h`;
+  ): Promise<number> => {
+    if (transfers.length === 0) return 0;
 
-    const title = `⏰ ${transfer.request_number} — Sin respuesta (${timeLabel})`;
-    const body = `La solicitud ${transfer.request_number} de ${transfer.broker_name} para ${transfer.client_name} lleva ${timeLabel} en estado "Pendiente" sin actividad. Requiere atención.`;
+    const notifications = transfers.map(transfer => {
+      const daysStale = Math.floor(transfer.hoursStale / 24);
+      const hoursRemainder = transfer.hoursStale % 24;
+      const timeLabel = daysStale > 0
+        ? `${daysStale}d ${hoursRemainder}h`
+        : `${transfer.hoursStale}h`;
+
+      const title = `⏰ ${transfer.request_number} — Sin respuesta (${timeLabel})`;
+      const body = `La solicitud ${transfer.request_number} de ${transfer.broker_name} para ${transfer.client_name} lleva ${timeLabel} en estado "Pendiente" sin actividad. Requiere atención.`;
+
+      return {
+        organization_id: orgId,
+        user_id: userId,
+        type: 'transfer_stale_alert' as const,
+        title,
+        body: body.substring(0, 500),
+        entity_type: 'transfer_request' as const,
+        entity_id: transfer.id,
+        is_read: false,
+      };
+    });
 
     const { error } = await supabase
       .from('notifications')
-      .insert({
-        organization_id: orgId,
-        user_id: userId,
-        type: 'transfer_stale_alert',
-        title,
-        body: body.substring(0, 500),
-        entity_type: 'transfer_request',
-        entity_id: transfer.id,
-        is_read: false,
-      });
+      .insert(notifications);
 
     if (error) {
-      log.error(`Error creating stale alert for ${transfer.request_number}: ${error.message || error.code || JSON.stringify(error)}`);
-      return false;
+      log.error(`Error creating stale alerts: ${error.message || error.code || JSON.stringify(error)}`);
+      return 0;
     }
-    return true;
+
+    return notifications.length;
   }, []);
 
   /**
-   * Main function: check for stale transfers and send alerts.
-   * Can be called periodically (e.g., after each Rently sync cycle).
+   * Main function: check for stale transfers and send alerts to the CURRENT user.
+   * Includes throttling to prevent running too frequently.
    *
    * Returns the number of alerts sent.
    */
   const checkAndAlert = useCallback(async (): Promise<number> => {
     const orgId = profile?.organization_id;
-    if (!orgId) {
-      log.warn('No organization ID, skipping stale transfer alerts');
+    const userId = profile?.id;
+    const userRole = profile?.role;
+
+    if (!orgId || !userId) {
       return 0;
     }
+
+    // Only alert users with operations roles
+    if (!userRole || !ALERT_ROLES.includes(userRole)) {
+      return 0;
+    }
+
+    // Throttle: don't run more than once every 30 minutes
+    const now = Date.now();
+    if (now - lastCheckRef.current < MIN_CHECK_INTERVAL_MS) {
+      return 0;
+    }
+
+    // Prevent concurrent runs
+    if (processingRef.current) {
+      return 0;
+    }
+
+    processingRef.current = true;
 
     try {
       // 1. Find stale transfers
       const staleTransfers = await findStaleTransfers();
       if (staleTransfers.length === 0) {
-        log.info('No stale transfers found');
+        lastCheckRef.current = now;
         return 0;
       }
 
       log.info(`Found ${staleTransfers.length} stale transfer(s) (>48h pendiente)`);
 
-      // 2. Get operations team members
-      const teamMembers = await getOperationsTeamMembers(orgId);
-      if (teamMembers.length === 0) {
-        log.warn('No operations team members found');
+      // 2. Batch check which ones already have recent alerts for this user
+      const alreadyAlerted = await getAlreadyAlertedTransferIds(
+        staleTransfers.map(t => t.id),
+        userId
+      );
+
+      // 3. Filter out already-alerted transfers
+      const newTransfers = staleTransfers.filter(t => !alreadyAlerted.has(t.id));
+
+      if (newTransfers.length === 0) {
+        log.info('All stale transfers already have recent alerts, skipping');
+        lastCheckRef.current = now;
         return 0;
       }
 
-      // 3. Send alerts (with deduplication)
-      let alertsSent = 0;
-      for (const transfer of staleTransfers) {
-        for (const userId of teamMembers) {
-          const alreadyAlerted = await hasRecentAlert(transfer.id, userId);
-          if (alreadyAlerted) {
-            log.info(`Skipping duplicate alert for ${transfer.request_number} to user ${userId}`);
-            continue;
-          }
+      // 4. Batch create alerts for the current user only
+      const alertsSent = await createStaleAlerts(newTransfers, userId, orgId);
 
-          const sent = await createStaleAlert(transfer, userId, orgId);
-          if (sent) alertsSent++;
-        }
-      }
-
-      log.info(`Sent ${alertsSent} stale transfer alert(s) to ${teamMembers.length} team member(s)`);
-      lastCheckRef.current = new Date().toISOString();
+      log.info(`Sent ${alertsSent} stale transfer alert(s) for current user`);
+      lastCheckRef.current = now;
       return alertsSent;
     } catch (err) {
       log.error('Error in stale transfer alert check:', err);
       return 0;
+    } finally {
+      processingRef.current = false;
     }
-  }, [profile?.organization_id, findStaleTransfers, getOperationsTeamMembers, hasRecentAlert, createStaleAlert]);
+  }, [profile?.organization_id, profile?.id, profile?.role, findStaleTransfers, getAlreadyAlertedTransferIds, createStaleAlerts]);
 
   return {
     checkAndAlert,
