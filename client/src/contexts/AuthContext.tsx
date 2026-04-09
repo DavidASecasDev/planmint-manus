@@ -154,8 +154,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileFetchInFlight = useRef<Promise<void> | null>(null);
   const lastFetchedUserId = useRef<string | null>(null);
 
-  // Throttle: prevent excessive session refreshes on tab switch
-  const lastVisibilityRefreshAt = useRef<number>(Date.now());
 
   const fetchProfileData = useCallback(async (userId: string, accessToken?: string): Promise<Profile | null> => {
     // Try backend first (bypasses RLS)
@@ -320,6 +318,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // CRITICAL FIX: The Supabase SDK (@supabase/auth-js) fires a SIGNED_IN event
+        // every time the browser tab becomes visible (via its own visibilitychange handler
+        // in _recoverAndRefresh). This is NOT a real sign-in — it's just the SDK
+        // re-notifying subscribers about the existing session.
+        // If we already have the same user loaded, skip the profile reload to prevent:
+        // 1. setProfileLoading(true) → ProtectedRoute shows full-screen spinner
+        // 2. All child components unmount → form state is destroyed
+        // 3. Profile reloads → components remount from scratch (user loses work)
+        if (event === 'SIGNED_IN' && hasLoadedInitialData && lastFetchedUserId.current === currentSession.user.id) {
+          console.log('[Auth] SIGNED_IN for same user (tab visibility recovery) — skipping profile reload');
+          return;
+        }
+
         // For INITIAL_SESSION and getSession: only load once (whichever fires first)
         if (event === 'INITIAL_SESSION' || event === '__GET_SESSION__') {
           if (hasLoadedInitialData) return;
@@ -359,39 +370,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       handleSession('__GET_SESSION__', existingSession);
     });
 
-    // Proactively refresh session when app returns from background.
-    // THROTTLED: Only refresh if the tab was hidden for at least 5 minutes.
-    // This prevents disruptive re-renders when quickly switching tabs,
-    // while still catching expired tokens after long periods in background.
-    const VISIBILITY_REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const elapsed = Date.now() - lastVisibilityRefreshAt.current;
-        if (elapsed < VISIBILITY_REFRESH_COOLDOWN_MS) {
-          console.log('[Auth] Tab returned — skipping refresh (last refresh', Math.round(elapsed / 1000), 's ago)');
-          return;
-        }
-        lastVisibilityRefreshAt.current = Date.now();
-        console.log('[Auth] Tab returned after', Math.round(elapsed / 1000), 's — refreshing session');
-        supabase.auth.refreshSession().then(({ data, error }) => {
-          if (error) {
-            console.warn('[Auth] Visibility refresh failed:', error.message);
-            // If refresh fails, the session is truly expired — sign out
-            if (error.message?.includes('Invalid Refresh Token') ||
-                error.message?.includes('Refresh Token Not Found') ||
-                error.message?.includes('already used')) {
-              console.error('[Auth] Refresh token invalid — signing out');
-              supabase.auth.signOut();
-            }
-          }
-        });
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // NOTE: We intentionally do NOT add our own visibilitychange handler here.
+    // The Supabase SDK (@supabase/auth-js) already has a built-in visibilitychange
+    // listener that calls _recoverAndRefresh() when the tab becomes visible.
+    // That handler checks if the token is expired and refreshes it if needed,
+    // then fires SIGNED_IN (which we now correctly skip for same-user recovery above).
+    // Adding our own refreshSession() call on top of the SDK's would cause:
+    // 1. Double token refresh requests
+    // 2. Additional auth state change events
+    // 3. Potential race conditions between the two refresh paths
 
     return () => {
       subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadUserData]);
 
