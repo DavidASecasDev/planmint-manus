@@ -229,19 +229,19 @@ export function ReservationsTable() {
     let handled = false;
     switch (e.key) {
       case 'ArrowDown':
-        viewport.scrollTop += SCROLL_STEP_Y;
+        viewport.scrollBy({ top: SCROLL_STEP_Y, behavior: 'smooth' });
         handled = true;
         break;
       case 'ArrowUp':
-        viewport.scrollTop -= SCROLL_STEP_Y;
+        viewport.scrollBy({ top: -SCROLL_STEP_Y, behavior: 'smooth' });
         handled = true;
         break;
       case 'ArrowRight':
-        viewport.scrollLeft += SCROLL_STEP_X;
+        viewport.scrollBy({ left: SCROLL_STEP_X, behavior: 'smooth' });
         handled = true;
         break;
       case 'ArrowLeft':
-        viewport.scrollLeft -= SCROLL_STEP_X;
+        viewport.scrollBy({ left: -SCROLL_STEP_X, behavior: 'smooth' });
         handled = true;
         break;
     }
