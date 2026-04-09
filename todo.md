@@ -380,3 +380,5 @@
 - [x] Reservas: Poblar confirmed_datetime con fecha/hora actual de entrega/devolución para reservas existentes (401/402 entrega, 400/402 devolución)
 - [x] Reservas: Actualizar sync Rently para setear confirmed_datetime solo en primera inserción, nunca sobreescribir
 - [x] Reservas: Añadir columna "Hora Confirmada" en la tabla UI después de Fecha/Hora, editable inline con EditableDateTimeCell
+- [x] Reservas: Indicador visual (icono/color) cuando Hora Confirmada difiere de Fecha/Hora original de Rently
+- [x] Reservas: Filtro por Hora Confirmada en la vista de operaciones para planificar logística del día

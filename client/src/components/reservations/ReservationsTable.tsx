@@ -3,7 +3,7 @@ import { format, isSameDay, parseISO, startOfDay, isAfter, isBefore, addDays } f
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye } from 'lucide-react';
+import { ArrowUpDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
@@ -37,6 +37,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface Column {
   key: string;
@@ -52,7 +58,7 @@ interface Column {
 const COLUMNS: Column[] = [
   { key: 'completado', label: '✓', width: 'w-10', type: 'checkbox', filterable: false },
   { key: 'fecha_hora', label: 'Fecha/Hora', width: 'w-36', sticky: false, type: 'datetime', filterable: true },
-  { key: 'hora_confirmada', label: 'Hora Confirmada', width: 'w-36', sticky: false, type: 'datetime', filterable: false },
+  { key: 'hora_confirmada', label: 'Hora Confirmada', width: 'w-36', sticky: false, type: 'datetime', filterable: true },
   { key: 'detail', label: '', width: 'w-8', type: 'detail', filterable: false },
   { key: 'tipo_actividad', label: 'Tipo Actividad', width: 'w-24', type: 'chip', fieldName: 'tipo_actividad', filterable: true },
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
@@ -116,6 +122,8 @@ export function ReservationsTable() {
     cf_cliente: '',
     cf_modelo: '',
     cf_auto: '',
+    confirmedDateFrom: '',
+    confirmedDateTo: '',
   });
   const search = urlFilters.search;
   const setSearch = (v: string) => setUrlFilters(prev => ({ ...prev, search: v }));
@@ -164,6 +172,31 @@ export function ReservationsTable() {
       dateFrom: range?.from ? format(range.from, 'yyyy-MM-dd') : '',
       dateTo: range?.to ? format(range.to, 'yyyy-MM-dd') : '',
     }));
+  };
+
+  // Derive confirmedDateRange from URL params
+  const confirmedDateRange = useMemo<DateRange | undefined>(() => {
+    if (!urlFilters.confirmedDateFrom) return undefined;
+    return {
+      from: parseISO(urlFilters.confirmedDateFrom),
+      to: urlFilters.confirmedDateTo ? parseISO(urlFilters.confirmedDateTo) : undefined,
+    };
+  }, [urlFilters.confirmedDateFrom, urlFilters.confirmedDateTo]);
+
+  const setConfirmedDateRange = (range: DateRange | undefined) => {
+    setUrlFilters(prev => ({
+      ...prev,
+      confirmedDateFrom: range?.from ? format(range.from, 'yyyy-MM-dd') : '',
+      confirmedDateTo: range?.to ? format(range.to, 'yyyy-MM-dd') : '',
+    }));
+  };
+
+  const setQuickConfirmedDateRange = (days: number) => {
+    const today = new Date();
+    setConfirmedDateRange({
+      from: today,
+      to: addDays(today, days - 1)
+    });
   };
 
   const [showFilters, setShowFilters] = useState(true);
@@ -302,6 +335,24 @@ export function ReservationsTable() {
       });
     }
 
+    // Confirmed date range filter
+    if (confirmedDateRange?.from) {
+      const fromDate = startOfDay(confirmedDateRange.from);
+      const toDate = confirmedDateRange.to ? startOfDay(confirmedDateRange.to) : fromDate;
+      
+      result = result.filter(row => {
+        if (!row.confirmedDatetime) return false;
+        const rowDate = startOfDay(parseISO(row.confirmedDatetime));
+        
+        if (!confirmedDateRange.to) {
+          return isSameDay(rowDate, fromDate);
+        }
+        
+        return (isSameDay(rowDate, fromDate) || isAfter(rowDate, fromDate)) && 
+               (isSameDay(rowDate, toDate) || isBefore(rowDate, toDate));
+      });
+    }
+
     // Search filter - note: email and telefono may be null for operational users
     if (search) {
       const searchLower = search.toLowerCase();
@@ -369,7 +420,7 @@ export function ReservationsTable() {
     });
 
     return result;
-  }, [operationRows, search, sortKey, sortDir, columnFilters, dateRange, showCancelled]);
+  }, [operationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled]);
 
   // Count cancelled reservations for info display
   const cancelledCount = useMemo(() => {
@@ -379,11 +430,11 @@ export function ReservationsTable() {
     }).length;
   }, [operationRows]);
 
-  const activeFiltersCount = Object.values(columnFilters).filter(Boolean).length + (dateRange?.from ? 1 : 0);
+  const activeFiltersCount = Object.values(columnFilters).filter(Boolean).length + (dateRange?.from ? 1 : 0) + (confirmedDateRange?.from ? 1 : 0);
 
   const clearAllFilters = () => {
     setUrlFilters(prev => {
-      const reset: Record<string, any> = { ...prev, search: '', dateFrom: '', dateTo: '' };
+      const reset: Record<string, any> = { ...prev, search: '', dateFrom: '', dateTo: '', confirmedDateFrom: '', confirmedDateTo: '' };
       const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'cliente', 'modelo', 'auto'];
       for (const k of cfKeys) reset[`cf_${k}`] = '';
       return reset as typeof prev;
@@ -849,6 +900,77 @@ export function ReservationsTable() {
                           )}
                         </PopoverContent>
                       </Popover>
+                    ) : col.key === 'hora_confirmada' && col.filterable ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "h-7 w-full justify-start text-left text-xs font-normal",
+                              !confirmedDateRange?.from && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-1 h-3 w-3" />
+                            {confirmedDateRange?.from ? (
+                              confirmedDateRange.to ? (
+                                `${format(confirmedDateRange.from, "dd/MM")} - ${format(confirmedDateRange.to, "dd/MM")}`
+                              ) : (
+                                format(confirmedDateRange.from, "dd/MM/yyyy")
+                              )
+                            ) : "Confirmada"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-2 border-b flex gap-1 flex-wrap">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-6"
+                              onClick={() => setConfirmedDateRange({ from: new Date(), to: undefined })}
+                            >
+                              Hoy
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-6"
+                              onClick={() => setQuickConfirmedDateRange(3)}
+                            >
+                              3 días
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-6"
+                              onClick={() => setQuickConfirmedDateRange(7)}
+                            >
+                              7 días
+                            </Button>
+                          </div>
+                          <Calendar
+                            mode="range"
+                            selected={confirmedDateRange}
+                            onSelect={setConfirmedDateRange}
+                            locale={es}
+                            numberOfMonths={1}
+                            className="pointer-events-auto"
+                          />
+                          {confirmedDateRange?.from && (
+                            <div className="p-2 border-t">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={() => setConfirmedDateRange(undefined)}
+                              >
+                                <X className="mr-1 h-3 w-3" />
+                                Limpiar fecha
+                              </Button>
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                     ) : col.filterable && (col.type === 'chip' || col.key === 'tipo_actividad') ? (
                       <Select
                         value={columnFilters[col.key] || ''}
@@ -960,16 +1082,39 @@ export function ReservationsTable() {
                               />
                             </div>
                           )}
-                          {col.type === 'datetime' && col.key === 'hora_confirmada' && (
-                            <div className={cn(
-                              row.isCompleted && "line-through text-muted-foreground"
-                            )}>
-                              <EditableDateTimeCell
-                                value={row.confirmedDatetime}
-                                onChange={(newValue) => handleConfirmedDateUpdate(row, newValue)}
-                              />
-                            </div>
-                          )}
+                          {col.type === 'datetime' && col.key === 'hora_confirmada' && (() => {
+                            // Comparar hora confirmada con fecha/hora original (solo hora:minuto)
+                            const confirmed = row.confirmedDatetime;
+                            const original = row.fechaHora;
+                            const isDifferent = confirmed && original && confirmed !== original;
+                            
+                            return (
+                              <div className={cn(
+                                "flex items-center gap-0.5",
+                                row.isCompleted && "line-through text-muted-foreground",
+                                isDifferent && "bg-amber-50 dark:bg-amber-950/30 rounded px-0.5 -mx-0.5"
+                              )}>
+                                <EditableDateTimeCell
+                                  value={confirmed}
+                                  onChange={(newValue) => handleConfirmedDateUpdate(row, newValue)}
+                                  className={cn(isDifferent && "font-semibold text-amber-700 dark:text-amber-400")}
+                                />
+                                {isDifferent && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs max-w-[200px]">
+                                        <p>Hora ajustada manualmente.</p>
+                                        <p className="text-muted-foreground">Original Rently: {original ? format(parseISO(original), 'dd/MM/yyyy HH:mm') : '—'}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {col.type === 'chip' && col.fieldName && (
                             col.key === 'tipo_actividad' ? (
                               <Badge 
