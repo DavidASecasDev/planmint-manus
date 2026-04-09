@@ -258,25 +258,25 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         await syncVehiclesAfterReservations();
       }
 
-      // Check for unprepared vehicles with imminent reservations and send alerts
-      try {
-        const alertsSent = await checkAndAlertVehiclePrep();
-        if (alertsSent > 0) {
-          console.log(`[AutoSync] Sent ${alertsSent} vehicle prep alert(s)`);
-        }
-      } catch (alertErr) {
-        console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
-      }
-
-      // Check for stale transfer requests (>48h pendiente) and send alerts
-      try {
-        const staleAlertsSent = await checkAndAlertStaleTransfers();
-        if (staleAlertsSent > 0) {
-          console.log(`[AutoSync] Sent ${staleAlertsSent} stale transfer alert(s)`);
-        }
-      } catch (staleErr) {
-        console.warn('[AutoSync] Stale transfer alert check failed:', staleErr);
-      }
+      // DISABLED: Vehicle prep and stale transfer alert notifications
+      // These were causing massive notification spam due to RLS preventing proper dedup.
+      // The hooks have been rewritten with localStorage throttle + 7-day dedup window,
+      // but we keep them disabled until thoroughly tested in production.
+      // To re-enable: uncomment the blocks below.
+      //
+      // try {
+      //   const alertsSent = await checkAndAlertVehiclePrep();
+      //   if (alertsSent > 0) console.log(`[AutoSync] Sent ${alertsSent} vehicle prep alert(s)`);
+      // } catch (alertErr) {
+      //   console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
+      // }
+      //
+      // try {
+      //   const staleAlertsSent = await checkAndAlertStaleTransfers();
+      //   if (staleAlertsSent > 0) console.log(`[AutoSync] Sent ${staleAlertsSent} stale transfer alert(s)`);
+      // } catch (staleErr) {
+      //   console.warn('[AutoSync] Stale transfer alert check failed:', staleErr);
+      // }
 
       return finalResult;
     } catch (err) {
