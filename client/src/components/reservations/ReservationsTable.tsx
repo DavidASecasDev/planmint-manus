@@ -515,11 +515,13 @@ export function ReservationsTable() {
   }, [filteredAndSorted, sortKey]);
 
   const handleSort = (key: string) => {
+    // IMPORTANT: Must update sortKey and sortDir in a SINGLE setUrlFilters call.
+    // Calling setSortKey and setSortDir separately causes a race condition where
+    // the second call reads stale URL params and overwrites the first change.
     if (sortKey === key) {
-      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+      setUrlFilters(prev => ({ ...prev, sortDir: sortDir === 'asc' ? 'desc' : 'asc' }));
     } else {
-      setSortKey(key);
-      setSortDir('asc');
+      setUrlFilters(prev => ({ ...prev, sortKey: key, sortDir: 'asc' }));
     }
   };
 
