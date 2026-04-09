@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Wrench, Loader2, ShieldAlert } from 'lucide-react';
-import { useVehicles } from '@/hooks/useVehicles';
+import { VehicleSelect } from '@/components/garatech/VehicleSelect';
 import { useWorkshops } from '@/hooks/useWorkshops';
 import { useRepairs } from '@/hooks/useRepairs';
 import { REPAIR_TYPE_LABELS, type RepairFormData, type RepairType } from '@/types/garatech';
@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 
 export default function RepairNew() {
   const navigate = useNavigate();
-  const { vehicles } = useVehicles();
+
   const { activeWorkshops } = useWorkshops();
   const { createRepair, canManage, permissionsLoading } = useRepairs();
 
@@ -85,14 +85,10 @@ export default function RepairNew() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Vehículo</Label>
-                  <Select value={form.vehicle_id || ''} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                    <SelectContent>
-                      {vehicles.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>{v.matricula} - {v.modelo}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <VehicleSelect
+                    value={form.vehicle_id || ''}
+                    onValueChange={(v) => setForm({ ...form, vehicle_id: v })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Taller</Label>

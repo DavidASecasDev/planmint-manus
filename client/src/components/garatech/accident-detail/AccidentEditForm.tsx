@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useVehicles } from '@/hooks/useVehicles';
+import { VehicleSelect } from '@/components/garatech/VehicleSelect';
 import { useAccidents } from '@/hooks/useAccidents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ interface Props {
 }
 
 export function AccidentEditForm({ accident, onSave, onCancel }: Props) {
-  const { vehicles } = useVehicles();
+
   const { updateAccident } = useAccidents();
   const { profile } = useAuth();
   const orgId = profile?.organization_id;
@@ -97,14 +97,10 @@ export function AccidentEditForm({ accident, onSave, onCancel }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Vehículo</Label>
-                <Select value={form.vehicle_id} onValueChange={(v) => set({ vehicle_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                  <SelectContent>
-                    {vehicles.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.matricula} - {v.modelo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <VehicleSelect
+                  value={form.vehicle_id || ''}
+                  onValueChange={(v) => set({ vehicle_id: v })}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Fecha y hora *</Label>

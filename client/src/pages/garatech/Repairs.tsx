@@ -17,7 +17,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useRepairs } from '@/hooks/useRepairs';
 import { useWorkshops } from '@/hooks/useWorkshops';
-import { useVehicles } from '@/hooks/useVehicles';
+import { useAllVehiclesForSelect } from '@/hooks/useAllVehiclesForSelect';
 import { RepairKanbanBoard } from '@/components/garatech/RepairKanbanBoard';
 import { REPAIR_STATUS_LABELS, REPAIR_STATUS_COLORS, REPAIR_TYPE_LABELS, type Repair, type RepairStatus, type RepairType } from '@/types/garatech';
 
@@ -31,7 +31,7 @@ export default function GaratechRepairs() {
   const navigate = useNavigate();
   const { repairs, isLoading, updateRepair, deleteRepair, canView, canManage, permissionsLoading } = useRepairs();
   const { workshops } = useWorkshops();
-  const { vehicles } = useVehicles();
+  const { vehicles } = useAllVehiclesForSelect();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [filters, setFilters] = usePersistedFilters<Filters>({
     type: 'all',
@@ -158,7 +158,9 @@ export default function GaratechRepairs() {
                 <SelectContent>
                   <SelectItem value="all">Todos los vehículos</SelectItem>
                   {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>{vehicle.matricula}</SelectItem>
+                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.matricula}{vehicle.is_archived ? ' (archivado)' : ''}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
-import { useVehicles } from '@/hooks/useVehicles';
+import { VehicleSelect } from '@/components/garatech/VehicleSelect';
 import { useAccidents } from '@/hooks/useAccidents';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
@@ -53,7 +53,7 @@ const emptyForm: AccidentFormData = {
 };
 
 export function AccidentFormDialog({ open, onOpenChange, accident }: AccidentFormDialogProps) {
-  const { vehicles } = useVehicles();
+
   const { createAccident, updateAccident } = useAccidents();
   const { profile } = useAuth();
   const isEditing = !!accident;
@@ -142,12 +142,10 @@ export function AccidentFormDialog({ open, onOpenChange, accident }: AccidentFor
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Vehículo</Label>
-                <Select value={form.vehicle_id} onValueChange={(v) => set({ vehicle_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                  <SelectContent>
-                    {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.matricula} - {v.modelo}</SelectItem>))}
-                  </SelectContent>
-                </Select>
+                <VehicleSelect
+                  value={form.vehicle_id || ''}
+                  onValueChange={(v) => set({ vehicle_id: v })}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Fecha y hora *</Label>

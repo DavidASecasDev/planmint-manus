@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useVehicles } from '@/hooks/useVehicles';
+import { VehicleSelect } from '@/components/garatech/VehicleSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { DamageReport } from '@/types/garatech';
@@ -18,7 +17,6 @@ interface DamageReportEditFormProps {
 }
 
 export function DamageReportEditForm({ report, onSave, onCancel }: DamageReportEditFormProps) {
-  const { vehicles } = useVehicles();
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
@@ -63,14 +61,10 @@ export function DamageReportEditForm({ report, onSave, onCancel }: DamageReportE
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Vehículo *</Label>
-              <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                <SelectContent>
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>{v.matricula} - {v.modelo}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <VehicleSelect
+                value={form.vehicle_id}
+                onValueChange={(v) => setForm({ ...form, vehicle_id: v })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Fecha del daño *</Label>
