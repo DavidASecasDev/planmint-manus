@@ -513,6 +513,74 @@ async function syncVehicleStatuses(
       }
     }
 
+    // 3. Detect orphaned vehicles: still marked 'alquilado' but the linked reservation's
+    //    'auto' field no longer matches their matricula (vehicle swap in Rently).
+    //    This handles the case where a reservation changed its vehicle (e.g., 5078LVJ → 4005NLH)
+    //    but the old vehicle still shows as 'alquilado' because the reservation is still 'En curso'.
+    const { data: allRentedVehicles, error: allRentedErr } = await serviceClient
+      .from("vehicles")
+      .select("id, matricula, current_reservation_id")
+      .eq("organization_id", organizationId)
+      .eq("status", "alquilado")
+      .eq("is_archived", false)
+      .not("current_reservation_id", "is", null);
+
+    if (!allRentedErr && allRentedVehicles && allRentedVehicles.length > 0) {
+      const allResIds = allRentedVehicles.map(v => v.current_reservation_id).filter(Boolean) as string[];
+      const { data: linkedReservations } = await serviceClient
+        .from("reservations")
+        .select("id, auto, estado")
+        .in("id", allResIds);
+
+      const linkedResMap = new Map<string, { auto: string | null; estado: string | null }>();
+      if (linkedReservations) {
+        linkedReservations.forEach(r => linkedResMap.set(r.id, { auto: r.auto, estado: r.estado }));
+      }
+
+      for (const vehicle of allRentedVehicles) {
+        const linkedRes = linkedResMap.get(vehicle.current_reservation_id!);
+        if (!linkedRes) continue; // reservation not found, skip (handled by step 1 if needed)
+
+        // If the reservation's auto no longer matches this vehicle's matricula,
+        // the vehicle was swapped out → release it
+        if (linkedRes.auto && linkedRes.auto !== vehicle.matricula) {
+          try {
+            // Reset cleaning tasks
+            await serviceClient
+              .from("vehicle_cleaning_tasks")
+              .update({
+                completed: false,
+                completed_at: null,
+                completed_by: null,
+              })
+              .eq("vehicle_id", vehicle.id);
+
+            const { error: updateErr } = await serviceClient
+              .from("vehicles")
+              .update({
+                status: "sucio",
+                current_reservation_id: null,
+                last_status_change: new Date().toISOString(),
+                cleaned_by: null,
+                cleaned_at: null,
+              })
+              .eq("id", vehicle.id);
+
+            if (updateErr) {
+              console.error(`[sync-vehicles] Error releasing swapped vehicle ${vehicle.matricula}:`, updateErr);
+              errors++;
+            } else {
+              console.log(`[sync-vehicles] Released swapped vehicle ${vehicle.matricula} (reservation auto changed to ${linkedRes.auto})`);
+              released++;
+            }
+          } catch (err) {
+            console.error(`[sync-vehicles] Exception releasing swapped vehicle ${vehicle.matricula}:`, err);
+            errors++;
+          }
+        }
+      }
+    }
+
     console.log(`[sync-vehicles] Done: ${released} released, ${rented} rented, ${errors} errors`);
   } catch (err) {
     console.error("[sync-vehicles] Unexpected error:", err);
