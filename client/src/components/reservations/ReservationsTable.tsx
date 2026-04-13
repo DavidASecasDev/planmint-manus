@@ -105,12 +105,13 @@ export function ReservationsTable() {
     isFullAccess,
   } = useReservations();
   const { reservationsArchiveDays } = useIntegrationFlags();
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const [urlFilters, setUrlFilters] = usePersistedFilters({
     search: '',
     sortKey: 'hora_confirmada',
     sortDir: 'asc' as string,
     showCancelled: false,
-    dateFrom: '',
+    dateFrom: todayStr,
     dateTo: '',
     cf_tipo_actividad: '',
     cf_estado: '',
