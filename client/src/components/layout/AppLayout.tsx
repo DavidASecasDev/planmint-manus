@@ -16,9 +16,10 @@ import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 interface AppLayoutProps {
   children: ReactNode;
   title: string;
+  fullWidth?: boolean;
 }
 
-export function AppLayout({ children, title }: AppLayoutProps) {
+export function AppLayout({ children, title, fullWidth = false }: AppLayoutProps) {
   const { conflicts, resolveConflict } = useSyncEngine();
   const [currentConflict, setCurrentConflict] = useState<ConflictInfo | null>(null);
   
@@ -45,7 +46,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           <OfflineBanner />
           <AppHeader title={title} />
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-            <div className="mx-auto max-w-7xl animate-in h-full">
+            <div className={`animate-in h-full ${fullWidth ? '' : 'mx-auto max-w-7xl'}`}>
               {children}
             </div>
           </main>

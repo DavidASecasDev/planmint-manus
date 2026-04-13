@@ -17,7 +17,7 @@ export default function Reservations() {
   };
 
   return (
-    <AppLayout title="Reservas">
+    <AppLayout title="Reservas" fullWidth>
       <div className="flex flex-col h-full">
         <div className="shrink-0">
           <PageHeader
