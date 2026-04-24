@@ -32,6 +32,7 @@ import { PHOTO_CATEGORIES, PHOTO_CATEGORY_GROUPS } from '@/types/fleet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { PhotoCaptureDialog } from '@/components/fleet/PhotoCaptureDialog';
 
 const FUEL_LEVELS = [
   { value: 'vacio', label: 'Vacío', short: 'E', color: 'bg-red-600 text-white', inactiveColor: 'bg-red-600/10 text-red-600 border-red-600/30' },
@@ -108,6 +109,7 @@ export default function FleetInspectionEdit() {
   const [isDragging, setIsDragging] = useState(false);
   const [replaceTarget, setReplaceTarget] = useState<{ photoId: string; storagePath: string } | null>(null);
   const [categoryUploadTarget, setCategoryUploadTarget] = useState<PhotoCategory | null>(null);
+  const [showCaptureDialog, setShowCaptureDialog] = useState<{ category: string; source: 'top' | 'category' | 'missing' } | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const multiPhotoInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -416,24 +418,12 @@ export default function FleetInspectionEdit() {
                   variant="outline"
                   size="sm"
                   className="rounded-xl text-xs gap-1"
-                  onClick={() => photoInputRef.current?.click()}
+                  onClick={() => setShowCaptureDialog({ category: addPhotoCategory, source: 'top' })}
                   disabled={isUploading}
                 >
                   {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                   Añadir
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl text-xs gap-1"
-                  onClick={() => multiPhotoInputRef.current?.click()}
-                  disabled={isUploading}
-                >
-                  <Images className="h-3 w-3" />
-                  Varias
-                </Button>
-                <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAddPhoto} />
-                <input ref={multiPhotoInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleMultiPhotoUpload} />
               </div>
             </div>
 
@@ -461,10 +451,7 @@ export default function FleetInspectionEdit() {
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 pb-1 border-b border-border/30 flex-1">{cat.label}</h4>
                       <button
-                        onClick={() => {
-                          setCategoryUploadTarget(cat.key);
-                          setTimeout(() => categoryUploadRef.current?.click(), 50);
-                        }}
+                        onClick={() => setShowCaptureDialog({ category: cat.key, source: 'category' })}
                         className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
                       >
                         <Plus className="h-3 w-3" />
@@ -559,7 +546,7 @@ export default function FleetInspectionEdit() {
                     variant="outline"
                     size="sm"
                     className="rounded-xl text-xs gap-1"
-                    onClick={() => photoInputRef.current?.click()}
+                    onClick={() => setShowCaptureDialog({ category: addPhotoCategory, source: 'top' })}
                   >
                     <Plus className="h-3 w-3" />
                     Añadir primera foto
@@ -589,10 +576,7 @@ export default function FleetInspectionEdit() {
                       return (
                         <button
                           key={catKey}
-                          onClick={() => {
-                            setCategoryUploadTarget(catKey as PhotoCategory);
-                            setTimeout(() => categoryUploadRef.current?.click(), 50);
-                          }}
+                          onClick={() => setShowCaptureDialog({ category: catKey, source: 'missing' })}
                           disabled={isUploading}
                           className="flex items-center gap-2 rounded-xl border border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 p-3 transition-all group"
                         >
@@ -745,9 +729,50 @@ export default function FleetInspectionEdit() {
         </motion.div>
       </div>
 
-      {/* Hidden inputs for replace and category upload */}
+      {/* Hidden inputs for replace */}
       <input ref={replaceInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReplacePhoto} />
-      <input ref={categoryUploadRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleCategoryUpload} />
+
+      {/* Photo Capture Dialog */}
+      <AnimatePresence>
+        {showCaptureDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={() => setShowCaptureDialog(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              className="bg-background rounded-2xl p-4 w-full max-w-sm shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <PhotoCaptureDialog
+                label={`Foto: ${PHOTO_CATEGORIES.find(c => c.key === showCaptureDialog.category)?.label || showCaptureDialog.category}`}
+                multiple={true}
+                onConfirm={async (files) => {
+                  const cat = showCaptureDialog.category as PhotoCategory;
+                  setShowCaptureDialog(null);
+                  if (!inspId || !id) return;
+                  if (files.length === 1) {
+                    await addPhoto.mutateAsync({ inspectionId: inspId, vehicleId: id, file: files[0].file, category: cat });
+                  } else if (files.length > 1) {
+                    await addMultiplePhotos.mutateAsync({
+                      inspectionId: inspId,
+                      vehicleId: id,
+                      files: files.map(f => f.file),
+                      category: cat,
+                    });
+                  }
+                }}
+                onClose={() => setShowCaptureDialog(null)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lightbox */}
       <AnimatePresence>

@@ -19,6 +19,7 @@ import {
   type InspectionDraftMeta,
 } from '@/lib/inspectionDraftStorage';
 import { DamageCamera } from '@/components/fleet/DamageCamera';
+import { PhotoCaptureDialog } from '@/components/fleet/PhotoCaptureDialog';
 
 interface PendingPhoto {
   file: File;
@@ -86,6 +87,7 @@ export default function FleetInspectionNew() {
   });
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [activeDamageCamera, setActiveDamageCamera] = useState<number | null>(null);
+  const [activePhotoCategory, setActivePhotoCategory] = useState<PhotoCategory | null>(null);
   const [damages, setDamages] = useState<PendingDamage[]>(
     savedMeta?.damages?.map((d) => ({
       zona: d.zona,
@@ -445,57 +447,71 @@ export default function FleetInspectionNew() {
                   </span>
                 </div>
 
-                {PHOTO_CATEGORY_GROUPS.map(group => (
-                  <div key={group.group} className="space-y-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">{group.group}</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {group.items.map(cat => {
-                        const catPhotos = photos.filter(p => p.category === cat.key);
-                        const hasPhoto = catPhotos.length > 0;
-                        const isRequired = REQUIRED_PHOTO_CATS.includes(cat.key);
-                        return (
-                          <button
-                            key={cat.key}
-                            type="button"
-                            onClick={() => {
-                              persistBeforeCamera();
-                              fileInputRefs.current[cat.key]?.click();
-                            }}
-                            className={`relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all active:scale-95 ${
-                              hasPhoto
-                                ? 'bg-primary/5 border-primary/30'
-                                : 'bg-card border-border/50 hover:border-primary/30'
-                            }`}
-                          >
-                            {hasPhoto ? (
-                              <CheckCircle2 className="h-5 w-5 text-primary" />
-                            ) : (
-                              <Camera className="h-5 w-5 text-muted-foreground" />
-                            )}
-                            <span className="text-[11px] font-medium text-foreground leading-tight text-center">{cat.label}</span>
-                            {isRequired && !hasPhoto && (
-                              <span className="text-[9px] text-muted-foreground/70">requerida</span>
-                            )}
-                            {catPhotos.length > 0 && (
-                              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
-                                {catPhotos.length}
-                              </span>
-                            )}
-                            <input
-                              ref={el => { fileInputRefs.current[cat.key] = el; }}
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
-                              multiple
-                              className="hidden"
-                              onChange={handleFileSelect(cat.key)}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
+                {activePhotoCategory ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-foreground px-1">
+                      {PHOTO_CATEGORIES.find(c => c.key === activePhotoCategory)?.label}
+                    </h4>
+                    <PhotoCaptureDialog
+                      label={`Foto: ${PHOTO_CATEGORIES.find(c => c.key === activePhotoCategory)?.label}`}
+                      onConfirm={(files) => {
+                        const newPhotos: PendingPhoto[] = files.map(f => ({
+                          file: f.file,
+                          category: activePhotoCategory,
+                          description: '',
+                          preview: f.preview,
+                        }));
+                        setPhotos(prev => [...prev, ...newPhotos]);
+                        setActivePhotoCategory(null);
+                      }}
+                      onClose={() => setActivePhotoCategory(null)}
+                      multiple={true}
+                    />
                   </div>
-                ))}
+                ) : (
+                  PHOTO_CATEGORY_GROUPS.map(group => (
+                    <div key={group.group} className="space-y-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">{group.group}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {group.items.map(cat => {
+                          const catPhotos = photos.filter(p => p.category === cat.key);
+                          const hasPhoto = catPhotos.length > 0;
+                          const isRequired = REQUIRED_PHOTO_CATS.includes(cat.key);
+                          return (
+                            <button
+                              key={cat.key}
+                              type="button"
+                              onClick={() => {
+                                persistBeforeCamera();
+                                setActivePhotoCategory(cat.key);
+                              }}
+                              className={`relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all active:scale-95 ${
+                                hasPhoto
+                                  ? 'bg-primary/5 border-primary/30'
+                                  : 'bg-card border-border/50 hover:border-primary/30'
+                              }`}
+                            >
+                              {hasPhoto ? (
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                              ) : (
+                                <Camera className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              <span className="text-[11px] font-medium text-foreground leading-tight text-center">{cat.label}</span>
+                              {isRequired && !hasPhoto && (
+                                <span className="text-[9px] text-muted-foreground/70">requerida</span>
+                              )}
+                              {catPhotos.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                                  {catPhotos.length}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
 
                 {photos.length > 0 && (
                   <div className="space-y-2">

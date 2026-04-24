@@ -399,3 +399,6 @@
 - [x] Feature: Reservas debe mostrar por defecto las reservas del día en curso al cargar la página - cambiado default de dateFrom a today en usePersistedFilters, se respetan filtros guardados en sesión si existen
 - [x] Feature: Reservas debe aprovechar todo el ancho de la pantalla para mostrar el máximo de columnas posible - añadida prop fullWidth a AppLayout, activada en Reservas para eliminar max-w-7xl
 - [x] Bug: En inspección de flota, al pulsar en una zona del coche para hacer foto, se abre la galería en lugar de la cámara - fix: añadido capture="environment" a todos los inputs de foto en FleetInspectionNew, FleetInspectionEdit y FleetInspectionDetail (13 inputs en total)
+- [x] Feature: Botón alternativo "Galería" junto al de cámara en inspecciones de flota - implementado PhotoCaptureDialog con botones Cámara/Galería separados en FleetInspectionNew, FleetInspectionEdit y FleetInspectionDetail
+- [x] Feature: Compresión automática de fotos antes de subir (reducir 3-5MB a ~500KB) - ya existía en useFleetInspections.ts, verificado que se aplica en todas las mutaciones
+- [x] Feature: Vista previa instantánea de foto con opción de repetir antes de confirmar subida - implementado en PhotoCaptureDialog con preview, botón Repetir y Usar foto, soporte múltiple
