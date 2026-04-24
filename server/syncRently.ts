@@ -41,11 +41,21 @@ interface RentlyBookingDetail extends RentlyBooking {
   PrepaidAmount?: number;
   PayedByAgency?: number;
   PayedByCustomer?: number;
-  Currency?: { Code?: string; Name?: string };
-  SalesCommission?: number;
+  // Currency is a top-level string (e.g. "EUR"), NOT an object
+  Currency?: string;
+  // Note: API typo — single 's' in "SalesCommision"
+  SalesCommision?: number;
   IsTransfer?: boolean;
   IsQuotation?: boolean;
   Version?: string;
+  // Rate fields are at the top level, not nested in a Rate object
+  DailyRate?: number;
+  HourlyRate?: number;
+  ExtraDayRate?: number;
+  ExtraHourRate?: number;
+  IlimitedKm?: boolean;
+  MaxAllowedDistance?: number;
+  MaxAllowedDistanceByDay?: number;
   Car?: {
     Id?: number;
     Plate?: string;
@@ -56,15 +66,6 @@ interface RentlyBookingDetail extends RentlyBooking {
     ChassisId?: string;
     FuelType?: { Name?: string };
     Model?: { Name?: string; Category?: { Name?: string } };
-  };
-  Rate?: {
-    DailyPrice?: number;
-    HourlyPrice?: number;
-    ExtraDayPrice?: number;
-    ExtraHourPrice?: number;
-    UnlimitedKm?: boolean;
-    MaxAllowedDistance?: number;
-    MaxAllowedDistancePerDay?: number;
   };
   DeliveryPlace?: { Name?: string; Address?: string; City?: string };
   ReturnPlace?: { Name?: string; Address?: string; City?: string };
@@ -86,8 +87,27 @@ interface RentlyBookingDetail extends RentlyBooking {
     DriverLicenseExpiration?: string;
     Notes?: string;
   };
-  PriceItems?: Array<{ Description?: string; Amount?: number; Quantity?: number }>;
-  Additionals?: Array<{ Name?: string; Price?: number; Quantity?: number }>;
+  PriceItems?: Array<{
+    Description?: string;
+    Price?: number;
+    UnitPrice?: number;
+    Quantity?: number;
+    Type?: number;
+    TypeId?: number;
+    IsBookingPrice?: boolean;
+    TariffName?: string | null;
+  }>;
+  Additionals?: Array<{
+    Additional?: {
+      Name?: string;
+      Description?: string;
+      Price?: number;
+      IsPriceByDay?: boolean;
+      Type?: string;
+      Id?: number;
+    };
+    Quantity?: number;
+  }>;
 }
 
 interface RentlyBookingsResponse {
@@ -319,7 +339,6 @@ function enrichReservationWithDetail(
   drivers: Array<{ Name?: string; Document?: string; License?: string }>
 ): Record<string, unknown> {
   const car = detail.Car || {};
-  const rate = detail.Rate || {};
   const customer = detail.Customer || {};
   const deliveryPlace = detail.DeliveryPlace || {};
   const returnPlace = detail.ReturnPlace || {};
@@ -331,21 +350,22 @@ function enrichReservationWithDetail(
     prepago: detail.PrepaidAmount ?? null,
     pagado_por_agencia: detail.PayedByAgency ?? null,
     pagado_por_cliente: detail.PayedByCustomer ?? null,
-    moneda: detail.Currency?.Code || null,
-    comision_ventas: detail.SalesCommission ?? null,
+    moneda: detail.Currency || null, // Currency is a top-level string (e.g. "EUR")
+    comision_ventas: detail.SalesCommision ?? null, // API typo: single 's'
     vehiculo_kms: car.Kms ?? null,
     vehiculo_combustible: car.FuelLevel ?? null,
     vehiculo_color: car.Color || null,
     vehiculo_anio: car.Year ?? null,
     vehiculo_chasis: car.ChassisId || null,
     vehiculo_tipo_combustible: car.FuelType?.Name || null,
-    tarifa_diaria: rate.DailyPrice ?? null,
-    tarifa_hora: rate.HourlyPrice ?? null,
-    tarifa_dia_extra: rate.ExtraDayPrice ?? null,
-    tarifa_hora_extra: rate.ExtraHourPrice ?? null,
-    km_ilimitados: rate.UnlimitedKm ?? null,
-    km_max_permitidos: rate.MaxAllowedDistance ?? null,
-    km_max_por_dia: rate.MaxAllowedDistancePerDay ?? null,
+    // Rate fields are at the top level of the detail, not nested
+    tarifa_diaria: detail.DailyRate ?? null,
+    tarifa_hora: detail.HourlyRate ?? null,
+    tarifa_dia_extra: detail.ExtraDayRate ?? null,
+    tarifa_hora_extra: detail.ExtraHourRate ?? null,
+    km_ilimitados: detail.IlimitedKm ?? null,
+    km_max_permitidos: detail.MaxAllowedDistance ?? null,
+    km_max_por_dia: detail.MaxAllowedDistanceByDay ?? null,
     rently_status_code: detail.CurrentStatus,
     rently_status_date: new Date().toISOString(),
     es_transferencia: detail.IsTransfer ?? false,
@@ -367,11 +387,17 @@ function enrichReservationWithDetail(
     cliente_notas: customer.Notes || null,
     extras_contratados:
       detail.Additionals && detail.Additionals.length > 0
-        ? JSON.stringify(detail.Additionals.map((a) => ({ nombre: a.Name, precio: a.Price, cantidad: a.Quantity })))
+        ? JSON.stringify(detail.Additionals.map((a) => ({
+            nombre: a.Additional?.Name || null,
+            precio: a.Additional?.Price ?? null,
+            cantidad: a.Quantity ?? 1,
+            tipo: a.Additional?.Type || null,
+            por_dia: a.Additional?.IsPriceByDay ?? false,
+          })))
         : null,
     desglose_precios:
       detail.PriceItems && detail.PriceItems.length > 0
-        ? JSON.stringify(detail.PriceItems.map((p) => ({ descripcion: p.Description, importe: p.Amount, cantidad: p.Quantity })))
+        ? JSON.stringify(detail.PriceItems.map((p) => ({ descripcion: p.Description, importe: p.Price, precio_unitario: p.UnitPrice, cantidad: p.Quantity, tipo: p.Type })))
         : null,
     conductores_adicionales:
       drivers.length > 0

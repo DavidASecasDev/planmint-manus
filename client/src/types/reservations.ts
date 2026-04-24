@@ -1,8 +1,10 @@
 // Tipos para datos JSONB de Rently
 export interface RentlyExtra {
-  nombre?: string;
+  nombre?: string | null;
   precio?: number | null;
   cantidad?: number | null;
+  tipo?: string | null;       // Insurance, Equipment, etc.
+  por_dia?: boolean;          // true if price is per day
   // Legacy English field names (in case of older data)
   name?: string;
   price?: number | null;
@@ -13,7 +15,9 @@ export interface RentlyExtra {
 export interface RentlyPriceItem {
   descripcion?: string;
   importe?: number | null;
+  precio_unitario?: number | null;
   cantidad?: number | null;
+  tipo?: number | null;
   // Legacy English field names
   description?: string;
   amount?: number | null;

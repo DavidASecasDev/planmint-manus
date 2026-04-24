@@ -534,14 +534,27 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                           </tr>
                         </thead>
                         <tbody>
-                          {parsedExtras.map((extra, i) => (
-                            <tr key={i} className="border-b border-border/50 last:border-0">
-                              <td className="px-3 py-2 text-sm">{extra.nombre || extra.name || '—'}</td>
-                              <td className="px-3 py-2 text-sm text-center">{extra.cantidad ?? extra.quantity ?? 1}</td>
-                              <td className="px-3 py-2 text-sm text-right">{formatCurrency(extra.precio ?? extra.price ?? null, r.moneda)}</td>
-                              <td className="px-3 py-2 text-sm text-right font-medium">{formatCurrency(extra.total ?? null, r.moneda)}</td>
-                            </tr>
-                          ))}
+                          {parsedExtras.map((extra, i) => {
+                            const precio = extra.precio ?? extra.price ?? null;
+                            const cantidad = extra.cantidad ?? extra.quantity ?? 1;
+                            const total = extra.total ?? (precio != null ? precio * cantidad : null);
+                            return (
+                              <tr key={i} className="border-b border-border/50 last:border-0">
+                                <td className="px-3 py-2 text-sm">
+                                  <div>{extra.nombre || extra.name || '—'}</div>
+                                  {extra.por_dia && (
+                                    <span className="text-[10px] text-muted-foreground">por día</span>
+                                  )}
+                                  {extra.tipo && (
+                                    <span className="text-[10px] text-muted-foreground ml-1">({extra.tipo})</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-center">{cantidad}</td>
+                                <td className="px-3 py-2 text-sm text-right">{formatCurrency(precio, r.moneda)}</td>
+                                <td className="px-3 py-2 text-sm text-right font-medium">{formatCurrency(total, r.moneda)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

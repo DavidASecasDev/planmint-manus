@@ -50,6 +50,8 @@ export interface OperationalStats {
     lugar_entrega: string | null;
     lugar_devolucion: string | null;
     estado: string | null;
+    confirmed_entrega_datetime: string | null;
+    confirmed_devolucion_datetime: string | null;
     type: 'checkin' | 'checkout';
   }>;
   // Vehicles needing preparation (dynamic, crossed with reservations)
@@ -140,7 +142,7 @@ export function useOperationalDashboard() {
         // Today's check-ins detail
         supabase
           .from('reservations')
-          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado')
+          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime')
           .eq('organization_id', orgId)
           .is('archived_at', null)
           .gte('desde', `${todayStr}T00:00:00`)
@@ -151,7 +153,7 @@ export function useOperationalDashboard() {
         // Today's check-outs detail
         supabase
           .from('reservations')
-          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado')
+          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime')
           .eq('organization_id', orgId)
           .is('archived_at', null)
           .gte('hasta', `${todayStr}T00:00:00`)
@@ -268,9 +270,15 @@ export function useOperationalDashboard() {
       });
 
       // Build today's reservations list
+      type TodayResRow = {
+        id: string; cliente_nombre: string | null; cliente_apellido: string | null;
+        auto: string | null; modelo: string | null; desde: string | null; hasta: string | null;
+        lugar_entrega: string | null; lugar_devolucion: string | null; estado: string | null;
+        confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null;
+      };
       const todayReservations = [
-        ...(todayCheckInsDetailResult.data || []).map(r => ({ ...r, type: 'checkin' as const })),
-        ...(todayCheckOutsDetailResult.data || []).map(r => ({ ...r, type: 'checkout' as const })),
+        ...((todayCheckInsDetailResult.data || []) as unknown as TodayResRow[]).map(r => ({ ...r, type: 'checkin' as const })),
+        ...((todayCheckOutsDetailResult.data || []) as unknown as TodayResRow[]).map(r => ({ ...r, type: 'checkout' as const })),
       ];
 
       // ─── Cross-reference dirty vehicles with upcoming reservations ───

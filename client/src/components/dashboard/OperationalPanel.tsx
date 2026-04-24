@@ -379,9 +379,26 @@ export function OperationalPanel() {
                     }
                   </div>
 
-                  {/* Time */}
-                  <span className="text-xs font-mono text-muted-foreground w-10 sm:w-12 flex-shrink-0">
-                    {formatTime(r.type === 'checkin' ? r.desde : r.hasta)}
+                  {/* Time - show confirmed hour if available, with indicator */}
+                  <span className="text-xs font-mono w-10 sm:w-12 flex-shrink-0" title={
+                    r.type === 'checkin'
+                      ? (r.confirmed_entrega_datetime
+                          ? `Confirmada: ${formatTime(r.confirmed_entrega_datetime)} (original: ${formatTime(r.desde)})`
+                          : `Programada: ${formatTime(r.desde)}`)
+                      : (r.confirmed_devolucion_datetime
+                          ? `Confirmada: ${formatTime(r.confirmed_devolucion_datetime)} (original: ${formatTime(r.hasta)})`
+                          : `Programada: ${formatTime(r.hasta)}`)
+                  }>
+                    <span className={
+                      (r.type === 'checkin' ? r.confirmed_entrega_datetime : r.confirmed_devolucion_datetime)
+                        ? 'text-foreground font-semibold'
+                        : 'text-muted-foreground'
+                    }>
+                      {r.type === 'checkin'
+                        ? formatTime(r.confirmed_entrega_datetime || r.desde)
+                        : formatTime(r.confirmed_devolucion_datetime || r.hasta)
+                      }
+                    </span>
                   </span>
 
                   {/* Client */}
