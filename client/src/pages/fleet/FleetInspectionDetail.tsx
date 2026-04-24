@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { useInspectionPdf } from '@/hooks/useInspectionPdf';
 import { useComparativeInspectionPdf } from '@/hooks/useComparativeInspectionPdf';
 import { PhotoCaptureDialog } from '@/components/fleet/PhotoCaptureDialog';
+import { PhotoAnnotator } from '@/components/fleet/PhotoAnnotator';
 
 function useSignedUrls(photos: FleetInspectionPhoto[] | undefined) {
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -126,6 +127,7 @@ export default function FleetInspectionDetail() {
   const [replaceTarget, setReplaceTarget] = useState<{ photoId: string; storagePath: string } | null>(null);
   const [categoryUploadTarget, setCategoryUploadTarget] = useState<PhotoCategory | null>(null);
   const [showCaptureDialog, setShowCaptureDialog] = useState<{ category: string; source: 'top' | 'category' | 'missing' } | null>(null);
+  const [annotatingPhoto, setAnnotatingPhoto] = useState<{ photoId: string; storagePath: string; url: string } | null>(null);
 
   const counterpart = inspection
     ? allInspections.find(
@@ -213,6 +215,23 @@ export default function FleetInspectionDetail() {
   const handleDeletePhoto = async (photoId: string, storagePath: string) => {
     if (!inspId || !id) return;
     await deletePhoto.mutateAsync({ photoId, storagePath, inspectionId: inspId, vehicleId: id });
+  };
+
+  const handleAnnotationSave = async (file: File, _preview: string) => {
+    if (!annotatingPhoto || !inspId || !id) return;
+    try {
+      await replacePhoto.mutateAsync({
+        photoId: annotatingPhoto.photoId,
+        oldStoragePath: annotatingPhoto.storagePath,
+        inspectionId: inspId,
+        vehicleId: id,
+        file,
+      });
+      toast.success('Foto anotada guardada');
+    } catch {
+      toast.error('Error al guardar la anotación');
+    }
+    setAnnotatingPhoto(null);
   };
 
   // Drag and drop handlers
@@ -410,6 +429,13 @@ export default function FleetInspectionDetail() {
                   </button>
                   {editable && canManage && (
                     <div className="absolute -top-1.5 -right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => setAnnotatingPhoto({ photoId: photo.id, storagePath: photo.storage_path, url })}
+                        className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md"
+                        title="Anotar daños"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
                       <button
                         onClick={() => {
                           setReplaceTarget({ photoId: photo.id, storagePath: photo.storage_path });
@@ -955,6 +981,32 @@ export default function FleetInspectionDetail() {
               className="max-w-full max-h-full rounded-2xl object-contain"
               onClick={e => e.stopPropagation()}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Annotation overlay */}
+      <AnimatePresence>
+        {annotatingPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-sm flex flex-col p-4 overflow-y-auto"
+          >
+            <div className="max-w-2xl mx-auto w-full space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Anotar daños</h3>
+                <Button variant="ghost" size="sm" onClick={() => setAnnotatingPhoto(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <PhotoAnnotator
+                imageSrc={annotatingPhoto.url}
+                onConfirm={handleAnnotationSave}
+                onCancel={() => setAnnotatingPhoto(null)}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

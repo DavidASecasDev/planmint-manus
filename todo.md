@@ -402,3 +402,4 @@
 - [x] Feature: Botón alternativo "Galería" junto al de cámara en inspecciones de flota - implementado PhotoCaptureDialog con botones Cámara/Galería separados en FleetInspectionNew, FleetInspectionEdit y FleetInspectionDetail
 - [x] Feature: Compresión automática de fotos antes de subir (reducir 3-5MB a ~500KB) - ya existía en useFleetInspections.ts, verificado que se aplica en todas las mutaciones
 - [x] Feature: Vista previa instantánea de foto con opción de repetir antes de confirmar subida - implementado en PhotoCaptureDialog con preview, botón Repetir y Usar foto, soporte múltiple
+- [x] Feature: Anotaciones sobre fotos de inspección - dibujar flechas, círculos y marcas para señalar daños antes de guardar - creado PhotoAnnotator con canvas (flechas, círculos, dibujo libre, deshacer, colores), integrado en PhotoCaptureDialog (preview), FleetInspectionDetail y FleetInspectionEdit (botón lápiz amarillo en overlay de fotos)

@@ -5,14 +5,16 @@
  * - Two buttons: "Cámara" (opens camera directly) and "Galería" (opens photo picker)
  * - Instant preview of captured/selected photo with compression info
  * - "Repetir" / "Usar foto" actions before confirming
+ * - "Anotar" button to open PhotoAnnotator for drawing on the photo
  * - Supports multiple photos in sequence
  * - Uses existing compressImage utility for automatic compression
  */
 
 import { useRef, useState, useCallback } from 'react';
-import { Camera, Images, RotateCcw, Check, X, Loader2 } from 'lucide-react';
+import { Camera, Images, RotateCcw, Check, X, Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { compressImage, formatBytes, compressionSavings, type CompressImageResult } from '@/lib/imageCompression';
+import { PhotoAnnotator } from './PhotoAnnotator';
 
 interface PhotoCaptureDialogProps {
   /** Called with the compressed file and preview URL when user confirms */
@@ -44,7 +46,8 @@ export function PhotoCaptureDialog({
 
   const [pending, setPending] = useState<PendingImage[]>([]);
   const [compressing, setCompressing] = useState(false);
-  const [mode, setMode] = useState<'choose' | 'preview'>('choose');
+  const [mode, setMode] = useState<'choose' | 'preview' | 'annotate'>('choose');
+  const [annotatingIndex, setAnnotatingIndex] = useState<number>(0);
 
   const processFiles = useCallback(async (files: FileList | File[]) => {
     setCompressing(true);
@@ -122,6 +125,36 @@ export function PhotoCaptureDialog({
     });
   }, []);
 
+  const handleAnnotate = useCallback((idx: number) => {
+    setAnnotatingIndex(idx);
+    setMode('annotate');
+  }, []);
+
+  const handleAnnotationConfirm = useCallback(
+    (file: File, preview: string) => {
+      setPending((prev) => {
+        const updated = [...prev];
+        // Clean up old preview
+        if (updated[annotatingIndex].preview.startsWith('blob:')) {
+          URL.revokeObjectURL(updated[annotatingIndex].preview);
+        }
+        updated[annotatingIndex] = {
+          ...updated[annotatingIndex],
+          file,
+          preview,
+          compressedSize: file.size,
+        };
+        return updated;
+      });
+      setMode('preview');
+    },
+    [annotatingIndex],
+  );
+
+  const handleAnnotationCancel = useCallback(() => {
+    setMode('preview');
+  }, []);
+
   const totalOriginal = pending.reduce((s, p) => s + p.originalSize, 0);
   const totalCompressed = pending.reduce((s, p) => s + p.compressedSize, 0);
   const savings = compressionSavings(totalOriginal, totalCompressed);
@@ -193,23 +226,42 @@ export function PhotoCaptureDialog({
         </div>
       )}
 
-      {/* Mode: Preview — show captured photos with confirm/retake */}
+      {/* Mode: Preview — show captured photos with confirm/retake/annotate */}
       {mode === 'preview' && pending.length > 0 && (
         <div className="space-y-3">
           {/* Photo grid */}
           {pending.length === 1 ? (
-            <div className="rounded-xl overflow-hidden border border-border bg-muted/20">
+            <div className="relative rounded-xl overflow-hidden border border-border bg-muted/20 group">
               <img
                 src={pending[0].preview}
                 alt="Foto capturada"
                 className="w-full aspect-[4/3] object-cover"
               />
+              {/* Annotate overlay button on single photo */}
+              <button
+                type="button"
+                onClick={() => handleAnnotate(0)}
+                className="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm"
+                title="Anotar daños"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {pending.map((p, idx) => (
-                <div key={idx} className="relative rounded-xl overflow-hidden border border-border/50">
+                <div key={idx} className="relative rounded-xl overflow-hidden border border-border/50 group">
                   <img src={p.preview} alt="" className="w-full aspect-square object-cover" />
+                  {/* Annotate button */}
+                  <button
+                    type="button"
+                    onClick={() => handleAnnotate(idx)}
+                    className="absolute top-1 left-1 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm"
+                    title="Anotar daños"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  {/* Remove button */}
                   <button
                     type="button"
                     onClick={() => removeImage(idx)}
@@ -230,7 +282,7 @@ export function PhotoCaptureDialog({
           )}
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
@@ -240,6 +292,17 @@ export function PhotoCaptureDialog({
               <RotateCcw className="h-4 w-4 mr-1.5" />
               Repetir
             </Button>
+            {pending.length === 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAnnotate(0)}
+                className="h-11 rounded-xl px-3"
+                title="Anotar daños en la foto"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               type="button"
               onClick={handleConfirm}
@@ -250,6 +313,15 @@ export function PhotoCaptureDialog({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Mode: Annotate — draw on the photo */}
+      {mode === 'annotate' && pending[annotatingIndex] && (
+        <PhotoAnnotator
+          imageSrc={pending[annotatingIndex].preview}
+          onConfirm={handleAnnotationConfirm}
+          onCancel={handleAnnotationCancel}
+        />
       )}
     </div>
   );
