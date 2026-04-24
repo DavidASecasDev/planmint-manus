@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Plus, Ship, Loader2, ShieldAlert, Download } from 'lucide-react';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
+import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { usePermissions } from '@/hooks/usePermissions';
 import { TransferRequestCard } from '@/components/transfers/TransferRequestCard';
 import { TransferFilters } from '@/components/transfers/TransferFilters';
@@ -34,12 +35,12 @@ export default function Transfers() {
   });
 
   const { requests, isLoading, deleteRequest } = useTransferRequests(filters);
+  const { brokers: allBrokerRecords } = useTransferBrokers();
 
-  // Get unique brokers for filter dropdown
+  // Get broker names from the full transfer_brokers table (not just from existing requests)
   const brokers = useMemo(() => {
-    const unique = new Set(requests.map(r => r.broker_name));
-    return Array.from(unique).sort();
-  }, [requests]);
+    return allBrokerRecords.map(b => b.name).sort();
+  }, [allBrokerRecords]);
 
   const handleExportCsv = () => {
     if (requests.length === 0) {
