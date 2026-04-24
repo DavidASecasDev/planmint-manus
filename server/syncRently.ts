@@ -607,6 +607,52 @@ async function syncVehicleStatuses(
       }
     }
 
+    // 4. Ensure every active vehicle has a corresponding fleet_vehicles record.
+    //    The DB trigger sync_vehicles_from_reservations creates 'vehicles' rows
+    //    but doesn't create 'fleet_vehicles' rows, causing vehicles to be missing
+    //    from the Fleet page.
+    const { data: orphanedVehicles } = await serviceClient
+      .from("vehicles")
+      .select("id, matricula, modelo, categoria")
+      .eq("organization_id", organizationId)
+      .eq("is_archived", false)
+      .is("fleet_vehicle_id", null);
+
+    if (orphanedVehicles && orphanedVehicles.length > 0) {
+      // Get existing fleet plates to avoid duplicates
+      const { data: existingFleet } = await serviceClient
+        .from("fleet_vehicles")
+        .select("id, matricula")
+        .eq("organization_id", organizationId);
+      const fleetByPlate = new Map<string, string>();
+      (existingFleet || []).forEach(f => fleetByPlate.set(f.matricula.toUpperCase(), f.id));
+
+      for (const v of orphanedVehicles) {
+        const existingFleetId = fleetByPlate.get(v.matricula.toUpperCase());
+        if (existingFleetId) {
+          // Fleet record exists, just link it
+          await serviceClient.from("vehicles").update({ fleet_vehicle_id: existingFleetId }).eq("id", v.id);
+          console.log(`[sync-vehicles] Linked ${v.matricula} to existing fleet_vehicle ${existingFleetId}`);
+        } else {
+          // Create new fleet_vehicle and link
+          const { data: newFleet } = await serviceClient
+            .from("fleet_vehicles")
+            .insert({
+              organization_id: organizationId,
+              matricula: v.matricula,
+              modelo: v.modelo || null,
+              categoria: v.categoria || null,
+            })
+            .select("id")
+            .single();
+          if (newFleet) {
+            await serviceClient.from("vehicles").update({ fleet_vehicle_id: newFleet.id }).eq("id", v.id);
+            console.log(`[sync-vehicles] Created fleet_vehicle for ${v.matricula} -> ${newFleet.id}`);
+          }
+        }
+      }
+    }
+
     console.log(`[sync-vehicles] Done: ${released} released, ${rented} rented, ${errors} errors`);
   } catch (err) {
     console.error("[sync-vehicles] Unexpected error:", err);
