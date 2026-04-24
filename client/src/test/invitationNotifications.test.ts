@@ -103,6 +103,8 @@ describe('Invitation Notification UI Metadata', () => {
     accident_report: 'Accidente',
     damage_report_update: 'Informe Daños',
     vehicle_prep_alert: 'Preparación Vehículo',
+    transfer_stale_alert: 'Transfer Sin Respuesta',
+    equipment_shortage: 'Stock Equipamiento',
     invitation_sent: 'Invitación Enviada',
     invitation_accepted: 'Invitación Aceptada',
   };
@@ -116,6 +118,8 @@ describe('Invitation Notification UI Metadata', () => {
     accident_report: 'text-red-500 bg-red-500/10',
     damage_report_update: 'text-rose-500 bg-rose-500/10',
     vehicle_prep_alert: 'text-red-600 bg-red-500/10',
+    transfer_stale_alert: 'text-amber-500 bg-amber-500/10',
+    equipment_shortage: 'text-pink-500 bg-pink-500/10',
     invitation_sent: 'text-purple-500 bg-purple-500/10',
     invitation_accepted: 'text-emerald-500 bg-emerald-500/10',
   };

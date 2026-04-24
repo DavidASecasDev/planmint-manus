@@ -39,33 +39,53 @@ export function EquipmentStockWidget() {
   const { items, isLoading, stats } = useEquipmentInventory();
 
   // Count how many baby seats are needed today from active reservations
-  const { data: todayDemand = 0 } = useQuery({
+  // and how many are already assigned
+  const { data: demandData = { total: 0, assigned: 0, pending: 0 } } = useQuery({
     queryKey: ['equipment-today-demand', profile?.organization_id],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
+      // Get reservations active today with their extras
+      const { data: reservations, error: resError } = await supabase
         .from('reservations')
-        .select('extras_contratados')
+        .select('id, extras_contratados')
         .eq('organization_id', profile!.organization_id!)
         .lte('desde', today + 'T23:59:59')
         .gte('hasta', today + 'T00:00:00')
         .not('estado', 'in', '("Cancelada","No Show")');
-      if (error) throw error;
+      if (resError) throw resError;
 
       let totalSeats = 0;
-      (data as any[]).forEach((r: any) => {
+      const reservationIds: string[] = [];
+      (reservations as any[]).forEach((r: any) => {
         const extras = safeParseJsonArray<RentlyExtra>(r.extras_contratados);
+        let hasSeat = false;
         extras.forEach((e: RentlyExtra) => {
           const name = e.nombre || e.name || '';
           if (isBabySeatExtra(name)) {
             totalSeats += e.cantidad ?? e.quantity ?? 1;
+            hasSeat = true;
           }
         });
+        if (hasSeat) reservationIds.push(r.id);
       });
-      return totalSeats;
+
+      // Count how many are already assigned
+      let assignedCount = 0;
+      if (reservationIds.length > 0) {
+        const { count, error: assError } = await (supabase
+          .from as any)('equipment_assignments')
+          .select('id', { count: 'exact', head: true })
+          .in('reservation_id', reservationIds)
+          .is('returned_at', null);
+        if (!assError) assignedCount = count || 0;
+      }
+
+      return { total: totalSeats, assigned: assignedCount, pending: Math.max(0, totalSeats - assignedCount) };
     },
     enabled: !!profile?.organization_id,
   });
+
+  const todayDemand = demandData.total;
 
   // Stats by seat type
   const seatTypes: EquipmentTipo[] = ['silla_bebe', 'silla_infantes', 'elevador'];
@@ -78,7 +98,7 @@ export function EquipmentStockWidget() {
   }, [items]);
 
   const totalAvailable = seatStats.reduce((sum, s) => sum + s.disponible, 0);
-  const hasShortage = todayDemand > totalAvailable;
+  const hasShortage = demandData.pending > totalAvailable;
 
   if (isLoading) {
     return (
@@ -163,17 +183,33 @@ export function EquipmentStockWidget() {
 
         {/* Today demand */}
         {todayDemand > 0 && (
-          <div className="flex items-center justify-between text-sm pt-2 border-t">
-            <span className="text-muted-foreground">Demanda hoy</span>
-            <Badge
-              className={
-                hasShortage
-                  ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
-              }
-            >
-              {todayDemand} sillitas
-            </Badge>
+          <div className="space-y-1.5 pt-2 border-t">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Demanda hoy</span>
+              <Badge
+                className={
+                  hasShortage
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                }
+              >
+                {todayDemand} sillitas
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Asignadas</span>
+              <span className="font-mono">{demandData.assigned}</span>
+            </div>
+            {demandData.pending > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className={hasShortage ? 'text-red-600 dark:text-red-400 font-medium' : 'text-amber-600 dark:text-amber-400 font-medium'}>
+                  Pendientes de asignar
+                </span>
+                <span className={`font-mono font-semibold ${hasShortage ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {demandData.pending}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

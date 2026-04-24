@@ -5,6 +5,7 @@ import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { useVehiclePrepAlerts } from '@/hooks/useVehiclePrepAlerts';
 import { useStaleTransferAlerts } from '@/hooks/useStaleTransferAlerts';
+import { useEquipmentShortageAlerts } from '@/hooks/useEquipmentShortageAlerts';
 import { toast } from 'sonner';
 import type { RentlySyncPageResponse, RentlySyncResult, RentlySyncStatus } from '@/types/rently';
 
@@ -55,6 +56,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
   const { hasRently, loading: flagsLoading } = useIntegrationFlags();
   const { checkAndAlert: checkAndAlertVehiclePrep } = useVehiclePrepAlerts();
   const { checkAndAlert: checkAndAlertStaleTransfers } = useStaleTransferAlerts();
+  const { checkAndAlert: checkAndAlertEquipmentShortage } = useEquipmentShortageAlerts();
 
   const [syncing, setSyncing] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -258,25 +260,29 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         await syncVehiclesAfterReservations();
       }
 
-      // DISABLED: Vehicle prep and stale transfer alert notifications
-      // These were causing massive notification spam due to RLS preventing proper dedup.
-      // The hooks have been rewritten with localStorage throttle + 7-day dedup window,
-      // but we keep them disabled until thoroughly tested in production.
-      // To re-enable: uncomment the blocks below.
-      //
-      // try {
-      //   const alertsSent = await checkAndAlertVehiclePrep();
-      //   if (alertsSent > 0) console.log(`[AutoSync] Sent ${alertsSent} vehicle prep alert(s)`);
-      // } catch (alertErr) {
-      //   console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
-      // }
-      //
-      // try {
-      //   const staleAlertsSent = await checkAndAlertStaleTransfers();
-      //   if (staleAlertsSent > 0) console.log(`[AutoSync] Sent ${staleAlertsSent} stale transfer alert(s)`);
-      // } catch (staleErr) {
-      //   console.warn('[AutoSync] Stale transfer alert check failed:', staleErr);
-      // }
+      // Vehicle prep and stale transfer alert notifications
+      // Re-enabled: hooks have localStorage throttle (6h) + 7-day DB dedup window
+      try {
+        const alertsSent = await checkAndAlertVehiclePrep();
+        if (alertsSent > 0) console.log(`[AutoSync] Sent ${alertsSent} vehicle prep alert(s)`);
+      } catch (alertErr) {
+        console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
+      }
+
+      try {
+        const staleAlertsSent = await checkAndAlertStaleTransfers();
+        if (staleAlertsSent > 0) console.log(`[AutoSync] Sent ${staleAlertsSent} stale transfer alert(s)`);
+      } catch (staleErr) {
+        console.warn('[AutoSync] Stale transfer alert check failed:', staleErr);
+      }
+
+      // Equipment shortage alerts
+      try {
+        const shortageAlerts = await checkAndAlertEquipmentShortage();
+        if (shortageAlerts > 0) console.log(`[AutoSync] Sent ${shortageAlerts} equipment shortage alert(s)`);
+      } catch (eqErr) {
+        console.warn('[AutoSync] Equipment shortage alert check failed:', eqErr);
+      }
 
       return finalResult;
     } catch (err) {

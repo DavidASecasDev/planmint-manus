@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,6 +26,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   damage_report_update: FileWarning,
   vehicle_prep_alert: Car,
   transfer_stale_alert: Timer,
+  equipment_shortage: Baby,
   invitation_sent: Mail,
   invitation_accepted: UserPlus,
 };
@@ -40,6 +41,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   damage_report_update: 'text-rose-500 bg-rose-500/10',
   vehicle_prep_alert: 'text-red-600 bg-red-500/10',
   transfer_stale_alert: 'text-amber-500 bg-amber-500/10',
+  equipment_shortage: 'text-pink-500 bg-pink-500/10',
   invitation_sent: 'text-purple-500 bg-purple-500/10',
   invitation_accepted: 'text-emerald-500 bg-emerald-500/10',
 };
@@ -54,6 +56,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   damage_report_update: 'Informe Daños',
   vehicle_prep_alert: 'Preparación Vehículo',
   transfer_stale_alert: 'Transfer Sin Respuesta',
+  equipment_shortage: 'Stock Equipamiento',
   invitation_sent: 'Invitación Enviada',
   invitation_accepted: 'Invitación Aceptada',
 };

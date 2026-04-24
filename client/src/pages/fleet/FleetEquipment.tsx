@@ -58,6 +58,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 /* ── Column icon mapping ── */
 const COLUMN_ICONS: Record<EquipmentEstado, typeof CheckCircle2> = {
@@ -76,6 +77,7 @@ const COLUMN_HEADER_COLORS: Record<EquipmentEstado, string> = {
 
 /* ── Main Page ── */
 export default function FleetEquipment() {
+  const navigate = useNavigate();
   const {
     items,
     isLoading,
@@ -365,6 +367,17 @@ export default function FleetEquipment() {
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                   🚗 {item.vehicle_matricula}
                                 </p>
+                              )}
+                              {item.reservation_id && (
+                                <button
+                                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 text-left"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/reservations?highlight=${item.reservation_id}`);
+                                  }}
+                                >
+                                  📄 Ver reserva
+                                </button>
                               )}
                               {item.notas && (
                                 <p className="text-xs text-muted-foreground truncate">{item.notas}</p>

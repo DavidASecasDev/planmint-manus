@@ -9,8 +9,27 @@ import { useNavigate } from 'react-router-dom';
 import {
   Car, CalendarCheck, ArrowRightLeft, Wrench, ClipboardList,
   ArrowRight, RefreshCw, AlertTriangle, ArrowDownToLine, ArrowUpFromLine,
-  Clock, FileWarning, ChevronRight, User,
+  Clock, FileWarning, ChevronRight, User, Baby,
 } from 'lucide-react';
+
+const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador'];
+
+function hasBabySeatExtras(extrasRaw: string | null): { has: boolean; count: number; types: string[] } {
+  if (!extrasRaw) return { has: false, count: 0, types: [] };
+  try {
+    const extras = typeof extrasRaw === 'string' ? JSON.parse(extrasRaw) : (Array.isArray(extrasRaw) ? extrasRaw : []);
+    let count = 0;
+    const types: string[] = [];
+    for (const e of extras) {
+      const name = (e.nombre || e.name || '').toLowerCase();
+      if (BABY_SEAT_KEYWORDS.some(kw => name.includes(kw))) {
+        count += e.cantidad ?? e.quantity ?? 1;
+        types.push(e.nombre || e.name || 'Sillita');
+      }
+    }
+    return { has: count > 0, count, types };
+  } catch { return { has: false, count: 0, types: [] }; }
+}
 
 const STATUS_COLORS: Record<string, string> = {
   sucio: 'bg-red-500',
@@ -401,9 +420,24 @@ export function OperationalPanel() {
                     </span>
                   </span>
 
-                  {/* Client */}
-                  <span className="font-medium text-foreground truncate min-w-0 flex-1 text-xs sm:text-sm">
+                  {/* Client + baby seat indicator */}
+                  <span className="font-medium text-foreground truncate min-w-0 flex-1 text-xs sm:text-sm flex items-center gap-1">
                     {[r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre'}
+                    {(() => {
+                      const seats = hasBabySeatExtras((r as any).extras_contratados);
+                      if (!seats.has) return null;
+                      return (
+                        <span
+                          className="inline-flex items-center gap-0.5 flex-shrink-0"
+                          title={`${seats.types.join(', ')} (${seats.count})`}
+                        >
+                          <Baby className="h-3.5 w-3.5 text-pink-500" />
+                          {seats.count > 1 && (
+                            <span className="text-[10px] font-bold text-pink-500">{seats.count}</span>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </span>
 
                   {/* Vehicle - hidden on very small screens */}

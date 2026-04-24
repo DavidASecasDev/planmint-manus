@@ -416,3 +416,9 @@
 - [x] Feature: Widget en dashboard operativo mostrando stock en tiempo real y alertas de disponibilidad — EquipmentStockWidget con contadores por estado/tipo, demanda del día cruzada con reservas activas, alerta de stock insuficiente
 - [x] Feature: Navegación en sidebar — submenú "Equipamiento" (icono Baby) dentro de Flota, ruta /fleet/equipment protegida
 - [x] Feature: Historial de asignaciones por unidad de equipamiento — tabla equipment_assignments con assigned_at, returned_at, condition_notes, consultable desde el detalle de cada unidad
+- [x] Fix coherencia: Re-habilitadas alertas de vehicle prep y stale transfers en RentlySyncContext (estaban comentadas tras bug de spam)
+- [x] Fix coherencia: Añadida ruta de navegación vehicle_prep en NotificationBell — al hacer clic en alerta de preparación navega a /vehicles
+- [x] Fix coherencia: Icono de sillita de bebé (rosa) añadido en OperationalPanel junto al nombre del cliente en operaciones de hoy — extras_contratados añadido a las queries de check-in/check-out del dashboard
+- [x] Fix coherencia: Widget de stock de equipamiento mejorado — ahora muestra demanda pendiente (sin asignar) vs ya asignada, con alerta solo cuando la demanda pendiente supera el stock disponible
+- [x] Fix coherencia: Tarjetas kanban de equipamiento asignado ahora muestran enlace a la reserva asociada (consultando equipment_assignments)
+- [x] Fix coherencia: Notificación automática de escasez de equipamiento — hook useEquipmentShortageAlerts con throttle 4h, dedup 12h en BD, se ejecuta tras cada sync de Rently. Tipo equipment_shortage añadido a NotificationType, ruta /fleet/equipment en NotificationBell, icono Baby rosa en Notifications.tsx
