@@ -3,13 +3,13 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Reservation, UpdateReservationData } from '@/types/reservations';
+import { Reservation, UpdateReservationData, RentlyExtra } from '@/types/reservations';
 import { ChipSelect } from './ChipSelect';
 import { AssigneeSelect } from './AssigneeSelect';
 import { EditableCell } from './EditableCell';
@@ -752,6 +752,21 @@ export function ReservationsTable() {
     return parts.join(' ') || '—';
   };
 
+  // Detect baby/child seat extras in a reservation
+  const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador'];
+  const getBabySeats = (r: Reservation): RentlyExtra[] => {
+    let extras: RentlyExtra[] = [];
+    try {
+      const raw = r.extras_contratados;
+      if (!raw) return [];
+      extras = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+    } catch { return []; }
+    return extras.filter(e => {
+      const name = (e.nombre || e.name || '').toLowerCase();
+      return BABY_SEAT_KEYWORDS.some(kw => name.includes(kw));
+    });
+  };
+
   const getCellValue = (row: OperationRow, col: Column): string => {
     const r = row.reservation;
     
@@ -1218,7 +1233,7 @@ export function ReservationsTable() {
                               className="mx-auto"
                             />
                           )}
-                          {col.type === 'readonly' && (
+                          {col.type === 'readonly' && col.key !== 'cliente' && (
                             <span className={cn(
                               "text-xs px-1 truncate",
                               row.isCompleted && "line-through text-muted-foreground"
@@ -1226,6 +1241,35 @@ export function ReservationsTable() {
                               {getCellValue(row, col)}
                             </span>
                           )}
+                          {col.type === 'readonly' && col.key === 'cliente' && (() => {
+                            const babySeats = getBabySeats(row.reservation);
+                            const totalSeats = babySeats.reduce((sum, s) => sum + (s.cantidad ?? s.quantity ?? 1), 0);
+                            return (
+                              <span className={cn(
+                                "text-xs px-1 truncate flex items-center gap-1",
+                                row.isCompleted && "line-through text-muted-foreground"
+                              )}>
+                                <span className="truncate">{getCellValue(row, col)}</span>
+                                {babySeats.length > 0 && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="inline-flex items-center gap-0.5 shrink-0 text-pink-500">
+                                          <Baby className="h-3.5 w-3.5" />
+                                          {totalSeats > 1 && <span className="text-[10px] font-semibold">{totalSeats}</span>}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs max-w-[220px]">
+                                        {babySeats.map((s, i) => (
+                                          <p key={i}>{s.nombre || s.name}{(s.cantidad ?? s.quantity ?? 1) > 1 ? ` x${s.cantidad ?? s.quantity}` : ''}</p>
+                                        ))}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </span>
+                            );
+                          })()}
                           {col.type === 'datetime' && col.key === 'fecha_hora' && (
                             <div className={cn(
                               row.isCompleted && "line-through text-muted-foreground"
