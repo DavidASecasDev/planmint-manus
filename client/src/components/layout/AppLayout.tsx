@@ -45,7 +45,7 @@ export function AppLayout({ children, title, fullWidth = false }: AppLayoutProps
         <div className="flex flex-1 flex-col min-w-0">
           <OfflineBanner />
           <AppHeader title={title} />
-          <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 pb-8 md:pb-12 lg:pb-16">
             <div className={`animate-in h-full ${fullWidth ? '' : 'mx-auto max-w-7xl'}`}>
               {children}
             </div>
