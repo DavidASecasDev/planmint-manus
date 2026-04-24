@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -63,6 +63,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/movements': 'movements',
   '/fleet': 'fleet',
   '/fleet/audits': 'fleet',
+  '/fleet/equipment': 'fleet',
   '/fleet/damages': 'garatech',
   '/garatech/damages': 'garatech',
 };
@@ -87,6 +88,7 @@ const transfersSubItems = [
 // Fleet submenu items
 const fleetSubItems = [
   { title: 'Vehículos', url: '/fleet', icon: Warehouse },
+  { title: 'Equipamiento', url: '/fleet/equipment', icon: Baby },
   { title: 'Auditorías', url: '/fleet/audits', icon: ClipboardCheck },
 ];
 

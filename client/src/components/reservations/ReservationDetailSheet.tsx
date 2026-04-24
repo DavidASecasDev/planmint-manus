@@ -38,6 +38,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { Reservation, RentlyExtra, RentlyPriceItem, RentlyDriver } from '@/types/reservations';
+import { ReservationEquipmentSection } from './ReservationEquipmentSection';
 
 interface ReservationDetailSheetProps {
   reservation: Reservation | null;
@@ -198,11 +199,9 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
               <TabsTrigger value="financiero" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
                 Financiero
               </TabsTrigger>
-              {(hasExtras || hasAdditionalDrivers) && (
-                <TabsTrigger value="extras" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
-                  Extras
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="extras" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
+                Extras
+              </TabsTrigger>
             </TabsList>
 
             {/* === TAB: General === */}
@@ -515,8 +514,7 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
             </TabsContent>
 
             {/* === TAB: Extras === */}
-            {(hasExtras || hasAdditionalDrivers) && (
-              <TabsContent value="extras" className="px-6 py-4 space-y-6 mt-0">
+            <TabsContent value="extras" className="px-6 py-4 space-y-6 mt-0">
                 {/* Extras contratados */}
                 {hasExtras && (
                   <div>
@@ -560,8 +558,13 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                     </div>
                   </div>
                 )}
+                {/* Equipamiento asignado */}
+                <Separator />
+                <ReservationEquipmentSection
+                  reservationId={r.id}
+                  vehicleMatricula={r.auto || undefined}
+                />
               </TabsContent>
-            )}
           </Tabs>
         </ScrollArea>
       </SheetContent>

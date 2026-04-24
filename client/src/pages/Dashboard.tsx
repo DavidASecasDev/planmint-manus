@@ -9,6 +9,7 @@ import { getRoleLabel } from '@/lib/roleHierarchy';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { OperationalPanel } from '@/components/dashboard/OperationalPanel';
+import { EquipmentStockWidget } from '@/components/dashboard/EquipmentStockWidget';
 
 export default function Dashboard() {
   const { profile, organization } = useAuth();
@@ -60,6 +61,9 @@ export default function Dashboard() {
 
         {/* Full Operational Panel */}
         <OperationalPanel />
+
+        {/* Equipment Stock Widget */}
+        <EquipmentStockWidget />
       </div>
     </AppLayout>
   );
