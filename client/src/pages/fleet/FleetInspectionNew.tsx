@@ -485,6 +485,7 @@ export default function FleetInspectionNew() {
                               ref={el => { fileInputRefs.current[cat.key] = el; }}
                               type="file"
                               accept="image/*"
+                              capture="environment"
                               multiple
                               className="hidden"
                               onChange={handleFileSelect(cat.key)}
@@ -664,6 +665,7 @@ export default function FleetInspectionNew() {
                                 id={`damage-attach-${idx}`}
                                 type="file"
                                 accept="image/*"
+                                capture="environment"
                                 multiple
                                 className="hidden"
                                 onChange={handleDamagePhoto(idx, false)}

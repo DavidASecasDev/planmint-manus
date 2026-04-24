@@ -636,6 +636,7 @@ export default function FleetInspectionDetail() {
                       ref={photoInputRef}
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       className="hidden"
                       onChange={handleAddPhoto}
                     />
@@ -643,6 +644,7 @@ export default function FleetInspectionDetail() {
                       ref={multiPhotoInputRef}
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       multiple
                       className="hidden"
                       onChange={handleMultiPhotoUpload}
@@ -864,6 +866,7 @@ export default function FleetInspectionDetail() {
             ref={receiptInputRef}
             type="file"
             accept="image/*,.pdf"
+            capture="environment"
             className="hidden"
             onChange={handleUploadReceipt}
           />
@@ -911,6 +914,7 @@ export default function FleetInspectionDetail() {
         ref={replaceInputRef}
         type="file"
         accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={handleReplacePhoto}
       />
@@ -918,6 +922,7 @@ export default function FleetInspectionDetail() {
         ref={categoryUploadRef}
         type="file"
         accept="image/*"
+        capture="environment"
         multiple
         className="hidden"
         onChange={handleCategoryUpload}

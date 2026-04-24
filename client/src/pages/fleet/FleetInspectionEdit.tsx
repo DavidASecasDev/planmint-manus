@@ -432,8 +432,8 @@ export default function FleetInspectionEdit() {
                   <Images className="h-3 w-3" />
                   Varias
                 </Button>
-                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handleAddPhoto} />
-                <input ref={multiPhotoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleMultiPhotoUpload} />
+                <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAddPhoto} />
+                <input ref={multiPhotoInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleMultiPhotoUpload} />
               </div>
             </div>
 
@@ -717,6 +717,7 @@ export default function FleetInspectionEdit() {
               ref={receiptInputRef}
               type="file"
               accept="image/*,.pdf"
+              capture="environment"
               className="hidden"
               onChange={handleUploadReceipt}
             />
@@ -745,8 +746,8 @@ export default function FleetInspectionEdit() {
       </div>
 
       {/* Hidden inputs for replace and category upload */}
-      <input ref={replaceInputRef} type="file" accept="image/*" className="hidden" onChange={handleReplacePhoto} />
-      <input ref={categoryUploadRef} type="file" accept="image/*" multiple className="hidden" onChange={handleCategoryUpload} />
+      <input ref={replaceInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReplacePhoto} />
+      <input ref={categoryUploadRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleCategoryUpload} />
 
       {/* Lightbox */}
       <AnimatePresence>
