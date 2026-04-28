@@ -7,7 +7,9 @@ import { useNavigate } from 'react-router-dom';
 import { Baby, Package, CheckCircle2, ArrowRightLeft, Wrench, AlertTriangle } from 'lucide-react';
 import {
   EQUIPMENT_TIPO_LABELS,
+  EQUIPMENT_TIPO_SHORT_LABELS,
   EQUIPMENT_ESTADO_COLORS,
+  SEAT_TIPOS,
   type EquipmentTipo,
 } from '@/types/equipment';
 import { useMemo } from 'react';
@@ -26,7 +28,7 @@ function safeParseJsonArray<T>(value: unknown): T[] {
   return [];
 }
 
-const SEAT_KEYWORDS = ['silla', 'bebé', 'bebe', 'infante', 'elevador', 'child seat', 'baby seat', 'booster', 'infant'];
+const SEAT_KEYWORDS = ['silla', 'bebé', 'bebe', 'infante', 'elevador', 'child seat', 'baby seat', 'booster', 'infant', 'recién nacido', 'recien nacido', 'newborn'];
 
 function isBabySeatExtra(name: string): boolean {
   const lower = name.toLowerCase();
@@ -89,7 +91,7 @@ export function EquipmentStockWidget() {
   const todayDemand = demandData.total;
 
   // Stats by seat type
-  const seatTypes: EquipmentTipo[] = ['silla_bebe', 'silla_infantes', 'elevador'];
+  const seatTypes: EquipmentTipo[] = SEAT_TIPOS;
   const seatStats = useMemo(() => {
     return seatTypes.map((tipo) => ({
       tipo,
@@ -188,7 +190,7 @@ export function EquipmentStockWidget() {
         <div className="space-y-2">
           {seatStats.map((s) => (
             <div key={s.tipo} className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{s.label}</span>
+              <span className="text-muted-foreground">{EQUIPMENT_TIPO_SHORT_LABELS[s.tipo]}</span>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono">
                   {s.disponible}/{s.total}

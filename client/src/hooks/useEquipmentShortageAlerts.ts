@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { SEAT_TIPOS, EQUIPMENT_TIPO_SHORT_LABELS } from '@/types/equipment';
 import type { RentlyExtra } from '@/types/reservations';
 
 /* ── Constants ── */
@@ -10,8 +11,10 @@ const LS_KEY = 'equipment_shortage_last_check';
 const ALERT_ROLES = ['admin', 'manager', 'directiva', 'mostrador', 'rental'];
 
 const BABY_SEAT_KEYWORDS = [
+  'recién nacido', 'recien nacido', 'newborn', 'grupo 0',
   'silla de bebé', 'silla de bebe', 'silla bebé', 'silla bebe',
   'silla de infantes', 'silla infantes',
+  'silla de niño', 'silla de nino', 'silla niño', 'silla nino',
   'asiento elevador', 'elevador',
   'baby seat', 'child seat', 'booster seat', 'infant seat',
 ];
@@ -19,6 +22,31 @@ const BABY_SEAT_KEYWORDS = [
 function isBabySeatExtra(name: string): boolean {
   const lower = name.toLowerCase();
   return BABY_SEAT_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+/**
+ * Classify a Rently extra name into one of the seat tipos.
+ * Returns the matching tipo key or null if not a seat.
+ */
+function classifySeatExtra(name: string): string | null {
+  const lower = name.toLowerCase();
+  if (lower.includes('recién nacido') || lower.includes('recien nacido') || lower.includes('newborn') || lower.includes('grupo 0')) {
+    return 'recien_nacido';
+  }
+  if (lower.includes('infante') || lower.includes('infant') || lower.includes('grupo 1')) {
+    return 'silla_infantes';
+  }
+  if (lower.includes('niño') || lower.includes('nino') || lower.includes('child') || lower.includes('grupo 2')) {
+    return 'silla_nino';
+  }
+  if (lower.includes('elevador') || lower.includes('booster') || lower.includes('grupo 3')) {
+    return 'elevador';
+  }
+  // Fallback: generic baby/bebe keywords → silla_nino (most common)
+  if (lower.includes('bebé') || lower.includes('bebe') || lower.includes('baby') || lower.includes('silla')) {
+    return 'silla_nino';
+  }
+  return null;
 }
 
 function safeParseJsonArray<T>(val: unknown): T[] {
@@ -80,34 +108,32 @@ export function useEquipmentShortageAlerts() {
       return [];
     }
 
-    // Count demand by seat type keyword
-    const demandMap: Record<string, number> = {
-      silla_bebe: 0,
-      silla_infantes: 0,
-      elevador: 0,
-    };
+    // Count demand by seat type using classifier
+    const demandMap: Record<string, number> = {};
+    for (const tipo of SEAT_TIPOS) {
+      demandMap[tipo] = 0;
+    }
 
     const reservationIds: string[] = [];
     (reservations || []).forEach((r: any) => {
       const extras = safeParseJsonArray<RentlyExtra>(r.extras_contratados);
       extras.forEach((e: RentlyExtra) => {
-        const name = (e.nombre || e.name || '').toLowerCase();
+        const name = (e.nombre || e.name || '');
         const qty = e.cantidad ?? e.quantity ?? 1;
-        if (name.includes('bebé') || name.includes('bebe') || name.includes('baby')) {
-          demandMap.silla_bebe += qty;
-          reservationIds.push(r.id);
-        } else if (name.includes('infante') || name.includes('infant') || name.includes('child')) {
-          demandMap.silla_infantes += qty;
-          reservationIds.push(r.id);
-        } else if (name.includes('elevador') || name.includes('booster')) {
-          demandMap.elevador += qty;
+        const classified = classifySeatExtra(name);
+        if (classified && demandMap[classified] !== undefined) {
+          demandMap[classified] += qty;
           reservationIds.push(r.id);
         }
       });
     });
 
     // Count already assigned equipment for today's reservations
-    let assignedByTipo: Record<string, number> = { silla_bebe: 0, silla_infantes: 0, elevador: 0 };
+    const assignedByTipo: Record<string, number> = {};
+    for (const tipo of SEAT_TIPOS) {
+      assignedByTipo[tipo] = 0;
+    }
+
     if (reservationIds.length > 0) {
       const { data: assignments } = await (supabase as any)
         .from('equipment_assignments')
@@ -144,7 +170,10 @@ export function useEquipmentShortageAlerts() {
       return [];
     }
 
-    const stockMap: Record<string, number> = { silla_bebe: 0, silla_infantes: 0, elevador: 0 };
+    const stockMap: Record<string, number> = {};
+    for (const tipo of SEAT_TIPOS) {
+      stockMap[tipo] = 0;
+    }
     (stockData || []).forEach((s: any) => {
       if (stockMap[s.tipo] !== undefined) stockMap[s.tipo]++;
     });
@@ -153,9 +182,9 @@ export function useEquipmentShortageAlerts() {
     const shortages: ShortageInfo[] = [];
     for (const tipo of Object.keys(demandMap)) {
       const totalDemand = demandMap[tipo];
-      const alreadyAssigned = assignedByTipo[tipo];
+      const alreadyAssigned = assignedByTipo[tipo] || 0;
       const pendingDemand = Math.max(0, totalDemand - alreadyAssigned);
-      const available = stockMap[tipo];
+      const available = stockMap[tipo] || 0;
 
       if (pendingDemand > available) {
         shortages.push({
@@ -197,14 +226,8 @@ export function useEquipmentShortageAlerts() {
     userId: string,
     orgId: string
   ): Promise<boolean> => {
-    const tipoLabels: Record<string, string> = {
-      silla_bebe: 'Silla de Bebé',
-      silla_infantes: 'Silla de Infantes',
-      elevador: 'Asiento Elevador',
-    };
-
     const details = shortages.map(s =>
-      `${tipoLabels[s.tipo] || s.tipo}: necesitas ${s.demanda}, disponibles ${s.disponible} (faltan ${s.deficit})`
+      `${EQUIPMENT_TIPO_SHORT_LABELS[s.tipo as keyof typeof EQUIPMENT_TIPO_SHORT_LABELS] || s.tipo}: necesitas ${s.demanda}, disponibles ${s.disponible} (faltan ${s.deficit})`
     ).join('. ');
 
     const title = `⚠️ Stock insuficiente de sillitas para hoy`;

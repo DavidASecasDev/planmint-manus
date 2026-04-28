@@ -437,3 +437,6 @@
 - [x] FIX-11: Eliminar 6 archivos de código muerto del frontend
 - [x] FIX-12: Añadir try/catch a handleOcrPlate y handleGetVapidKey (ocrPlate ya lo tenía, vapidKey corregido)
 - [ ] Bug: Dashboard sigue mostrando skeletons en parte superior (investigar queries principales)
+- [x] Añadir nuevo tipo de sillita: Grupo 0 - Recién nacido (0-9kg)
+- [x] Recategorizar sillitas existentes: Grupo 1 - Silla Infantes (9-18kg), Grupo 2 - Silla niño (18-36kg), Grupo 3 - Asiento Elevador (+36kg) — BD: silla_bebe renombrado a silla_nino, constraint actualizado, nombres actualizados
+- [x] Actualizar frontend: labels, formularios, widgets, alertas de escasez, keywords de detección — 902 tests pasando

@@ -1,6 +1,6 @@
 // Equipment inventory types
 
-export type EquipmentTipo = 'silla_bebe' | 'silla_infantes' | 'elevador' | 'gps' | 'wifi' | 'otro';
+export type EquipmentTipo = 'recien_nacido' | 'silla_infantes' | 'silla_nino' | 'elevador' | 'gps' | 'wifi' | 'otro';
 export type EquipmentEstado = 'disponible' | 'asignada' | 'mantenimiento' | 'baja';
 export type EquipmentCondition = 'bueno' | 'aceptable' | 'dañado' | 'reparar';
 
@@ -35,15 +35,30 @@ export interface EquipmentAssignment {
   created_at: string;
 }
 
-/** Labels for display */
+/** Labels for display — grouped by child safety seat classification */
 export const EQUIPMENT_TIPO_LABELS: Record<EquipmentTipo, string> = {
-  silla_bebe: 'Silla de Bebé',
-  silla_infantes: 'Silla de Infantes',
+  recien_nacido: 'Grupo 0 · Recién nacido (0-9 kg)',
+  silla_infantes: 'Grupo 1 · Silla Infantes (9-18 kg)',
+  silla_nino: 'Grupo 2 · Silla niño (18-36 kg)',
+  elevador: 'Grupo 3 · Asiento Elevador (+36 kg)',
+  gps: 'GPS',
+  wifi: 'WiFi Portátil',
+  otro: 'Otro',
+};
+
+/** Short labels for compact UI (badges, table cells) */
+export const EQUIPMENT_TIPO_SHORT_LABELS: Record<EquipmentTipo, string> = {
+  recien_nacido: 'Recién nacido',
+  silla_infantes: 'Silla Infantes',
+  silla_nino: 'Silla niño',
   elevador: 'Asiento Elevador',
   gps: 'GPS',
   wifi: 'WiFi Portátil',
   otro: 'Otro',
 };
+
+/** Seat-type identifiers (child safety seats only) */
+export const SEAT_TIPOS: EquipmentTipo[] = ['recien_nacido', 'silla_infantes', 'silla_nino', 'elevador'];
 
 export const EQUIPMENT_ESTADO_LABELS: Record<EquipmentEstado, string> = {
   disponible: 'Disponible',

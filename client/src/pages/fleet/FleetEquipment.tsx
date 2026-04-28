@@ -48,9 +48,11 @@ import {
 } from 'lucide-react';
 import {
   EQUIPMENT_TIPO_LABELS,
+  EQUIPMENT_TIPO_SHORT_LABELS,
   EQUIPMENT_ESTADO_LABELS,
   EQUIPMENT_ESTADO_COLORS,
   EQUIPMENT_KANBAN_COLUMNS,
+  SEAT_TIPOS,
   type EquipmentItem,
   type EquipmentTipo,
   type EquipmentEstado,
@@ -100,7 +102,7 @@ export default function FleetEquipment() {
 
   // Form state for create/edit
   const [formData, setFormData] = useState({
-    tipo: 'silla_bebe' as EquipmentTipo,
+    tipo: 'recien_nacido' as EquipmentTipo,
     nombre: '',
     codigo: '',
     notas: '',
@@ -139,7 +141,7 @@ export default function FleetEquipment() {
   }, [filtered]);
 
   const resetForm = () => {
-    setFormData({ tipo: 'silla_bebe', nombre: '', codigo: '', notas: '', fecha_compra: '' });
+    setFormData({ tipo: 'recien_nacido', nombre: '', codigo: '', notas: '', fecha_compra: '' });
   };
 
   const handleCreate = () => {
@@ -306,7 +308,7 @@ export default function FleetEquipment() {
             >
               Todos
             </Button>
-            {(['silla_bebe', 'silla_infantes', 'elevador'] as EquipmentTipo[]).map((tipo) => (
+            {SEAT_TIPOS.map((tipo) => (
               <Button
                 key={tipo}
                 variant={tipoFilter === tipo ? 'default' : 'outline'}
@@ -314,7 +316,7 @@ export default function FleetEquipment() {
                 onClick={() => setTipoFilter(tipo)}
                 className="h-8 text-xs"
               >
-                {EQUIPMENT_TIPO_LABELS[tipo]}
+                {EQUIPMENT_TIPO_SHORT_LABELS[tipo]}
               </Button>
             ))}
           </div>
