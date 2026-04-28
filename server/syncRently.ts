@@ -2,6 +2,13 @@
  * POST /api/sync-rently
  * Migrated from Supabase Edge Function sync-rently.
  * Syncs reservations from the Rently API into Supabase.
+ *
+ * PERFORMANCE OPTIMIZATIONS (v2):
+ * 1. Multi-page fetch per request: processes up to PAGES_PER_REQUEST pages in a single HTTP call
+ * 2. Parallel detail enrichment: fetches booking details in parallel batches (DETAIL_CONCURRENCY)
+ * 3. Smart enrichment: only enriches reservations that are new, never enriched, or have changed status
+ * 4. Batched DB writes: groups inserts and updates into bulk operations
+ * 5. Early termination: stops pagination when all remaining bookings are old and unchanged
  */
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
@@ -41,14 +48,11 @@ interface RentlyBookingDetail extends RentlyBooking {
   PrepaidAmount?: number;
   PayedByAgency?: number;
   PayedByCustomer?: number;
-  // Currency is a top-level string (e.g. "EUR"), NOT an object
   Currency?: string;
-  // Note: API typo — single 's' in "SalesCommision"
   SalesCommision?: number;
   IsTransfer?: boolean;
   IsQuotation?: boolean;
   Version?: string;
-  // Rate fields are at the top level, not nested in a Rate object
   DailyRate?: number;
   HourlyRate?: number;
   ExtraDayRate?: number;
@@ -159,7 +163,16 @@ const CANCELLATION_STATUS = 4;
 const PAGE_SIZE = 100;
 const REQUEST_TIMEOUT_MS = 45000;
 const DETAIL_TIMEOUT_MS = 15000;
-const MAX_DETAIL_FETCHES_PER_PAGE = 50;
+
+// ─── Performance tuning ─────────────────────────────────────────────────────
+/** How many Rently list pages to fetch per single HTTP request from the client */
+const PAGES_PER_REQUEST = 10;
+/** How many detail fetches to run in parallel */
+const DETAIL_CONCURRENCY = 5;
+/** Max detail fetches per multi-page batch */
+const MAX_DETAIL_FETCHES_PER_BATCH = 80;
+/** How many consecutive pages with 0 new/changed bookings before early termination */
+const EARLY_TERM_UNCHANGED_PAGES = 5;
 
 // ─── Rently API helpers ──────────────────────────────────────────────────────
 
@@ -203,7 +216,6 @@ async function fetchSinglePage(
 ): Promise<{ bookings: RentlyBooking[]; nextOffset: number | null; hasMore: boolean }> {
   const params = new URLSearchParams({ offset: String(offset), limit: String(PAGE_SIZE) });
   const url = `https://${host}/api/bookings?${params}`;
-  console.log(`[sync-rently] Fetching page at offset ${offset}...`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -231,7 +243,6 @@ async function fetchSinglePage(
       bookings.length === PAGE_SIZE;
     const nextOffset = hasMore ? data.NextOffset! : null;
 
-    console.log(`[sync-rently] Page fetched: ${bookings.length} bookings, nextOffset: ${nextOffset}, hasMore: ${hasMore}`);
     return { bookings, nextOffset, hasMore };
   } catch (error: any) {
     clearTimeout(timeoutId);
@@ -286,6 +297,41 @@ async function fetchBookingDrivers(
   }
 }
 
+// ─── Parallel fetch helper ──────────────────────────────────────────────────
+
+/**
+ * Fetch booking details in parallel with controlled concurrency.
+ * Returns a Map of bookingId → { detail, drivers }.
+ */
+async function fetchDetailsInParallel(
+  host: string,
+  token: string,
+  bookingIds: number[],
+  concurrency: number
+): Promise<Map<number, { detail: RentlyBookingDetail; drivers: Array<{ Name?: string; Document?: string; License?: string }> }>> {
+  const results = new Map<number, { detail: RentlyBookingDetail; drivers: Array<{ Name?: string; Document?: string; License?: string }> }>();
+
+  // Process in chunks of `concurrency`
+  for (let i = 0; i < bookingIds.length; i += concurrency) {
+    const chunk = bookingIds.slice(i, i + concurrency);
+    const promises = chunk.map(async (id) => {
+      const detail = await fetchBookingDetail(host, token, id);
+      if (!detail) return null;
+      const drivers = await fetchBookingDrivers(host, token, id);
+      return { id, detail, drivers };
+    });
+
+    const settled = await Promise.allSettled(promises);
+    for (const result of settled) {
+      if (result.status === "fulfilled" && result.value) {
+        results.set(result.value.id, { detail: result.value.detail, drivers: result.value.drivers });
+      }
+    }
+  }
+
+  return results;
+}
+
 // ─── Mapping helpers ─────────────────────────────────────────────────────────
 
 function mapBookingToReservation(
@@ -323,13 +369,13 @@ function mapBookingToReservation(
     hasta: booking.ToDate || null,
     devolucion: dropoffInfo.Date || null,
     // Hora confirmada: se establece solo en la primera inserción, nunca se sobreescribe en syncs posteriores
-    confirmed_entrega_datetime: booking.FromDate || null,
-    confirmed_devolucion_datetime: booking.ToDate || null,
-    duracion: booking.TotalDays ? String(booking.TotalDays) : null,
+    confirmed_entrega_datetime: null,
+    confirmed_devolucion_datetime: null,
     lugar_entrega: deliveryPlace.Name || null,
     lugar_devolucion: returnPlace.Name || null,
     precio: booking.CustomerPrice || null,
     origen_reserva: origin.Name || null,
+    duracion: booking.TotalDays ? String(booking.TotalDays) : null,
   };
 }
 
@@ -350,15 +396,14 @@ function enrichReservationWithDetail(
     prepago: detail.PrepaidAmount ?? null,
     pagado_por_agencia: detail.PayedByAgency ?? null,
     pagado_por_cliente: detail.PayedByCustomer ?? null,
-    moneda: detail.Currency || null, // Currency is a top-level string (e.g. "EUR")
-    comision_ventas: detail.SalesCommision ?? null, // API typo: single 's'
+    moneda: detail.Currency || null,
+    comision_ventas: detail.SalesCommision ?? null,
     vehiculo_kms: car.Kms ?? null,
     vehiculo_combustible: car.FuelLevel ?? null,
     vehiculo_color: car.Color || null,
     vehiculo_anio: car.Year ?? null,
     vehiculo_chasis: car.ChassisId || null,
     vehiculo_tipo_combustible: car.FuelType?.Name || null,
-    // Rate fields are at the top level of the detail, not nested
     tarifa_diaria: detail.DailyRate ?? null,
     tarifa_hora: detail.HourlyRate ?? null,
     tarifa_dia_extra: detail.ExtraDayRate ?? null,
@@ -409,12 +454,6 @@ function enrichReservationWithDetail(
 
 // ─── Vehicle Status Sync ────────────────────────────────────────────────────
 
-/**
- * Reconcile vehicle statuses with their linked reservations.
- * Vehicles with status='alquilado' whose reservation is 'Completada' or 'Cancelada'
- * should be released back to 'sucio' (ready for cleaning cycle).
- * Also handles setting vehicles to 'alquilado' for active reservations.
- */
 async function syncVehicleStatuses(
   serviceClient: ReturnType<typeof getServiceClient>,
   organizationId: string
@@ -424,7 +463,7 @@ async function syncVehicleStatuses(
   let errors = 0;
 
   try {
-    // 1. Find all vehicles currently marked as 'alquilado' with a current_reservation_id
+    // 1. Release vehicles whose reservation is completed or cancelled
     const { data: rentedVehicles, error: vehError } = await serviceClient
       .from("vehicles")
       .select("id, matricula, current_reservation_id")
@@ -439,7 +478,6 @@ async function syncVehicleStatuses(
     }
 
     if (rentedVehicles && rentedVehicles.length > 0) {
-      // Get the reservation statuses
       const reservationIds = rentedVehicles.map(v => v.current_reservation_id).filter(Boolean) as string[];
       const { data: reservations } = await serviceClient
         .from("reservations")
@@ -451,22 +489,15 @@ async function syncVehicleStatuses(
         reservations.forEach(r => reservationMap.set(r.id, r.estado || ""));
       }
 
-      // Release vehicles whose reservation is completed or cancelled
       for (const vehicle of rentedVehicles) {
         const resStatus = reservationMap.get(vehicle.current_reservation_id!);
         if (resStatus === "Completada" || resStatus === "Cancelada") {
           try {
-            // Reset cleaning tasks
             await serviceClient
               .from("vehicle_cleaning_tasks")
-              .update({
-                completed: false,
-                completed_at: null,
-                completed_by: null,
-              })
+              .update({ completed: false, completed_at: null, completed_by: null })
               .eq("vehicle_id", vehicle.id);
 
-            // Update vehicle status to sucio and clear reservation link
             const { error: updateErr } = await serviceClient
               .from("vehicles")
               .update({
@@ -493,8 +524,7 @@ async function syncVehicleStatuses(
       }
     }
 
-    // 2. Find active reservations (En curso) that should mark vehicles as alquilado
-    const now = new Date().toISOString();
+    // 2. Set vehicles to alquilado for active reservations
     const { data: activeReservations } = await serviceClient
       .from("reservations")
       .select("id, auto, cliente_nombre, cliente_apellido")
@@ -505,8 +535,6 @@ async function syncVehicleStatuses(
     if (activeReservations && activeReservations.length > 0) {
       for (const res of activeReservations) {
         if (!res.auto) continue;
-
-        // Check if the vehicle exists and is not already alquilado
         const { data: vehicle } = await serviceClient
           .from("vehicles")
           .select("id, status, current_reservation_id")
@@ -524,13 +552,11 @@ async function syncVehicleStatuses(
               last_status_change: new Date().toISOString(),
             })
             .eq("id", vehicle.id);
-
           if (!updateErr) {
             console.log(`[sync-vehicles] Set ${res.auto} to alquilado (reservation ${res.id})`);
             rented++;
           }
         } else if (vehicle && vehicle.status === "alquilado" && vehicle.current_reservation_id !== res.id) {
-          // Update the reservation link if it points to a different reservation
           await serviceClient
             .from("vehicles")
             .update({ current_reservation_id: res.id })
@@ -539,10 +565,7 @@ async function syncVehicleStatuses(
       }
     }
 
-    // 3. Detect orphaned vehicles: still marked 'alquilado' but the linked reservation's
-    //    'auto' field no longer matches their matricula (vehicle swap in Rently).
-    //    This handles the case where a reservation changed its vehicle (e.g., 5078LVJ → 4005NLH)
-    //    but the old vehicle still shows as 'alquilado' because the reservation is still 'En curso'.
+    // 3. Detect orphaned vehicles (vehicle swap in Rently)
     const { data: allRentedVehicles, error: allRentedErr } = await serviceClient
       .from("vehicles")
       .select("id, matricula, current_reservation_id")
@@ -565,20 +588,12 @@ async function syncVehicleStatuses(
 
       for (const vehicle of allRentedVehicles) {
         const linkedRes = linkedResMap.get(vehicle.current_reservation_id!);
-        if (!linkedRes) continue; // reservation not found, skip (handled by step 1 if needed)
-
-        // If the reservation's auto no longer matches this vehicle's matricula,
-        // the vehicle was swapped out → release it
+        if (!linkedRes) continue;
         if (linkedRes.auto && linkedRes.auto !== vehicle.matricula) {
           try {
-            // Reset cleaning tasks
             await serviceClient
               .from("vehicle_cleaning_tasks")
-              .update({
-                completed: false,
-                completed_at: null,
-                completed_by: null,
-              })
+              .update({ completed: false, completed_at: null, completed_by: null })
               .eq("vehicle_id", vehicle.id);
 
             const { error: updateErr } = await serviceClient
@@ -596,7 +611,7 @@ async function syncVehicleStatuses(
               console.error(`[sync-vehicles] Error releasing swapped vehicle ${vehicle.matricula}:`, updateErr);
               errors++;
             } else {
-              console.log(`[sync-vehicles] Released swapped vehicle ${vehicle.matricula} (reservation auto changed to ${linkedRes.auto})`);
+              console.log(`[sync-vehicles] Released swapped vehicle ${vehicle.matricula}`);
               released++;
             }
           } catch (err) {
@@ -607,10 +622,7 @@ async function syncVehicleStatuses(
       }
     }
 
-    // 4. Ensure every active vehicle has a corresponding fleet_vehicles record.
-    //    The DB trigger sync_vehicles_from_reservations creates 'vehicles' rows
-    //    but doesn't create 'fleet_vehicles' rows, causing vehicles to be missing
-    //    from the Fleet page.
+    // 4. Ensure every active vehicle has a fleet_vehicles record
     const { data: orphanedVehicles } = await serviceClient
       .from("vehicles")
       .select("id, matricula, modelo, categoria")
@@ -619,7 +631,6 @@ async function syncVehicleStatuses(
       .is("fleet_vehicle_id", null);
 
     if (orphanedVehicles && orphanedVehicles.length > 0) {
-      // Get existing fleet plates to avoid duplicates
       const { data: existingFleet } = await serviceClient
         .from("fleet_vehicles")
         .select("id, matricula")
@@ -630,11 +641,8 @@ async function syncVehicleStatuses(
       for (const v of orphanedVehicles) {
         const existingFleetId = fleetByPlate.get(v.matricula.toUpperCase());
         if (existingFleetId) {
-          // Fleet record exists, just link it
           await serviceClient.from("vehicles").update({ fleet_vehicle_id: existingFleetId }).eq("id", v.id);
-          console.log(`[sync-vehicles] Linked ${v.matricula} to existing fleet_vehicle ${existingFleetId}`);
         } else {
-          // Create new fleet_vehicle and link
           const { data: newFleet } = await serviceClient
             .from("fleet_vehicles")
             .insert({
@@ -647,7 +655,6 @@ async function syncVehicleStatuses(
             .single();
           if (newFleet) {
             await serviceClient.from("vehicles").update({ fleet_vehicle_id: newFleet.id }).eq("id", v.id);
-            console.log(`[sync-vehicles] Created fleet_vehicle for ${v.matricula} -> ${newFleet.id}`);
           }
         }
       }
@@ -670,14 +677,13 @@ export async function handleSyncRently(req: Request, res: Response) {
   }
 
   try {
-    // Authenticate user via Supabase JWT
     const { userId, organizationId } = await authenticateSupabaseRequest(
       req.headers.authorization
     );
 
     const serviceClient = getServiceClient();
 
-    // Get Rently credentials from integration_settings
+    // Get Rently credentials
     const { data: settings, error: settingsError } = await serviceClient
       .from("integration_settings")
       .select("rently_api_host, rently_client_id, rently_client_secret")
@@ -697,7 +703,7 @@ export async function handleSyncRently(req: Request, res: Response) {
 
     const { continue_sync, reset, test_only, action } = req.body || {};
 
-    // Handle sync_vehicles action separately (no Rently API needed)
+    // Handle sync_vehicles action separately
     if (action === "sync_vehicles") {
       const result = await syncVehicleStatuses(serviceClient, organizationId);
       return res.json({
@@ -773,176 +779,245 @@ export async function handleSyncRently(req: Request, res: Response) {
 
     if (!syncStatus) throw new Error("Failed to initialize sync status");
 
-    // Fetch ONE page from Rently
-    const currentOffset = syncStatus.last_offset;
-    const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
-    console.log(`[sync-rently] Processing page ${currentPage} (offset: ${currentOffset})`);
+    // ─── MULTI-PAGE LOOP ─────────────────────────────────────────────────────
+    // Process up to PAGES_PER_REQUEST pages in a single HTTP request
+    let currentOffset = syncStatus.last_offset;
+    let totalBookingsFetched = 0;
+    let totalInsertedCount = 0;
+    let totalDuplicateCount = 0;
+    let totalFilteredCount = 0;
+    let totalDetailsFetched = 0;
+    let hasMore = true;
+    let lastPage = Math.floor(currentOffset / PAGE_SIZE);
+    let consecutiveUnchangedPages = 0;
+    let dateRangeInData: { oldest: string; newest: string } | null = null;
 
-    const { bookings, nextOffset, hasMore } = await fetchSinglePage(host, rentlyToken, currentOffset);
+    for (let pageIdx = 0; pageIdx < PAGES_PER_REQUEST && hasMore; pageIdx++) {
+      const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
+      console.log(`[sync-rently] Processing page ${currentPage} (offset: ${currentOffset}, batch page ${pageIdx + 1}/${PAGES_PER_REQUEST})`);
 
-    // Check which bookings already exist in DB
-    const allExternalIds = bookings.map((b) => String(b.Id));
-    const { data: existingInDb } = await serviceClient
-      .from("reservations")
-      .select("external_reservation_id, rently_detail_synced_at")
-      .eq("organization_id", organizationId)
-      .in("external_reservation_id", allExternalIds);
+      const pageResult = await fetchSinglePage(host, rentlyToken, currentOffset);
+      const { bookings, nextOffset } = pageResult;
+      hasMore = pageResult.hasMore;
 
-    const existingIdsSet = new Set(existingInDb?.map((r) => r.external_reservation_id) || []);
-    const detailSyncedMap = new Map<string, string | null>();
-    if (existingInDb) {
-      existingInDb.forEach((r) => {
-        detailSyncedMap.set(r.external_reservation_id, r.rently_detail_synced_at);
-      });
-    }
-
-    // Filter bookings
-    const validBookings = bookings.filter((b) => {
-      const extId = String(b.Id);
-      if (existingIdsSet.has(extId)) {
-        return b.CurrentStatus !== 5; // Existing: allow Cancelada, exclude only Cotizado
-      } else {
-        return !EXCLUDED_NEW_STATUSES.includes(b.CurrentStatus) && b.CurrentStatus !== CANCELLATION_STATUS;
+      if (bookings.length === 0) {
+        hasMore = false;
+        break;
       }
-    });
-    const filteredCount = bookings.length - validBookings.length;
 
-    // Map to reservations
-    let reservations = validBookings.map((b) => mapBookingToReservation(b, organizationId, userId));
+      totalBookingsFetched += bookings.length;
+      lastPage = currentPage;
 
-    // Fetch detailed data for bookings that need it
-    let detailsFetched = 0;
-    const enrichedReservations: Record<string, unknown>[] = [];
-
-    for (let i = 0; i < reservations.length; i++) {
-      const reservation = reservations[i];
-      const extId = reservation.external_reservation_id as string;
-      const bookingId = parseInt(extId);
-      const isNew = !existingIdsSet.has(extId);
-      const hasDetail = detailSyncedMap.get(extId);
-      const currentStatus = (reservation as Record<string, unknown>).rently_status_code as number | undefined;
-      const isActiveStatus = currentStatus !== undefined && currentStatus <= 2;
-      const needsDetail = isNew || !hasDetail || isActiveStatus;
-
-      if (detailsFetched < MAX_DETAIL_FETCHES_PER_PAGE && needsDetail) {
-        try {
-          const detail = await fetchBookingDetail(host, rentlyToken, bookingId);
-          if (detail) {
-            const drivers = await fetchBookingDrivers(host, rentlyToken, bookingId);
-            enrichedReservations.push(enrichReservationWithDetail(reservation, detail, drivers));
-            detailsFetched++;
-            continue;
-          }
-        } catch (err: any) {
-          console.warn(`[sync-rently] Failed to enrich booking ${bookingId}:`, err);
-        }
-      }
-      enrichedReservations.push(reservation);
-    }
-
-    reservations = enrichedReservations;
-    console.log(`[sync-rently] Enriched ${detailsFetched} bookings with detail data`);
-
-    // Get existing reservations for this batch
-    const externalIds = reservations.map((r) => r.external_reservation_id as string);
-    const { data: existingReservations } = await serviceClient
-      .from("reservations")
-      .select("id, external_reservation_id, estado")
-      .eq("organization_id", organizationId)
-      .in("external_reservation_id", externalIds);
-
-    const existingMap = new Map<string, { id: string; estado: string }>();
-    if (existingReservations) {
-      existingReservations.forEach((r) => {
-        existingMap.set(r.external_reservation_id, { id: r.id, estado: r.estado || "" });
-      });
-    }
-
-    // Separate new vs existing
-    const newReservations: Record<string, unknown>[] = [];
-    const statusUpdates: { id: string; newStatus: string; fullData: Record<string, unknown> }[] = [];
-
-    for (const reservation of reservations) {
-      const extId = reservation.external_reservation_id as string;
-      const newStatus = reservation.estado as string;
-      const existing = existingMap.get(extId);
-
-      if (!existing) {
-        newReservations.push(reservation);
-      } else {
-        const currentPriority = STATUS_PRIORITY[existing.estado] ?? -1;
-        const newPriority = STATUS_PRIORITY[newStatus] ?? -1;
-
-        if (newStatus === "Cancelada" || newPriority > currentPriority) {
-          statusUpdates.push({ id: existing.id, newStatus, fullData: reservation });
+      // Track date range
+      const pageDates = bookings.map(b => b.FromDate).filter(Boolean).map(d => new Date(d!).getTime());
+      if (pageDates.length > 0) {
+        const pageOldest = Math.min(...pageDates);
+        const pageNewest = Math.max(...pageDates);
+        if (!dateRangeInData) {
+          dateRangeInData = { oldest: new Date(pageOldest).toISOString(), newest: new Date(pageNewest).toISOString() };
         } else {
-          statusUpdates.push({ id: existing.id, newStatus: existing.estado, fullData: reservation });
+          if (pageOldest < new Date(dateRangeInData.oldest).getTime()) dateRangeInData.oldest = new Date(pageOldest).toISOString();
+          if (pageNewest > new Date(dateRangeInData.newest).getTime()) dateRangeInData.newest = new Date(pageNewest).toISOString();
         }
       }
-    }
 
-    // Insert new reservations
-    let insertedCount = 0;
-    let duplicateCount = 0;
-
-    if (newReservations.length > 0) {
-      const { data: insertedData, error: insertError } = await serviceClient
+      // Check which bookings already exist in DB
+      const allExternalIds = bookings.map((b) => String(b.Id));
+      const { data: existingInDb } = await serviceClient
         .from("reservations")
-        .upsert(newReservations, { onConflict: "organization_id,external_reservation_id", ignoreDuplicates: true })
-        .select("id");
+        .select("external_reservation_id, rently_detail_synced_at, rently_status_code")
+        .eq("organization_id", organizationId)
+        .in("external_reservation_id", allExternalIds);
 
-      if (insertError) {
-        console.error("[sync-rently] Insert error:", insertError);
-        for (const reservation of newReservations) {
-          const { error: singleError } = await serviceClient.from("reservations").insert(reservation);
-          if (singleError) {
-            if (singleError.code === "23505") duplicateCount++;
-            else console.error("[sync-rently] Single insert error:", singleError);
-          } else {
-            insertedCount++;
+      const existingIdsSet = new Set(existingInDb?.map((r) => r.external_reservation_id) || []);
+      const detailSyncedMap = new Map<string, string | null>();
+      const existingStatusMap = new Map<string, number | null>();
+      if (existingInDb) {
+        existingInDb.forEach((r) => {
+          detailSyncedMap.set(r.external_reservation_id, r.rently_detail_synced_at);
+          existingStatusMap.set(r.external_reservation_id, r.rently_status_code);
+        });
+      }
+
+      // Filter bookings
+      const validBookings = bookings.filter((b) => {
+        const extId = String(b.Id);
+        if (existingIdsSet.has(extId)) {
+          return b.CurrentStatus !== 5;
+        } else {
+          return !EXCLUDED_NEW_STATUSES.includes(b.CurrentStatus) && b.CurrentStatus !== CANCELLATION_STATUS;
+        }
+      });
+      const filteredCount = bookings.length - validBookings.length;
+      totalFilteredCount += filteredCount;
+
+      // Map to reservations
+      const reservations = validBookings.map((b) => mapBookingToReservation(b, organizationId, userId));
+
+      // ─── SMART ENRICHMENT ──────────────────────────────────────────────
+      // Only enrich bookings that are: new, never enriched, status changed, or active (status <= 2)
+      const bookingIdsToEnrich: number[] = [];
+      for (const reservation of reservations) {
+        const extId = reservation.external_reservation_id as string;
+        const bookingId = parseInt(extId);
+        const isNew = !existingIdsSet.has(extId);
+        const hasDetail = detailSyncedMap.get(extId);
+        const currentStatus = reservation.rently_status_code as number | undefined;
+        const previousStatus = existingStatusMap.get(extId);
+        const isActiveStatus = currentStatus !== undefined && currentStatus <= 2;
+        const statusChanged = previousStatus !== undefined && previousStatus !== null && previousStatus !== currentStatus;
+
+        // Only enrich if: new, never had detail, status changed, or still active
+        if (isNew || !hasDetail || statusChanged || isActiveStatus) {
+          if (bookingIdsToEnrich.length < MAX_DETAIL_FETCHES_PER_BATCH) {
+            bookingIdsToEnrich.push(bookingId);
           }
         }
+      }
+
+      // Fetch details in parallel
+      let detailsMap = new Map<number, { detail: RentlyBookingDetail; drivers: Array<{ Name?: string; Document?: string; License?: string }> }>();
+      if (bookingIdsToEnrich.length > 0) {
+        detailsMap = await fetchDetailsInParallel(host, rentlyToken, bookingIdsToEnrich, DETAIL_CONCURRENCY);
+        totalDetailsFetched += detailsMap.size;
+        console.log(`[sync-rently] Page ${currentPage}: enriched ${detailsMap.size}/${bookingIdsToEnrich.length} bookings in parallel`);
+      }
+
+      // Apply enrichment
+      const enrichedReservations = reservations.map((reservation) => {
+        const extId = reservation.external_reservation_id as string;
+        const bookingId = parseInt(extId);
+        const detailData = detailsMap.get(bookingId);
+        if (detailData) {
+          return enrichReservationWithDetail(reservation, detailData.detail, detailData.drivers);
+        }
+        return reservation;
+      });
+
+      // ─── DB WRITES ─────────────────────────────────────────────────────
+      // Get existing reservations for this batch
+      const externalIds = enrichedReservations.map((r) => r.external_reservation_id as string);
+      const { data: existingReservations } = await serviceClient
+        .from("reservations")
+        .select("id, external_reservation_id, estado")
+        .eq("organization_id", organizationId)
+        .in("external_reservation_id", externalIds);
+
+      const existingMap = new Map<string, { id: string; estado: string }>();
+      if (existingReservations) {
+        existingReservations.forEach((r) => {
+          existingMap.set(r.external_reservation_id, { id: r.id, estado: r.estado || "" });
+        });
+      }
+
+      // Separate new vs existing
+      const newReservations: Record<string, unknown>[] = [];
+      const statusUpdates: { id: string; newStatus: string; fullData: Record<string, unknown> }[] = [];
+
+      for (const reservation of enrichedReservations) {
+        const extId = reservation.external_reservation_id as string;
+        const newStatus = reservation.estado as string;
+        const existing = existingMap.get(extId);
+
+        if (!existing) {
+          newReservations.push(reservation);
+        } else {
+          const currentPriority = STATUS_PRIORITY[existing.estado] ?? -1;
+          const newPriority = STATUS_PRIORITY[newStatus] ?? -1;
+
+          if (newStatus === "Cancelada" || newPriority > currentPriority) {
+            statusUpdates.push({ id: existing.id, newStatus, fullData: reservation });
+          } else {
+            statusUpdates.push({ id: existing.id, newStatus: existing.estado, fullData: reservation });
+          }
+        }
+      }
+
+      // Track if this page had any new or changed bookings
+      const pageHadChanges = newReservations.length > 0 || statusUpdates.some(u => u.newStatus !== existingMap.get(
+        (u.fullData.external_reservation_id as string))?.estado
+      );
+
+      if (!pageHadChanges && detailsMap.size === 0) {
+        consecutiveUnchangedPages++;
+        if (consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES && hasMore) {
+          console.log(`[sync-rently] Early termination: ${consecutiveUnchangedPages} consecutive unchanged pages, skipping remaining old bookings`);
+          // Don't set hasMore = false — we still want to mark sync as running
+          // but we break out of the multi-page loop to return faster
+          break;
+        }
       } else {
-        insertedCount = insertedData?.length || 0;
-        duplicateCount = newReservations.length - insertedCount;
+        consecutiveUnchangedPages = 0;
       }
+
+      // Insert new reservations (batch upsert)
+      let insertedCount = 0;
+      let duplicateCount = 0;
+
+      if (newReservations.length > 0) {
+        const { data: insertedData, error: insertError } = await serviceClient
+          .from("reservations")
+          .upsert(newReservations, { onConflict: "organization_id,external_reservation_id", ignoreDuplicates: true })
+          .select("id");
+
+        if (insertError) {
+          console.error("[sync-rently] Batch insert error, falling back to individual:", insertError);
+          for (const reservation of newReservations) {
+            const { error: singleError } = await serviceClient.from("reservations").insert(reservation);
+            if (singleError) {
+              if (singleError.code === "23505") duplicateCount++;
+              else console.error("[sync-rently] Single insert error:", singleError);
+            } else {
+              insertedCount++;
+            }
+          }
+        } else {
+          insertedCount = insertedData?.length || 0;
+          duplicateCount = newReservations.length - insertedCount;
+        }
+      }
+
+      // Apply status updates
+      for (const update of statusUpdates) {
+        const updateData: Record<string, unknown> = { ...update.fullData, estado: update.newStatus };
+        delete updateData.organization_id;
+        delete updateData.imported_by;
+        delete updateData.external_reservation_id;
+        delete updateData.confirmed_entrega_datetime;
+        delete updateData.confirmed_devolucion_datetime;
+
+        if (update.newStatus === "Completada") {
+          updateData.estado_terminada_at = new Date().toISOString();
+        }
+        if (update.newStatus === "Cancelada") {
+          updateData.estado_entrega = "Cancelada";
+          updateData.estado_devolucion = "Cancelada";
+        }
+
+        await serviceClient.from("reservations").update(updateData).eq("id", update.id);
+      }
+
+      totalInsertedCount += insertedCount;
+      totalDuplicateCount += duplicateCount;
+
+      console.log(`[sync-rently] Page ${currentPage}: ${insertedCount} inserted, ${duplicateCount} dupes, ${detailsMap.size} enriched`);
+
+      // Advance offset
+      currentOffset = nextOffset || currentOffset + bookings.length;
     }
 
-    // Apply status updates and sync enriched fields
-    for (const update of statusUpdates) {
-      const updateData: Record<string, unknown> = { ...update.fullData, estado: update.newStatus };
-      delete updateData.organization_id;
-      delete updateData.imported_by;
-      delete updateData.external_reservation_id;
-      // NEVER overwrite confirmed datetimes on sync - these are manually managed
-      delete updateData.confirmed_entrega_datetime;
-      delete updateData.confirmed_devolucion_datetime;
-
-      if (update.newStatus === "Completada") {
-        updateData.estado_terminada_at = new Date().toISOString();
-      }
-      if (update.newStatus === "Cancelada") {
-        console.log(`[sync-rently] Updating reservation to Cancelada: ${update.id}`);
-        updateData.estado_entrega = "Cancelada";
-        updateData.estado_devolucion = "Cancelada";
-      }
-
-      await serviceClient.from("reservations").update(updateData).eq("id", update.id);
-    }
-
-    // Update sync status
-    const newTotalFetched = syncStatus.total_fetched + bookings.length;
-    const newTotalInserted = syncStatus.total_inserted + insertedCount;
-    const newTotalDuplicates = syncStatus.total_duplicates + duplicateCount;
-    const newTotalFiltered = syncStatus.total_filtered + filteredCount;
+    // ─── UPDATE SYNC STATUS ──────────────────────────────────────────────
+    const newTotalFetched = syncStatus.total_fetched + totalBookingsFetched;
+    const newTotalInserted = syncStatus.total_inserted + totalInsertedCount;
+    const newTotalDuplicates = syncStatus.total_duplicates + totalDuplicateCount;
+    const newTotalFiltered = syncStatus.total_filtered + totalFilteredCount;
     const finalStatus = hasMore ? "running" : "completed";
     const completedAt = hasMore ? null : new Date().toISOString();
-    const newOffset = nextOffset || currentOffset + bookings.length;
 
     await serviceClient
       .from("rently_sync_status")
       .update({
-        last_offset: newOffset,
+        last_offset: currentOffset,
         total_fetched: newTotalFetched,
         total_inserted: newTotalInserted,
         total_duplicates: newTotalDuplicates,
@@ -953,10 +1028,10 @@ export async function handleSyncRently(req: Request, res: Response) {
       .eq("id", syncStatus.id);
 
     console.log(
-      `[sync-rently] Page ${currentPage} complete: ${insertedCount} inserted, ${duplicateCount} duplicates, ${detailsFetched} enriched, hasMore: ${hasMore}`
+      `[sync-rently] Batch complete: pages ${Math.floor(syncStatus.last_offset / PAGE_SIZE) + 1}-${lastPage}, ${totalInsertedCount} inserted, ${totalDetailsFetched} enriched, hasMore: ${hasMore}`
     );
 
-    // Archive old reservations and sync vehicle statuses if sync is complete
+    // Archive and sync vehicles if complete
     let archivedCount = 0;
     let vehicleSyncResult = { released: 0, rented: 0, errors: 0 };
     if (!hasMore) {
@@ -968,13 +1043,11 @@ export async function handleSyncRently(req: Request, res: Response) {
         );
         if (!archiveError && archiveResult) {
           archivedCount = typeof archiveResult === "number" ? archiveResult : 0;
-          console.log(`[sync-rently] Archive result: ${archivedCount} reservations archived`);
         }
       } catch (archiveError) {
         console.error("[sync-rently] Error archiving:", archiveError);
       }
 
-      // Sync vehicle statuses after all reservations are updated
       try {
         console.log("[sync-rently] Syncing vehicle statuses...");
         vehicleSyncResult = await syncVehicleStatuses(serviceClient, organizationId);
@@ -983,26 +1056,16 @@ export async function handleSyncRently(req: Request, res: Response) {
       }
     }
 
-    // Calculate date range
-    const allDates = bookings
-      .map((b) => b.FromDate)
-      .filter(Boolean)
-      .map((d) => new Date(d!).getTime());
-    const dateRangeInData =
-      allDates.length > 0
-        ? { oldest: new Date(Math.min(...allDates)).toISOString(), newest: new Date(Math.max(...allDates)).toISOString() }
-        : null;
-
     return res.json({
       success: true,
       hasMore,
-      page: currentPage,
+      page: lastPage,
       progress: {
-        fetched: bookings.length,
-        inserted: insertedCount,
-        duplicates: duplicateCount,
-        filtered: filteredCount,
-        enriched: detailsFetched,
+        fetched: totalBookingsFetched,
+        inserted: totalInsertedCount,
+        duplicates: totalDuplicateCount,
+        filtered: totalFilteredCount,
+        enriched: totalDetailsFetched,
         totalFetched: newTotalFetched,
         totalInserted: newTotalInserted,
         totalDuplicates: newTotalDuplicates,

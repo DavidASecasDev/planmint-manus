@@ -234,7 +234,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
           isRunning: hasMore, startTime,
         });
 
-        if (hasMore) await sleep(300);
+        // No artificial delay — backend processes multiple pages per request now
       }
 
       const finalResult: RentlySyncResult = {

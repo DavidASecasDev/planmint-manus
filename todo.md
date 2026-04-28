@@ -440,3 +440,8 @@
 - [x] Añadir nuevo tipo de sillita: Grupo 0 - Recién nacido (0-9kg)
 - [x] Recategorizar sillitas existentes: Grupo 1 - Silla Infantes (9-18kg), Grupo 2 - Silla niño (18-36kg), Grupo 3 - Asiento Elevador (+36kg) — BD: silla_bebe renombrado a silla_nino, constraint actualizado, nombres actualizados
 - [x] Actualizar frontend: labels, formularios, widgets, alertas de escasez, keywords de detección — 902 tests pasando
+- [x] Bug CRÍTICO: Sincronización Rently tarda 12+ minutos — RESUELTO: multi-page (10 pags/request), parallel detail fetch (5 concurrent), smart enrichment, early termination
+- [x] Optimizar: smart enrichment — solo enriquecer reservas nuevas, sin detalle, con cambio de estado, o activas
+- [x] Optimizar: fetchDetailsInParallel con Promise.allSettled, concurrency=5
+- [x] Optimizar: batch upsert para nuevas reservas (ya existía), multi-page acumula en single request
+- [x] Optimizar: early termination tras 5 páginas consecutivas sin cambios — 929 tests pasando
