@@ -424,3 +424,16 @@
 - [x] Fix coherencia: Notificación automática de escasez de equipamiento — hook useEquipmentShortageAlerts con throttle 4h, dedup 12h en BD, se ejecuta tras cada sync de Rently. Tipo equipment_shortage añadido a NotificationType, ruta /fleet/equipment en NotificationBell, icono Baby rosa en Notifications.tsx
 
 - [x] Bug: Dashboard se queda en skeletons ~40 segundos antes de cargar datos, requiere refresh manual - FIX: Añadido sessionReady gate + waitForSession() a useEquipmentInventory, EquipmentStockWidget, useNotifications, useReminderNotifications. Eliminado waitForSession redundante de useOperationalDashboard (ya gateado por sessionReady). Reducido retry a 1 y retryDelay a 1s. Reducido timeout de waitForSession de 5s a 3s. Añadido error state en EquipmentStockWidget. 20 tests nuevos, 889 total pasando
+- [x] FIX-01: Actualizar trigger handle_new_user para insertar en organization_members
+- [x] FIX-02: Actualizar trigger update_vehicle_on_reservation_change para manejar Cancelada
+- [x] FIX-03: Crear membership faltante para Christa en organization_members
+- [x] FIX-04: Marcar invitaciones expiradas como status=expired
+- [x] FIX-05: Eliminar task_assignees de tareas borradas
+- [x] FIX-06: Marcar como leídas notificaciones no leídas >30 días
+- [x] FIX-07: Marcar movimientos huérfanos (sin vehículo) como cancelado
+- [x] FIX-08: Archivar reserva de Oliver sin auto (archived_at + estado=Cancelada)
+- [x] FIX-09: Crear 3 índices faltantes (profiles.org_id, reservations.estado, reservations.auto)
+- [x] FIX-10: Eliminar 9 funciones RPC legacy de la BD
+- [x] FIX-11: Eliminar 6 archivos de código muerto del frontend
+- [x] FIX-12: Añadir try/catch a handleOcrPlate y handleGetVapidKey (ocrPlate ya lo tenía, vapidKey corregido)
+- [ ] Bug: Dashboard sigue mostrando skeletons en parte superior (investigar queries principales)

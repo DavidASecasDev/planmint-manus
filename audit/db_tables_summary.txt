@@ -1,0 +1,618 @@
+Total tables: 122
+
+public.accident_files (2 rows, RLS ON)
+  Columns: id, accident_id, organization_id, file_type, file_category, storage_path, file_name, description, uploaded_by, created_at
+  FK: public.accident_files.organization_id -> public.organizations.id
+  FK: public.accident_files.accident_id -> public.accidents.id
+  FK: public.accident_files.uploaded_by -> public.profiles.id
+
+public.accidents (1 rows, RLS ON)
+  Columns: id, organization_id, vehicle_id, accident_date, location, description, severity, has_injuries, police_report_number, insurance_claim_number, status, reported_by, notes, created_at, accident_number, claim_number, fault_assessment, third_party_name, third_party_vehicle, third_party_plate, third_party_insurance, third_party_policy_number, third_party_phone, estimated_cost, insurance_coverage, linked_repair_id
+  FK: public.accidents.organization_id -> public.organizations.id
+  FK: public.accidents.reported_by -> public.profiles.id
+  FK: public.accidents.linked_repair_id -> public.repairs.id
+  FK: public.accidents.vehicle_id -> public.vehicles.id
+
+public.area_access_rules (22 rows, RLS ON)
+  Columns: id, organization_id, area_id, subject_type, subject_id, permission, created_at
+  FK: public.area_access_rules.organization_id -> public.organizations.id
+  FK: public.area_access_rules.area_id -> public.areas.id
+
+public.areas (9 rows, RLS ON)
+  Columns: id, organization_id, name, description, color, icon, is_archived, created_at, visibility
+  FK: public.areas.organization_id -> public.organizations.id
+
+public.audit_logs (36 rows, RLS ON)
+  Columns: id, organization_id, actor_user_id, actor_role, action, entity_type, entity_id, metadata_json, ip_address, user_agent, created_at
+  FK: public.audit_logs.actor_user_id -> public.profiles.id
+  FK: public.audit_logs.organization_id -> public.organizations.id
+
+public.automation_rules (0 rows, RLS ON)
+  Columns: id, organization_id, name, is_active, trigger_type, conditions_json, actions_json, throttle_minutes, created_by, created_at
+  FK: public.automation_rules.created_by -> public.profiles.id
+  FK: public.automation_rules.organization_id -> public.organizations.id
+
+public.automation_runs (0 rows, RLS ON)
+  Columns: id, organization_id, rule_id, trigger_type, entity_type, entity_id, status, message, created_at
+  FK: public.automation_runs.rule_id -> public.automation_rules.id
+  FK: public.automation_runs.organization_id -> public.organizations.id
+
+public.automation_throttle (0 rows, RLS ON)
+  Columns: id, organization_id, rule_id, entity_type, entity_id, last_run_at, created_at
+  FK: public.automation_throttle.organization_id -> public.organizations.id
+  FK: public.automation_throttle.rule_id -> public.automation_rules.id
+
+public.billing_events (0 rows, RLS ON)
+  Columns: id, organization_id, event_type, stripe_event_id, payload_json, created_at
+  FK: public.billing_events.organization_id -> public.organizations.id
+
+public.billing_products (7 rows, RLS ON)
+  Columns: id, code, name, type, stripe_price_monthly, stripe_price_annual, stripe_price, is_active, metadata_json, created_at
+
+public.billing_products_public (4 rows, RLS ON)
+  Columns: id, code, name, type, display_price_monthly, display_price_annual, currency, highlight_features_json, sort_order, is_active, created_at
+
+public.broker_profiles (2 rows, RLS ON)
+  Columns: id, user_id, broker_id, organization_id, name, email, phone, company, organization_name, organization_logo, is_active, created_at
+  FK: public.broker_profiles.broker_id -> public.transfer_brokers.id
+  FK: public.broker_profiles.organization_id -> public.organizations.id
+  FK: public.broker_profiles.user_id -> auth.users.id
+
+public.broker_rate_limits (9 rows, RLS ON)
+  Columns: id, identifier, submission_count, window_start, created_at
+
+public.broker_registration_incidents (0 rows, RLS ON)
+  Columns: id, user_id, email, organization_id, incident_type, error_message, resolved, resolved_at, resolved_by, created_at
+  FK: public.broker_registration_incidents.resolved_by -> public.profiles.id
+  FK: public.broker_registration_incidents.organization_id -> public.organizations.id
+
+public.broker_registration_requests (6 rows, RLS ON)
+  Columns: id, organization_id, user_id, name, company, email, phone, status, rejection_reason, reviewed_by, reviewed_at, created_at
+  FK: public.broker_registration_requests.organization_id -> public.organizations.id
+  FK: public.broker_registration_requests.user_id -> auth.users.id
+  FK: public.broker_registration_requests.reviewed_by -> public.profiles.id
+
+public.coupon_redemptions (1 rows, RLS ON)
+  Columns: id, organization_id, user_id, coupon_id, redeemed_at, stripe_promo_code_id, status
+  FK: public.coupon_redemptions.user_id -> public.profiles.id
+  FK: public.coupon_redemptions.coupon_id -> public.coupons.id
+  FK: public.coupon_redemptions.organization_id -> public.organizations.id
+
+public.coupons (2 rows, RLS ON)
+  Columns: id, code, description, discount_type, discount_value, currency, duration, duration_months, max_redemptions, redeem_by, applicable_products_json, stripe_coupon_id, is_active, created_at
+
+public.custom_roles (8 rows, RLS ON)
+  Columns: id, organization_id, name, description, permissions_json, is_system, created_at
+  FK: public.custom_roles.organization_id -> public.organizations.id
+
+public.daily_task_completions (80 rows, RLS ON)
+  Columns: id, organization_id, template_id, completed_by, completed_at, completion_date, notes, created_at
+  FK: public.daily_task_completions.organization_id -> public.organizations.id
+  FK: public.daily_task_completions.completed_by -> public.profiles.id
+  FK: public.daily_task_completions.template_id -> public.daily_task_templates.id
+
+public.daily_task_templates (15 rows, RLS ON)
+  Columns: id, organization_id, title, description, is_active, created_by, created_at, updated_at, weekdays, assigned_to
+  FK: public.daily_task_templates.organization_id -> public.organizations.id
+  FK: public.daily_task_templates.assigned_to -> public.profiles.id
+  FK: public.daily_task_templates.created_by -> public.profiles.id
+
+public.damage_catalog (78 rows, RLS ON)
+  Columns: id, organization_id, name_es, name_en, price_level_1, price_level_2, price_level_3, price_level_4, price_level_5, category, is_active, position, created_at
+  FK: public.damage_catalog.organization_id -> public.organizations.id
+
+public.damage_report_items (18 rows, RLS ON)
+  Columns: id, report_id, catalog_item_id, custom_description, severity_level, quantity, unit_price, total_price, location_on_vehicle, photo_urls, notes, created_at
+  FK: public.damage_report_items.catalog_item_id -> public.damage_catalog.id
+  FK: public.damage_report_items.report_id -> public.damage_reports.id
+
+public.damage_reports (10 rows, RLS ON)
+  Columns: id, organization_id, vehicle_id, report_number, damage_date, reported_by, customer_name, customer_document, reservation_id, status, notes, pdf_url, total_amount, created_at, updated_at, amount_collected, collected_at, collection_notes, contract_start_date, contract_end_date, vehicle_brand, vehicle_model, vehicle_plate, document_type, external_reservation_number, payment_gateway, payment_reference
+  FK: public.damage_reports.reported_by -> public.profiles.id
+  FK: public.damage_reports.reservation_id -> public.reservations.id
+  FK: public.damage_reports.organization_id -> public.organizations.id
+  FK: public.damage_reports.vehicle_id -> public.vehicles.id
+
+public.dropdown_options (55 rows, RLS ON)
+  Columns: id, organization_id, field_name, label, color, icon, sort_order, is_default, created_at
+  FK: public.dropdown_options.organization_id -> public.organizations.id
+
+public.equipment_assignments (12 rows, RLS ON)
+  Columns: id, equipment_id, reservation_id, vehicle_matricula, assigned_at, returned_at, assigned_by, returned_by, condition_out, condition_in, notes, created_at
+  FK: public.equipment_assignments.equipment_id -> public.equipment_inventory.id
+  FK: public.equipment_assignments.reservation_id -> public.reservations.id
+  FK: public.equipment_assignments.returned_by -> auth.users.id
+  FK: public.equipment_assignments.assigned_by -> auth.users.id
+
+public.equipment_inventory (26 rows, RLS ON)
+  Columns: id, organization_id, tipo, nombre, codigo, estado, reservation_id, vehicle_matricula, notas, fecha_compra, fecha_ultima_revision, created_at, updated_at
+  FK: public.equipment_inventory.reservation_id -> public.reservations.id
+  FK: public.equipment_inventory.organization_id -> public.organizations.id
+
+public.feature_flags (11 rows, RLS ON)
+  Columns: id, key, name, description, organization_id, plan, rollout_percentage, enabled, created_at, updated_at
+  FK: public.feature_flags.organization_id -> public.organizations.id
+
+public.fleet_inspection_damages (115 rows, RLS ON)
+  Columns: id, inspection_id, organization_id, zona, pieza, descripcion, severidad
+  FK: public.fleet_inspection_damages.organization_id -> public.organizations.id
+  FK: public.fleet_inspection_damages.inspection_id -> public.fleet_vehicle_inspections.id
+
+public.fleet_inspection_photos (706 rows, RLS ON)
+  Columns: id, inspection_id, organization_id, storage_path, file_name, photo_category, description, uploaded_by, created_at, damage_id
+  FK: public.fleet_inspection_photos.organization_id -> public.organizations.id
+  FK: public.fleet_inspection_photos.inspection_id -> public.fleet_vehicle_inspections.id
+  FK: public.fleet_inspection_photos.uploaded_by -> public.profiles.id
+  FK: public.fleet_inspection_photos.damage_id -> public.fleet_inspection_damages.id
+
+public.fleet_vehicle_damages (1 rows, RLS ON)
+  Columns: id, fleet_vehicle_id, organization_id, zona, pieza, descripcion, severidad, photo_url, origin_type, reservation_id, has_premium_coverage, repair_id, damage_report_id, status, croquis_x, croquis_y, reported_by, created_at, resolved_at
+  FK: public.fleet_vehicle_damages.reported_by -> public.profiles.id
+  FK: public.fleet_vehicle_damages.fleet_vehicle_id -> public.fleet_vehicles.id
+  FK: public.fleet_vehicle_damages.repair_id -> public.repairs.id
+  FK: public.fleet_vehicle_damages.damage_report_id -> public.damage_reports.id
+  FK: public.fleet_vehicle_damages.organization_id -> public.organizations.id
+  FK: public.fleet_vehicle_damages.reservation_id -> public.reservations.id
+
+public.fleet_vehicle_inspections (47 rows, RLS ON)
+  Columns: id, fleet_vehicle_id, organization_id, inspection_type, inspection_date, km, nivel_combustible, notas, inspector_id, created_at, receipt_url
+  FK: public.fleet_vehicle_inspections.inspector_id -> public.profiles.id
+  FK: public.fleet_vehicle_inspections.fleet_vehicle_id -> public.fleet_vehicles.id
+  FK: public.fleet_vehicle_inspections.organization_id -> public.organizations.id
+
+public.fleet_vehicles (105 rows, RLS ON)
+  Columns: id, organization_id, matricula, modelo, categoria, proveedor, numero_contrato, fecha_inicio_contrato, fecha_fin_contrato, km_recogida, km_devolucion, status, notas, created_at, updated_at, photo_url, marca, color, combustible, hibrido, motor, cv, numero_bastidor
+  FK: public.fleet_vehicles.organization_id -> public.organizations.id
+
+public.form_fields (24 rows, RLS ON)
+  Columns: id, form_id, name, label, type, is_required, placeholder, help_text, default_value, options, min_length, max_length, min_value, max_value, pattern, maps_to_task_field, position, width, conditions, created_at, maps_to_transfer_field
+  FK: public.form_fields.form_id -> public.forms.id
+
+public.form_responses (0 rows, RLS ON)
+  Columns: id, form_id, organization_id, data, submitted_by, submitter_email, submitter_name, submitter_ip, created_task_id, status, reviewed_by, reviewed_at, created_at, created_transfer_request_id
+  FK: public.form_responses.created_transfer_request_id -> public.transfer_requests.id
+  FK: public.form_responses.reviewed_by -> auth.users.id
+  FK: public.form_responses.created_task_id -> public.tasks.id
+  FK: public.form_responses.submitted_by -> auth.users.id
+  FK: public.form_responses.form_id -> public.forms.id
+  FK: public.form_responses.organization_id -> public.organizations.id
+
+public.forms (2 rows, RLS ON)
+  Columns: id, organization_id, name, description, slug, is_public, is_active, requires_auth, create_task_on_submit, default_area_id, default_assignee_id, default_task_type, default_task_priority, success_message, redirect_url, custom_logo_url, primary_color, max_responses, expires_at, response_count, created_by, created_at, updated_at, entity_type
+  FK: public.forms.default_area_id -> public.areas.id
+  FK: public.forms.organization_id -> public.organizations.id
+
+public.integration_settings (1 rows, RLS ON)
+  Columns: id, organization_id, slack_webhook_url, email_from_name, email_from_address, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_business_account_id, created_at, openai_api_key, ai_provider, ai_model, ai_base_url, rently_api_host, rently_client_id, rently_client_secret, reservations_archive_days
+  FK: public.integration_settings.organization_id -> public.organizations.id
+
+public.kanban_columns (8 rows, RLS ON)
+  Columns: id, organization_id, status, label, color, sort_order, is_visible, created_at
+  FK: public.kanban_columns.organization_id -> public.organizations.id
+
+public.lead_rate_limits (0 rows, RLS ON)
+  Columns: id, identifier, submission_count, window_start, created_at
+
+public.leads (0 rows, RLS ON)
+  Columns: id, email, source, referral_code, status, created_at
+
+public.notification_preferences (13 rows, RLS ON)
+  Columns: id, organization_id, user_id, channel_in_app, channel_push, channel_email, channel_slack, channel_whatsapp, events_json, quiet_hours_start, quiet_hours_end, timezone, created_at
+  FK: public.notification_preferences.organization_id -> public.organizations.id
+  FK: public.notification_preferences.user_id -> public.profiles.id
+
+public.notifications (5350 rows, RLS ON)
+  Columns: id, organization_id, user_id, type, title, body, entity_type, entity_id, is_read, created_at
+  FK: public.notifications.user_id -> public.profiles.id
+  FK: public.notifications.organization_id -> public.organizations.id
+
+public.operation_legs (0 rows, RLS ON)
+  Columns: id, organization_id, task_id, leg_type, assignee_id, status, scheduled_at, started_at, completed_at, checklist_json, notes, created_at
+  FK: public.operation_legs.organization_id -> public.organizations.id
+  FK: public.operation_legs.task_id -> public.tasks.id
+  FK: public.operation_legs.assignee_id -> public.profiles.id
+
+public.org_security_settings (1 rows, RLS ON)
+  Columns: id, organization_id, allowed_domains, require_sso, session_timeout_minutes, audit_retention_days, mfa_required, created_at, ip_allowlist, block_public_sharing, block_exports, block_api_keys, block_webhooks
+  FK: public.org_security_settings.organization_id -> public.organizations.id
+
+public.organization_invitations (29 rows, RLS ON)
+  Columns: id, organization_id, email, role, created_at, accepted, token_hash, status, expires_at, accepted_at
+  FK: public.organization_invitations.organization_id -> public.organizations.id
+
+public.organization_members (19 rows, RLS ON)
+  Columns: id, organization_id, user_id, role, status, created_at, updated_at
+  FK: public.organization_members.organization_id -> public.organizations.id
+  FK: public.organization_members.user_id -> public.profiles.id
+
+public.organization_modules (24 rows, RLS ON)
+  Columns: id, organization_id, module_key, enabled, enabled_at, enabled_by, created_at, updated_at
+
+public.organizations (2 rows, RLS ON)
+  Columns: id, name, created_at, status, vertical_preset, logo_url
+
+public.outbound_notifications (263 rows, RLS ON)
+  Columns: id, organization_id, user_id, source_notification_id, channel, status, payload, error_message, created_at
+  FK: public.outbound_notifications.user_id -> public.profiles.id
+  FK: public.outbound_notifications.source_notification_id -> public.notifications.id
+  FK: public.outbound_notifications.organization_id -> public.organizations.id
+
+public.profiles (22 rows, RLS ON)
+  Columns: id, name, organization_id, role, created_at, theme_pref, avatar_url
+  FK: public.profiles.id -> auth.users.id
+  FK: public.profiles.organization_id -> public.organizations.id
+
+public.provider_parsing_templates (0 rows, RLS ON)
+  Columns: id, organization_id, provider_name, provider_aliases, description, parsing_hints, field_mappings, sample_fields, default_vehicle_type, default_currency, is_active, usage_count, last_used_at, created_at, updated_at, created_by
+  FK: public.provider_parsing_templates.created_by -> public.profiles.id
+  FK: public.provider_parsing_templates.organization_id -> public.organizations.id
+
+public.provisioning_logs (0 rows, RLS ON)
+  Columns: id, organization_id, source, action, external_id, user_id, status, message, metadata_json, created_at
+  FK: public.provisioning_logs.user_id -> public.profiles.id
+  FK: public.provisioning_logs.organization_id -> public.organizations.id
+
+public.push_subscriptions (8 rows, RLS ON)
+  Columns: id, organization_id, user_id, endpoint, p256dh, auth, user_agent, is_active, created_at
+  FK: public.push_subscriptions.organization_id -> public.organizations.id
+  FK: public.push_subscriptions.user_id -> public.profiles.id
+
+public.referral_events (0 rows, RLS ON)
+  Columns: id, code, event_type, user_id, email, created_at
+
+public.referrals (0 rows, RLS ON)
+  Columns: id, referrer_user_id, code, clicks, signups, conversions, reward_status, created_at
+  FK: public.referrals.referrer_user_id -> public.profiles.id
+
+public.reminders (4 rows, RLS ON)
+  Columns: id, task_id, remind_at, recurrence_type, recurrence_interval, timezone, is_active, created_at
+  FK: public.reminders.task_id -> public.tasks.id
+
+public.rently_sync_status (1 rows, RLS ON)
+  Columns: id, organization_id, last_offset, total_fetched, total_inserted, total_duplicates, total_filtered, status, started_at, completed_at, error_message, created_at, updated_at
+  FK: public.rently_sync_status.organization_id -> public.organizations.id
+
+public.repair_comments (0 rows, RLS ON)
+  Columns: id, repair_id, organization_id, user_id, text, created_at
+  FK: public.repair_comments.organization_id -> public.organizations.id
+  FK: public.repair_comments.repair_id -> public.repairs.id
+  FK: public.repair_comments.user_id -> public.profiles.id
+
+public.repair_history (22 rows, RLS ON)
+  Columns: id, repair_id, organization_id, user_id, action, from_value, to_value, metadata, created_at
+  FK: public.repair_history.organization_id -> public.organizations.id
+  FK: public.repair_history.user_id -> public.profiles.id
+  FK: public.repair_history.repair_id -> public.repairs.id
+
+public.repair_invoice_items (15 rows, RLS ON)
+  Columns: id, invoice_id, description, quantity, unit_price, total_price, category, created_at
+  FK: public.repair_invoice_items.invoice_id -> public.repair_invoices.id
+
+public.repair_invoices (4 rows, RLS ON)
+  Columns: id, repair_id, organization_id, invoice_number, invoice_date, supplier_name, total_amount, tax_amount, subtotal_amount, currency, storage_path, file_name, ocr_raw_data, ocr_status, uploaded_by, created_at, updated_at
+  FK: public.repair_invoices.repair_id -> public.repairs.id
+  FK: public.repair_invoices.organization_id -> public.organizations.id
+  FK: public.repair_invoices.uploaded_by -> public.profiles.id
+
+public.repair_photos (0 rows, RLS ON)
+  Columns: id, repair_id, organization_id, photo_type, storage_path, file_name, description, uploaded_by, created_at
+  FK: public.repair_photos.organization_id -> public.organizations.id
+  FK: public.repair_photos.repair_id -> public.repairs.id
+  FK: public.repair_photos.uploaded_by -> public.profiles.id
+
+public.repairs (5 rows, RLS ON)
+  Columns: id, organization_id, vehicle_id, workshop_id, repair_type, description, status, scheduled_date, started_at, completed_at, cost_estimate, cost_final, km_at_repair, created_by, notes, created_at, updated_at, repair_number
+  FK: public.repairs.created_by -> public.profiles.id
+  FK: public.repairs.workshop_id -> public.workshops.id
+  FK: public.repairs.vehicle_id -> public.vehicles.id
+  FK: public.repairs.organization_id -> public.organizations.id
+
+public.report_snapshots (0 rows, RLS ON)
+  Columns: id, organization_id, scope, scope_id, period, date_key, metrics_json, created_at
+  FK: public.report_snapshots.organization_id -> public.organizations.id
+
+public.reservations (2254 rows, RLS ON)
+  Columns: id, organization_id, external_reservation_id, estado, fecha_creacion, cliente_nombre, cliente_apellido, email, telefono, modelo, auto, desde, hasta, devolucion, lugar_entrega, lugar_devolucion, precio, duracion, categoria, a_pedido, origen_reserva, creado_por, tarifa, acuerdo_comercial, acuerdo_precios, tipo_documento_cliente, documento_cliente, codigo, tipo_actividad, lugar_operacion, asignado_rental_id, asignado_rental_team_id, asignado_escoba_id, asignado_escoba_team_id, pagado, hosp, checkin, contacto, notas, imported_at, imported_by, created_at, updated_at, entrega_completada, devolucion_completada, transfer_completado, estado_entrega, pagado_entrega, hosp_entrega, checkin_entrega, contacto_entrega, notas_entrega, asignado_rental_entrega_id, asignado_rental_entrega_team_id, asignado_escoba_entrega_id, asignado_escoba_entrega_team_id, estado_devolucion, pagado_devolucion, hosp_devolucion, checkin_devolucion, contacto_devolucion, notas_devolucion, asignado_rental_devolucion_id, asignado_rental_devolucion_team_id, asignado_escoba_devolucion_id, asignado_escoba_devolucion_team_id, archived_at, estado_terminada_at, balance, total_pagado_rently, prepago, pagado_por_agencia, pagado_por_cliente, moneda, comision_ventas, vehiculo_kms, vehiculo_combustible, vehiculo_color, vehiculo_anio, vehiculo_chasis, vehiculo_tipo_combustible, tarifa_diaria, tarifa_hora, tarifa_dia_extra, tarifa_hora_extra, km_ilimitados, km_max_permitidos, km_max_por_dia, rently_status_code, rently_status_date, es_transferencia, es_cotizacion, rently_version, lugar_entrega_direccion, lugar_entrega_ciudad, lugar_devolucion_direccion, lugar_devolucion_ciudad, cliente_direccion, cliente_ciudad, cliente_estado_provincia, cliente_pais, cliente_edad, cliente_fecha_nacimiento, cliente_carnet_numero, cliente_carnet_pais, cliente_carnet_expiracion, cliente_notas, extras_contratados, desglose_precios, conductores_adicionales, rently_detail_synced_at, confirmed_entrega_datetime, confirmed_devolucion_datetime
+  FK: public.reservations.organization_id -> public.organizations.id
+  FK: public.reservations.asignado_rental_id -> public.profiles.id
+  FK: public.reservations.asignado_rental_team_id -> public.teams.id
+  FK: public.reservations.asignado_escoba_id -> public.profiles.id
+  FK: public.reservations.asignado_escoba_team_id -> public.teams.id
+  FK: public.reservations.imported_by -> public.profiles.id
+  FK: public.reservations.asignado_rental_entrega_id -> public.profiles.id
+  FK: public.reservations.asignado_rental_entrega_team_id -> public.teams.id
+  FK: public.reservations.asignado_escoba_entrega_id -> public.profiles.id
+  FK: public.reservations.asignado_escoba_entrega_team_id -> public.teams.id
+  FK: public.reservations.asignado_rental_devolucion_id -> public.profiles.id
+  FK: public.reservations.asignado_rental_devolucion_team_id -> public.teams.id
+  FK: public.reservations.asignado_escoba_devolucion_id -> public.profiles.id
+  FK: public.reservations.asignado_escoba_devolucion_team_id -> public.teams.id
+
+public.role_permissions (456 rows, RLS ON)
+  Columns: id, role, permission_key, enabled, created_at
+
+public.saml_connections (0 rows, RLS ON)
+  Columns: id, organization_id, name, idp_entity_id, idp_sso_url, idp_x509_cert, sp_entity_id, acs_url, email_attribute, first_name_attribute, last_name_attribute, is_active, last_tested_at, created_by, created_at
+  FK: public.saml_connections.created_by -> public.profiles.id
+  FK: public.saml_connections.organization_id -> public.organizations.id
+
+public.scim_group_mappings (0 rows, RLS ON)
+  Columns: id, organization_id, scim_group_id, map_to_type, map_to_id, priority, created_at
+  FK: public.scim_group_mappings.organization_id -> public.organizations.id
+  FK: public.scim_group_mappings.scim_group_id -> public.scim_groups.id
+
+public.scim_group_memberships (0 rows, RLS ON)
+  Columns: id, organization_id, scim_group_id, user_id, created_at
+  FK: public.scim_group_memberships.user_id -> public.profiles.id
+  FK: public.scim_group_memberships.organization_id -> public.organizations.id
+  FK: public.scim_group_memberships.scim_group_id -> public.scim_groups.id
+
+public.scim_groups (0 rows, RLS ON)
+  Columns: id, organization_id, scim_group_external_id, display_name, created_at
+  FK: public.scim_groups.organization_id -> public.organizations.id
+
+public.scim_identities (0 rows, RLS ON)
+  Columns: id, organization_id, user_id, scim_external_id, scim_user_name, is_active, created_at
+  FK: public.scim_identities.user_id -> public.profiles.id
+  FK: public.scim_identities.organization_id -> public.organizations.id
+
+public.scim_tokens (0 rows, RLS ON)
+  Columns: id, organization_id, name, token_hash, last_used_at, is_active, created_by, created_at
+  FK: public.scim_tokens.created_by -> public.profiles.id
+  FK: public.scim_tokens.organization_id -> public.organizations.id
+
+public.subscription_items (0 rows, RLS ON)
+  Columns: id, organization_id, product_code, quantity, billing_interval, status, stripe_subscription_id, stripe_subscription_item_id, current_period_end, created_at
+  FK: public.subscription_items.organization_id -> public.organizations.id
+
+public.subscriptions (2 rows, RLS ON)
+  Columns: id, organization_id, plan, status, trial_ends_at, created_at, stripe_customer_id, stripe_subscription_id, current_period_end, seats_included, billing_interval
+  FK: public.subscriptions.organization_id -> public.organizations.id
+
+public.super_admin_actions (16 rows, RLS ON)
+  Columns: id, actor_user_id, action, entity_type, entity_id, organization_id, reason, metadata_json, created_at
+
+public.super_admin_alerts (0 rows, RLS ON)
+  Columns: id, alert_type, severity, title, message, organization_id, metadata_json, read_at, resolved_at, created_at
+  FK: public.super_admin_alerts.organization_id -> public.organizations.id
+
+public.super_admins (1 rows, RLS ON)
+  Columns: id, user_id, created_at, created_by
+
+public.tags (0 rows, RLS ON)
+  Columns: id, organization_id, name, color, icon, created_at
+  FK: public.tags.organization_id -> public.organizations.id
+
+public.task_areas (163 rows, RLS ON)
+  Columns: id, task_id, area_id
+  FK: public.task_areas.area_id -> public.areas.id
+  FK: public.task_areas.task_id -> public.tasks.id
+
+public.task_assignees (226 rows, RLS ON)
+  Columns: id, task_id, user_id, team_id, organization_id, created_at
+  FK: public.task_assignees.team_id -> public.teams.id
+  FK: public.task_assignees.user_id -> public.profiles.id
+  FK: public.task_assignees.task_id -> public.tasks.id
+  FK: public.task_assignees.organization_id -> public.organizations.id
+
+public.task_comments (0 rows, RLS ON)
+  Columns: id, task_id, organization_id, user_id, user_name, content, created_at
+
+public.task_milestones (475 rows, RLS ON)
+  Columns: id, task_id, parent_milestone_id, title, description, status, sort_order, due_date, created_at, assignee_type, assignee_id
+  FK: public.task_milestones.parent_milestone_id -> public.task_milestones.id
+  FK: public.task_milestones.task_id -> public.tasks.id
+
+public.task_subtasks (0 rows, RLS ON)
+  Columns: id, task_id, title, status, sort_order, created_at
+  FK: public.task_subtasks.task_id -> public.tasks.id
+
+public.task_tags (0 rows, RLS ON)
+  Columns: task_id, tag_id
+  FK: public.task_tags.task_id -> public.tasks.id
+  FK: public.task_tags.tag_id -> public.tags.id
+
+public.task_update_images (3 rows, RLS ON)
+  Columns: id, update_id, storage_path, file_name, file_size, created_at
+  FK: public.task_update_images.update_id -> public.task_updates.id
+
+public.task_update_mentions (1 rows, RLS ON)
+  Columns: id, update_id, mentioned_user_id
+  FK: public.task_update_mentions.mentioned_user_id -> public.profiles.id
+  FK: public.task_update_mentions.update_id -> public.task_updates.id
+
+public.task_updates (98 rows, RLS ON)
+  Columns: id, task_id, user_id, text, type, goal_increment_value, created_at
+  FK: public.task_updates.task_id -> public.tasks.id
+  FK: public.task_updates.user_id -> public.profiles.id
+
+public.tasks (156 rows, RLS ON)
+  Columns: id, organization_id, title, description, type, status, priority, created_by, assigned_to, due_date, is_archived, created_at, updated_at, goal_target_value, goal_unit, started_at, completed_at, operation_type, scheduled_at, location_type, location_text, location_notes, reservation_ref, customer_name, customer_phone, vehicle_out_id, vehicle_in_id, deleted_at, deleted_by
+  FK: public.tasks.created_by -> public.profiles.id
+  FK: public.tasks.assigned_to -> public.profiles.id
+  FK: public.tasks.deleted_by -> public.profiles.id
+  FK: public.tasks.organization_id -> public.organizations.id
+
+public.team_members (12 rows, RLS ON)
+  Columns: id, organization_id, team_id, user_id, created_at
+  FK: public.team_members.team_id -> public.teams.id
+  FK: public.team_members.organization_id -> public.organizations.id
+  FK: public.team_members.user_id -> public.profiles.id
+
+public.teams (4 rows, RLS ON)
+  Columns: id, organization_id, name, description, color, icon, created_by, created_at
+  FK: public.teams.organization_id -> public.organizations.id
+  FK: public.teams.created_by -> public.profiles.id
+
+public.template_applies (0 rows, RLS ON)
+  Columns: id, organization_id, template_id, template_version_id, applied_by, status, applied_entities_json, created_at
+  FK: public.template_applies.template_id -> public.templates.id
+  FK: public.template_applies.organization_id -> public.organizations.id
+  FK: public.template_applies.applied_by -> public.profiles.id
+  FK: public.template_applies.template_version_id -> public.template_versions.id
+
+public.template_favorites (0 rows, RLS ON)
+  Columns: id, template_id, user_id, created_at
+  FK: public.template_favorites.user_id -> public.profiles.id
+  FK: public.template_favorites.template_id -> public.user_templates.id
+
+public.template_installs (0 rows, RLS ON)
+  Columns: id, template_id, organization_id, installed_by, installed_at
+  FK: public.template_installs.installed_by -> public.profiles.id
+  FK: public.template_installs.organization_id -> public.organizations.id
+  FK: public.template_installs.template_id -> public.user_templates.id
+
+public.template_ratings (0 rows, RLS ON)
+  Columns: id, template_id, user_id, rating, review, created_at
+  FK: public.template_ratings.user_id -> public.profiles.id
+  FK: public.template_ratings.template_id -> public.user_templates.id
+
+public.template_reports (0 rows, RLS ON)
+  Columns: id, template_id, reported_by, reason, details, status, created_at
+  FK: public.template_reports.reported_by -> public.profiles.id
+  FK: public.template_reports.template_id -> public.user_templates.id
+
+public.template_versions (6 rows, RLS ON)
+  Columns: id, template_id, version, config_json, created_at
+  FK: public.template_versions.template_id -> public.templates.id
+
+public.template_versions_public (6 rows, RLS ON)
+  Columns: id, template_id, version, title, description, category, tags_json, cover_image_url, estimated_items_count, is_public, author_display_name, created_at
+  FK: public.template_versions_public.template_id -> public.templates.id
+
+public.templates (6 rows, RLS ON)
+  Columns: id, name, slug, category, industry, description, long_description, icon, color, is_featured, created_at
+
+public.time_entries (0 rows, RLS ON)
+  Columns: id, organization_id, user_id, task_id, description, start_time, end_time, duration_minutes, is_running, is_billable, hourly_rate, created_at, updated_at
+  FK: public.time_entries.user_id -> auth.users.id
+  FK: public.time_entries.organization_id -> public.organizations.id
+  FK: public.time_entries.task_id -> public.tasks.id
+
+public.transfer_brokers (9 rows, RLS ON)
+  Columns: id, organization_id, name, is_active, created_at, email, phone, company, user_id
+  FK: public.transfer_brokers.organization_id -> public.organizations.id
+
+public.transfer_documents (4 rows, RLS ON)
+  Columns: id, request_id, organization_id, document_type, storage_path, file_name, ai_status, detected_amount, detected_date, detected_provider, ai_raw_data, uploaded_by, created_at, detected_items
+  FK: public.transfer_documents.request_id -> public.transfer_requests.id
+  FK: public.transfer_documents.organization_id -> public.organizations.id
+  FK: public.transfer_documents.uploaded_by -> public.profiles.id
+
+public.transfer_invoice_settings (1 rows, RLS ON)
+  Columns: id, organization_id, company_name, tax_id, address, phone, email, logo_url, quote_prefix, invoice_prefix, next_quote_number, next_invoice_number, footer_text, bank_details, created_at, updated_at, margin_threshold_danger, margin_threshold_warning
+  FK: public.transfer_invoice_settings.organization_id -> public.organizations.id
+
+public.transfer_item_vehicles (13 rows, RLS ON)
+  Columns: id, transfer_item_id, organization_id, vehicle_type, vehicle_label, driver_name, driver_phone, notes, position, created_at
+  FK: public.transfer_item_vehicles.transfer_item_id -> public.transfer_items.id
+  FK: public.transfer_item_vehicles.organization_id -> public.organizations.id
+
+public.transfer_items (48 rows, RLS ON)
+  Columns: id, request_id, organization_id, position, transfer_date, status, pickup_enabled, pickup_location, pickup_time, dropoff_enabled, dropoff_location, dropoff_time, has_return, return_pickup_enabled, return_pickup_location, return_pickup_time, return_dropoff_enabled, return_dropoff_location, return_dropoff_time, pax_count, driver_name, driver_phone, driver_pending, notes, created_at, zone, zone_address, vehicle_type, base_price, price_with_commission, price_manually_set, provider_cost
+  FK: public.transfer_items.organization_id -> public.organizations.id
+  FK: public.transfer_items.request_id -> public.transfer_requests.id
+
+public.transfer_providers (1 rows, RLS ON)
+  Columns: id, organization_id, name, is_active, created_at
+  FK: public.transfer_providers.organization_id -> public.organizations.id
+
+public.transfer_request_notes (3 rows, RLS ON)
+  Columns: id, request_id, organization_id, broker_id, author_name, text, created_at
+  FK: public.transfer_request_notes.request_id -> public.transfer_requests.id
+  FK: public.transfer_request_notes.organization_id -> public.organizations.id
+  FK: public.transfer_request_notes.broker_id -> public.transfer_brokers.id
+
+public.transfer_requests (19 rows, RLS ON)
+  Columns: id, organization_id, request_number, broker_name, client_name, status, is_external_provider, external_provider_name, notes, created_by, created_at, updated_at, provider_cost, client_total, internal_margin, quote_number, invoice_number, quote_generated_at, invoice_generated_at, broker_id, pricing_mode
+  FK: public.transfer_requests.created_by -> public.profiles.id
+  FK: public.transfer_requests.organization_id -> public.organizations.id
+  FK: public.transfer_requests.broker_id -> public.transfer_brokers.id
+
+public.transfer_status_history (11 rows, RLS ON)
+  Columns: id, request_id, organization_id, previous_status, new_status, changed_by_type, changed_by_id, changed_by_name, note, created_at
+  FK: public.transfer_status_history.request_id -> public.transfer_requests.id
+  FK: public.transfer_status_history.organization_id -> public.organizations.id
+
+public.trials (0 rows, RLS ON)
+  Columns: id, organization_id, trial_type, plan_code, starts_at, ends_at, status, created_at
+  FK: public.trials.organization_id -> public.organizations.id
+
+public.usage_events (3734 rows, RLS ON)
+  Columns: id, organization_id, user_id, event_type, entity_type, entity_id, created_at
+  FK: public.usage_events.organization_id -> public.organizations.id
+  FK: public.usage_events.user_id -> public.profiles.id
+
+public.user_feedback (29 rows, RLS ON)
+  Columns: id, organization_id, user_id, feedback_type, message, created_at, read_at, resolved_at, internal_notes
+  FK: public.user_feedback.organization_id -> public.organizations.id
+  FK: public.user_feedback.user_id -> public.profiles.id
+
+public.user_permissions (26 rows, RLS ON)
+  Columns: id, organization_id, user_id, permission_key, enabled, created_by, created_at
+  FK: public.user_permissions.organization_id -> public.organizations.id
+  FK: public.user_permissions.created_by -> public.profiles.id
+  FK: public.user_permissions.user_id -> public.profiles.id
+
+public.user_role_assignments (0 rows, RLS ON)
+  Columns: id, organization_id, user_id, role_id, created_at
+  FK: public.user_role_assignments.user_id -> public.profiles.id
+  FK: public.user_role_assignments.role_id -> public.custom_roles.id
+  FK: public.user_role_assignments.organization_id -> public.organizations.id
+
+public.user_sessions (316 rows, RLS ON)
+  Columns: id, user_id, organization_id, session_token, created_at, last_seen_at, ip_address, user_agent, device_name, is_active
+  FK: public.user_sessions.organization_id -> public.organizations.id
+  FK: public.user_sessions.user_id -> public.profiles.id
+
+public.user_templates (0 rows, RLS ON)
+  Columns: id, organization_id, created_by, name, slug, visibility, description, long_description, icon, color, is_pack, industry, version, config_json, share_code, installs_count, favorites_count, rating_avg, rating_count, status, created_at
+  FK: public.user_templates.created_by -> public.profiles.id
+  FK: public.user_templates.organization_id -> public.organizations.id
+
+public.vehicle_audit_photos (0 rows, RLS ON)
+  Columns: id, audit_id, organization_id, photo_url, checklist_item_key, caption, created_at
+  FK: public.vehicle_audit_photos.audit_id -> public.vehicle_quality_audits.id
+  FK: public.vehicle_audit_photos.organization_id -> public.organizations.id
+
+public.vehicle_cleaning_history (1168 rows, RLS ON)
+  Columns: id, organization_id, vehicle_id, task_key, completed_by, completed_at, notes, created_at
+  FK: public.vehicle_cleaning_history.completed_by -> public.profiles.id
+  FK: public.vehicle_cleaning_history.organization_id -> public.organizations.id
+  FK: public.vehicle_cleaning_history.vehicle_id -> public.vehicles.id
+
+public.vehicle_cleaning_tasks (1148 rows, RLS ON)
+  Columns: id, vehicle_id, task_key, completed, completed_at, completed_by, created_at, notes
+  FK: public.vehicle_cleaning_tasks.completed_by -> public.profiles.id
+  FK: public.vehicle_cleaning_tasks.vehicle_id -> public.vehicles.id
+
+public.vehicle_locations (11 rows, RLS ON)
+  Columns: id, organization_id, name, is_default, created_at
+  FK: public.vehicle_locations.organization_id -> public.organizations.id
+
+public.vehicle_movements (59 rows, RLS ON)
+  Columns: id, organization_id, vehicle_id, matricula, movement_type, driver_id, reservation_id, start_photo_url, end_photo_url, start_lat, start_lng, end_lat, end_lng, started_at, ended_at, status, notes, created_at, receipt_url
+  FK: public.vehicle_movements.driver_id -> public.profiles.id
+  FK: public.vehicle_movements.vehicle_id -> public.vehicles.id
+  FK: public.vehicle_movements.reservation_id -> public.reservations.id
+  FK: public.vehicle_movements.organization_id -> public.organizations.id
+
+public.vehicle_quality_audits (3 rows, RLS ON)
+  Columns: id, organization_id, vehicle_id, auditor_id, status, checklist_results, overall_score, notes, rejection_reason, created_at, completed_at
+  FK: public.vehicle_quality_audits.auditor_id -> public.profiles.id
+  FK: public.vehicle_quality_audits.vehicle_id -> public.vehicles.id
+  FK: public.vehicle_quality_audits.organization_id -> public.organizations.id
+
+public.vehicles (164 rows, RLS ON)
+  Columns: id, organization_id, matricula, modelo, categoria, status, current_reservation_id, last_status_change, created_at, updated_at, is_archived, archived_at, archived_by, cleaned_by, cleaned_at, location_id, service_type, service_notes, fleet_vehicle_id
+  FK: public.vehicles.cleaned_by -> public.profiles.id
+  FK: public.vehicles.organization_id -> public.organizations.id
+  FK: public.vehicles.current_reservation_id -> public.reservations.id
+  FK: public.vehicles.location_id -> public.vehicle_locations.id
+  FK: public.vehicles.fleet_vehicle_id -> public.fleet_vehicles.id
+  FK: public.vehicles.archived_by -> auth.users.id
+
+public.workshops (8 rows, RLS ON)
+  Columns: id, organization_id, name, address, phone, email, notes, is_active, created_at
+  FK: public.workshops.organization_id -> public.organizations.id
+
