@@ -12,7 +12,7 @@ import {
 } from '@/types/equipment';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, waitForSession } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { RentlyExtra } from '@/types/reservations';
 
@@ -35,14 +35,15 @@ function isBabySeatExtra(name: string): boolean {
 
 export function EquipmentStockWidget() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const { items, isLoading, stats } = useEquipmentInventory();
+  const { profile, sessionReady } = useAuth();
+  const { items, isLoading, error: inventoryError, stats } = useEquipmentInventory();
 
   // Count how many baby seats are needed today from active reservations
   // and how many are already assigned
   const { data: demandData = { total: 0, assigned: 0, pending: 0 } } = useQuery({
     queryKey: ['equipment-today-demand', profile?.organization_id],
     queryFn: async () => {
+      await waitForSession();
       const today = new Date().toISOString().split('T')[0];
       // Get reservations active today with their extras
       const { data: reservations, error: resError } = await supabase
@@ -82,7 +83,7 @@ export function EquipmentStockWidget() {
 
       return { total: totalSeats, assigned: assignedCount, pending: Math.max(0, totalSeats - assignedCount) };
     },
-    enabled: !!profile?.organization_id,
+    enabled: !!profile?.organization_id && sessionReady,
   });
 
   const todayDemand = demandData.total;
@@ -109,6 +110,22 @@ export function EquipmentStockWidget() {
         <CardContent className="space-y-3">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (inventoryError) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Baby className="h-4 w-4 text-pink-500" />
+            Stock de Sillitas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground text-center py-4">No se pudo cargar el stock</p>
         </CardContent>
       </Card>
     );

@@ -46,7 +46,7 @@ supabase.auth.onAuthStateChange((event) => {
   }
 });
 
-// Safety timeout: if no auth event fires within 5 seconds, resolve anyway
+// Safety timeout: if no auth event fires within 3 seconds, resolve anyway
 // (handles the case where there's no stored session at all)
 setTimeout(() => {
   if (!_sessionReady) {
@@ -54,7 +54,7 @@ setTimeout(() => {
     _sessionReadyResolve?.();
     _sessionReadyResolve = null;
   }
-}, 5000);
+}, 3000);
 
 /**
  * Await this before making Supabase queries that depend on a valid session.

@@ -422,3 +422,5 @@
 - [x] Fix coherencia: Widget de stock de equipamiento mejorado — ahora muestra demanda pendiente (sin asignar) vs ya asignada, con alerta solo cuando la demanda pendiente supera el stock disponible
 - [x] Fix coherencia: Tarjetas kanban de equipamiento asignado ahora muestran enlace a la reserva asociada (consultando equipment_assignments)
 - [x] Fix coherencia: Notificación automática de escasez de equipamiento — hook useEquipmentShortageAlerts con throttle 4h, dedup 12h en BD, se ejecuta tras cada sync de Rently. Tipo equipment_shortage añadido a NotificationType, ruta /fleet/equipment en NotificationBell, icono Baby rosa en Notifications.tsx
+
+- [x] Bug: Dashboard se queda en skeletons ~40 segundos antes de cargar datos, requiere refresh manual - FIX: Añadido sessionReady gate + waitForSession() a useEquipmentInventory, EquipmentStockWidget, useNotifications, useReminderNotifications. Eliminado waitForSession redundante de useOperationalDashboard (ya gateado por sessionReady). Reducido retry a 1 y retryDelay a 1s. Reducido timeout de waitForSession de 5s a 3s. Añadido error state en EquipmentStockWidget. 20 tests nuevos, 889 total pasando

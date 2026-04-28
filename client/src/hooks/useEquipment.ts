@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, waitForSession } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type {
@@ -12,13 +12,14 @@ import type {
 /* ── Inventory CRUD ── */
 
 export function useEquipmentInventory() {
-  const { profile } = useAuth();
+  const { profile, sessionReady } = useAuth();
   const queryClient = useQueryClient();
   const orgId = profile?.organization_id;
 
   const { data: items = [], isLoading, error } = useQuery({
     queryKey: ['equipment-inventory', orgId],
     queryFn: async () => {
+      await waitForSession();
       const { data, error } = await (supabase as any)
         .from('equipment_inventory')
         .select('*')
@@ -27,7 +28,7 @@ export function useEquipmentInventory() {
       if (error) throw error;
       return data as EquipmentItem[];
     },
-    enabled: !!orgId,
+    enabled: !!orgId && sessionReady,
   });
 
   const createItem = useMutation({

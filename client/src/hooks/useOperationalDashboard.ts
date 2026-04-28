@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, waitForSession } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface VehiclePrepItem {
@@ -81,10 +81,6 @@ export function useOperationalDashboard() {
     queryKey: ['operational-dashboard', orgId],
     queryFn: async (): Promise<OperationalStats> => {
       if (!orgId) throw new Error('No org');
-
-      // Wait for the initial session to be fully validated/refreshed.
-      // This prevents 401 errors when the token is being refreshed after hard reload.
-      await waitForSession();
 
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
@@ -370,14 +366,12 @@ export function useOperationalDashboard() {
         totalDirtyVehicles: dirtyVehicles.length,
       };
     },
-    // CRITICAL: Gate on sessionReady to prevent queries from firing before
+    // Gate on sessionReady to prevent queries from firing before
     // the Supabase token has been fully refreshed after a hard reload.
-    // Without this, queries fire with a stale/expired token → 401 → infinite skeleton.
     enabled: !!orgId && sessionReady,
     refetchInterval: 60_000, // Refresh every minute
-    // Retry with increasing delay to handle token refresh timing
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    retry: 1,
+    retryDelay: 1000,
   });
 
   return {

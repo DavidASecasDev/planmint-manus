@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, waitForSession } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification, NotificationWithDetails, NotificationType, NotificationEntityType } from '@/types/notifications';
 import { createLogger } from '@/lib/logger';
@@ -16,7 +16,7 @@ interface CreateNotificationData {
 }
 
 export function useNotifications() {
-  const { profile } = useAuth();
+  const { profile, sessionReady } = useAuth();
   const queryClient = useQueryClient();
   
   // Extract organizationId for consistent queryKey usage
@@ -27,6 +27,7 @@ export function useNotifications() {
     queryKey: ['notifications', organizationId],
     queryFn: async (): Promise<NotificationWithDetails[]> => {
       if (!organizationId) return [];
+      await waitForSession();
 
       const { data, error } = await supabase
         .from('notifications')
@@ -112,7 +113,7 @@ export function useNotifications() {
 
       return enrichedNotifications;
     },
-    enabled: !!organizationId,
+    enabled: !!organizationId && sessionReady,
   });
 
   // Fetch unread count with React Query
@@ -120,6 +121,7 @@ export function useNotifications() {
     queryKey: ['notifications-unread-count', organizationId],
     queryFn: async (): Promise<number> => {
       if (!organizationId) return 0;
+      await waitForSession();
 
       const { count, error } = await supabase
         .from('notifications')
@@ -132,7 +134,7 @@ export function useNotifications() {
       }
       return count || 0;
     },
-    enabled: !!organizationId,
+    enabled: !!organizationId && sessionReady,
   });
 
   // Create notification mutation

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, waitForSession } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from './useNotifications';
 import { addDays, addWeeks, addMonths } from 'date-fns';
@@ -13,6 +13,7 @@ export function useReminderNotifications() {
     if (!user || !profile?.organization_id) return;
 
     try {
+      await waitForSession();
       const now = new Date();
 
       // Get active reminders that are due
