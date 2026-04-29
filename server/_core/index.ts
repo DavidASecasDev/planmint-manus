@@ -47,6 +47,7 @@ import {
   handleRejectBrokerRegistration,
 } from "../brokerRegistrationEndpoints";
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
+import { handleValidateBrokerInvite } from "../validateBrokerInvite";
 import {
   handleGetOrgModules,
   handleGetOrgCustomRoles,
@@ -129,6 +130,7 @@ async function startServer() {
   app.post("/api/get-my-organization", handleGetMyOrganization);
 
   // ─── Broker registration endpoints ────────────────────────────────────────
+  app.post("/api/validate-broker-invite", handleValidateBrokerInvite); // Public (no auth)
   app.post("/api/request-broker-access", handleRequestBrokerAccess); // Public (no auth)
   app.post("/api/approve-broker-registration", handleApproveBrokerRegistration);
   app.post("/api/reject-broker-registration", handleRejectBrokerRegistration);

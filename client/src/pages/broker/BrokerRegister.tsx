@@ -5,9 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-// SUPABASE_URL/SUPABASE_ANON_KEY no longer needed - using Express endpoint
-import { decodeBrokerInviteCode } from '@/lib/brokerInvite';
+// Invite validation now handled by Express endpoint (bypasses RLS)
 import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +42,7 @@ export default function BrokerRegister() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Validate invite code on mount
+  // Validate invite code on mount via Express endpoint (bypasses RLS)
   useEffect(() => {
     async function validateInvite() {
       if (!inviteCode) {
@@ -53,26 +51,20 @@ export default function BrokerRegister() {
         return;
       }
 
-      const orgId = decodeBrokerInviteCode(inviteCode);
-      if (!orgId) {
-        setValidating(false);
-        setInviteValid(false);
-        return;
-      }
-
       try {
-        const { data, error } = await supabase
-          .from('organizations')
-          .select('id, name')
-          .eq('id', orgId)
-          .eq('status', 'active')
-          .single();
+        const response = await fetch('/api/validate-broker-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invite_code: inviteCode }),
+        });
 
-        if (error || !data) {
-          setInviteValid(false);
-        } else {
-          setOrganization(data);
+        const result = await response.json();
+
+        if (result.valid && result.organization) {
+          setOrganization(result.organization);
           setInviteValid(true);
+        } else {
+          setInviteValid(false);
         }
       } catch {
         setInviteValid(false);
