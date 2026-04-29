@@ -16,12 +16,28 @@ const contextSource = fs.readFileSync(CONTEXT_FILE, "utf-8");
 
 describe("syncRently.ts performance optimizations", () => {
   describe("Multi-page processing per request", () => {
-    it("should define PAGES_PER_REQUEST constant > 1", () => {
+    it("should define PAGES_PER_REQUEST constant > 1 and <= 5 (Cloudflare safe)", () => {
       const match = syncSource.match(/const PAGES_PER_REQUEST\s*=\s*(\d+)/);
       expect(match).toBeTruthy();
       const value = parseInt(match![1]);
       expect(value).toBeGreaterThan(1);
-      expect(value).toBeLessThanOrEqual(20); // reasonable upper bound
+      expect(value).toBeLessThanOrEqual(5); // must stay under Cloudflare 100s timeout
+    });
+
+    it("should define REQUEST_DEADLINE_MS under 100s to prevent Cloudflare 524", () => {
+      const match = syncSource.match(/const REQUEST_DEADLINE_MS\s*=\s*(\d[\d_]*)/);
+      expect(match).toBeTruthy();
+      const value = parseInt(match![1].replace(/_/g, ""));
+      expect(value).toBeLessThan(100_000); // Cloudflare limit
+      expect(value).toBeGreaterThan(30_000); // must be useful
+    });
+
+    it("should check deadline at the start of each page iteration", () => {
+      expect(syncSource).toContain("Date.now() - requestStartTime > REQUEST_DEADLINE_MS");
+    });
+
+    it("should skip detail enrichment when approaching deadline", () => {
+      expect(syncSource).toContain("timeRemaining > 20_000");
     });
 
     it("should have a multi-page loop in the handler", () => {

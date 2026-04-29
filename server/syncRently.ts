@@ -166,13 +166,15 @@ const DETAIL_TIMEOUT_MS = 15000;
 
 // ─── Performance tuning ─────────────────────────────────────────────────────
 /** How many Rently list pages to fetch per single HTTP request from the client */
-const PAGES_PER_REQUEST = 10;
+const PAGES_PER_REQUEST = 3;
 /** How many detail fetches to run in parallel */
 const DETAIL_CONCURRENCY = 5;
 /** Max detail fetches per multi-page batch */
-const MAX_DETAIL_FETCHES_PER_BATCH = 80;
+const MAX_DETAIL_FETCHES_PER_BATCH = 30;
 /** How many consecutive pages with 0 new/changed bookings before early termination */
 const EARLY_TERM_UNCHANGED_PAGES = 5;
+/** Max time (ms) for a single request before we return partial results (Cloudflare 524 = 100s) */
+const REQUEST_DEADLINE_MS = 75_000;
 
 // ─── Rently API helpers ──────────────────────────────────────────────────────
 
@@ -781,6 +783,7 @@ export async function handleSyncRently(req: Request, res: Response) {
 
     // ─── MULTI-PAGE LOOP ─────────────────────────────────────────────────────
     // Process up to PAGES_PER_REQUEST pages in a single HTTP request
+    const requestStartTime = Date.now();
     let currentOffset = syncStatus.last_offset;
     let totalBookingsFetched = 0;
     let totalInsertedCount = 0;
@@ -793,6 +796,11 @@ export async function handleSyncRently(req: Request, res: Response) {
     let dateRangeInData: { oldest: string; newest: string } | null = null;
 
     for (let pageIdx = 0; pageIdx < PAGES_PER_REQUEST && hasMore; pageIdx++) {
+      // Safety: abort before Cloudflare's 100s timeout
+      if (Date.now() - requestStartTime > REQUEST_DEADLINE_MS) {
+        console.log(`[sync-rently] Approaching timeout (${Math.round((Date.now() - requestStartTime) / 1000)}s), returning partial results`);
+        break;
+      }
       const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
       console.log(`[sync-rently] Processing page ${currentPage} (offset: ${currentOffset}, batch page ${pageIdx + 1}/${PAGES_PER_REQUEST})`);
 
@@ -875,12 +883,15 @@ export async function handleSyncRently(req: Request, res: Response) {
         }
       }
 
-      // Fetch details in parallel
+      // Fetch details in parallel (skip if approaching deadline)
       let detailsMap = new Map<number, { detail: RentlyBookingDetail; drivers: Array<{ Name?: string; Document?: string; License?: string }> }>();
-      if (bookingIdsToEnrich.length > 0) {
+      const timeRemaining = REQUEST_DEADLINE_MS - (Date.now() - requestStartTime);
+      if (bookingIdsToEnrich.length > 0 && timeRemaining > 20_000) {
         detailsMap = await fetchDetailsInParallel(host, rentlyToken, bookingIdsToEnrich, DETAIL_CONCURRENCY);
         totalDetailsFetched += detailsMap.size;
         console.log(`[sync-rently] Page ${currentPage}: enriched ${detailsMap.size}/${bookingIdsToEnrich.length} bookings in parallel`);
+      } else if (bookingIdsToEnrich.length > 0) {
+        console.log(`[sync-rently] Page ${currentPage}: skipping ${bookingIdsToEnrich.length} detail fetches (only ${Math.round(timeRemaining / 1000)}s remaining)`);
       }
 
       // Apply enrichment

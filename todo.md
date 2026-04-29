@@ -446,3 +446,4 @@
 - [x] Optimizar: batch upsert para nuevas reservas (ya existía), multi-page acumula en single request
 - [x] Optimizar: early termination tras 5 páginas consecutivas sin cambios — 929 tests pasando
 - [x] Bug: Invitación de broker no funciona - RESUELTO: RLS en organizations bloqueaba consulta desde cliente no autenticado. Creado endpoint Express /api/validate-broker-invite que usa service role para bypass RLS. 948 tests pasando
+- [x] Bug: Sync Rently falla con HTTP 524 (Cloudflare timeout 100s) — RESUELTO: PAGES_PER_REQUEST 10→3, MAX_DETAIL_FETCHES 80→30, añadido REQUEST_DEADLINE_MS=75s con check por iteración + skip detail enrichment si <20s restantes. 951 tests pasando
