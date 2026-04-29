@@ -370,9 +370,10 @@ function mapBookingToReservation(
     desde: booking.FromDate || null,
     hasta: booking.ToDate || null,
     devolucion: dropoffInfo.Date || null,
-    // Hora confirmada: se establece solo en la primera inserción, nunca se sobreescribe en syncs posteriores
-    confirmed_entrega_datetime: null,
-    confirmed_devolucion_datetime: null,
+    // Hora confirmada: se inicializa con las fechas de Rently en la primera inserción,
+    // nunca se sobreescribe en syncs posteriores (delete en statusUpdates)
+    confirmed_entrega_datetime: booking.FromDate || null,
+    confirmed_devolucion_datetime: booking.ToDate || null,
     lugar_entrega: deliveryPlace.Name || null,
     lugar_devolucion: returnPlace.Name || null,
     precio: booking.CustomerPrice || null,
