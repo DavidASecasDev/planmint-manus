@@ -1,4 +1,4 @@
-import { useOperationalDashboard, VehiclePrepItem } from '@/hooks/useOperationalDashboard';
+import { useOperationalDashboard, VehiclePrepItem, TodayOperationRow } from '@/hooks/useOperationalDashboard';
 import { useRentlySyncContextSafe } from '@/contexts/RentlySyncContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Car, CalendarCheck, ArrowRightLeft, Wrench, ClipboardList,
   ArrowRight, RefreshCw, AlertTriangle, ArrowDownToLine, ArrowUpFromLine,
-  Clock, FileWarning, ChevronRight, User, Baby,
+  Clock, FileWarning, ChevronRight, User, Baby, Repeat,
 } from 'lucide-react';
 
 const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino'];
@@ -369,7 +369,7 @@ export function OperationalPanel() {
                 <span className="truncate">
                   <span className="hidden sm:inline">Operaciones de hoy · </span>
                   <span className="sm:hidden">Hoy · </span>
-                  {stats.todayCheckIns + stats.todayCheckOuts} mov.
+                  {stats.todayReservations.length} mov.
                 </span>
               </CardTitle>
               <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 flex-shrink-0" onClick={() => navigate('/reservations')}>
@@ -390,33 +390,30 @@ export function OperationalPanel() {
                   <div className={`flex items-center justify-center h-6 w-6 sm:h-7 sm:w-7 rounded-full flex-shrink-0 ${
                     r.type === 'checkin'
                       ? 'bg-green-500/10 text-green-600'
-                      : 'bg-amber-500/10 text-amber-600'
+                      : r.type === 'transfer'
+                        ? 'bg-indigo-500/10 text-indigo-600'
+                        : 'bg-amber-500/10 text-amber-600'
                   }`}>
                     {r.type === 'checkin'
                       ? <ArrowDownToLine className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                      : <ArrowUpFromLine className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      : r.type === 'transfer'
+                        ? <Repeat className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        : <ArrowUpFromLine className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     }
                   </div>
 
                   {/* Time - show confirmed hour if available, with indicator */}
                   <span className="text-xs font-mono w-10 sm:w-12 flex-shrink-0" title={
-                    r.type === 'checkin'
-                      ? (r.confirmed_entrega_datetime
-                          ? `Confirmada: ${formatTime(r.confirmed_entrega_datetime)} (original: ${formatTime(r.desde)})`
-                          : `Programada: ${formatTime(r.desde)}`)
-                      : (r.confirmed_devolucion_datetime
-                          ? `Confirmada: ${formatTime(r.confirmed_devolucion_datetime)} (original: ${formatTime(r.hasta)})`
-                          : `Programada: ${formatTime(r.hasta)}`)
+                    r.confirmedDatetime
+                      ? `Confirmada: ${formatTime(r.confirmedDatetime)} (original: ${formatTime(r.fechaHora)})`
+                      : `Programada: ${formatTime(r.fechaHora)}`
                   }>
                     <span className={
-                      (r.type === 'checkin' ? r.confirmed_entrega_datetime : r.confirmed_devolucion_datetime)
+                      r.confirmedDatetime
                         ? 'text-foreground font-semibold'
                         : 'text-muted-foreground'
                     }>
-                      {r.type === 'checkin'
-                        ? formatTime(r.confirmed_entrega_datetime || r.desde)
-                        : formatTime(r.confirmed_devolucion_datetime || r.hasta)
-                      }
+                      {formatTime(r.confirmedDatetime || r.fechaHora)}
                     </span>
                   </span>
 
@@ -424,7 +421,7 @@ export function OperationalPanel() {
                   <span className="font-medium text-foreground truncate min-w-0 flex-1 text-xs sm:text-sm flex items-center gap-1">
                     {[r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre'}
                     {(() => {
-                      const seats = hasBabySeatExtras((r as any).extras_contratados);
+                      const seats = hasBabySeatExtras(r.extras_contratados);
                       if (!seats.has) return null;
                       return (
                         <span
@@ -447,7 +444,7 @@ export function OperationalPanel() {
 
                   {/* Location - hidden on mobile */}
                   <span className="text-xs text-muted-foreground truncate max-w-[100px] flex-shrink-0 hidden md:block">
-                    {(r.type === 'checkin' ? r.lugar_entrega : r.lugar_devolucion) || '—'}
+                    {r.lugar || '—'}
                   </span>
 
                   {/* Status badge - hidden on very small screens */}

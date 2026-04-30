@@ -448,3 +448,9 @@
 - [x] Bug: Invitación de broker no funciona - RESUELTO: RLS en organizations bloqueaba consulta desde cliente no autenticado. Creado endpoint Express /api/validate-broker-invite que usa service role para bypass RLS. 948 tests pasando
 - [x] Bug: Sync Rently falla con HTTP 524 (Cloudflare timeout 100s) — RESUELTO: PAGES_PER_REQUEST 10→3, MAX_DETAIL_FETCHES 80→30, añadido REQUEST_DEADLINE_MS=75s con check por iteración + skip detail enrichment si <20s restantes. 951 tests pasando
 - [x] Bug: Reservas nuevas sincronizadas no tienen hora_confirmada — RESUELTO: la reescritura de optimización cambió confirmed_entrega/devolucion_datetime a null en vez de booking.FromDate/ToDate. Restaurado + backfill de 8+12 reservas activas en BD
+- [ ] Bug: Dashboard 'Operaciones de hoy' muestra datos inconsistentes con la página Reservas — horas, tipos (entrega/devolución), estados y entradas no coinciden
+- [x] Bug: Dashboard "Operaciones de hoy" no coincide con lo que muestra la página de Reservas
+- [x] Causa raíz: useOperationalDashboard hacía 2 queries separadas (desde=hoy y hasta=hoy) y las combinaba en una lista plana con type='checkin'/'checkout', sin expandir en filas de operación como ReservationsTable
+- [x] Fix: Reescrita lógica de todayReservations para usar una sola query OR y expandir cada reserva en filas Entrega/Devolución/Transfer (matching ReservationsTable). Filtrado por extractDatePart (timezone-safe), ordenado por confirmed datetime ASC (nulls last)
+- [x] Fix: OperationalPanel actualizado para manejar tipo 'transfer' (icono Repeat, color indigo) y usar campos derivados (confirmedDatetime, fechaHora, lugar)
+- [x] Tests: 25 tests nuevos en dashboardOperationsConsistency.test.ts (976 total pasando)

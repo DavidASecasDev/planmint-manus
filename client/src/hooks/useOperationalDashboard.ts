@@ -13,6 +13,35 @@ export interface VehiclePrepItem {
   urgency: 'critical' | 'high' | 'medium' | 'low'; // based on time until reservation
 }
 
+export type TodayOperationType = 'checkin' | 'checkout' | 'transfer';
+
+export interface TodayOperationRow {
+  id: string; // reservationId + '_entrega' | '_devolucion' | '_transfer'
+  reservationId: string;
+  cliente_nombre: string | null;
+  cliente_apellido: string | null;
+  auto: string | null;
+  modelo: string | null;
+  desde: string | null;
+  hasta: string | null;
+  lugar_entrega: string | null;
+  lugar_devolucion: string | null;
+  estado: string | null;
+  confirmed_entrega_datetime: string | null;
+  confirmed_devolucion_datetime: string | null;
+  extras_contratados: string | null;
+  tipo_actividad: string | null;
+  entrega_completada: boolean;
+  devolucion_completada: boolean;
+  transfer_completado: boolean;
+  type: TodayOperationType;
+  // Derived fields for easy rendering (matching ReservationsTable OperationRow)
+  fechaHora: string | null;
+  confirmedDatetime: string | null;
+  lugar: string | null;
+  isCompleted: boolean;
+}
+
 export interface OperationalStats {
   // Vehicle status breakdown
   vehiclesByStatus: {
@@ -38,23 +67,8 @@ export interface OperationalStats {
   // Tasks
   pendingTasksHigh: number;
   pendingTasksTotal: number;
-  // Today's reservation details
-  todayReservations: Array<{
-    id: string;
-    cliente_nombre: string | null;
-    cliente_apellido: string | null;
-    auto: string | null;
-    modelo: string | null;
-    desde: string | null;
-    hasta: string | null;
-    lugar_entrega: string | null;
-    lugar_devolucion: string | null;
-    estado: string | null;
-    confirmed_entrega_datetime: string | null;
-    confirmed_devolucion_datetime: string | null;
-    extras_contratados: string | null;
-    type: 'checkin' | 'checkout';
-  }>;
+  // Today's operations (expanded into per-operation rows like ReservationsTable)
+  todayReservations: TodayOperationRow[];
   // Vehicles needing preparation (dynamic, crossed with reservations)
   vehiclesNeedingPrep: VehiclePrepItem[];
   // Total dirty/incomplete vehicles (including those without reservations)
@@ -71,6 +85,30 @@ function calculateUrgency(reservationDate: string | null): VehiclePrepItem['urge
   if (hoursUntil <= 24) return 'high';       // Less than 24 hours
   if (hoursUntil <= 72) return 'medium';     // Less than 3 days
   return 'low';                               // More than 3 days
+}
+
+/**
+ * Extract YYYY-MM-DD from an ISO string without timezone conversion.
+ * The stored datetimes use +00:00 offset but represent local operational times
+ * (Mallorca). Using Date parsing converts to the browser's local timezone, which
+ * causes late-night operations to shift to the next calendar day.
+ */
+function extractDatePart(isoStr: string | null): string | null {
+  if (!isoStr) return null;
+  const m = isoStr.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Parse a datetime string to a numeric timestamp for sorting.
+ * Handles both 'T' and space separators and bare timezone offsets.
+ */
+function toTimestamp(s: string | null): number | null {
+  if (!s) return null;
+  let normalized = s.replace(' ', 'T');
+  normalized = normalized.replace(/([+-]\d{2})$/, '$1:00');
+  const t = new Date(normalized).getTime();
+  return isNaN(t) ? null : t;
 }
 
 export function useOperationalDashboard() {
@@ -90,10 +128,7 @@ export function useOperationalDashboard() {
       const [
         vehiclesResult,
         activeReservationsResult,
-        todayCheckInsResult,
-        todayCheckOutsResult,
-        todayCheckInsDetailResult,
-        todayCheckOutsDetailResult,
+        todayReservationsDetailResult,
         upcomingReservationsResult,
         activeMovementsResult,
         activeRepairsResult,
@@ -118,46 +153,18 @@ export function useOperationalDashboard() {
           .is('archived_at', null)
           .not('estado', 'ilike', '%cancelada%')
           .not('estado', 'ilike', '%terminada%'),
-        // Today's check-ins (reservations starting today)
+        // Today's reservations: fetch all non-cancelled, non-archived reservations
+        // where desde OR hasta falls on today. We use an OR filter to get both
+        // check-ins and check-outs in a single query, then expand client-side.
         supabase
           .from('reservations')
-          .select('id', { count: 'exact', head: true })
+          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, extras_contratados, tipo_actividad, entrega_completada, devolucion_completada, transfer_completado')
           .eq('organization_id', orgId)
           .is('archived_at', null)
-          .gte('desde', `${todayStr}T00:00:00`)
-          .lte('desde', `${todayStr}T23:59:59`)
-          .not('estado', 'ilike', '%cancelada%'),
-        // Today's check-outs (reservations ending today)
-        supabase
-          .from('reservations')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .gte('hasta', `${todayStr}T00:00:00`)
-          .lte('hasta', `${todayStr}T23:59:59`)
-          .not('estado', 'ilike', '%cancelada%'),
-        // Today's check-ins detail
-        supabase
-          .from('reservations')
-          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, extras_contratados')
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .gte('desde', `${todayStr}T00:00:00`)
-          .lte('desde', `${todayStr}T23:59:59`)
           .not('estado', 'ilike', '%cancelada%')
+          .or(`and(desde.gte.${todayStr}T00:00:00,desde.lte.${todayStr}T23:59:59),and(hasta.gte.${todayStr}T00:00:00,hasta.lte.${todayStr}T23:59:59)`)
           .order('desde', { ascending: true })
-          .limit(20),
-        // Today's check-outs detail
-        supabase
-          .from('reservations')
-          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, extras_contratados')
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .gte('hasta', `${todayStr}T00:00:00`)
-          .lte('hasta', `${todayStr}T23:59:59`)
-          .not('estado', 'ilike', '%cancelada%')
-          .order('hasta', { ascending: true })
-          .limit(20),
+          .limit(100),
         // Upcoming reservations (next 7 days)
         supabase
           .from('reservations')
@@ -231,8 +238,7 @@ export function useOperationalDashboard() {
 
       // Check for critical errors in any of the results
       const results = [
-        vehiclesResult, activeReservationsResult, todayCheckInsResult,
-        todayCheckOutsResult, todayCheckInsDetailResult, todayCheckOutsDetailResult,
+        vehiclesResult, activeReservationsResult, todayReservationsDetailResult,
         upcomingReservationsResult, activeMovementsResult, activeRepairsResult,
         fleetResult, expiringContractsResult, pendingTasksHighResult,
         pendingTasksTotalResult, dirtyVehiclesResult, upcomingReservationsDetailResult,
@@ -266,18 +272,136 @@ export function useOperationalDashboard() {
         }
       });
 
-      // Build today's reservations list
-      type TodayResRow = {
+      // ─── Build today's operations list (matching ReservationsTable logic) ───
+      // Expand each reservation into Entrega/Devolución/Transfer rows,
+      // then filter by date part of fechaHora matching today.
+      type TodayResRaw = {
         id: string; cliente_nombre: string | null; cliente_apellido: string | null;
         auto: string | null; modelo: string | null; desde: string | null; hasta: string | null;
         lugar_entrega: string | null; lugar_devolucion: string | null; estado: string | null;
         confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null;
-        extras_contratados: string | null;
+        extras_contratados: string | null; tipo_actividad: string | null;
+        entrega_completada: boolean; devolucion_completada: boolean; transfer_completado: boolean;
       };
-      const todayReservations = [
-        ...((todayCheckInsDetailResult.data || []) as unknown as TodayResRow[]).map(r => ({ ...r, type: 'checkin' as const })),
-        ...((todayCheckOutsDetailResult.data || []) as unknown as TodayResRow[]).map(r => ({ ...r, type: 'checkout' as const })),
-      ];
+      const rawReservations = (todayReservationsDetailResult.data || []) as unknown as TodayResRaw[];
+
+      const todayOperations: TodayOperationRow[] = [];
+
+      for (const r of rawReservations) {
+        if (r.tipo_actividad === 'Transfer') {
+          // Transfer: single row, fechaHora = desde
+          const fechaHora = r.desde;
+          const datePart = extractDatePart(fechaHora);
+          if (datePart === todayStr) {
+            todayOperations.push({
+              id: `${r.id}_transfer`,
+              reservationId: r.id,
+              cliente_nombre: r.cliente_nombre,
+              cliente_apellido: r.cliente_apellido,
+              auto: r.auto,
+              modelo: r.modelo,
+              desde: r.desde,
+              hasta: r.hasta,
+              lugar_entrega: r.lugar_entrega,
+              lugar_devolucion: r.lugar_devolucion,
+              estado: r.estado,
+              confirmed_entrega_datetime: r.confirmed_entrega_datetime,
+              confirmed_devolucion_datetime: r.confirmed_devolucion_datetime,
+              extras_contratados: r.extras_contratados,
+              tipo_actividad: r.tipo_actividad,
+              entrega_completada: r.entrega_completada,
+              devolucion_completada: r.devolucion_completada,
+              transfer_completado: r.transfer_completado,
+              type: 'transfer',
+              fechaHora,
+              confirmedDatetime: r.confirmed_entrega_datetime,
+              lugar: r.lugar_entrega || r.lugar_devolucion,
+              isCompleted: r.transfer_completado,
+            });
+          }
+        } else {
+          // Entrega row: fechaHora = desde
+          const entregaDate = extractDatePart(r.desde);
+          if (entregaDate === todayStr) {
+            todayOperations.push({
+              id: `${r.id}_entrega`,
+              reservationId: r.id,
+              cliente_nombre: r.cliente_nombre,
+              cliente_apellido: r.cliente_apellido,
+              auto: r.auto,
+              modelo: r.modelo,
+              desde: r.desde,
+              hasta: r.hasta,
+              lugar_entrega: r.lugar_entrega,
+              lugar_devolucion: r.lugar_devolucion,
+              estado: r.estado,
+              confirmed_entrega_datetime: r.confirmed_entrega_datetime,
+              confirmed_devolucion_datetime: r.confirmed_devolucion_datetime,
+              extras_contratados: r.extras_contratados,
+              tipo_actividad: r.tipo_actividad,
+              entrega_completada: r.entrega_completada,
+              devolucion_completada: r.devolucion_completada,
+              transfer_completado: r.transfer_completado,
+              type: 'checkin',
+              fechaHora: r.desde,
+              confirmedDatetime: r.confirmed_entrega_datetime,
+              lugar: r.lugar_entrega,
+              isCompleted: r.entrega_completada,
+            });
+          }
+
+          // Devolución row: fechaHora = hasta
+          const devolucionDate = extractDatePart(r.hasta);
+          if (devolucionDate === todayStr) {
+            todayOperations.push({
+              id: `${r.id}_devolucion`,
+              reservationId: r.id,
+              cliente_nombre: r.cliente_nombre,
+              cliente_apellido: r.cliente_apellido,
+              auto: r.auto,
+              modelo: r.modelo,
+              desde: r.desde,
+              hasta: r.hasta,
+              lugar_entrega: r.lugar_entrega,
+              lugar_devolucion: r.lugar_devolucion,
+              estado: r.estado,
+              confirmed_entrega_datetime: r.confirmed_entrega_datetime,
+              confirmed_devolucion_datetime: r.confirmed_devolucion_datetime,
+              extras_contratados: r.extras_contratados,
+              tipo_actividad: r.tipo_actividad,
+              entrega_completada: r.entrega_completada,
+              devolucion_completada: r.devolucion_completada,
+              transfer_completado: r.transfer_completado,
+              type: 'checkout',
+              fechaHora: r.hasta,
+              confirmedDatetime: r.confirmed_devolucion_datetime,
+              lugar: r.lugar_devolucion,
+              isCompleted: r.devolucion_completada,
+            });
+          }
+        }
+      }
+
+      // Sort by confirmed datetime (matching ReservationsTable default sort: hora_confirmada ASC)
+      todayOperations.sort((a, b) => {
+        const aTs = toTimestamp(a.confirmedDatetime);
+        const bTs = toTimestamp(b.confirmedDatetime);
+        // Null confirmed datetimes sort last
+        if (aTs === null && bTs === null) return 0;
+        if (aTs === null) return 1;
+        if (bTs === null) return -1;
+        const cmp = aTs - bTs;
+        if (cmp !== 0) return cmp;
+        // Secondary sort by fechaHora
+        const aFh = toTimestamp(a.fechaHora);
+        const bFh = toTimestamp(b.fechaHora);
+        if (aFh !== null && bFh !== null) return aFh - bFh;
+        return 0;
+      });
+
+      // Derive todayCheckIns / todayCheckOuts counts from the expanded operations
+      const todayCheckIns = todayOperations.filter(op => op.type === 'checkin' || op.type === 'transfer').length;
+      const todayCheckOuts = todayOperations.filter(op => op.type === 'checkout').length;
 
       // ─── Cross-reference dirty vehicles with upcoming reservations ───
       const dirtyVehicles = (dirtyVehiclesResult.data || []) as Array<{
@@ -352,8 +476,8 @@ export function useOperationalDashboard() {
         vehiclesByStatus,
         totalVehicles: vehicles.length,
         activeReservations: activeReservationsResult.count || 0,
-        todayCheckIns: todayCheckInsResult.count || 0,
-        todayCheckOuts: todayCheckOutsResult.count || 0,
+        todayCheckIns,
+        todayCheckOuts,
         upcomingReservations: upcomingReservationsResult.count || 0,
         activeMovements: activeMovementsResult.count || 0,
         activeRepairs: activeRepairsResult.count || 0,
@@ -361,7 +485,7 @@ export function useOperationalDashboard() {
         contractsExpiringSoon: expiringContractsResult.count || 0,
         pendingTasksHigh: pendingTasksHighResult.count || 0,
         pendingTasksTotal: pendingTasksTotalResult.count || 0,
-        todayReservations,
+        todayReservations: todayOperations,
         vehiclesNeedingPrep,
         totalDirtyVehicles: dirtyVehicles.length,
       };
