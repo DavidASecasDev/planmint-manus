@@ -456,3 +456,4 @@
 - [x] Tests: 25 tests nuevos en dashboardOperationsConsistency.test.ts (976 total pasando)
 - [x] Bug: Dashboard KPI muestra 45 coches alquilados pero "Estado Coches" solo muestra 37 - causa: vehículos archivados/inexistentes con reservas activas. Fix: sync ahora los desarchiva/crea automáticamente
 - [x] Feature: syncVehicleStatuses auto-unarchives vehicles with active reservations and auto-creates missing vehicles
+- [x] Bug CRÍTICO: Al guardar cambios en un vehículo (Editar Vehículo) da error "duplicate key value violates unique constraint vehicles_organization_id_matricula_key" - Fix: eliminado duplicado con trailing space, reescrito trigger sync_fleet_vehicle_to_vehicles para usar LIMIT 1 y SELECT INTO, añadido trim/uppercase en código app

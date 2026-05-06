@@ -603,7 +603,7 @@ async function syncVehicleStatuses(
               .from("vehicles")
               .insert({
                 organization_id: organizationId,
-                matricula: res.auto,
+                matricula: res.auto.trim().toUpperCase(),
                 modelo: res.modelo || null,
                 categoria: res.categoria || null,
                 status: "alquilado",

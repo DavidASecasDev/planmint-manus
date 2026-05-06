@@ -141,7 +141,7 @@ export default function FleetEdit() {
 
     await updateVehicle.mutateAsync({
       id,
-      matricula: form.matricula,
+      matricula: form.matricula.trim().toUpperCase(),
       modelo: form.modelo || null,
       categoria: form.categoria || null,
       proveedor: form.proveedor || null,

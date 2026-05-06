@@ -72,7 +72,7 @@ export function useFleetVehicles() {
 
   const importVehicles = useMutation({
     mutationFn: async (vehicles: Array<{ matricula: string; modelo?: string; categoria?: string; proveedor?: string; numero_contrato?: string; fecha_inicio_contrato?: string; fecha_fin_contrato?: string; numero_bastidor?: string; marca?: string; color?: string; combustible?: string; hibrido?: boolean; motor?: string; cv?: number }>) => {
-      const rows = vehicles.map(v => ({ ...v, organization_id: orgId! }));
+      const rows = vehicles.map(v => ({ ...v, matricula: v.matricula.trim().toUpperCase(), organization_id: orgId! }));
       const { error } = await supabase.from('fleet_vehicles').insert(rows as any);
       if (error) throw error;
     },
