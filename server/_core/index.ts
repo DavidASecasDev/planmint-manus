@@ -48,6 +48,7 @@ import {
 } from "../brokerRegistrationEndpoints";
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
 import { handleValidateBrokerInvite } from "../validateBrokerInvite";
+import { handlePublicOperations } from "../publicOperationsEndpoint";
 import {
   handleGetOrgModules,
   handleGetOrgCustomRoles,
@@ -128,6 +129,9 @@ async function startServer() {
   // ─── Auth data endpoints (bypass RLS for profile/org loading) ─────────────
   app.post("/api/get-my-profile", handleGetMyProfile);
   app.post("/api/get-my-organization", handleGetMyOrganization);
+
+  // ─── Public endpoints (no auth required) ───────────────────────────────────
+  app.get("/api/public/operations/:orgSlug", handlePublicOperations);
 
   // ─── Broker registration endpoints ────────────────────────────────────────
   app.post("/api/validate-broker-invite", handleValidateBrokerInvite); // Public (no auth)

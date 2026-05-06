@@ -94,6 +94,7 @@ const Forms = lazy(() => import("./pages/Forms"));
 const FormEditorPage = lazy(() => import("./pages/FormEditor"));
 const PublicForm = lazy(() => import("./pages/PublicForm"));
 const PublicTransferForm = lazy(() => import("./pages/PublicTransferForm"));
+const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 
 // Reservations
 const Reservations = lazy(() => import("./pages/Reservations"));
@@ -197,6 +198,7 @@ function MainAppRoutes() {
             {/* Public form routes */}
             <Route path="/f/:slug" element={<PublicForm />} />
             <Route path="/transfer/:slug" element={<PublicTransferForm />} />
+            <Route path="/ops/:slug" element={<PublicOperations />} />
             <Route path="/install" element={<Install />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

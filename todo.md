@@ -457,3 +457,12 @@
 - [x] Bug: Dashboard KPI muestra 45 coches alquilados pero "Estado Coches" solo muestra 37 - causa: vehículos archivados/inexistentes con reservas activas. Fix: sync ahora los desarchiva/crea automáticamente
 - [x] Feature: syncVehicleStatuses auto-unarchives vehicles with active reservations and auto-creates missing vehicles
 - [x] Bug CRÍTICO: Al guardar cambios en un vehículo (Editar Vehículo) da error "duplicate key value violates unique constraint vehicles_organization_id_matricula_key" - Fix: eliminado duplicado con trailing space, reescrito trigger sync_fleet_vehicle_to_vehicles para usar LIMIT 1 y SELECT INTO, añadido trim/uppercase en código app
+- [x] Feature: Vista pública /ops/azul-ops para equipo comercial (solo lectura, sin auth)
+  - [x] API endpoint público con datos anonimizados de operaciones del día
+  - [x] Timeline visual por horas con indicadores de carga (verde/amarillo/rojo)
+  - [x] Contadores por hora (entregas, devoluciones, total)
+  - [x] Franjas recomendadas para nuevas reservas
+  - [x] Estado de vehículos (limpios, pendientes, en uso, reservados, mantenimiento, no disponibles)
+  - [x] Agrupación por modelo (limpios, no disponibles, pendientes)
+  - [x] Filtros: fecha, ubicación
+  - [x] Seguridad: noindex, sin datos sensibles, URL con slug difícil de adivinar
