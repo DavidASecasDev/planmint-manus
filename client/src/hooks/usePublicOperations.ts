@@ -27,6 +27,15 @@ export interface ModelAvailability {
   total: number;
 }
 
+export interface OperationRow {
+  type: "entrega" | "devolucion";
+  time: string;
+  location: string;
+  modelo: string;
+  auto: string;
+  completed: boolean;
+}
+
 export interface PublicOperationsData {
   date: string;
   summary: {
@@ -36,6 +45,7 @@ export interface PublicOperationsData {
     completedOps: number;
     pendingOps: number;
   };
+  operations: OperationRow[];
   hourly: HourlyData[];
   recommendedSlots: Array<{ hour: number; load: string; currentOps: number }>;
   saturatedSlots: Array<{ hour: number; total: number; entregas: number; devoluciones: number }>;

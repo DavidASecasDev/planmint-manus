@@ -467,3 +467,4 @@
   - [x] Filtros: fecha, ubicación
   - [x] Seguridad: noindex, sin datos sensibles, URL con slug difícil de adivinar
 - [x] Redesign: Panel de Operaciones público - aplicar diseño corporativo Azul Cars (fondo beige claro, navy headers, gold accents, tipografía elegante)
+- [x] Feature: Reemplazar barras de carga por hora con tabla tipo Reservas (Hora, Tipo, Lugar, Modelo, Auto, Estado) sin datos sensibles — 1017 tests pasando

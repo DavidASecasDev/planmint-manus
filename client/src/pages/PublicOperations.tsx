@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { usePublicOperations, HourlyData, ModelAvailability } from "@/hooks/usePublicOperations";
+import { usePublicOperations, OperationRow, ModelAvailability } from "@/hooks/usePublicOperations";
 import {
   Select,
   SelectContent,
@@ -8,6 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -22,6 +30,7 @@ import {
   Sparkles,
   Car,
   CalendarDays,
+  Check,
 } from "lucide-react";
 
 // ─── Corporate Colors ───────────────────────────────────────────────────────
@@ -39,20 +48,6 @@ const COLORS = {
   textMuted: "#a0aec0",
 };
 
-function formatHour(hour: number): string {
-  return `${hour.toString().padStart(2, "0")}:00`;
-}
-
-function getLoadInfo(load: string): { label: string; color: string; bg: string; bar: string } {
-  switch (load) {
-    case "libre": return { label: "Libre", color: COLORS.textMuted, bg: "bg-gray-50", bar: "bg-gray-200" };
-    case "baja": return { label: "Baja", color: "#059669", bg: "bg-emerald-50/50", bar: "bg-emerald-400" };
-    case "media": return { label: "Media", color: "#d97706", bg: "bg-amber-50/50", bar: "bg-amber-400" };
-    case "alta": return { label: "Alta", color: "#dc2626", bg: "bg-red-50/50", bar: "bg-red-400" };
-    default: return { label: "", color: COLORS.textMuted, bg: "bg-gray-50", bar: "bg-gray-200" };
-  }
-}
-
 function formatDateDisplay(dateStr: string): string {
   const d = new Date(dateStr + "T12:00:00");
   const options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
@@ -60,56 +55,28 @@ function formatDateDisplay(dateStr: string): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-// ─── Timeline Row ───────────────────────────────────────────────────────────
-function TimelineRow({ hourData, maxOps }: { hourData: HourlyData; maxOps: number }) {
-  const barWidth = maxOps > 0 ? (hourData.total / maxOps) * 100 : 0;
-  const loadInfo = getLoadInfo(hourData.load);
-  const isEmpty = hourData.total === 0;
+function formatHour(hour: number): string {
+  return `${hour.toString().padStart(2, "0")}:00`;
+}
 
+// ─── Operation Type Badge ───────────────────────────────────────────────────
+function OperationBadge({ type }: { type: "entrega" | "devolucion" }) {
+  const isEntrega = type === "entrega";
   return (
-    <div className={`flex items-center gap-4 py-2.5 px-4 rounded-lg transition-all ${isEmpty ? "opacity-50" : "hover:bg-white/80"}`}>
-      <span className="text-sm font-medium w-12 shrink-0" style={{ color: isEmpty ? COLORS.textMuted : COLORS.navy, fontFamily: "'Inter', sans-serif" }}>
-        {formatHour(hourData.hour)}
-      </span>
-
-      <div className="flex-1 min-w-0">
-        <div className="h-7 bg-gray-100/80 rounded overflow-hidden relative">
-          {hourData.total > 0 && (
-            <div
-              className={`h-full rounded transition-all duration-700 ease-out ${loadInfo.bar}`}
-              style={{ width: `${Math.max(barWidth, 8)}%`, opacity: 0.85 }}
-            />
-          )}
-          {hourData.total > 0 && (
-            <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold" style={{ color: COLORS.navy }}>
-              {hourData.total} {hourData.total === 1 ? "operación" : "operaciones"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 shrink-0 text-xs w-20 justify-end">
-        {hourData.entregas > 0 && (
-          <span className="flex items-center gap-0.5" style={{ color: "#2563eb" }}>
-            <ArrowDownToLine className="w-3.5 h-3.5" />
-            {hourData.entregas}
-          </span>
-        )}
-        {hourData.devoluciones > 0 && (
-          <span className="flex items-center gap-0.5" style={{ color: "#7c3aed" }}>
-            <ArrowUpFromLine className="w-3.5 h-3.5" />
-            {hourData.devoluciones}
-          </span>
-        )}
-      </div>
-
-      <span
-        className="text-[11px] font-semibold uppercase tracking-wider w-12 text-right shrink-0"
-        style={{ color: loadInfo.color }}
-      >
-        {loadInfo.label}
-      </span>
-    </div>
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{
+        backgroundColor: isEntrega ? "#dbeafe" : "#f3e8ff",
+        color: isEntrega ? "#1d4ed8" : "#7c3aed",
+      }}
+    >
+      {isEntrega ? (
+        <ArrowDownToLine className="w-3 h-3" />
+      ) : (
+        <ArrowUpFromLine className="w-3 h-3" />
+      )}
+      {isEntrega ? "Entrega" : "Devolución"}
+    </span>
   );
 }
 
@@ -172,11 +139,6 @@ export default function PublicOperations() {
   };
 
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
-
-  const maxOps = useMemo(() => {
-    if (!data) return 1;
-    return Math.max(...data.hourly.map(h => h.total), 1);
-  }, [data]);
 
   const modelsWithAvailability = useMemo(() => {
     if (!data) return [];
@@ -319,21 +281,90 @@ export default function PublicOperations() {
 
             {/* ─── Main Grid ────────────────────────────────────────────── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Timeline (2/3) */}
+              {/* Operations Table (2/3) */}
               <div className="lg:col-span-2 space-y-5">
-                {/* Hourly Timeline */}
+                {/* Operations Table */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                    <Clock className="w-4 h-4" style={{ color: COLORS.gold }} />
-                    <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.navy }}>
-                      Carga Operativa por Hora
-                    </h2>
+                  <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" style={{ color: COLORS.gold }} />
+                      <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.navy }}>
+                        Operaciones del Día
+                      </h2>
+                    </div>
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: COLORS.beigeDark, color: COLORS.navy }}>
+                      {data.operations?.length || 0} total
+                    </span>
                   </div>
-                  <div className="py-2 divide-y divide-gray-50">
-                    {data.hourly.map((h) => (
-                      <TimelineRow key={h.hour} hourData={h} maxOps={maxOps} />
-                    ))}
-                  </div>
+
+                  {data.operations && data.operations.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-b border-gray-100">
+                            <TableHead className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textMuted }}>Hora</TableHead>
+                            <TableHead className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textMuted }}>Tipo</TableHead>
+                            <TableHead className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textMuted }}>Lugar</TableHead>
+                            <TableHead className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textMuted }}>Modelo</TableHead>
+                            <TableHead className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textMuted }}>Auto</TableHead>
+                            <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-center" style={{ color: COLORS.textMuted }}>Estado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {data.operations.map((op: OperationRow, idx: number) => (
+                            <TableRow
+                              key={`${op.time}-${op.auto}-${idx}`}
+                              className={`border-b border-gray-50 transition-colors hover:bg-gray-50/50 ${op.completed ? "opacity-60" : ""}`}
+                            >
+                              <TableCell className="py-3">
+                                <span className="text-sm font-mono font-semibold" style={{ color: COLORS.navy }}>
+                                  {op.time}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <OperationBadge type={op.type} />
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <span className="text-sm" style={{ color: COLORS.text }}>
+                                  {op.location}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <span className="text-sm font-medium" style={{ color: COLORS.navy }}>
+                                  {op.modelo}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-3">
+                                <span className="text-sm font-mono font-semibold tracking-wide" style={{ color: COLORS.navyLight }}>
+                                  {op.auto}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-3 text-center">
+                                {op.completed ? (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                                    <Check className="w-3.5 h-3.5" />
+                                    Hecho
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: COLORS.gold }}>
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Pendiente
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center">
+                      <Car className="w-10 h-10 mx-auto mb-3" style={{ color: COLORS.textMuted }} />
+                      <p className="text-sm" style={{ color: COLORS.textMuted }}>
+                        No hay operaciones programadas para este día
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Recommended Slots */}

@@ -91,8 +91,10 @@ export async function handlePublicOperations(req: Request, res: Response) {
     const operations: Array<{
       type: "entrega" | "devolucion";
       hour: number;
+      hourMinute: string; // "HH:MM" format
       location: string;
       modelo: string;
+      auto: string;
       completed: boolean;
     }> = [];
 
@@ -106,11 +108,14 @@ export async function handlePublicOperations(req: Request, res: Response) {
 
         // Apply location filter
         if (!locationFilter || locationFilter === "all" || location.toLowerCase().includes(locationFilter.toLowerCase())) {
+          const minutes = desdeTime ? parseInt(desdeTime.substring(14, 16)) || 0 : 0;
           operations.push({
             type: "entrega",
             hour,
+            hourMinute: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
             location,
-            modelo: r.modelo || r.auto || "Desconocido",
+            modelo: r.modelo || "Desconocido",
+            auto: r.auto || "",
             completed: r.entrega_completada || false,
           });
         }
@@ -125,11 +130,14 @@ export async function handlePublicOperations(req: Request, res: Response) {
 
         // Apply location filter
         if (!locationFilter || locationFilter === "all" || location.toLowerCase().includes(locationFilter.toLowerCase())) {
+          const minutes = hastaTime ? parseInt(hastaTime.substring(14, 16)) || 0 : 0;
           operations.push({
             type: "devolucion",
             hour,
+            hourMinute: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
             location,
-            modelo: r.modelo || r.auto || "Desconocido",
+            modelo: r.modelo || "Desconocido",
+            auto: r.auto || "",
             completed: r.devolucion_completada || false,
           });
         }
@@ -250,6 +258,12 @@ export async function handlePublicOperations(req: Request, res: Response) {
     }
 
     // ─── Response ────────────────────────────────────────────────────────────
+    // Sort operations by time for the table view
+    const sortedOperations = [...operations].sort((a, b) => {
+      if (a.hour !== b.hour) return a.hour - b.hour;
+      return a.hourMinute.localeCompare(b.hourMinute);
+    });
+
     return res.json({
       date: targetDate,
       summary: {
@@ -259,6 +273,14 @@ export async function handlePublicOperations(req: Request, res: Response) {
         completedOps: operations.filter(o => o.completed).length,
         pendingOps: operations.filter(o => !o.completed).length,
       },
+      operations: sortedOperations.map(op => ({
+        type: op.type,
+        time: op.hourMinute,
+        location: op.location,
+        modelo: op.modelo,
+        auto: op.auto,
+        completed: op.completed,
+      })),
       hourly: hourlyWithLoad,
       recommendedSlots,
       saturatedSlots,

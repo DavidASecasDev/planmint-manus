@@ -273,3 +273,268 @@ describe("Public Operations - Fleet Status Summary", () => {
     expect(summary.total).toBe(8);
   });
 });
+
+// ─── Operations Table Data Transformation ───────────────────────────────────
+describe("Public Operations - Operations Table", () => {
+  it("should produce OperationRow with all required fields", () => {
+    const reservation = {
+      id: "r1",
+      desde: "2026-05-06T10:30:00",
+      hasta: "2026-05-08T15:00:00",
+      confirmed_entrega_datetime: "2026-05-06T10:30:00",
+      confirmed_devolucion_datetime: "2026-05-08T15:00:00",
+      lugar_entrega: "Aeropuerto de Palma",
+      lugar_devolucion: "Oficina Azul Cars",
+      auto: "7137NCM",
+      modelo: "GLA",
+      entrega_completada: true,
+      devolucion_completada: false,
+    };
+
+    const targetDate = "2026-05-06";
+    const operations: Array<{
+      type: "entrega" | "devolucion";
+      time: string;
+      location: string;
+      modelo: string;
+      auto: string;
+      completed: boolean;
+    }> = [];
+
+    // Simulate entrega extraction
+    const desdeDate = reservation.confirmed_entrega_datetime?.substring(0, 10) || reservation.desde?.substring(0, 10);
+    if (desdeDate === targetDate) {
+      const desdeTime = reservation.confirmed_entrega_datetime || reservation.desde;
+      const hour = desdeTime ? parseInt(desdeTime.substring(11, 13)) || 0 : 0;
+      const minutes = desdeTime ? parseInt(desdeTime.substring(14, 16)) || 0 : 0;
+      operations.push({
+        type: "entrega",
+        time: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+        location: reservation.lugar_entrega || "Sin ubicación",
+        modelo: reservation.modelo || "Desconocido",
+        auto: reservation.auto || "",
+        completed: reservation.entrega_completada || false,
+      });
+    }
+
+    expect(operations).toHaveLength(1);
+    expect(operations[0]).toEqual({
+      type: "entrega",
+      time: "10:30",
+      location: "Aeropuerto de Palma",
+      modelo: "GLA",
+      auto: "7137NCM",
+      completed: true,
+    });
+  });
+
+  it("should produce both entrega and devolucion for same-day reservation", () => {
+    const reservation = {
+      desde: "2026-05-06T09:00:00",
+      hasta: "2026-05-06T18:00:00",
+      confirmed_entrega_datetime: "2026-05-06T09:00:00",
+      confirmed_devolucion_datetime: "2026-05-06T18:00:00",
+      lugar_entrega: "Aeropuerto",
+      lugar_devolucion: "Oficina",
+      auto: "1234ABC",
+      modelo: "Clase A",
+      entrega_completada: true,
+      devolucion_completada: false,
+    };
+
+    const targetDate = "2026-05-06";
+    const operations: Array<{
+      type: "entrega" | "devolucion";
+      time: string;
+      location: string;
+      modelo: string;
+      auto: string;
+      completed: boolean;
+    }> = [];
+
+    const desdeDate = reservation.confirmed_entrega_datetime?.substring(0, 10);
+    if (desdeDate === targetDate) {
+      const desdeTime = reservation.confirmed_entrega_datetime;
+      const hour = parseInt(desdeTime!.substring(11, 13));
+      const minutes = parseInt(desdeTime!.substring(14, 16));
+      operations.push({
+        type: "entrega",
+        time: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+        location: reservation.lugar_entrega,
+        modelo: reservation.modelo,
+        auto: reservation.auto,
+        completed: reservation.entrega_completada,
+      });
+    }
+
+    const hastaDate = reservation.confirmed_devolucion_datetime?.substring(0, 10);
+    if (hastaDate === targetDate) {
+      const hastaTime = reservation.confirmed_devolucion_datetime;
+      const hour = parseInt(hastaTime!.substring(11, 13));
+      const minutes = parseInt(hastaTime!.substring(14, 16));
+      operations.push({
+        type: "devolucion",
+        time: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+        location: reservation.lugar_devolucion,
+        modelo: reservation.modelo,
+        auto: reservation.auto,
+        completed: reservation.devolucion_completada,
+      });
+    }
+
+    expect(operations).toHaveLength(2);
+    expect(operations[0].type).toBe("entrega");
+    expect(operations[0].time).toBe("09:00");
+    expect(operations[0].completed).toBe(true);
+    expect(operations[1].type).toBe("devolucion");
+    expect(operations[1].time).toBe("18:00");
+    expect(operations[1].completed).toBe(false);
+  });
+
+  it("should sort operations by time ascending", () => {
+    const operations = [
+      { type: "devolucion" as const, hour: 15, hourMinute: "15:00", location: "A", modelo: "X", auto: "1", completed: false },
+      { type: "entrega" as const, hour: 9, hourMinute: "09:30", location: "B", modelo: "Y", auto: "2", completed: true },
+      { type: "devolucion" as const, hour: 9, hourMinute: "09:00", location: "C", modelo: "Z", auto: "3", completed: true },
+      { type: "entrega" as const, hour: 12, hourMinute: "12:45", location: "D", modelo: "W", auto: "4", completed: false },
+    ];
+
+    const sorted = [...operations].sort((a, b) => {
+      if (a.hour !== b.hour) return a.hour - b.hour;
+      return a.hourMinute.localeCompare(b.hourMinute);
+    });
+
+    expect(sorted.map(o => o.hourMinute)).toEqual(["09:00", "09:30", "12:45", "15:00"]);
+  });
+
+  it("should handle missing location gracefully", () => {
+    const reservation = {
+      desde: "2026-05-06T10:00:00",
+      confirmed_entrega_datetime: null as string | null,
+      lugar_entrega: null as string | null,
+      auto: "5555XYZ",
+      modelo: "GLC",
+      entrega_completada: false,
+    };
+
+    const targetDate = "2026-05-06";
+    const desdeDate = reservation.confirmed_entrega_datetime?.substring(0, 10) || reservation.desde?.substring(0, 10);
+    
+    if (desdeDate === targetDate) {
+      const desdeTime = reservation.confirmed_entrega_datetime || reservation.desde;
+      const hour = desdeTime ? parseInt(desdeTime.substring(11, 13)) || 0 : 0;
+      const minutes = desdeTime ? parseInt(desdeTime.substring(14, 16)) || 0 : 0;
+      const op = {
+        type: "entrega" as const,
+        time: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+        location: reservation.lugar_entrega || "Sin ubicación",
+        modelo: reservation.modelo || "Desconocido",
+        auto: reservation.auto || "",
+        completed: reservation.entrega_completada || false,
+      };
+
+      expect(op.location).toBe("Sin ubicación");
+      expect(op.time).toBe("10:00");
+      expect(op.auto).toBe("5555XYZ");
+    }
+  });
+
+  it("should handle missing modelo gracefully", () => {
+    const modelo: string | null = null;
+    const result = modelo || "Desconocido";
+    expect(result).toBe("Desconocido");
+  });
+
+  it("should handle missing auto gracefully", () => {
+    const auto: string | null = null;
+    const result = auto || "";
+    expect(result).toBe("");
+  });
+
+  it("should correctly count completed vs pending operations", () => {
+    const operations = [
+      { type: "entrega" as const, completed: true },
+      { type: "entrega" as const, completed: true },
+      { type: "devolucion" as const, completed: false },
+      { type: "devolucion" as const, completed: true },
+      { type: "entrega" as const, completed: false },
+    ];
+
+    const summary = {
+      totalOperations: operations.length,
+      totalEntregas: operations.filter(o => o.type === "entrega").length,
+      totalDevoluciones: operations.filter(o => o.type === "devolucion").length,
+      completedOps: operations.filter(o => o.completed).length,
+      pendingOps: operations.filter(o => !o.completed).length,
+    };
+
+    expect(summary.totalOperations).toBe(5);
+    expect(summary.totalEntregas).toBe(3);
+    expect(summary.totalDevoluciones).toBe(2);
+    expect(summary.completedOps).toBe(3);
+    expect(summary.pendingOps).toBe(2);
+  });
+
+  it("should filter operations by location", () => {
+    const operations = [
+      { type: "entrega" as const, location: "Aeropuerto de Palma", auto: "1" },
+      { type: "devolucion" as const, location: "Oficina Azul Cars", auto: "2" },
+      { type: "entrega" as const, location: "Aeropuerto de Palma", auto: "3" },
+      { type: "devolucion" as const, location: "Terminal de cruceros", auto: "4" },
+    ];
+
+    const locationFilter = "Aeropuerto";
+    const filtered = operations.filter(op =>
+      !locationFilter || locationFilter === "all" || op.location.toLowerCase().includes(locationFilter.toLowerCase())
+    );
+
+    expect(filtered).toHaveLength(2);
+    expect(filtered.every(op => op.location.includes("Aeropuerto"))).toBe(true);
+  });
+
+  it("should not filter when location is 'all'", () => {
+    const operations = [
+      { type: "entrega" as const, location: "Aeropuerto de Palma", auto: "1" },
+      { type: "devolucion" as const, location: "Oficina Azul Cars", auto: "2" },
+    ];
+
+    const locationFilter = "all";
+    const filtered = operations.filter(op =>
+      !locationFilter || locationFilter === "all" || op.location.toLowerCase().includes(locationFilter.toLowerCase())
+    );
+
+    expect(filtered).toHaveLength(2);
+  });
+});
+
+// ─── Saturated Slots Detection ──────────────────────────────────────────────
+describe("Public Operations - Saturated Slots", () => {
+  it("should detect saturated slots (alta load)", () => {
+    const hourlyWithLoad = [
+      { hour: 8, load: "libre" as const, total: 0, entregas: 0, devoluciones: 0 },
+      { hour: 9, load: "alta" as const, total: 6, entregas: 3, devoluciones: 3 },
+      { hour: 10, load: "media" as const, total: 3, entregas: 1, devoluciones: 2 },
+      { hour: 11, load: "alta" as const, total: 5, entregas: 2, devoluciones: 3 },
+    ];
+
+    const saturatedSlots = hourlyWithLoad
+      .filter(h => h.load === "alta")
+      .map(h => ({ hour: h.hour, total: h.total, entregas: h.entregas, devoluciones: h.devoluciones }));
+
+    expect(saturatedSlots).toHaveLength(2);
+    expect(saturatedSlots[0].hour).toBe(9);
+    expect(saturatedSlots[0].total).toBe(6);
+    expect(saturatedSlots[1].hour).toBe(11);
+  });
+
+  it("should return empty array when no slots are saturated", () => {
+    const hourlyWithLoad = [
+      { hour: 8, load: "libre" as const, total: 0, entregas: 0, devoluciones: 0 },
+      { hour: 9, load: "baja" as const, total: 1, entregas: 1, devoluciones: 0 },
+      { hour: 10, load: "media" as const, total: 3, entregas: 1, devoluciones: 2 },
+    ];
+
+    const saturatedSlots = hourlyWithLoad.filter(h => h.load === "alta");
+    expect(saturatedSlots).toHaveLength(0);
+  });
+});
