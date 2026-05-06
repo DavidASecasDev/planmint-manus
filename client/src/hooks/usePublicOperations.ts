@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export interface HourlyData {
   hour: number;
@@ -93,6 +93,21 @@ export function usePublicOperations(orgSlug: string, date?: string, location?: s
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Auto-refresh every 5 minutes
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      fetchData();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [fetchData]);
 
   return { data, loading, error, refetch: fetchData };
