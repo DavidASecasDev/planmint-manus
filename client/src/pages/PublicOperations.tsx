@@ -64,10 +64,11 @@ function OperationBadge({ type }: { type: "entrega" | "devolucion" }) {
   const isEntrega = type === "entrega";
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
       style={{
-        backgroundColor: isEntrega ? "#ede9fe" : "#fef3c7",
-        color: isEntrega ? "#6d28d9" : "#d97706",
+        backgroundColor: "#ffffff",
+        borderColor: isEntrega ? "#16a34a" : "#ea580c",
+        color: isEntrega ? "#16a34a" : "#ea580c",
       }}
     >
       {isEntrega ? (
