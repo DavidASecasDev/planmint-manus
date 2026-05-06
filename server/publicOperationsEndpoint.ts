@@ -39,6 +39,7 @@ interface VehicleStatusSummary {
 
 interface ModelAvailability {
   modelo: string;
+  marca: string | null;
   categoria: string | null;
   limpios: number;
   pendientes: number; // sucio + incompleto
@@ -196,11 +197,29 @@ export async function handlePublicOperations(req: Request, res: Response) {
       .map(h => ({ hour: h.hour, total: h.total, entregas: h.entregas, devoluciones: h.devoluciones }));
 
     // ─── 4. Fetch vehicle fleet status ───────────────────────────────────────
+    // vehicles table doesn't have marca, so we join with fleet_vehicles via fleet_vehicle_id
     const { data: vehicles, error: vehError } = await serviceClient
       .from("vehicles")
-      .select("id, modelo, categoria, status")
+      .select("id, modelo, categoria, status, fleet_vehicle_id")
       .eq("organization_id", organizationId)
       .eq("is_archived", false);
+
+    // Fetch fleet_vehicles to get marca for each vehicle
+    let fleetMarcaMap = new Map<string, string>();
+    if (vehicles && vehicles.length > 0) {
+      const fleetIds = vehicles.map(v => v.fleet_vehicle_id).filter(Boolean);
+      if (fleetIds.length > 0) {
+        const { data: fleetVehicles } = await serviceClient
+          .from("fleet_vehicles")
+          .select("id, marca")
+          .in("id", fleetIds);
+        if (fleetVehicles) {
+          for (const fv of fleetVehicles) {
+            if (fv.marca) fleetMarcaMap.set(fv.id, fv.marca);
+          }
+        }
+      }
+    }
 
     if (vehError) {
       console.error("[public-ops] Error fetching vehicles:", vehError);
@@ -230,15 +249,19 @@ export async function handlePublicOperations(req: Request, res: Response) {
 
     for (const v of vehicles || []) {
       const key = v.modelo || "Sin modelo";
+      const marca = v.fleet_vehicle_id ? (fleetMarcaMap.get(v.fleet_vehicle_id) || null) : null;
       const existing = modelMap.get(key);
       if (existing) {
         existing.total++;
         if (v.status === "limpio") existing.limpios++;
         else if (v.status === "sucio" || v.status === "incompleto") existing.pendientes++;
         else existing.no_disponibles++;
+        // Keep marca from first vehicle with a non-null value
+        if (!existing.marca && marca) existing.marca = marca;
       } else {
         modelMap.set(key, {
           modelo: key,
+          marca: marca,
           categoria: v.categoria || null,
           limpios: v.status === "limpio" ? 1 : 0,
           pendientes: (v.status === "sucio" || v.status === "incompleto") ? 1 : 0,

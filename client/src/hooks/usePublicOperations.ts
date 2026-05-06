@@ -20,6 +20,7 @@ export interface FleetStatus {
 
 export interface ModelAvailability {
   modelo: string;
+  marca: string | null;
   categoria: string | null;
   limpios: number;
   pendientes: number;

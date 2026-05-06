@@ -80,27 +80,45 @@ function OperationBadge({ type }: { type: "entrega" | "devolucion" }) {
   );
 }
 
-// ─── Model Availability Row ─────────────────────────────────────────────────
+// ─── Model Availability Row (unified: available + unavailable) ──────────────
 function ModelRow({ model }: { model: ModelAvailability }) {
+  const isUnavailable = model.limpios === 0;
   return (
-    <div className="flex items-center justify-between py-3 px-4 border-b border-gray-100 last:border-0 hover:bg-white/60 transition-colors">
+    <div
+      className={`flex items-center justify-between py-3 px-4 border-b border-gray-100 last:border-0 transition-colors ${
+        isUnavailable ? "bg-red-50/60" : "hover:bg-white/60"
+      }`}
+    >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate" style={{ color: COLORS.navy }}>{model.modelo}</p>
+        <p
+          className="text-sm font-medium truncate"
+          style={{ color: isUnavailable ? "#dc2626" : COLORS.navy }}
+        >
+          {model.marca ? `${model.marca} ` : ""}{model.modelo}
+        </p>
         {model.categoria && (
-          <p className="text-xs mt-0.5" style={{ color: COLORS.textLight }}>{model.categoria}</p>
+          <p className="text-xs mt-0.5" style={{ color: isUnavailable ? "#f87171" : COLORS.textLight }}>
+            {model.categoria}
+          </p>
         )}
       </div>
       <div className="flex items-center gap-4 shrink-0 ml-4">
         <div className="text-center w-12">
-          <p className="text-sm font-bold text-emerald-600">{model.limpios}</p>
+          <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : "text-emerald-600"}`}>
+            {model.limpios}
+          </p>
           <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Listos</p>
         </div>
         <div className="text-center w-12">
-          <p className="text-sm font-bold text-amber-500">{model.pendientes}</p>
+          <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : "text-amber-500"}`}>
+            {model.pendientes}
+          </p>
           <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Pend.</p>
         </div>
         <div className="text-center w-12">
-          <p className="text-sm font-bold" style={{ color: COLORS.textMuted }}>{model.no_disponibles}</p>
+          <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : ""}`} style={isUnavailable ? {} : { color: COLORS.textMuted }}>
+            {model.no_disponibles}
+          </p>
           <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>En uso</p>
         </div>
       </div>
@@ -140,14 +158,12 @@ export default function PublicOperations() {
 
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
-  const modelsWithAvailability = useMemo(() => {
+  // Unified fleet list: available first (sorted by limpios desc), then unavailable (in red)
+  const allModels = useMemo(() => {
     if (!data) return [];
-    return data.fleet.byModel.filter(m => m.limpios > 0);
-  }, [data]);
-
-  const modelsWithoutAvailability = useMemo(() => {
-    if (!data) return [];
-    return data.fleet.byModel.filter(m => m.limpios === 0 && m.total > 0);
+    const available = data.fleet.byModel.filter(m => m.limpios > 0);
+    const unavailable = data.fleet.byModel.filter(m => m.limpios === 0 && m.total > 0);
+    return [...available, ...unavailable];
   }, [data]);
 
   if (error) {
@@ -479,51 +495,31 @@ export default function PublicOperations() {
                   </div>
                 </div>
 
-                {/* Available Models */}
+                {/* Fleet by Model (unified) */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <Car className="w-4 h-4" style={{ color: COLORS.gold }} />
                       <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.navy }}>
-                        Disponibles
+                        Disponibilidad por Modelo
                       </h2>
                     </div>
                     <p className="text-xs mt-1" style={{ color: COLORS.textMuted }}>
-                      Modelos con vehículos listos para entregar
+                      Los modelos sin unidades listas aparecen en rojo
                     </p>
                   </div>
-                  <div className="max-h-[380px] overflow-y-auto">
-                    {modelsWithAvailability.length === 0 ? (
+                  <div className="max-h-[500px] overflow-y-auto">
+                    {allModels.length === 0 ? (
                       <p className="text-sm text-center py-8" style={{ color: COLORS.textMuted }}>
-                        No hay modelos disponibles
+                        No hay modelos registrados
                       </p>
                     ) : (
-                      modelsWithAvailability.map((m) => (
+                      allModels.map((m) => (
                         <ModelRow key={m.modelo} model={m} />
                       ))
                     )}
                   </div>
                 </div>
-
-                {/* Unavailable Models */}
-                {modelsWithoutAvailability.length > 0 && (
-                  <div className="bg-white/70 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-400" />
-                      <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.textLight }}>
-                        Sin Disponibilidad
-                      </h2>
-                    </div>
-                    <div className="max-h-[250px] overflow-y-auto divide-y divide-gray-50">
-                      {modelsWithoutAvailability.map((m) => (
-                        <div key={m.modelo} className="flex items-center justify-between px-5 py-2.5">
-                          <span className="text-sm truncate" style={{ color: COLORS.textLight }}>{m.modelo}</span>
-                          <span className="text-xs shrink-0 ml-2" style={{ color: COLORS.textMuted }}>{m.total} uds</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </>
