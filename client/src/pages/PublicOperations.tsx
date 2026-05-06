@@ -66,8 +66,8 @@ function OperationBadge({ type }: { type: "entrega" | "devolucion" }) {
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
       style={{
-        backgroundColor: isEntrega ? "#dbeafe" : "#f3e8ff",
-        color: isEntrega ? "#1d4ed8" : "#7c3aed",
+        backgroundColor: isEntrega ? "#ede9fe" : "#fef3c7",
+        color: isEntrega ? "#6d28d9" : "#d97706",
       }}
     >
       {isEntrega ? (
