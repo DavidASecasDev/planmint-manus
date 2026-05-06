@@ -473,3 +473,4 @@
 - [x] Feature: Añadir marca (brand) además del modelo en la tabla de flota pública
 - [x] Data: Rellenar marcas faltantes en fleet_vehicles (inferir marca desde nombre del modelo) — 112 vehículos actualizados: 98 Mercedes, 9 MINI, 4 Porsche, 1 Jeep + corregidos 2 typos
 - [x] Feature: Auto-refresh cada 5 minutos en la página pública de operaciones (/ops/azul-ops)
+- [x] Feature: Reorganizar layout de /ops/azul-ops para que Operaciones del Día y Disponibilidad por Modelo tengan el mismo protagonismo (50/50)

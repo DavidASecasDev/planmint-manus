@@ -182,7 +182,7 @@ export default function PublicOperations() {
     <div className="min-h-screen" style={{ backgroundColor: COLORS.beige }}>
       {/* ─── Header ─────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 shadow-sm" style={{ backgroundColor: COLORS.navy }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-xl font-bold tracking-tight" style={{ color: COLORS.white }}>AZUL</span>
@@ -206,7 +206,7 @@ export default function PublicOperations() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ─── Date & Filters ───────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -296,9 +296,9 @@ export default function PublicOperations() {
             </div>
 
             {/* ─── Main Grid ────────────────────────────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Operations Table (2/3) */}
-              <div className="lg:col-span-2 space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Operations Table (1/2) */}
+              <div className="space-y-5">
                 {/* Operations Table */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -440,7 +440,7 @@ export default function PublicOperations() {
                 )}
               </div>
 
-              {/* Fleet Sidebar (1/3) */}
+              {/* Fleet Panel (1/2) */}
               <div className="space-y-5">
                 {/* Fleet Status */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -508,7 +508,7 @@ export default function PublicOperations() {
                       Los modelos sin unidades listas aparecen en rojo
                     </p>
                   </div>
-                  <div className="max-h-[500px] overflow-y-auto">
+                  <div className="max-h-[600px] overflow-y-auto">
                     {allModels.length === 0 ? (
                       <p className="text-sm text-center py-8" style={{ color: COLORS.textMuted }}>
                         No hay modelos registrados
@@ -528,7 +528,7 @@ export default function PublicOperations() {
 
       {/* ─── Footer ─────────────────────────────────────────────────────── */}
       <footer className="mt-12 py-6 border-t" style={{ borderColor: COLORS.beigeDark }}>
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold" style={{ color: COLORS.navy }}>AZUL</span>
             <span className="text-sm" style={{ color: COLORS.gold }}>Cars</span>
