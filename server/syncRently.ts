@@ -528,9 +528,10 @@ async function syncVehicleStatuses(
     }
 
     // 2. Set vehicles to alquilado for active reservations
+    //    Also handles: unarchiving archived vehicles and creating missing vehicles
     const { data: activeReservations } = await serviceClient
       .from("reservations")
-      .select("id, auto, cliente_nombre, cliente_apellido")
+      .select("id, auto, modelo, categoria, cliente_nombre, cliente_apellido")
       .eq("organization_id", organizationId)
       .eq("estado", "En curso")
       .not("auto", "is", null);
@@ -538,9 +539,11 @@ async function syncVehicleStatuses(
     if (activeReservations && activeReservations.length > 0) {
       for (const res of activeReservations) {
         if (!res.auto) continue;
+
+        // First try to find a non-archived vehicle
         const { data: vehicle } = await serviceClient
           .from("vehicles")
-          .select("id, status, current_reservation_id")
+          .select("id, status, current_reservation_id, is_archived")
           .eq("organization_id", organizationId)
           .eq("matricula", res.auto)
           .eq("is_archived", false)
@@ -564,6 +567,58 @@ async function syncVehicleStatuses(
             .from("vehicles")
             .update({ current_reservation_id: res.id })
             .eq("id", vehicle.id);
+        } else if (!vehicle) {
+          // Vehicle not found as non-archived. Check if it exists but is archived.
+          const { data: archivedVehicle } = await serviceClient
+            .from("vehicles")
+            .select("id, status")
+            .eq("organization_id", organizationId)
+            .eq("matricula", res.auto)
+            .eq("is_archived", true)
+            .single();
+
+          if (archivedVehicle) {
+            // Unarchive and set to alquilado
+            const { error: unarchiveErr } = await serviceClient
+              .from("vehicles")
+              .update({
+                is_archived: false,
+                archived_at: null,
+                archived_by: null,
+                status: "alquilado",
+                current_reservation_id: res.id,
+                last_status_change: new Date().toISOString(),
+              })
+              .eq("id", archivedVehicle.id);
+            if (!unarchiveErr) {
+              console.log(`[sync-vehicles] Unarchived and set ${res.auto} to alquilado (reservation ${res.id})`);
+              rented++;
+            } else {
+              console.error(`[sync-vehicles] Error unarchiving ${res.auto}:`, unarchiveErr);
+              errors++;
+            }
+          } else {
+            // Vehicle doesn't exist at all — create it
+            const { error: createErr } = await serviceClient
+              .from("vehicles")
+              .insert({
+                organization_id: organizationId,
+                matricula: res.auto,
+                modelo: res.modelo || null,
+                categoria: res.categoria || null,
+                status: "alquilado",
+                current_reservation_id: res.id,
+                is_archived: false,
+                last_status_change: new Date().toISOString(),
+              });
+            if (!createErr) {
+              console.log(`[sync-vehicles] Created vehicle ${res.auto} and set to alquilado (reservation ${res.id})`);
+              rented++;
+            } else {
+              console.error(`[sync-vehicles] Error creating vehicle ${res.auto}:`, createErr);
+              errors++;
+            }
+          }
         }
       }
     }

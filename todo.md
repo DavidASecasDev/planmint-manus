@@ -454,3 +454,5 @@
 - [x] Fix: Reescrita lógica de todayReservations para usar una sola query OR y expandir cada reserva en filas Entrega/Devolución/Transfer (matching ReservationsTable). Filtrado por extractDatePart (timezone-safe), ordenado por confirmed datetime ASC (nulls last)
 - [x] Fix: OperationalPanel actualizado para manejar tipo 'transfer' (icono Repeat, color indigo) y usar campos derivados (confirmedDatetime, fechaHora, lugar)
 - [x] Tests: 25 tests nuevos en dashboardOperationsConsistency.test.ts (976 total pasando)
+- [x] Bug: Dashboard KPI muestra 45 coches alquilados pero "Estado Coches" solo muestra 37 - causa: vehículos archivados/inexistentes con reservas activas. Fix: sync ahora los desarchiva/crea automáticamente
+- [x] Feature: syncVehicleStatuses auto-unarchives vehicles with active reservations and auto-creates missing vehicles
