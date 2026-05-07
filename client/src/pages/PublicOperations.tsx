@@ -108,12 +108,18 @@ function getModelFamily(modelo: string): string {
   return modelo;
 }
 
+function getPorscheFamily(modelo: string): string {
+  if (/cayenne/i.test(modelo)) return "Cayenne";
+  if (/carrera|911|992/i.test(modelo)) return "Carrera";
+  return modelo;
+}
+
 function groupModelsByFamily(models: ModelAvailability[]): ModelFamily[] {
   const familyMap = new Map<string, ModelFamily>();
 
   for (const m of models) {
     const marca = m.marca || "Otro";
-    const family = marca === "Mercedes" ? getModelFamily(m.modelo) : (marca === "Porsche" ? "Porsche" : marca === "MINI" ? "MINI" : marca === "Jeep" ? "Jeep" : m.modelo);
+    const family = marca === "Mercedes" ? getModelFamily(m.modelo) : (marca === "Porsche" ? getPorscheFamily(m.modelo) : marca === "MINI" ? "MINI" : marca === "Jeep" ? "Jeep" : m.modelo);
     const key = `${marca}::${family}`;
 
     if (!familyMap.has(key)) {

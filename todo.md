@@ -476,3 +476,4 @@
 - [x] Feature: Reorganizar layout de /ops/azul-ops para que Operaciones del Día y Disponibilidad por Modelo tengan el mismo protagonismo (50/50)
 - [x] Bug: Error "Database error creating new user" al crear usuarios nuevos para Azul Cars y Bluebnc — Corregido trigger handle_new_user en Supabase (SET search_path + ON CONFLICT con role)
 - [x] Feature: Agrupar tabla Disponibilidad por Modelo por familia (ej. Clase B, GLA, Clase A) con filas colapsables mostrando suma en cabecera y detalle de variantes al expandir
+- [x] Fix: Separar Porsche en familias distintas (Carrera y Cayenne) en vez de agrupar todos juntos
