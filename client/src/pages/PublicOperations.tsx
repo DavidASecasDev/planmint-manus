@@ -22,6 +22,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MapPin,
   CheckCircle2,
   AlertTriangle,
@@ -81,48 +82,173 @@ function OperationBadge({ type }: { type: "entrega" | "devolucion" }) {
   );
 }
 
-// ─── Model Availability Row (unified: available + unavailable) ──────────────
-function ModelRow({ model }: { model: ModelAvailability }) {
-  const isUnavailable = model.limpios === 0;
+// ─── Model Family Grouping Logic ────────────────────────────────────────────
+interface ModelFamily {
+  familyName: string;
+  marca: string;
+  limpios: number;
+  pendientes: number;
+  no_disponibles: number;
+  total: number;
+  models: ModelAvailability[];
+}
+
+function getModelFamily(modelo: string): string {
+  // Mercedes families
+  if (/^(A\s|Clase A)/i.test(modelo)) return "Clase A";
+  if (/^(B\s|Clase B)/i.test(modelo)) return "Clase B";
+  if (/^(E\s|E Class|Clase E)/i.test(modelo)) return "Clase E Cabrio";
+  if (/^(G\s|Clase G)/i.test(modelo)) return "Clase G";
+  if (/^GLA/i.test(modelo)) return "GLA";
+  if (/^GLB/i.test(modelo)) return "GLB";
+  if (/^GLC/i.test(modelo)) return "GLC";
+  if (/^GLE/i.test(modelo)) return "GLE";
+  if (/^(V\s|V Class|VITO)/i.test(modelo)) return "Clase V";
+  // Fallback: use the model name itself
+  return modelo;
+}
+
+function groupModelsByFamily(models: ModelAvailability[]): ModelFamily[] {
+  const familyMap = new Map<string, ModelFamily>();
+
+  for (const m of models) {
+    const marca = m.marca || "Otro";
+    const family = marca === "Mercedes" ? getModelFamily(m.modelo) : (marca === "Porsche" ? "Porsche" : marca === "MINI" ? "MINI" : marca === "Jeep" ? "Jeep" : m.modelo);
+    const key = `${marca}::${family}`;
+
+    if (!familyMap.has(key)) {
+      familyMap.set(key, {
+        familyName: family,
+        marca,
+        limpios: 0,
+        pendientes: 0,
+        no_disponibles: 0,
+        total: 0,
+        models: [],
+      });
+    }
+    const f = familyMap.get(key)!;
+    f.limpios += m.limpios;
+    f.pendientes += m.pendientes;
+    f.no_disponibles += m.no_disponibles;
+    f.total += m.total;
+    f.models.push(m);
+  }
+
+  // Sort: available families first (by limpios desc), then unavailable
+  const families = Array.from(familyMap.values());
+  families.sort((a, b) => {
+    if (a.limpios === 0 && b.limpios > 0) return 1;
+    if (a.limpios > 0 && b.limpios === 0) return -1;
+    return b.limpios - a.limpios;
+  });
+  return families;
+}
+
+// ─── Model Family Row (collapsible) ─────────────────────────────────────────
+function ModelFamilyRow({ family }: { family: ModelFamily }) {
+  const [expanded, setExpanded] = useState(false);
+  const isUnavailable = family.limpios === 0;
+  const hasMultiple = family.models.length > 1;
+
   return (
-    <div
-      className={`flex items-center justify-between py-3 px-4 border-b border-gray-100 last:border-0 transition-colors ${
-        isUnavailable ? "bg-red-50/60" : "hover:bg-white/60"
-      }`}
-    >
-      <div className="min-w-0 flex-1">
-        <p
-          className="text-sm font-medium truncate"
-          style={{ color: isUnavailable ? "#dc2626" : COLORS.navy }}
-        >
-          {model.marca ? `${model.marca} ` : ""}{model.modelo}
-        </p>
-        {model.categoria && (
-          <p className="text-xs mt-0.5" style={{ color: isUnavailable ? "#f87171" : COLORS.textLight }}>
-            {model.categoria}
-          </p>
-        )}
+    <div className="border-b border-gray-100 last:border-0">
+      {/* Family header row */}
+      <div
+        className={`flex items-center justify-between py-3 px-4 transition-colors cursor-pointer ${
+          isUnavailable ? "bg-red-50/60" : "hover:bg-white/60"
+        }`}
+        onClick={() => hasMultiple && setExpanded(!expanded)}
+      >
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          {hasMultiple && (
+            <ChevronDown
+              className={`w-4 h-4 shrink-0 transition-transform duration-200 ${expanded ? "rotate-0" : "-rotate-90"}`}
+              style={{ color: isUnavailable ? "#dc2626" : COLORS.textMuted }}
+            />
+          )}
+          {!hasMultiple && <div className="w-4" />}
+          <div className="min-w-0">
+            <p
+              className="text-sm font-semibold truncate"
+              style={{ color: isUnavailable ? "#dc2626" : COLORS.navy }}
+            >
+              {family.marca} {family.familyName}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: isUnavailable ? "#f87171" : COLORS.textMuted }}>
+              {family.total} uds
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 shrink-0 ml-4">
+          <div className="text-center w-12">
+            <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : "text-emerald-600"}`}>
+              {family.limpios}
+            </p>
+            <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Listos</p>
+          </div>
+          <div className="text-center w-12">
+            <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : "text-amber-500"}`}>
+              {family.pendientes}
+            </p>
+            <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Pend.</p>
+          </div>
+          <div className="text-center w-12">
+            <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : ""}`} style={isUnavailable ? {} : { color: COLORS.textMuted }}>
+              {family.no_disponibles}
+            </p>
+            <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>En uso</p>
+          </div>
+        </div>
       </div>
-      <div className="flex items-center gap-4 shrink-0 ml-4">
-        <div className="text-center w-12">
-          <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : "text-emerald-600"}`}>
-            {model.limpios}
-          </p>
-          <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Listos</p>
+
+      {/* Expanded children */}
+      {expanded && hasMultiple && (
+        <div className="bg-gray-50/50">
+          {family.models.map((model) => {
+            const modelUnavailable = model.limpios === 0;
+            return (
+              <div
+                key={model.modelo}
+                className={`flex items-center justify-between py-2.5 px-4 pl-10 border-t border-gray-100/60 ${
+                  modelUnavailable ? "bg-red-50/40" : ""
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-xs font-medium truncate"
+                    style={{ color: modelUnavailable ? "#dc2626" : COLORS.text }}
+                  >
+                    {model.modelo}
+                  </p>
+                  {model.categoria && (
+                    <p className="text-[10px] mt-0.5" style={{ color: modelUnavailable ? "#f87171" : COLORS.textLight }}>
+                      {model.categoria}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 shrink-0 ml-4">
+                  <div className="text-center w-12">
+                    <p className={`text-xs font-bold ${modelUnavailable ? "text-red-400" : "text-emerald-600"}`}>
+                      {model.limpios}
+                    </p>
+                  </div>
+                  <div className="text-center w-12">
+                    <p className={`text-xs font-bold ${modelUnavailable ? "text-red-400" : "text-amber-500"}`}>
+                      {model.pendientes}
+                    </p>
+                  </div>
+                  <div className="text-center w-12">
+                    <p className={`text-xs font-bold ${modelUnavailable ? "text-red-400" : ""}`} style={modelUnavailable ? {} : { color: COLORS.textMuted }}>
+                      {model.no_disponibles}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="text-center w-12">
-          <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : "text-amber-500"}`}>
-            {model.pendientes}
-          </p>
-          <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>Pend.</p>
-        </div>
-        <div className="text-center w-12">
-          <p className={`text-sm font-bold ${isUnavailable ? "text-red-400" : ""}`} style={isUnavailable ? {} : { color: COLORS.textMuted }}>
-            {model.no_disponibles}
-          </p>
-          <p className="text-[9px] uppercase tracking-wide" style={{ color: COLORS.textMuted }}>En uso</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -159,12 +285,11 @@ export default function PublicOperations() {
 
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
-  // Unified fleet list: available first (sorted by limpios desc), then unavailable (in red)
-  const allModels = useMemo(() => {
+  // Group models by family for collapsible display
+  const modelFamilies = useMemo(() => {
     if (!data) return [];
-    const available = data.fleet.byModel.filter(m => m.limpios > 0);
-    const unavailable = data.fleet.byModel.filter(m => m.limpios === 0 && m.total > 0);
-    return [...available, ...unavailable];
+    const allModels = data.fleet.byModel.filter(m => m.total > 0);
+    return groupModelsByFamily(allModels);
   }, [data]);
 
   if (error) {
@@ -510,13 +635,13 @@ export default function PublicOperations() {
                     </p>
                   </div>
                   <div className="max-h-[600px] overflow-y-auto">
-                    {allModels.length === 0 ? (
+                    {modelFamilies.length === 0 ? (
                       <p className="text-sm text-center py-8" style={{ color: COLORS.textMuted }}>
                         No hay modelos registrados
                       </p>
                     ) : (
-                      allModels.map((m) => (
-                        <ModelRow key={m.modelo} model={m} />
+                      modelFamilies.map((f) => (
+                        <ModelFamilyRow key={`${f.marca}-${f.familyName}`} family={f} />
                       ))
                     )}
                   </div>
