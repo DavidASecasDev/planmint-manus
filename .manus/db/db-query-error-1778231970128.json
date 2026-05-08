@@ -1,0 +1,8 @@
+{
+  "query": "SELECT v.id, v.modelo, v.matricula, v.categoria, v.status, v.fleet_vehicle_id, fv.nombre as fleet_name, fv.marca as fleet_marca\nFROM vehicles v\nLEFT JOIN fleet_vehicles fv ON v.fleet_vehicle_id = fv.id\nWHERE fv.marca = 'Porsche' OR v.modelo ILIKE '%porsche%' OR v.modelo ILIKE '%carrera%' OR v.modelo ILIKE '%cayenne%' OR v.modelo ILIKE '%992%'\nORDER BY v.modelo",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute SELECT v.id, v.modelo, v.matricula, v.categoria, v.status, v.fleet_vehicle_id, fv.nombre as fleet_name, fv.marca as fleet_marca\nFROM vehicles v\nLEFT JOIN fleet_vehicles fv ON v.fleet_vehicle_id = fv.id\nWHERE fv.marca = 'Porsche' OR v.modelo ILIKE '%porsche%' OR v.modelo ILIKE '%carrera%' OR v.modelo ILIKE '%cayenne%' OR v.modelo ILIKE '%992%'\nORDER BY v.modelo",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'ixfk4yejeeakh8kczkpztm.vehicles' doesn't exist"
+  ]
+}

@@ -477,3 +477,6 @@
 - [x] Bug: Error "Database error creating new user" al crear usuarios nuevos para Azul Cars y Bluebnc — Corregido trigger handle_new_user en Supabase (SET search_path + ON CONFLICT con role)
 - [x] Feature: Agrupar tabla Disponibilidad por Modelo por familia (ej. Clase B, GLA, Clase A) con filas colapsables mostrando suma en cabecera y detalle de variantes al expandir
 - [x] Fix: Separar Porsche en familias distintas (Carrera y Cayenne) en vez de agrupar todos juntos
+- [x] Fix: Clase B sobrante en PlanMint respecto a Rently — archivado registro genérico 'Clase B' (CLASEB-1) que era test/duplicado. Ahora 20 unidades coincide con Rently
+- [x] Fix: Separar V Class y VITO en familias distintas (V Class = 8 pax, VITO = 9 pax) — regex en getModelFamily() ahora separa ^V\s|^V Class → 'V Class' y ^VITO → 'VITO'
+- [x] Fix: Porsche — corregido: 7850NFJ era 'Porsche Carrera' cat '5' (dato erróneo), renombrado a 'Cayenne' cat 'Luxury Elite'. Ahora 2x Carrera + 2x Cayenne coincide con Rently

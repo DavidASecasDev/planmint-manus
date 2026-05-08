@@ -103,7 +103,8 @@ function getModelFamily(modelo: string): string {
   if (/^GLB/i.test(modelo)) return "GLB";
   if (/^GLC/i.test(modelo)) return "GLC";
   if (/^GLE/i.test(modelo)) return "GLE";
-  if (/^(V\s|V Class|VITO)/i.test(modelo)) return "Clase V";
+  if (/^V\s|^V Class/i.test(modelo)) return "V Class";
+  if (/^VITO/i.test(modelo)) return "VITO";
   // Fallback: use the model name itself
   return modelo;
 }
