@@ -500,3 +500,4 @@
 - [x] Restrict org switching: only users with multi-org membership (or specific permission) should see/use the OrgSwitcher (already works — switcher only shows if user belongs to 2+ orgs)
 - [x] Super Admin: Add organization member management (assign/remove users from organizations, view members per org)
 - [x] Notification: Send push/in-app notification to user when added to a new organization from super admin
+- [x] Bug: RLS policy violation when adding member to organization from super admin — fixed by creating backend endpoint /api/super-admin/add-member using serviceClient

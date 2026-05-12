@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 
 // Types
@@ -67,80 +68,11 @@ export function useSuperAdminActions() {
 
   const addMemberToOrg = useMutation({
     mutationFn: async ({ userId, organizationId, role }: AddMemberToOrgParams) => {
-      // Check if membership already exists
-      const { data: existing } = await supabase
-        .from('organization_members')
-        .select('id, status')
-        .eq('user_id', userId)
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-      if (existing) {
-        if (existing.status === 'active') {
-          throw new Error('El usuario ya es miembro activo de esta organización');
-        }
-        // Reactivate if suspended
-        const { error } = await supabase
-          .from('organization_members')
-          .update({ status: 'active', role })
-          .eq('id', existing.id);
-        if (error) throw error;
-
-        // Get org name for notification
-        const { data: orgData } = await supabase
-          .from('organizations')
-          .select('name')
-          .eq('id', organizationId)
-          .single();
-
-        const orgDisplayName = orgData?.name || 'una organización';
-
-        // Notify user they've been reactivated
-        await supabase.from('notifications').insert({
-          organization_id: organizationId,
-          user_id: userId,
-          type: 'assignment',
-          title: `Has sido reactivado en ${orgDisplayName}`,
-          body: `Tu acceso a ${orgDisplayName} ha sido restaurado con el rol de ${role}.`,
-          entity_type: 'task',
-          entity_id: organizationId,
-          is_read: false,
-        });
-        return;
-      }
-
-      // Insert new membership
-      const { error } = await supabase
-        .from('organization_members')
-        .insert({
-          user_id: userId,
-          organization_id: organizationId,
-          role,
-          status: 'active',
-        });
-
-      if (error) throw error;
-
-      // Get org name for notification
-      const { data: orgData } = await supabase
-        .from('organizations')
-        .select('name')
-        .eq('id', organizationId)
-        .single();
-
-      const orgDisplayName = orgData?.name || 'una organización';
-
-      // Send in-app notification to the user
-      await supabase.from('notifications').insert({
-        organization_id: organizationId,
-        user_id: userId,
-        type: 'assignment',
-        title: `Te han añadido a ${orgDisplayName}`,
-        body: `Has sido añadido como ${role} en ${orgDisplayName}. Ya puedes acceder a esta organización.`,
-        entity_type: 'task',
-        entity_id: organizationId,
-        is_read: false,
+      const { data, error } = await apiInvoke<{ success: boolean; reactivated: boolean }>('super-admin/add-member', {
+        body: { userId, organizationId, role },
       });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (_, { userName, orgName }) => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });

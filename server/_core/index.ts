@@ -73,6 +73,7 @@ import {
   handleCancelServiceRequest,
   handleGetAvailableOrgs,
 } from "../serviceRequestEndpoints";
+import { handleSuperAdminAddMember } from "../superAdminEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -164,6 +165,9 @@ async function startServer() {
   app.post("/api/remove-member", handleRemoveMember);
   app.post("/api/manage-custom-role", handleManageCustomRole);
   app.post("/api/toggle-role-permission", handleToggleRolePermission);
+
+  // ─── Super Admin endpoints (bypass RLS) ────────────────────────────────────
+  app.post("/api/super-admin/add-member", handleSuperAdminAddMember);
 
   // Service Requests (cross-org)
   app.post("/api/list-service-requests", handleListServiceRequests);
