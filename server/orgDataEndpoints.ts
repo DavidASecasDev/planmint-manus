@@ -9,6 +9,7 @@ import {
   authenticateSupabaseRequest,
   AuthError,
 } from "./supabaseAdmin";
+import { requirePermission } from "./permissionHelper";
 
 // ─── 1. get-org-modules ──────────────────────────────────────────────────────
 // Returns organization_modules for the authenticated user's org
@@ -84,43 +85,23 @@ export async function handleGetOrgCustomRoles(req: Request, res: Response) {
   }
 }
 
-// ─── 3. get-role-permissions ─────────────────────────────────────────────────
-// Returns role_permissions for the specified organization
+// ─── 3. get-role-permissions ────────────────────────────────────────────────
+// Returns role_permissions (global table, not org-scoped)
 export async function handleGetRolePermissions(req: Request, res: Response) {
   try {
-    const { organizationId } = await authenticateSupabaseRequest(
-      req.headers.authorization
-    );
-    const { p_organization_id } = req.body;
-    const orgId = p_organization_id || organizationId;
+    await authenticateSupabaseRequest(req.headers.authorization);
 
     const serviceClient = getServiceClient();
 
-    // role_permissions may not be org-scoped in all setups, fetch all
-    let query = serviceClient
+    // role_permissions table is global (no organization_id column)
+    const { data, error } = await serviceClient
       .from("role_permissions")
       .select("*")
       .order("role", { ascending: true });
 
-    // If org-scoped, filter by org
-    if (orgId) {
-      query = query.eq("organization_id", orgId);
-    }
-
-    const { data, error } = await query;
-
     if (error) {
       console.error("[getRolePermissions] Query error:", error);
-      // Fallback: try without org filter
-      const { data: allData, error: allError } = await serviceClient
-        .from("role_permissions")
-        .select("*")
-        .order("role", { ascending: true });
-
-      if (allError) {
-        return res.json({ data: [], error: allError.message });
-      }
-      return res.json({ data: allData || [], error: null });
+      return res.json({ data: [], error: error.message });
     }
 
     return res.json({ data: data || [], error: null });
@@ -186,6 +167,9 @@ export async function handleSetUserPermissionOverride(req: Request, res: Respons
 
     const serviceClient = getServiceClient();
 
+    // Permission check: caller must have members.manage_permissions
+    await requirePermission(serviceClient, p_organization_id, userId, "members.manage_permissions");
+
     const { error } = await serviceClient
       .from("user_permissions")
       .upsert({
@@ -217,7 +201,7 @@ export async function handleSetUserPermissionOverride(req: Request, res: Respons
 // Delete a specific user permission override
 export async function handleRemoveUserPermissionOverride(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
     const { p_organization_id, p_user_id, p_permission_key } = req.body;
 
     if (!p_organization_id || !p_user_id || !p_permission_key) {
@@ -225,6 +209,9 @@ export async function handleRemoveUserPermissionOverride(req: Request, res: Resp
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.manage_permissions
+    await requirePermission(serviceClient, p_organization_id, userId, "members.manage_permissions");
 
     const { error } = await serviceClient
       .from("user_permissions")
@@ -252,7 +239,7 @@ export async function handleRemoveUserPermissionOverride(req: Request, res: Resp
 // Delete ALL user permission overrides for a user in an organization
 export async function handleResetUserPermissionOverrides(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
     const { p_organization_id, p_user_id } = req.body;
 
     if (!p_organization_id || !p_user_id) {
@@ -260,6 +247,9 @@ export async function handleResetUserPermissionOverrides(req: Request, res: Resp
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.manage_permissions
+    await requirePermission(serviceClient, p_organization_id, userId, "members.manage_permissions");
 
     const { error } = await serviceClient
       .from("user_permissions")
@@ -332,17 +322,21 @@ export async function handleGetOrgMembers(req: Request, res: Response) {
   }
 }
 
-// ─── 9. update-member-role ───────────────────────────────────────────────────
+// ─── 9. update-member-role ───────────────────────────────────────────
 export async function handleUpdateMemberRole(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
-    const { p_member_id, p_role } = req.body;
+    const { userId, organizationId } = await authenticateSupabaseRequest(req.headers.authorization);
+    const { p_member_id, p_role, p_organization_id } = req.body;
+    const orgId = p_organization_id || organizationId;
 
     if (!p_member_id || !p_role) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.change_role
+    await requirePermission(serviceClient, orgId, userId, "members.change_role");
 
     const { error } = await serviceClient
       .from("organization_members")
@@ -364,17 +358,21 @@ export async function handleUpdateMemberRole(req: Request, res: Response) {
   }
 }
 
-// ─── 10. update-member-status ────────────────────────────────────────────────
+// ─── 10. update-member-status ────────────────────────────────────────
 export async function handleUpdateMemberStatus(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
-    const { p_member_id, p_status } = req.body;
+    const { userId, organizationId } = await authenticateSupabaseRequest(req.headers.authorization);
+    const { p_member_id, p_status, p_organization_id } = req.body;
+    const orgId = p_organization_id || organizationId;
 
     if (!p_member_id || !p_status) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.suspend
+    await requirePermission(serviceClient, orgId, userId, "members.suspend");
 
     const { error } = await serviceClient
       .from("organization_members")
@@ -396,17 +394,21 @@ export async function handleUpdateMemberStatus(req: Request, res: Response) {
   }
 }
 
-// ─── 11. remove-member ───────────────────────────────────────────────────────
+// ─── 11. remove-member ─────────────────────────────────────────────
 export async function handleRemoveMember(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
-    const { p_member_id } = req.body;
+    const { userId, organizationId } = await authenticateSupabaseRequest(req.headers.authorization);
+    const { p_member_id, p_organization_id } = req.body;
+    const orgId = p_organization_id || organizationId;
 
     if (!p_member_id) {
       return res.status(400).json({ error: "Missing member ID" });
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.suspend (remove is a stronger action)
+    await requirePermission(serviceClient, orgId, userId, "members.suspend");
 
     const { error } = await serviceClient
       .from("organization_members")
@@ -428,10 +430,10 @@ export async function handleRemoveMember(req: Request, res: Response) {
   }
 }
 
-// ─── 12. manage-custom-role (create/update/delete) ───────────────────────────
+// ─── 12. manage-custom-role (create/update/delete) ───────────────────
 export async function handleManageCustomRole(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
     const { action, p_organization_id, p_role_id, p_name, p_description, p_permissions_json } = req.body;
 
     if (!action) {
@@ -439,6 +441,11 @@ export async function handleManageCustomRole(req: Request, res: Response) {
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.manage_permissions to manage custom roles
+    if (p_organization_id) {
+      await requirePermission(serviceClient, p_organization_id, userId, "members.manage_permissions");
+    }
 
     if (action === "create") {
       if (!p_organization_id || !p_name) {
@@ -512,17 +519,21 @@ export async function handleManageCustomRole(req: Request, res: Response) {
   }
 }
 
-// ─── 13. toggle-role-permission ──────────────────────────────────────────────
+// ─── 13. toggle-role-permission ──────────────────────────────────────
 export async function handleToggleRolePermission(req: Request, res: Response) {
   try {
-    await authenticateSupabaseRequest(req.headers.authorization);
-    const { p_role, p_permission_key, p_enabled } = req.body;
+    const { userId, organizationId } = await authenticateSupabaseRequest(req.headers.authorization);
+    const { p_role, p_permission_key, p_enabled, p_organization_id } = req.body;
+    const orgId = p_organization_id || organizationId;
 
     if (!p_role || !p_permission_key || p_enabled === undefined) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const serviceClient = getServiceClient();
+
+    // Permission check: caller must have members.manage_permissions to toggle role permissions
+    await requirePermission(serviceClient, orgId, userId, "members.manage_permissions");
 
     const { error } = await serviceClient
       .from("role_permissions")

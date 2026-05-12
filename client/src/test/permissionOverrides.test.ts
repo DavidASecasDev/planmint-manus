@@ -34,11 +34,14 @@ describe('Permission Override System', () => {
     });
 
     it('should flatten custom role permissions_json to flat keys', () => {
-      // Must map nested transfers.create to flat "transfers.create" key
-      expect(coreEndpointsCode).toContain('flatMap["transfers.create"]');
-      expect(coreEndpointsCode).toContain('flatMap["transfers.manage"]');
-      expect(coreEndpointsCode).toContain('flatMap["transfers.manage_pricing"]');
-      expect(coreEndpointsCode).toContain('flatMap["transfers.manage_brokers"]');
+      // Flattening is now done via shared flattenCustomRolePermissions function
+      expect(coreEndpointsCode).toContain('flattenCustomRolePermissions');
+      // The actual mapping is in shared/permissionDefaults.ts
+      const sharedCode = fs.readFileSync(path.join(projectRoot, 'shared', 'permissionDefaults.ts'), 'utf-8');
+      expect(sharedCode).toContain('flat["transfers.create"]');
+      expect(sharedCode).toContain('flat["transfers.manage"]');
+      expect(sharedCode).toContain('flat["transfers.manage_pricing"]');
+      expect(sharedCode).toContain('flat["transfers.manage_brokers"]');
     });
 
     it('should apply user overrides AFTER role permissions (highest priority)', () => {
@@ -68,16 +71,20 @@ describe('Permission Override System', () => {
     });
 
     it('should handle member role with basic defaults', () => {
+      // Member role defaults are now in shared/permissionDefaults.ts
+      expect(coreEndpointsCode).toContain('getDefaultPermissionsForRole');
+      const sharedCode = fs.readFileSync(path.join(projectRoot, 'shared', 'permissionDefaults.ts'), 'utf-8');
       // Member role should get tasks.create, tasks.update, etc.
-      expect(coreEndpointsCode).toContain('role === "member"');
-      expect(coreEndpointsCode).toContain('"tasks.create", "tasks.update"');
+      expect(sharedCode).toContain('"tasks.create", "tasks.update"');
     });
 
     it('should NOT include transfers.create in member defaults', () => {
-      // Member role should NOT have transfers.create by default
-      const memberSection = coreEndpointsCode.indexOf('role === "member"');
-      const memberEnd = coreEndpointsCode.indexOf('}', memberSection + 200);
-      const memberDefaults = coreEndpointsCode.substring(memberSection, memberEnd);
+      // Member role should NOT have transfers.create by default (checked via shared defaults)
+      const sharedCode = fs.readFileSync(path.join(projectRoot, 'shared', 'permissionDefaults.ts'), 'utf-8');
+      // Find the member section in ROLE_DEFAULTS
+      const memberIdx = sharedCode.indexOf('member: [');
+      const memberEnd = sharedCode.indexOf('],', memberIdx);
+      const memberDefaults = sharedCode.substring(memberIdx, memberEnd);
       expect(memberDefaults).not.toContain('transfers.create');
       expect(memberDefaults).not.toContain('transfers.manage');
     });
@@ -188,7 +195,7 @@ describe('Permission Override System', () => {
   });
 
   describe('Permission merge order validation', () => {
-    it('should follow the correct precedence: base → system role → role_permissions → custom_role → user_overrides', () => {
+    it('should follow the correct precedence: shared defaults → role_permissions table → custom_role → user_overrides', () => {
       const code = fs.readFileSync(
         path.join(projectRoot, 'server/coreEndpoints.ts'), 'utf-8'
       );
@@ -197,21 +204,18 @@ describe('Permission Override System', () => {
       const endOfFunction = code.indexOf('} catch (err: any)', handleGetMyPerms);
       const funcCode = code.substring(handleGetMyPerms, endOfFunction);
 
-      // 1. Base view permissions come first
-      const basePerms = funcCode.indexOf('Base permissions for all active members');
-      // 2. Role-based permissions from role_permissions table
-      const rolePerms = funcCode.indexOf('role-based permissions');
-      // 3. System role defaults (admin/manager/member)
-      const adminDefaults = funcCode.indexOf('Admin gets most permissions');
-      // 4. Custom role resolution
+      // 1. Shared defaults (getDefaultPermissionsForRole) come first
+      const sharedDefaults = funcCode.indexOf('getDefaultPermissionsForRole');
+      // 2. role_permissions table overrides
+      const rolePermsTable = funcCode.indexOf('role_permissions table');
+      // 3. Custom role resolution
       const customRole = funcCode.indexOf('Custom role: resolve permissions');
-      // 5. User overrides (last = highest priority)
+      // 4. User overrides (last = highest priority)
       const userOverrides = funcCode.indexOf('user-specific permission overrides');
 
-      expect(basePerms).toBeGreaterThan(0);
-      expect(rolePerms).toBeGreaterThan(basePerms);
-      expect(adminDefaults).toBeGreaterThan(rolePerms);
-      expect(customRole).toBeGreaterThan(adminDefaults);
+      expect(sharedDefaults).toBeGreaterThan(0);
+      expect(rolePermsTable).toBeGreaterThan(sharedDefaults);
+      expect(customRole).toBeGreaterThan(rolePermsTable);
       expect(userOverrides).toBeGreaterThan(customRole);
     });
   });

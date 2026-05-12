@@ -1,21 +1,24 @@
 /**
  * Reusable permission resolution helper for server endpoints.
  *
- * Resolution order (same as handleGetMyPermissions):
- *   1. System role defaults (owner gets all, admin gets most)
- *   2. role_permissions table entries for the member's role
- *   3. Custom role: flatten permissions_json from custom_roles table
- *   4. user_permissions overrides (HIGHEST PRIORITY — always wins)
+ * Resolution order (aligned with handleGetMyPermissions):
+ *   1. Base view permissions (granted to ALL active members)
+ *   2. System role defaults (admin/manager/member specific permissions)
+ *   3. role_permissions table entries (can override defaults with enabled=true/false)
+ *   4. Custom role: flatten permissions_json from custom_roles table
+ *   5. user_permissions overrides (HIGHEST PRIORITY — always wins)
  *
  * Usage:
  *   const allowed = await checkUserPermission(serviceClient, orgId, userId, "tasks.create");
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  getDefaultPermissionsForRole,
+  flattenCustomRolePermissions,
+  BASE_VIEW_PERMISSIONS,
+} from "../shared/permissionDefaults";
 
 const SYSTEM_ROLES = ["owner", "admin", "manager", "member", "read_only"];
-
-// Roles that get most permissions by default (before role_permissions table)
-const PRIVILEGED_ROLES = ["owner", "admin", "manager"];
 
 /**
  * Check if a user has a specific permission, respecting the full resolution chain.
@@ -46,43 +49,59 @@ export async function checkUserPermission(
     return { allowed: true, role, memberStatus: "active" };
   }
 
-  // 3. Start with system role defaults
-  let allowed = PRIVILEGED_ROLES.includes(role);
+  // 3. Determine if this is a custom role
+  const isCustomRole = role.startsWith("custom:") || !SYSTEM_ROLES.includes(role);
 
-  // 4. Check role_permissions table (for system roles and custom roles)
-  const isCustomRole =
-    role.startsWith("custom:") || !SYSTEM_ROLES.includes(role);
+  let allowed = false;
 
-  if (!allowed) {
-    const { data: rolePerm } = await serviceClient
-      .from("role_permissions")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("role", role)
-      .eq("permission_key", permissionKey)
-      .single();
-
-    if (rolePerm) allowed = true;
-  }
-
-  // 5. For custom roles, also check custom_roles.permissions_json
   if (isCustomRole) {
+    // ─── Custom Role Resolution ─────────────────────────────────────────────
+    // For custom roles, resolve from custom_roles.permissions_json
     const customRoleId = role.startsWith("custom:") ? role.replace("custom:", "") : role;
-    const { data: customRole } = await serviceClient
+
+    // Try by ID first, then by name
+    let customRoleData: any = null;
+    const { data: byId } = await serviceClient
       .from("custom_roles")
       .select("permissions_json")
       .eq("id", customRoleId)
       .eq("organization_id", organizationId)
       .single();
 
-    if (customRole?.permissions_json) {
-      const flatMap = flattenPermissionsJson(customRole.permissions_json);
-      if (flatMap[permissionKey] === true) {
-        allowed = true;
-      } else if (flatMap[permissionKey] === false) {
-        // Custom role explicitly denies this permission
-        allowed = false;
-      }
+    if (byId) {
+      customRoleData = byId;
+    } else {
+      const { data: byName } = await serviceClient
+        .from("custom_roles")
+        .select("permissions_json")
+        .eq("organization_id", organizationId)
+        .ilike("name", customRoleId)
+        .single();
+      if (byName) customRoleData = byName;
+    }
+
+    if (customRoleData?.permissions_json) {
+      const flatMap = flattenCustomRolePermissions(customRoleData.permissions_json);
+      allowed = flatMap[permissionKey] === true;
+    }
+  } else {
+    // ─── System Role Resolution ─────────────────────────────────────────────
+    // Start with the computed defaults for this role (base view + role-specific)
+    const roleDefaults = getDefaultPermissionsForRole(role);
+    allowed = roleDefaults[permissionKey] ?? false;
+
+    // Check role_permissions table for overrides
+    // The table stores explicit enabled/disabled per role+permission_key
+    const { data: rolePerm } = await serviceClient
+      .from("role_permissions")
+      .select("enabled")
+      .eq("role", role)
+      .eq("permission_key", permissionKey)
+      .single();
+
+    if (rolePerm !== null && rolePerm !== undefined) {
+      // role_permissions table explicitly sets this permission
+      allowed = rolePerm.enabled;
     }
   }
 
@@ -103,48 +122,31 @@ export async function checkUserPermission(
 }
 
 /**
- * Flatten nested permissions_json from custom_roles into flat "module.action" keys.
- * This mirrors the frontend mapCustomRoleToFlatPermissions() logic.
+ * Require a specific permission for the authenticated user.
+ * Throws an error with status 403 if the user doesn't have the permission.
+ * Returns the user's role and member status for further use.
  */
-function flattenPermissionsJson(
-  pj: Record<string, any>
-): Record<string, boolean> {
-  const flat: Record<string, boolean> = {};
+export async function requirePermission(
+  serviceClient: SupabaseClient,
+  organizationId: string,
+  userId: string,
+  permissionKey: string
+): Promise<{ role: string }> {
+  const { allowed, role, memberStatus } = await checkUserPermission(
+    serviceClient,
+    organizationId,
+    userId,
+    permissionKey
+  );
 
-  // Generic flattener for most modules
-  const modules = [
-    "tasks", "areas", "tags", "forms", "transfers", "garatech",
-    "vehicles", "reservations", "time_tracking", "reports",
-    "templates", "automations", "billing", "movements",
-    "daily_tasks", "fleet",
-  ];
-
-  for (const mod of modules) {
-    if (!pj[mod]) continue;
-    for (const [action, value] of Object.entries(pj[mod])) {
-      if (typeof value === "boolean") {
-        flat[`${mod}.${action}`] = value;
-      }
-    }
+  if (!allowed) {
+    const error: any = new Error(
+      `Permission denied: ${permissionKey} (role: ${role}, status: ${memberStatus})`
+    );
+    error.status = 403;
+    error.code = "PERMISSION_DENIED";
+    throw error;
   }
 
-  // Special mappings for team → members/teams
-  if (pj.team) {
-    flat["teams.view"] = pj.team.read ?? false;
-    flat["members.view"] = pj.team.read ?? false;
-    flat["members.invite"] = pj.team.manage ?? false;
-    flat["members.change_role"] = pj.team.manage ?? false;
-    flat["members.manage_permissions"] = pj.team.manage ?? false;
-    flat["members.suspend"] = pj.team.suspend ?? pj.team.manage ?? false;
-  }
-
-  // Security / integrations
-  if (pj.audit_logs) {
-    flat["security.view_audit_logs"] = pj.audit_logs.read ?? false;
-  }
-  if (pj.integrations) {
-    flat["integrations.manage_api_keys"] = pj.integrations.manage ?? false;
-  }
-
-  return flat;
+  return { role: role! };
 }

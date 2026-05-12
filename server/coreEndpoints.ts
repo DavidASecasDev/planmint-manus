@@ -10,6 +10,11 @@ import {
   AuthError,
 } from "./supabaseAdmin";
 import { checkUserPermission } from "./permissionHelper";
+import {
+  ALL_PERMISSION_KEYS,
+  getDefaultPermissionsForRole,
+  flattenCustomRolePermissions,
+} from "../shared/permissionDefaults";
 
 // ─── Helper: authenticate but allow users without organization ────────────────
 async function authenticateUser(
@@ -308,137 +313,34 @@ export async function handleGetMyPermissions(req: Request, res: Response) {
     const role = member.role;
     const isCustomRole = role.startsWith("custom:") || !["owner", "admin", "manager", "member", "read_only"].includes(role);
 
-    // Owner gets all permissions
+    // Owner gets all permissions (from shared defaults)
     if (role === "owner") {
-      const allPermissions: Record<string, boolean> = {};
-      const permissionKeys = [
-        "tasks.view", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign", "tasks.change_status", "tasks.manage_columns",
-        "areas.view", "areas.create", "areas.update", "areas.delete", "areas.manage_visibility", "areas.manage_access_rules",
-        "tags.view", "tags.create", "tags.update", "tags.delete", "tags.manage",
-        "templates.view", "templates.apply", "templates.create", "templates.delete",
-        "teams.view",
-        "automations.view", "automations.create", "automations.manage",
-        "reports.view", "reports.export", "reports.view_financial",
-        "billing.view", "billing.manage",
-        "members.view", "members.invite", "members.change_role", "members.manage_permissions", "members.suspend",
-        "security.view_audit_logs",
-        "integrations.manage_api_keys",
-        "reservations.view", "reservations.create", "reservations.manage",
-        "garatech.view", "garatech.create", "garatech.update", "garatech.change_status", "garatech.edit_dates", "garatech.manage_catalog", "garatech.manage_accidents", "garatech.manage",
-        "transfers.view", "transfers.create", "transfers.update", "transfers.change_status", "transfers.delete", "transfers.manage_pricing", "transfers.manage_brokers", "transfers.manage",
-        "forms.view", "forms.create", "forms.update", "forms.delete", "forms.view_responses", "forms.manage",
-        "vehicles.view", "vehicles.create", "vehicles.update", "vehicles.archive", "vehicles.manage_daily_tasks", "vehicles.change_status", "vehicles.complete_tasks", "vehicles.manage_locations", "vehicles.sync", "vehicles.import", "vehicles.manage",
-        "time_tracking.view", "time_tracking.view_team", "time_tracking.create", "time_tracking.manage",
-        "movements.view", "movements.create", "movements.manage", "movements.delete", "movements.edit_photos", "movements.upload_receipt",
-        "daily_tasks.view", "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
-        "fleet.view", "fleet.manage", "fleet.import",
-      ];
-      for (const key of permissionKeys) {
-        allPermissions[key] = true;
-      }
       return res.json({
         success: true,
         role: "owner",
         status: "active",
-        permissions: allPermissions,
+        permissions: getDefaultPermissionsForRole("owner"),
       });
     }
 
-    // For other roles, fetch from role_permissions table
-    const { data: rolePerms } = await serviceClient
-      .from("role_permissions")
-      .select("permission_key")
-      .eq("organization_id", p_organization_id)
-      .eq("role", role);
+    // For system roles, start with shared defaults (base view + role-specific)
+    // Then apply role_permissions table overrides (enabled/disabled)
+    const permissions: Record<string, boolean> = isCustomRole
+      ? {} // Custom roles start empty, resolved below
+      : { ...getDefaultPermissionsForRole(role) };
 
-    const permissions: Record<string, boolean> = {};
+    if (!isCustomRole) {
+      // Fetch role_permissions table entries (global, no org_id filter)
+      const { data: rolePerms } = await serviceClient
+        .from("role_permissions")
+        .select("permission_key, enabled")
+        .eq("role", role);
 
-    // Base permissions for all active members
-    permissions["tasks.view"] = true;
-    permissions["areas.view"] = true;
-    permissions["tags.view"] = true;
-    permissions["templates.view"] = true;
-    permissions["teams.view"] = true;
-    permissions["members.view"] = true;
-    permissions["reservations.view"] = true;
-    permissions["vehicles.view"] = true;
-    permissions["movements.view"] = true;
-    permissions["daily_tasks.view"] = true;
-    permissions["fleet.view"] = true;
-    permissions["garatech.view"] = true;
-    permissions["transfers.view"] = true;
-    permissions["forms.view"] = true;
-    permissions["time_tracking.view"] = true;
-
-    // Add role-based permissions
-    if (rolePerms) {
-      for (const rp of rolePerms) {
-        permissions[rp.permission_key] = true;
-      }
-    }
-
-    // Admin gets most permissions by default
-    if (role === "admin") {
-      const adminDefaults = [
-        "tasks.create", "tasks.update", "tasks.delete", "tasks.assign", "tasks.change_status", "tasks.manage_columns",
-        "areas.create", "areas.update", "areas.delete", "areas.manage_visibility",
-        "tags.create", "tags.update", "tags.delete", "tags.manage",
-        "templates.apply", "templates.create", "templates.delete",
-        "automations.view", "automations.create", "automations.manage",
-        "reports.view", "reports.export", "reports.view_financial",
-        "billing.view", "billing.manage",
-        "members.invite", "members.change_role", "members.manage_permissions", "members.suspend",
-        "security.view_audit_logs",
-        "integrations.manage_api_keys",
-        "reservations.create", "reservations.manage",
-        "garatech.create", "garatech.update", "garatech.change_status", "garatech.edit_dates", "garatech.manage_catalog", "garatech.manage_accidents", "garatech.manage",
-        "transfers.create", "transfers.update", "transfers.change_status", "transfers.delete", "transfers.manage_pricing", "transfers.manage_brokers", "transfers.manage",
-        "forms.create", "forms.update", "forms.delete", "forms.view_responses", "forms.manage",
-        "vehicles.create", "vehicles.update", "vehicles.archive", "vehicles.manage_daily_tasks", "vehicles.change_status", "vehicles.complete_tasks", "vehicles.manage_locations", "vehicles.sync", "vehicles.import", "vehicles.manage",
-        "time_tracking.view_team", "time_tracking.create", "time_tracking.manage",
-        "movements.create", "movements.manage", "movements.delete", "movements.edit_photos", "movements.upload_receipt",
-        "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
-        "fleet.manage", "fleet.import",
-      ];
-      for (const key of adminDefaults) {
-        permissions[key] = true;
-      }
-    }
-
-    // Manager gets operational permissions
-    if (role === "manager") {
-      const managerDefaults = [
-        "tasks.create", "tasks.update", "tasks.assign", "tasks.change_status",
-        "areas.create", "areas.update",
-        "tags.create", "tags.update",
-        "templates.apply",
-        "automations.view",
-        "reports.view",
-        "reservations.create",
-        "garatech.create", "garatech.update", "garatech.change_status",
-        "transfers.create", "transfers.update", "transfers.change_status",
-        "forms.create", "forms.update", "forms.view_responses",
-        "vehicles.update", "vehicles.manage_daily_tasks", "vehicles.change_status", "vehicles.complete_tasks", "vehicles.manage_locations",
-        "time_tracking.view_team", "time_tracking.create",
-        "movements.create", "movements.manage", "movements.edit_photos", "movements.upload_receipt",
-        "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
-      ];
-      for (const key of managerDefaults) {
-        permissions[key] = true;
-      }
-    }
-
-    // Member gets basic operational permissions
-    if (role === "member") {
-      const memberDefaults = [
-        "tasks.create", "tasks.update",
-        "vehicles.change_status", "vehicles.complete_tasks",
-        "movements.create", "movements.upload_receipt",
-        "daily_tasks.complete",
-        "time_tracking.create",
-      ];
-      for (const key of memberDefaults) {
-        permissions[key] = true;
+      // Apply role_permissions table overrides (these can enable OR disable)
+      if (rolePerms) {
+        for (const rp of rolePerms) {
+          permissions[rp.permission_key] = rp.enabled;
+        }
       }
     }
 
@@ -474,121 +376,10 @@ export async function handleGetMyPermissions(req: Request, res: Response) {
       
       if (customRoleData?.permissions_json) {
         const pj = customRoleData.permissions_json as Record<string, any>;
-        // Flatten nested permissions_json to flat permission keys
-        // Same mapping as MemberPermissionsEditor.mapCustomRoleToFlatPermissions
-        const flatMap: Record<string, boolean> = {};
-        // Tasks
-        flatMap["tasks.view"] = pj?.tasks?.view ?? false;
-        flatMap["tasks.create"] = pj?.tasks?.create ?? false;
-        flatMap["tasks.update"] = pj?.tasks?.update ?? false;
-        flatMap["tasks.delete"] = pj?.tasks?.delete ?? false;
-        flatMap["tasks.assign"] = pj?.tasks?.update ?? false;
-        flatMap["tasks.change_status"] = pj?.tasks?.change_status ?? pj?.tasks?.update ?? false;
-        flatMap["tasks.manage_columns"] = pj?.tasks?.manage_columns ?? pj?.tasks?.delete ?? false;
-        // Areas
-        flatMap["areas.view"] = pj?.areas?.view ?? false;
-        flatMap["areas.create"] = pj?.areas?.manage ?? false;
-        flatMap["areas.update"] = pj?.areas?.manage ?? false;
-        flatMap["areas.delete"] = pj?.areas?.manage ?? false;
-        flatMap["areas.manage_visibility"] = pj?.areas?.manage ?? false;
-        flatMap["areas.manage_access_rules"] = pj?.areas?.manage_access_rules ?? pj?.areas?.manage ?? false;
-        // Tags
-        flatMap["tags.view"] = pj?.tags?.view ?? false;
-        flatMap["tags.create"] = pj?.tags?.create ?? false;
-        flatMap["tags.update"] = pj?.tags?.manage ?? false;
-        flatMap["tags.delete"] = pj?.tags?.manage ?? false;
-        flatMap["tags.manage"] = pj?.tags?.manage ?? false;
-        // Templates
-        flatMap["templates.view"] = pj?.templates?.view ?? pj?.templates?.read ?? false;
-        flatMap["templates.apply"] = pj?.templates?.read ?? false;
-        flatMap["templates.create"] = pj?.templates?.manage ?? false;
-        flatMap["templates.delete"] = pj?.templates?.manage ?? false;
-        // Teams
-        flatMap["teams.view"] = pj?.team?.read ?? false;
-        // Automations
-        flatMap["automations.view"] = pj?.automations?.view ?? pj?.automations?.read ?? false;
-        flatMap["automations.create"] = pj?.automations?.manage ?? false;
-        flatMap["automations.manage"] = pj?.automations?.manage ?? false;
-        // Reports
-        flatMap["reports.view"] = pj?.reports?.view ?? false;
-        flatMap["reports.export"] = pj?.reports?.export ?? pj?.reports?.view ?? false;
-        flatMap["reports.view_financial"] = pj?.reports?.view_financial ?? pj?.reports?.view ?? false;
-        // Billing
-        flatMap["billing.view"] = pj?.billing?.view ?? pj?.billing?.read ?? false;
-        flatMap["billing.manage"] = pj?.billing?.manage ?? false;
-        // Members
-        flatMap["members.view"] = pj?.team?.read ?? false;
-        flatMap["members.invite"] = pj?.team?.manage ?? false;
-        flatMap["members.change_role"] = pj?.team?.manage ?? false;
-        flatMap["members.manage_permissions"] = pj?.team?.manage ?? false;
-        flatMap["members.suspend"] = pj?.team?.suspend ?? pj?.team?.manage ?? false;
-        // Security
-        flatMap["security.view_audit_logs"] = pj?.audit_logs?.read ?? false;
-        flatMap["integrations.manage_api_keys"] = pj?.integrations?.manage ?? false;
-        // Reservations
-        flatMap["reservations.view"] = pj?.reservations?.view ?? false;
-        flatMap["reservations.create"] = pj?.reservations?.create ?? false;
-        flatMap["reservations.manage"] = pj?.reservations?.manage ?? false;
-        // Garatech
-        flatMap["garatech.view"] = pj?.garatech?.view ?? false;
-        flatMap["garatech.create"] = pj?.garatech?.create ?? pj?.garatech?.manage ?? false;
-        flatMap["garatech.update"] = pj?.garatech?.update ?? pj?.garatech?.manage ?? false;
-        flatMap["garatech.change_status"] = pj?.garatech?.change_status ?? pj?.garatech?.manage ?? false;
-        flatMap["garatech.edit_dates"] = pj?.garatech?.edit_dates ?? false;
-        flatMap["garatech.manage_catalog"] = pj?.garatech?.manage_catalog ?? pj?.garatech?.manage ?? false;
-        flatMap["garatech.manage_accidents"] = pj?.garatech?.manage_accidents ?? pj?.garatech?.manage ?? false;
-        flatMap["garatech.manage"] = pj?.garatech?.manage ?? false;
-        // Transfers
-        flatMap["transfers.view"] = pj?.transfers?.view ?? false;
-        flatMap["transfers.create"] = pj?.transfers?.create ?? pj?.transfers?.manage ?? false;
-        flatMap["transfers.update"] = pj?.transfers?.update ?? pj?.transfers?.manage ?? false;
-        flatMap["transfers.change_status"] = pj?.transfers?.change_status ?? pj?.transfers?.manage ?? false;
-        flatMap["transfers.delete"] = pj?.transfers?.delete ?? false;
-        flatMap["transfers.manage_pricing"] = pj?.transfers?.manage_pricing ?? pj?.transfers?.manage ?? false;
-        flatMap["transfers.manage_brokers"] = pj?.transfers?.manage_brokers ?? pj?.transfers?.manage ?? false;
-        flatMap["transfers.manage"] = pj?.transfers?.manage ?? false;
-        // Forms
-        flatMap["forms.view"] = pj?.forms?.view ?? false;
-        flatMap["forms.create"] = pj?.forms?.create ?? false;
-        flatMap["forms.update"] = pj?.forms?.update ?? pj?.forms?.manage ?? false;
-        flatMap["forms.delete"] = pj?.forms?.delete ?? pj?.forms?.manage ?? false;
-        flatMap["forms.view_responses"] = pj?.forms?.view_responses ?? pj?.forms?.view ?? false;
-        flatMap["forms.manage"] = pj?.forms?.manage ?? false;
-        // Vehicles
-        flatMap["vehicles.view"] = pj?.vehicles?.view ?? false;
-        flatMap["vehicles.create"] = pj?.vehicles?.create ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.update"] = pj?.vehicles?.update ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.archive"] = pj?.vehicles?.archive ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.manage_daily_tasks"] = pj?.vehicles?.manage_daily_tasks ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.change_status"] = pj?.vehicles?.change_status ?? false;
-        flatMap["vehicles.complete_tasks"] = pj?.vehicles?.complete_tasks ?? false;
-        flatMap["vehicles.manage_locations"] = pj?.vehicles?.manage_locations ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.sync"] = pj?.vehicles?.sync ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.import"] = pj?.vehicles?.import ?? pj?.vehicles?.manage ?? false;
-        flatMap["vehicles.manage"] = pj?.vehicles?.manage ?? false;
-        // Time Tracking
-        flatMap["time_tracking.view"] = pj?.time_tracking?.view ?? false;
-        flatMap["time_tracking.view_team"] = pj?.time_tracking?.view_team ?? pj?.time_tracking?.manage ?? false;
-        flatMap["time_tracking.create"] = pj?.time_tracking?.create ?? pj?.time_tracking?.view ?? false;
-        flatMap["time_tracking.manage"] = pj?.time_tracking?.manage ?? false;
-        // Movements
-        flatMap["movements.view"] = pj?.movements?.view ?? false;
-        flatMap["movements.create"] = pj?.movements?.create ?? false;
-        flatMap["movements.manage"] = pj?.movements?.manage ?? false;
-        flatMap["movements.delete"] = pj?.movements?.delete ?? pj?.movements?.manage ?? false;
-        flatMap["movements.edit_photos"] = pj?.movements?.edit_photos ?? pj?.movements?.manage ?? false;
-        flatMap["movements.upload_receipt"] = pj?.movements?.upload_receipt ?? pj?.movements?.manage ?? false;
-        // Daily Tasks
-        flatMap["daily_tasks.view"] = pj?.daily_tasks?.view ?? false;
-        flatMap["daily_tasks.view_other_days"] = pj?.daily_tasks?.view_other_days ?? pj?.daily_tasks?.manage ?? false;
-        flatMap["daily_tasks.complete"] = pj?.daily_tasks?.complete ?? false;
-        flatMap["daily_tasks.manage"] = pj?.daily_tasks?.manage ?? false;
-        // Fleet
-        flatMap["fleet.view"] = pj?.fleet?.view ?? false;
-        flatMap["fleet.manage"] = pj?.fleet?.manage ?? false;
-        flatMap["fleet.import"] = pj?.fleet?.import ?? pj?.fleet?.manage ?? false;
+        // Use shared flattening function (single source of truth)
+        const flatMap = flattenCustomRolePermissions(pj);
         
-        // Apply custom role permissions (override base view permissions where custom role explicitly sets them)
+        // Apply custom role permissions
         for (const [key, value] of Object.entries(flatMap)) {
           if (value) {
             permissions[key] = true;

@@ -480,3 +480,8 @@
 - [x] Fix: Clase B sobrante en PlanMint respecto a Rently — archivado registro genérico 'Clase B' (CLASEB-1) que era test/duplicado. Ahora 20 unidades coincide con Rently
 - [x] Fix: Separar V Class y VITO en familias distintas (V Class = 8 pax, VITO = 9 pax) — regex en getModelFamily() ahora separa ^V\s|^V Class → 'V Class' y ^VITO → 'VITO'
 - [x] Fix: Porsche — corregido: 7850NFJ era 'Porsche Carrera' cat '5' (dato erróneo), renombrado a 'Cayenne' cat 'Luxury Elite'. Ahora 2x Carrera + 2x Cayenne coincide con Rently
+- [x] Fix: Rewrite checkUserPermission to use shared role defaults instead of blanket admin/manager access — now uses getDefaultPermissionsForRole() + role_permissions table + user_permissions overrides (same chain as frontend)
+- [x] Fix: role_permissions table has no organization_id (single-org design is valid) — removed broken org filter from query in orgDataEndpoints.ts
+- [x] Fix: Add permission enforcement (members.manage_permissions, members.change_role) to admin mutation endpoints — requirePermission() added to set-user-permission-override, remove-user-permission-override, reset-user-permission-overrides, update-member-role, update-member-status, remove-member, manage-custom-role, toggle-role-permission
+- [x] Fix: Extract shared permission defaults into single source of truth (shared/permissionDefaults.ts) — ALL_PERMISSION_KEYS, BASE_VIEW_PERMISSIONS, ROLE_DEFAULTS, getDefaultPermissionsForRole(), flattenCustomRolePermissions()
+- [x] Fix: Ensure end-to-end permission enforcement works correctly for all roles — handleGetMyPermissions refactored to use shared defaults, 1038 tests passing

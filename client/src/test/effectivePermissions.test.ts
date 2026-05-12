@@ -47,7 +47,7 @@ describe('permissionHelper.ts — reusable permission resolution', () => {
 
   it('handles custom roles by querying custom_roles.permissions_json', () => {
     expect(helperCode).toContain('.from("custom_roles")');
-    expect(helperCode).toContain('flattenPermissionsJson');
+    expect(helperCode).toContain('flattenCustomRolePermissions');
   });
 
   it('applies user_permissions overrides as HIGHEST PRIORITY', () => {
@@ -63,14 +63,17 @@ describe('permissionHelper.ts — reusable permission resolution', () => {
     expect(helperCode).toContain('allowed: false');
   });
 
-  it('flattenPermissionsJson handles team→members mapping', () => {
-    expect(helperCode).toContain('flat["members.invite"] = pj.team.manage');
-    expect(helperCode).toContain('flat["members.view"] = pj.team.read');
+  it('flattenCustomRolePermissions handles team→members mapping', () => {
+    // The flattening logic is now in shared/permissionDefaults.ts (imported by permissionHelper)
+    const sharedCode = fs.readFileSync(path.join(ROOT, 'shared', 'permissionDefaults.ts'), 'utf-8');
+    expect(sharedCode).toContain('flat["members.invite"]');
+    expect(sharedCode).toContain('flat["members.view"]');
   });
 
-  it('flattenPermissionsJson handles security/integrations mapping', () => {
-    expect(helperCode).toContain('flat["security.view_audit_logs"]');
-    expect(helperCode).toContain('flat["integrations.manage_api_keys"]');
+  it('flattenCustomRolePermissions handles security/integrations mapping', () => {
+    const sharedCode = fs.readFileSync(path.join(ROOT, 'shared', 'permissionDefaults.ts'), 'utf-8');
+    expect(sharedCode).toContain('flat["security.view_audit_logs"]');
+    expect(sharedCode).toContain('flat["integrations.manage_api_keys"]');
   });
 });
 
