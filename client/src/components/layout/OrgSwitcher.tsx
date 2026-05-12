@@ -58,8 +58,14 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
   const { data: organizations = [] } = useQuery<OrgItem[]>({
     queryKey: ['my-organizations'],
     queryFn: async () => {
-      const res = await apiInvoke<OrgItem[]>('get-my-organizations');
-      return res.data || [];
+      const res = await apiInvoke<{ data: OrgItem[]; error: string | null }>('get-my-organizations');
+      // Backend returns { data: [...], error: null }, apiInvoke wraps it in { data: T, error }
+      // So res.data is { data: [...], error: null } — we need res.data.data
+      const payload = res.data;
+      if (payload && Array.isArray(payload.data)) return payload.data;
+      // Fallback: if the response is already an array (legacy format)
+      if (Array.isArray(payload)) return payload as unknown as OrgItem[];
+      return [];
     },
     enabled: sessionReady,
     staleTime: 5 * 60 * 1000, // 5 min

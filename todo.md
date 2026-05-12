@@ -496,3 +496,4 @@
 - [x] Adapt super-admin panel to group-level operations — removed SaaS nav items, rewrote Dashboard as Panel de Grupo with org cards + service request stats
 - [ ] Future: Personalize each organization based on its vertical/niche
 - [x] Fix: ServiceRequests page not wrapped in main layout — added AppLayout wrapper
+- [x] Fix: User redirected to onboarding (create-organization) after login — root cause: OrgSwitcher.tsx queryFn did `res.data || []` but apiInvoke wraps response in { data: T }, so `res.data` was `{ data: [...], error: null }` (an object) not an array. Fixed by properly unwrapping `res.data.data`
