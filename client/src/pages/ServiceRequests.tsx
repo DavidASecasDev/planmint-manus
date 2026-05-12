@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -304,14 +305,12 @@ export default function ServiceRequests() {
   ).length;
 
   return (
+    <AppLayout title="Solicitudes de Servicio">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Solicitudes de Servicio
-          </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground">
             Gestiona solicitudes de vehículos y transfers entre organizaciones
           </p>
         </div>
@@ -688,6 +687,7 @@ export default function ServiceRequests() {
         </DialogContent>
       </Dialog>
     </div>
+    </AppLayout>
   );
 }
 

@@ -495,3 +495,4 @@
 - [x] Implement cross-org Service Requests module — 5 backend endpoints + ServiceRequests page + sidebar link + route
 - [x] Adapt super-admin panel to group-level operations — removed SaaS nav items, rewrote Dashboard as Panel de Grupo with org cards + service request stats
 - [ ] Future: Personalize each organization based on its vertical/niche
+- [x] Fix: ServiceRequests page not wrapped in main layout — added AppLayout wrapper
