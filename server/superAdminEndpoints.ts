@@ -33,10 +33,17 @@ async function authenticateAsSuperAdmin(
   return { userId, email: userData.user.email || "" };
 }
 
+function handleError(res: Response, err: any, context: string) {
+  if (err instanceof AuthError) {
+    return res.status(err.status).json({ error: err.message });
+  }
+  console.error(`[super-admin/${context}] Error:`, err);
+  return res.status(500).json({ error: err.message || "Internal server error" });
+}
+
 /**
  * POST /api/super-admin/add-member
  * Body: { userId, organizationId, role }
- * Adds a user to an organization, bypassing RLS.
  */
 export async function handleSuperAdminAddMember(
   req: Request,
@@ -112,10 +119,310 @@ export async function handleSuperAdminAddMember(
       error: null,
     });
   } catch (err: any) {
-    if (err instanceof AuthError) {
-      return res.status(err.status).json({ error: err.message });
+    return handleError(res, err, "add-member");
+  }
+}
+
+/**
+ * POST /api/super-admin/update-member-role
+ * Body: { memberId, newRole }
+ */
+export async function handleSuperAdminUpdateMemberRole(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { memberId, newRole } = req.body;
+    if (!memberId || !newRole) {
+      return res.status(400).json({ error: "memberId and newRole are required" });
     }
-    console.error("[super-admin/add-member] Error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("organization_members")
+      .update({ role: newRole })
+      .eq("id", memberId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "update-member-role");
+  }
+}
+
+/**
+ * POST /api/super-admin/update-member-status
+ * Body: { memberId, status }
+ */
+export async function handleSuperAdminUpdateMemberStatus(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { memberId, status } = req.body;
+    if (!memberId || !status) {
+      return res.status(400).json({ error: "memberId and status are required" });
+    }
+    if (!["active", "suspended"].includes(status)) {
+      return res.status(400).json({ error: "status must be 'active' or 'suspended'" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("organization_members")
+      .update({ status })
+      .eq("id", memberId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "update-member-status");
+  }
+}
+
+/**
+ * POST /api/super-admin/remove-member
+ * Body: { memberId }
+ */
+export async function handleSuperAdminRemoveMember(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { memberId } = req.body;
+    if (!memberId) {
+      return res.status(400).json({ error: "memberId is required" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("organization_members")
+      .delete()
+      .eq("id", memberId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "remove-member");
+  }
+}
+
+/**
+ * POST /api/super-admin/update-org-status
+ * Body: { orgId, status }
+ */
+export async function handleSuperAdminUpdateOrgStatus(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { orgId, status } = req.body;
+    if (!orgId || !status) {
+      return res.status(400).json({ error: "orgId and status are required" });
+    }
+    if (!["active", "suspended", "deleted"].includes(status)) {
+      return res.status(400).json({ error: "status must be 'active', 'suspended', or 'deleted'" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("organizations")
+      .update({ status })
+      .eq("id", orgId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "update-org-status");
+  }
+}
+
+/**
+ * POST /api/super-admin/delete-organization
+ * Body: { orgId }
+ */
+export async function handleSuperAdminDeleteOrganization(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { orgId } = req.body;
+    if (!orgId) {
+      return res.status(400).json({ error: "orgId is required" });
+    }
+    const serviceClient = getServiceClient();
+    // Delete related data first
+    await serviceClient.from("tasks").delete().eq("organization_id", orgId);
+    await serviceClient.from("areas").delete().eq("organization_id", orgId);
+    await serviceClient.from("organization_members").delete().eq("organization_id", orgId);
+    await serviceClient.from("subscriptions").delete().eq("organization_id", orgId);
+    // Then delete the organization
+    const { error } = await serviceClient
+      .from("organizations")
+      .delete()
+      .eq("id", orgId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "delete-organization");
+  }
+}
+
+/**
+ * POST /api/super-admin/update-org-plan
+ * Body: { orgId, plan }
+ */
+export async function handleSuperAdminUpdateOrgPlan(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { orgId, plan } = req.body;
+    if (!orgId || !plan) {
+      return res.status(400).json({ error: "orgId and plan are required" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("subscriptions")
+      .update({ plan })
+      .eq("organization_id", orgId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "update-org-plan");
+  }
+}
+
+/**
+ * POST /api/super-admin/update-feedback
+ * Body: { feedbackId, readAt?, resolvedAt?, internalNotes? }
+ */
+export async function handleSuperAdminUpdateFeedback(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { feedbackId, readAt, resolvedAt, internalNotes } = req.body;
+    if (!feedbackId) {
+      return res.status(400).json({ error: "feedbackId is required" });
+    }
+    const updates: Record<string, any> = {};
+    if (readAt !== undefined) updates.read_at = readAt;
+    if (resolvedAt !== undefined) updates.resolved_at = resolvedAt;
+    if (internalNotes !== undefined) updates.internal_notes = internalNotes;
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("user_feedback")
+      .update(updates)
+      .eq("id", feedbackId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "update-feedback");
+  }
+}
+
+/**
+ * POST /api/super-admin/delete-feedback
+ * Body: { feedbackId }
+ */
+export async function handleSuperAdminDeleteFeedback(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { feedbackId } = req.body;
+    if (!feedbackId) {
+      return res.status(400).json({ error: "feedbackId is required" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("user_feedback")
+      .delete()
+      .eq("id", feedbackId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "delete-feedback");
+  }
+}
+
+/**
+ * POST /api/super-admin/delete-task
+ * Body: { taskId }
+ */
+export async function handleSuperAdminDeleteTask(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { taskId } = req.body;
+    if (!taskId) {
+      return res.status(400).json({ error: "taskId is required" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("tasks")
+      .delete()
+      .eq("id", taskId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "delete-task");
+  }
+}
+
+/**
+ * POST /api/super-admin/delete-area
+ * Body: { areaId }
+ */
+export async function handleSuperAdminDeleteArea(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { areaId } = req.body;
+    if (!areaId) {
+      return res.status(400).json({ error: "areaId is required" });
+    }
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
+      .from("areas")
+      .delete()
+      .eq("id", areaId);
+    if (error) throw error;
+    return res.json({ data: { success: true }, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "delete-area");
+  }
+}
+
+/**
+ * POST /api/super-admin/get-user-memberships
+ * Body: { userId }
+ * Returns all organization memberships for a given user.
+ */
+export async function handleSuperAdminGetUserMemberships(
+  req: Request,
+  res: Response
+) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    const serviceClient = getServiceClient();
+    const { data, error } = await serviceClient
+      .from("organization_members")
+      .select("id, organization_id, role, status, created_at, organization:organizations!organization_members_organization_id_fkey(id, name)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return res.json({ data, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "get-user-memberships");
   }
 }

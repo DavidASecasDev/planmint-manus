@@ -30,16 +30,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Users, MoreHorizontal, Building2, UserCog, Ban, CheckCircle, UserMinus } from 'lucide-react';
+import { Search, Users, MoreHorizontal, Building2, UserCog, Ban, CheckCircle, UserMinus, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DeleteMemberDialog } from '@/components/super-admin/DeleteMemberDialog';
 import { ChangeMemberRoleDialog } from '@/components/super-admin/ChangeMemberRoleDialog';
+import { AddUserToOrgDialog } from '@/components/super-admin/AddUserToOrgDialog';
 
 export default function UsersPage() {
   const navigate = useNavigate();
   const { data: users, isLoading } = usePlatformUsers();
-  const { updateMemberRole, updateMemberStatus, deleteMember } = useSuperAdminActions();
+  const { updateMemberRole, updateMemberStatus, deleteMember, addMemberToOrg } = useSuperAdminActions();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -48,6 +49,7 @@ export default function UsersPage() {
   // Dialog states
   const [deleteMemberData, setDeleteMemberData] = useState<{ id: string; name: string; orgName: string } | null>(null);
   const [changeRoleData, setChangeRoleData] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [addToOrgData, setAddToOrgData] = useState<{ userId: string; name: string } | null>(null);
 
   const filteredUsers = users?.filter((user) => {
     const matchesSearch = 
@@ -218,6 +220,13 @@ export default function UsersPage() {
                                 <Building2 className="h-4 w-4 mr-2" />
                                 Ver organización
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setAddToOrgData({
+                                userId: user.user_id,
+                                name: user.name || 'Usuario'
+                              })}>
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Añadir a otra org
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => setChangeRoleData({
                                 id: user.member_id,
@@ -282,6 +291,26 @@ export default function UsersPage() {
         currentRole={changeRoleData?.role || 'member'}
         onConfirm={handleChangeRoleConfirm}
         isLoading={updateMemberRole.isPending}
+      />
+
+      <AddUserToOrgDialog
+        open={!!addToOrgData}
+        onOpenChange={(open) => !open && setAddToOrgData(null)}
+        userId={addToOrgData?.userId || ''}
+        userName={addToOrgData?.name || ''}
+        onConfirm={(organizationId, orgName, role) => {
+          addMemberToOrg.mutate(
+            {
+              userId: addToOrgData!.userId,
+              organizationId,
+              role,
+              userName: addToOrgData!.name,
+              orgName,
+            },
+            { onSuccess: () => setAddToOrgData(null) }
+          );
+        }}
+        isLoading={addMemberToOrg.isPending}
       />
     </SuperAdminLayout>
   );

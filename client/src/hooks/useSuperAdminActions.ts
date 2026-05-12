@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 
@@ -78,6 +77,7 @@ export function useSuperAdminActions() {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization-details'] });
       queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-memberships'] });
       toast.success(`${userName || 'Usuario'} añadido a ${orgName || 'la organización'}`);
     },
     onError: (error: Error) => {
@@ -87,17 +87,17 @@ export function useSuperAdminActions() {
 
   const updateMemberRole = useMutation({
     mutationFn: async ({ memberId, newRole }: UpdateMemberRoleParams) => {
-      const { error } = await supabase
-        .from('organization_members')
-        .update({ role: newRole })
-        .eq('id', memberId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/update-member-role', {
+        body: { memberId, newRole },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization-details'] });
       queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-memberships'] });
       toast.success('Rol actualizado correctamente');
     },
     onError: (error: Error) => {
@@ -107,17 +107,17 @@ export function useSuperAdminActions() {
 
   const updateMemberStatus = useMutation({
     mutationFn: async ({ memberId, status }: UpdateMemberStatusParams) => {
-      const { error } = await supabase
-        .from('organization_members')
-        .update({ status })
-        .eq('id', memberId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/update-member-status', {
+        body: { memberId, status },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization-details'] });
       queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-memberships'] });
       toast.success(status === 'active' ? 'Miembro reactivado' : 'Miembro suspendido');
     },
     onError: (error: Error) => {
@@ -127,17 +127,17 @@ export function useSuperAdminActions() {
 
   const deleteMember = useMutation({
     mutationFn: async ({ memberId }: DeleteMemberParams) => {
-      const { error } = await supabase
-        .from('organization_members')
-        .delete()
-        .eq('id', memberId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/remove-member', {
+        body: { memberId },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (_, { memberName }) => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization-details'] });
       queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-memberships'] });
       toast.success(`Miembro ${memberName || ''} eliminado correctamente`);
     },
     onError: (error: Error) => {
@@ -149,12 +149,11 @@ export function useSuperAdminActions() {
 
   const updateOrgStatus = useMutation({
     mutationFn: async ({ orgId, status }: UpdateOrgStatusParams) => {
-      const { error } = await supabase
-        .from('organizations')
-        .update({ status })
-        .eq('id', orgId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/update-org-status', {
+        body: { orgId, status },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
@@ -170,19 +169,11 @@ export function useSuperAdminActions() {
 
   const deleteOrganization = useMutation({
     mutationFn: async ({ orgId }: DeleteOrgParams) => {
-      // First delete related data
-      await supabase.from('tasks').delete().eq('organization_id', orgId);
-      await supabase.from('areas').delete().eq('organization_id', orgId);
-      await supabase.from('organization_members').delete().eq('organization_id', orgId);
-      await supabase.from('subscriptions').delete().eq('organization_id', orgId);
-      
-      // Then delete the organization
-      const { error } = await supabase
-        .from('organizations')
-        .delete()
-        .eq('id', orgId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/delete-organization', {
+        body: { orgId },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (_, { orgName }) => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
@@ -196,12 +187,11 @@ export function useSuperAdminActions() {
 
   const updateOrgPlan = useMutation({
     mutationFn: async ({ orgId, plan }: UpdateOrgPlanParams) => {
-      const { error } = await supabase
-        .from('subscriptions')
-        .update({ plan })
-        .eq('organization_id', orgId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/update-org-plan', {
+        body: { orgId, plan },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
@@ -218,17 +208,11 @@ export function useSuperAdminActions() {
 
   const updateFeedback = useMutation({
     mutationFn: async ({ feedbackId, readAt, resolvedAt, internalNotes }: UpdateFeedbackParams) => {
-      const updates: Record<string, any> = {};
-      if (readAt !== undefined) updates.read_at = readAt;
-      if (resolvedAt !== undefined) updates.resolved_at = resolvedAt;
-      if (internalNotes !== undefined) updates.internal_notes = internalNotes;
-
-      const { error } = await supabase
-        .from('user_feedback')
-        .update(updates)
-        .eq('id', feedbackId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/update-feedback', {
+        body: { feedbackId, readAt, resolvedAt, internalNotes },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-feedback'] });
@@ -242,12 +226,11 @@ export function useSuperAdminActions() {
 
   const deleteFeedback = useMutation({
     mutationFn: async ({ feedbackId }: DeleteFeedbackParams) => {
-      const { error } = await supabase
-        .from('user_feedback')
-        .delete()
-        .eq('id', feedbackId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/delete-feedback', {
+        body: { feedbackId },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-feedback'] });
@@ -263,12 +246,11 @@ export function useSuperAdminActions() {
 
   const deleteTask = useMutation({
     mutationFn: async ({ taskId }: DeleteTaskParams) => {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/delete-task', {
+        body: { taskId },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-details'] });
@@ -281,12 +263,11 @@ export function useSuperAdminActions() {
 
   const deleteArea = useMutation({
     mutationFn: async ({ areaId }: DeleteAreaParams) => {
-      const { error } = await supabase
-        .from('areas')
-        .delete()
-        .eq('id', areaId);
-      
-      if (error) throw error;
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/delete-area', {
+        body: { areaId },
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-details'] });

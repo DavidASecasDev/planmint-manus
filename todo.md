@@ -501,3 +501,5 @@
 - [x] Super Admin: Add organization member management (assign/remove users from organizations, view members per org)
 - [x] Notification: Send push/in-app notification to user when added to a new organization from super admin
 - [x] Bug: RLS policy violation when adding member to organization from super admin — fixed by creating backend endpoint /api/super-admin/add-member using serviceClient
+- [x] Migrate super admin actions to backend: update member role, suspend member, remove member (bypass RLS)
+- [x] Add org management from Users Global view: assign user to org from their profile page

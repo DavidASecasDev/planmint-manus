@@ -73,7 +73,20 @@ import {
   handleCancelServiceRequest,
   handleGetAvailableOrgs,
 } from "../serviceRequestEndpoints";
-import { handleSuperAdminAddMember } from "../superAdminEndpoints";
+import {
+  handleSuperAdminAddMember,
+  handleSuperAdminUpdateMemberRole,
+  handleSuperAdminUpdateMemberStatus,
+  handleSuperAdminRemoveMember,
+  handleSuperAdminUpdateOrgStatus,
+  handleSuperAdminDeleteOrganization,
+  handleSuperAdminUpdateOrgPlan,
+  handleSuperAdminUpdateFeedback,
+  handleSuperAdminDeleteFeedback,
+  handleSuperAdminDeleteTask,
+  handleSuperAdminDeleteArea,
+  handleSuperAdminGetUserMemberships,
+} from "../superAdminEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -168,6 +181,17 @@ async function startServer() {
 
   // ─── Super Admin endpoints (bypass RLS) ────────────────────────────────────
   app.post("/api/super-admin/add-member", handleSuperAdminAddMember);
+  app.post("/api/super-admin/update-member-role", handleSuperAdminUpdateMemberRole);
+  app.post("/api/super-admin/update-member-status", handleSuperAdminUpdateMemberStatus);
+  app.post("/api/super-admin/remove-member", handleSuperAdminRemoveMember);
+  app.post("/api/super-admin/update-org-status", handleSuperAdminUpdateOrgStatus);
+  app.post("/api/super-admin/delete-organization", handleSuperAdminDeleteOrganization);
+  app.post("/api/super-admin/update-org-plan", handleSuperAdminUpdateOrgPlan);
+  app.post("/api/super-admin/update-feedback", handleSuperAdminUpdateFeedback);
+  app.post("/api/super-admin/delete-feedback", handleSuperAdminDeleteFeedback);
+  app.post("/api/super-admin/delete-task", handleSuperAdminDeleteTask);
+  app.post("/api/super-admin/delete-area", handleSuperAdminDeleteArea);
+  app.post("/api/super-admin/get-user-memberships", handleSuperAdminGetUserMemberships);
 
   // Service Requests (cross-org)
   app.post("/api/list-service-requests", handleListServiceRequests);
