@@ -497,3 +497,5 @@
 - [ ] Future: Personalize each organization based on its vertical/niche
 - [x] Fix: ServiceRequests page not wrapped in main layout — added AppLayout wrapper
 - [x] Fix: User redirected to onboarding (create-organization) after login — root cause: OrgSwitcher.tsx queryFn did `res.data || []` but apiInvoke wraps response in { data: T }, so `res.data` was `{ data: [...], error: null }` (an object) not an array. Fixed by properly unwrapping `res.data.data`
+- [x] Restrict org switching: only users with multi-org membership (or specific permission) should see/use the OrgSwitcher (already works — switcher only shows if user belongs to 2+ orgs)
+- [x] Super Admin: Add organization member management (assign/remove users from organizations, view members per org)

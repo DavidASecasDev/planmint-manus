@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   ArrowLeft, Building2, Users, ListTodo, FolderKanban, MessageSquare, 
-  CreditCard, MoreHorizontal, UserCog, Ban, CheckCircle, UserMinus, Trash2, Settings 
+  CreditCard, MoreHorizontal, UserCog, Ban, CheckCircle, UserMinus, Trash2, Settings, UserPlus 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -37,13 +37,14 @@ import { OrgModulesSection } from '@/components/super-admin/OrgModulesSection';
 import { OrgPresetSection } from '@/components/super-admin/OrgPresetSection';
 import { ModuleHistorySection } from '@/components/super-admin/ModuleHistorySection';
 import { OrgFeatureFlagsSection } from '@/components/super-admin/OrgFeatureFlagsSection';
+import { AddMemberDialog } from '@/components/super-admin/AddMemberDialog';
 
 export default function OrganizationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: org, isLoading } = useOrganizationDetails(id);
   const { 
-    updateMemberRole, updateMemberStatus, deleteMember,
+    addMemberToOrg, updateMemberRole, updateMemberStatus, deleteMember,
     updateOrgStatus, deleteOrganization, updateOrgPlan 
   } = useSuperAdminActions();
 
@@ -53,6 +54,7 @@ export default function OrganizationDetail() {
   const [showSuspendOrg, setShowSuspendOrg] = useState(false);
   const [showDeleteOrg, setShowDeleteOrg] = useState(false);
   const [showChangePlan, setShowChangePlan] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   if (isLoading) {
     return (
@@ -298,11 +300,19 @@ export default function OrganizationDetail() {
         {/* Members Table with Actions */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Miembros ({org.members.length})
-            </CardTitle>
-            <CardDescription>Gestiona los miembros de esta organización</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Miembros ({org.members.length})
+                </CardTitle>
+                <CardDescription>Gestiona los miembros de esta organización</CardDescription>
+              </div>
+              <Button onClick={() => setShowAddMember(true)} size="sm" className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Añadir miembro
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {org.members.length === 0 ? (
@@ -485,6 +495,21 @@ export default function OrganizationDetail() {
         currentPlan={org.subscription?.plan || 'free'}
         onConfirm={handleChangePlanConfirm}
         isLoading={updateOrgPlan.isPending}
+      />
+
+      <AddMemberDialog
+        open={showAddMember}
+        onOpenChange={setShowAddMember}
+        organizationId={org.id}
+        orgName={org.name}
+        existingMemberIds={org.members.map((m: any) => m.user_id)}
+        onConfirm={(userId, userName, role) => {
+          addMemberToOrg.mutate(
+            { userId, organizationId: org.id, role, userName, orgName: org.name },
+            { onSuccess: () => setShowAddMember(false) }
+          );
+        }}
+        isLoading={addMemberToOrg.isPending}
       />
     </SuperAdminLayout>
   );

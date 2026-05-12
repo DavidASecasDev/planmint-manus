@@ -18,6 +18,14 @@ interface DeleteMemberParams {
   memberName?: string;
 }
 
+interface AddMemberToOrgParams {
+  userId: string;
+  organizationId: string;
+  role: string;
+  userName?: string;
+  orgName?: string;
+}
+
 interface UpdateOrgStatusParams {
   orgId: string;
   status: 'active' | 'suspended' | 'deleted';
@@ -56,6 +64,52 @@ export function useSuperAdminActions() {
   const queryClient = useQueryClient();
 
   // ============ Member Actions ============
+
+  const addMemberToOrg = useMutation({
+    mutationFn: async ({ userId, organizationId, role }: AddMemberToOrgParams) => {
+      // Check if membership already exists
+      const { data: existing } = await supabase
+        .from('organization_members')
+        .select('id, status')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      if (existing) {
+        if (existing.status === 'active') {
+          throw new Error('El usuario ya es miembro activo de esta organización');
+        }
+        // Reactivate if suspended
+        const { error } = await supabase
+          .from('organization_members')
+          .update({ status: 'active', role })
+          .eq('id', existing.id);
+        if (error) throw error;
+        return;
+      }
+
+      // Insert new membership
+      const { error } = await supabase
+        .from('organization_members')
+        .insert({
+          user_id: userId,
+          organization_id: organizationId,
+          role,
+          status: 'active',
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { userName, orgName }) => {
+      queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-details'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      toast.success(`${userName || 'Usuario'} añadido a ${orgName || 'la organización'}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al añadir miembro');
+    },
+  });
 
   const updateMemberRole = useMutation({
     mutationFn: async ({ memberId, newRole }: UpdateMemberRoleParams) => {
@@ -271,6 +325,7 @@ export function useSuperAdminActions() {
 
   return {
     // Member actions
+    addMemberToOrg,
     updateMemberRole,
     updateMemberStatus,
     deleteMember,
