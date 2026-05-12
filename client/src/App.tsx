@@ -137,6 +137,9 @@ const Transfers = lazy(() => import("./pages/transfers/Transfers"));
 const TransferDetail = lazy(() => import("./pages/transfers/TransferDetail"));
 const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement"));
 
+// Service Requests (cross-org)
+const ServiceRequests = lazy(() => import("./pages/ServiceRequests"));
+
 // Admin Pages
 const PermissionsDiagnostics = lazy(() => import("./pages/admin/PermissionsDiagnostics"));
 const TasksTrash = lazy(() => import("./pages/admin/TasksTrash"));
@@ -962,6 +965,17 @@ function MainAppRoutes() {
                 </ProtectedRoute>
               } 
             />
+
+            {/* Service Requests (cross-org) */}
+            <Route 
+              path="/service-requests" 
+              element={
+                <ProtectedRoute>
+                  <ServiceRequests />
+                </ProtectedRoute>
+              } 
+            />
+
             {/* Super Admin Routes */}
             <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
             <Route path="/super-admin/alerts" element={<SuperAdminRoute><SuperAdminAlerts /></SuperAdminRoute>} />

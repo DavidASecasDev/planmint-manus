@@ -485,3 +485,13 @@
 - [x] Fix: Add permission enforcement (members.manage_permissions, members.change_role) to admin mutation endpoints — requirePermission() added to set-user-permission-override, remove-user-permission-override, reset-user-permission-overrides, update-member-role, update-member-status, remove-member, manage-custom-role, toggle-role-permission
 - [x] Fix: Extract shared permission defaults into single source of truth (shared/permissionDefaults.ts) — ALL_PERMISSION_KEYS, BASE_VIEW_PERMISSIONS, ROLE_DEFAULTS, getDefaultPermissionsForRole(), flattenCustomRolePermissions()
 - [x] Fix: Ensure end-to-end permission enforcement works correctly for all roles — handleGetMyPermissions refactored to use shared defaults, 1038 tests passing
+
+## Multi-Org Architecture
+
+- [x] Remove all SaaS/billing/subscription code — useSubscription now returns unlimited, UpgradeModal is no-op, deleted PlanBillingSection/EnterpriseStatusSection/useCoupons/useEntitlements
+- [x] Unlock all Settings sections — all gates return true (isTeamPlan/isProPlan always true)
+- [x] Implement Org Switcher in sidebar — OrgSwitcher component + get-my-organizations + switch-organization endpoints
+- [x] Create Azul Stays organization in database — created with modules: reservations, transfers, fleet, teams, reports, automations, templates
+- [x] Implement cross-org Service Requests module — 5 backend endpoints + ServiceRequests page + sidebar link + route
+- [x] Adapt super-admin panel to group-level operations — removed SaaS nav items, rewrote Dashboard as Panel de Grupo with org cards + service request stats
+- [ ] Future: Personalize each organization based on its vertical/niche

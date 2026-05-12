@@ -85,13 +85,7 @@ describe('RPC Migration Completeness', () => {
 // 2. Verify non-core RPCs are fail-graceful
 // ============================================================
 describe('Non-core RPC Fail-Graceful Migration', () => {
-  it('useEntitlements should query subscriptions table directly', async () => {
-    const source = await import('../hooks/useEntitlements?raw');
-    const code = (source as any).default || '';
-    expect(code).not.toContain("supabase.rpc('get_organization_entitlements'");
-    expect(code).toContain('subscriptions');
-    expect(code).toContain('DEFAULT_ENTITLEMENTS');
-  });
+  // useEntitlements test removed (hook deleted - internal app, no billing)
 
   it('useOrganizationModules should use backend endpoint instead of Supabase RPC', async () => {
     const source = await import('../hooks/useOrganizationModules?raw');
@@ -124,12 +118,7 @@ describe('Non-core RPC Fail-Graceful Migration', () => {
     expect(code).toContain("from('referrals')");
   });
 
-  it('useCoupons should not use redeem_coupon_for_plan RPC', async () => {
-    const source = await import('../hooks/useCoupons?raw');
-    const code = (source as any).default || '';
-    expect(code).not.toContain("supabase.rpc('redeem_coupon_for_plan'");
-    expect(code).toContain("from('coupons')");
-  });
+  // useCoupons test removed (hook deleted - internal app, no billing)
 
   it('BrokerAuthContext should not use any supabase.rpc calls', async () => {
     const source = await import('../contexts/BrokerAuthContext?raw');

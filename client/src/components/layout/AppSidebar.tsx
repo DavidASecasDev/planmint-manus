@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FeedbackModal } from '@/components/feedback/FeedbackModal';
+import { OrgSwitcher } from '@/components/layout/OrgSwitcher';
 import { usePrefetch } from '@/hooks/usePrefetch';
 
 import { PermissionKey } from '@/hooks/usePermissions';
@@ -133,6 +134,7 @@ const menuItems = [
   { title: 'Plantillas', url: '/templates', icon: LayoutTemplate },
   { title: 'Reportes', url: '/reports', icon: BarChart3 },
   { title: 'Teams', url: '/teams', icon: Users },
+  { title: 'Solicitudes Servicio', url: '/service-requests', icon: ArrowLeftRight },
   { title: 'Ajustes', url: '/settings', icon: Settings },
 ];
 
@@ -654,42 +656,8 @@ export function AppSidebar() {
                 Enviar feedback
               </Button>
 
-              {/* Organization */}
-              <div
-                className="rounded-lg p-3"
-                style={{ backgroundColor: navyLight }}
-              >
-                <p
-                  className="mb-1"
-                  style={{
-                    fontFamily: 'Montserrat, sans-serif',
-                    fontWeight: 700,
-                    fontSize: '10px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.12em',
-                    color: 'rgba(255,255,255,0.35)',
-                  }}
-                >
-                  Organización
-                </p>
-                {!dataReady ? (
-                  <div
-                    className="h-4 w-24 rounded animate-pulse"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-                  />
-                ) : (
-                  <p
-                    className="truncate text-sm"
-                    style={{
-                      fontFamily: 'Barlow, sans-serif',
-                      fontWeight: 600,
-                      color: textWhite,
-                    }}
-                  >
-                    {organization?.name || 'Sin organización'}
-                  </p>
-                )}
-              </div>
+              {/* Organization Switcher */}
+              <OrgSwitcher collapsed={false} />
               
               {/* User */}
               <div className="flex items-center gap-3">
@@ -770,6 +738,7 @@ export function AppSidebar() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
+              <OrgSwitcher collapsed={true} />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

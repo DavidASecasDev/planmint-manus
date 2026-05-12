@@ -79,6 +79,12 @@ export function _clearAuthCacheForTesting() {
   AUTH_INFLIGHT.clear();
 }
 
+/** Invalidate cached auth for a specific user (e.g., after org switch) */
+export function invalidateAuthCacheForUser(userId: string) {
+  AUTH_CACHE.delete(userId);
+  AUTH_INFLIGHT.delete(userId);
+}
+
 // Periodically clean expired entries (every 5 minutes)
 setInterval(() => {
   const now = Date.now();

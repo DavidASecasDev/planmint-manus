@@ -41,6 +41,8 @@ import {
 import {
   handleGetMyProfile,
   handleGetMyOrganization,
+  handleGetMyOrganizations,
+  handleSwitchOrganization,
 } from "../authEndpoints";
 import {
   handleApproveBrokerRegistration,
@@ -64,6 +66,13 @@ import {
   handleManageCustomRole,
   handleToggleRolePermission,
 } from "../orgDataEndpoints";
+import {
+  handleListServiceRequests,
+  handleCreateServiceRequest,
+  handleResolveServiceRequest,
+  handleCancelServiceRequest,
+  handleGetAvailableOrgs,
+} from "../serviceRequestEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -129,6 +138,8 @@ async function startServer() {
   // ─── Auth data endpoints (bypass RLS for profile/org loading) ─────────────
   app.post("/api/get-my-profile", handleGetMyProfile);
   app.post("/api/get-my-organization", handleGetMyOrganization);
+  app.post("/api/get-my-organizations", handleGetMyOrganizations);
+  app.post("/api/switch-organization", handleSwitchOrganization);
 
   // ─── Public endpoints (no auth required) ───────────────────────────────────
   app.get("/api/public/operations/:orgSlug", handlePublicOperations);
@@ -153,6 +164,13 @@ async function startServer() {
   app.post("/api/remove-member", handleRemoveMember);
   app.post("/api/manage-custom-role", handleManageCustomRole);
   app.post("/api/toggle-role-permission", handleToggleRolePermission);
+
+  // Service Requests (cross-org)
+  app.post("/api/list-service-requests", handleListServiceRequests);
+  app.post("/api/create-service-request", handleCreateServiceRequest);
+  app.post("/api/resolve-service-request", handleResolveServiceRequest);
+  app.post("/api/cancel-service-request", handleCancelServiceRequest);
+  app.post("/api/get-available-orgs", handleGetAvailableOrgs);
 
   // tRPC API
   app.use(

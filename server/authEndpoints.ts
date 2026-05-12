@@ -12,6 +12,7 @@ import {
   getServiceClient,
   extractBearerToken,
   authenticateSupabaseRequest,
+  invalidateAuthCacheForUser,
   AuthError,
 } from "./supabaseAdmin";
 
@@ -98,5 +99,153 @@ export async function handleGetMyOrganization(req: Request, res: Response) {
     }
     console.error("[getMyOrganization] Error:", err);
     return res.json({ data: null, error: "Internal server error" });
+  }
+}
+
+// ─── 3. get-my-organizations ────────────────────────────────────────────────
+// Returns all organizations the authenticated user belongs to.
+// Uses organization_members table to find memberships.
+export async function handleGetMyOrganizations(req: Request, res: Response) {
+  try {
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
+    const serviceClient = getServiceClient();
+
+    // Get all organization memberships for this user
+    const { data: memberships, error: memberError } = await serviceClient
+      .from("organization_members")
+      .select("organization_id, role, status")
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (memberError) {
+      console.error("[getMyOrganizations] Membership query error:", memberError);
+      return res.json({ data: [], error: memberError.message });
+    }
+
+    if (!memberships || memberships.length === 0) {
+      // Fallback: check profile's organization_id directly
+      const { data: profile } = await serviceClient
+        .from("profiles")
+        .select("organization_id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profile?.organization_id) {
+        const { data: org } = await serviceClient
+          .from("organizations")
+          .select("id, name, created_at")
+          .eq("id", profile.organization_id)
+          .maybeSingle();
+
+        if (org) {
+          return res.json({ data: [{ ...org, role: "owner", is_current: true }], error: null });
+        }
+      }
+
+      return res.json({ data: [], error: null });
+    }
+
+    // Fetch organization details for all memberships
+    const orgIds = memberships.map((m) => m.organization_id);
+    const { data: orgs, error: orgsError } = await serviceClient
+      .from("organizations")
+      .select("id, name, created_at")
+      .in("id", orgIds);
+
+    if (orgsError) {
+      console.error("[getMyOrganizations] Orgs query error:", orgsError);
+      return res.json({ data: [], error: orgsError.message });
+    }
+
+    // Get user's current active org from profile
+    const { data: profile } = await serviceClient
+      .from("profiles")
+      .select("organization_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    // Merge org data with membership role and current status
+    const result = (orgs || []).map((org) => {
+      const membership = memberships.find((m) => m.organization_id === org.id);
+      return {
+        ...org,
+        role: membership?.role || "member",
+        is_current: profile?.organization_id === org.id,
+      };
+    });
+
+    return res.json({ data: result, error: null });
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ data: [], error: err.message });
+    }
+    console.error("[getMyOrganizations] Error:", err);
+    return res.json({ data: [], error: "Internal server error" });
+  }
+}
+
+// ─── 4. switch-organization ─────────────────────────────────────────────────
+// Switches the user's active organization by updating profiles.organization_id.
+// Validates that the user is a member of the target organization.
+export async function handleSwitchOrganization(req: Request, res: Response) {
+  try {
+    const { userId } = await authenticateSupabaseRequest(req.headers.authorization);
+    const { organization_id } = req.body;
+
+    if (!organization_id) {
+      return res.status(400).json({ data: null, error: "organization_id is required" });
+    }
+
+    const serviceClient = getServiceClient();
+
+    // Verify user is a member of the target organization
+    const { data: membership, error: memberError } = await serviceClient
+      .from("organization_members")
+      .select("id, role, status")
+      .eq("user_id", userId)
+      .eq("organization_id", organization_id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (memberError) {
+      console.error("[switchOrganization] Membership check error:", memberError);
+      return res.status(500).json({ data: null, error: "Failed to verify membership" });
+    }
+
+    if (!membership) {
+      return res.status(403).json({ data: null, error: "Not a member of this organization" });
+    }
+
+    // Update the user's active organization in profiles
+    const { error: updateError } = await serviceClient
+      .from("profiles")
+      .update({
+        organization_id: organization_id,
+        role: membership.role, // Sync the role for this org
+      })
+      .eq("id", userId);
+
+    if (updateError) {
+      console.error("[switchOrganization] Profile update error:", updateError);
+      return res.status(500).json({ data: null, error: "Failed to switch organization" });
+    }
+
+    // Clear the auth cache so subsequent requests pick up the new org
+    invalidateAuthCacheForUser(userId);
+
+    // Fetch the new organization data
+    const { data: org } = await serviceClient
+      .from("organizations")
+      .select("id, name, created_at")
+      .eq("id", organization_id)
+      .maybeSingle();
+
+    return res.json({ data: { organization: org, role: membership.role }, error: null });
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ data: null, error: err.message });
+    }
+    console.error("[switchOrganization] Error:", err);
+    return res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

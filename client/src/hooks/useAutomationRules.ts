@@ -12,22 +12,21 @@ import {
   ActionsJson,
   TriggerType
 } from '@/types/automations';
-import { useEntitlements } from '@/hooks/useEntitlements';
+// useEntitlements removed (internal app, no limits)
 
 export const useAutomationRules = () => {
   const { profile } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
-  const { entitlements } = useEntitlements();
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [runsLoading, setRunsLoading] = useState(false);
 
   const organizationId = profile?.organization_id;
-  const currentPlan = entitlements.plan;
-  const ruleLimit = entitlements.limits.automations_limit ?? 0;
-  const canCreateRules = rules.length < ruleLimit;
+  const currentPlan = 'team';
+  const ruleLimit = Infinity;
+  const canCreateRules = true;
   // Use permissions from RPC instead of profile.role
   const canManageRules = hasPermission('automations.manage');
 

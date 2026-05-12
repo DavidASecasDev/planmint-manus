@@ -1,650 +1,311 @@
+import { ReactNode, useMemo } from 'react';
 import { SuperAdminLayout } from './SuperAdminLayout';
-import { usePlatformStats, usePlatformFeedback, usePlatformOrganizations } from '@/hooks/useSuperAdmin';
-import { useSuperAdminAlerts, usePaymentStats } from '@/hooks/useSuperAdminAlerts';
-import { useMRRMetrics } from '@/hooks/useMRRMetrics';
-import { useTrialMetrics } from '@/hooks/useTrialMetrics';
+import { usePlatformStats, usePlatformOrganizations } from '@/hooks/useSuperAdmin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Users, MessageSquare, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, AlertTriangle, DollarSign, Bell, ChevronRight, Clock, Percent, RefreshCw } from 'lucide-react';
-import { format, subMonths } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { useMemo } from 'react';
+import { Building2, Users, ArrowLeftRight, Car, Ship, Home, TrendingUp, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { formatEUR } from '@/lib/billing';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const PLAN_COLORS: Record<string, string> = {
-  free: 'hsl(var(--muted-foreground))',
-  pro: 'hsl(var(--primary))',
-  team: 'hsl(142, 76%, 36%)',
+// Organization brand config
+const ORG_BRANDS: Record<string, { icon: typeof Car; color: string; gradient: string }> = {
+  'Azul Cars': { icon: Car, color: 'text-blue-600', gradient: 'from-blue-500/10 to-blue-600/5' },
+  'Bluebnc': { icon: Ship, color: 'text-cyan-600', gradient: 'from-cyan-500/10 to-cyan-600/5' },
+  'Azul Stays': { icon: Home, color: 'text-emerald-600', gradient: 'from-emerald-500/10 to-emerald-600/5' },
 };
+
+function getOrgBrand(name: string) {
+  return ORG_BRANDS[name] || { icon: Building2, color: 'text-primary', gradient: 'from-primary/10 to-primary/5' };
+}
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const { data: stats, isLoading: statsLoading } = usePlatformStats();
-  const { data: feedback, isLoading: feedbackLoading } = usePlatformFeedback();
   const { data: organizations, isLoading: orgsLoading } = usePlatformOrganizations();
-  const { unreadAlerts, activePaymentCount, isLoading: alertsLoading } = useSuperAdminAlerts();
-  const { data: paymentStats, isLoading: paymentStatsLoading } = usePaymentStats();
-  const { data: mrrMetrics, isLoading: mrrLoading } = useMRRMetrics();
-  const { data: trialMetrics, isLoading: trialsLoading } = useTrialMetrics();
 
-  const recentOrgs = organizations?.slice(0, 5) || [];
-  const recentFeedback = feedback?.slice(0, 5) || [];
-  const recentAlerts = unreadAlerts.slice(0, 5);
-
-  // Calculate growth chart data (last 6 months)
-  const growthData = useMemo(() => {
-    if (!organizations) return [];
-    
-    const months: { month: string; total: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
-      const monthKey = format(date, 'yyyy-MM');
-      const monthLabel = format(date, 'MMM', { locale: es });
+  // Fetch cross-org service requests summary
+  const { data: serviceRequestStats } = useQuery({
+    queryKey: ['group-service-requests-stats'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('service_requests')
+        .select('id, status, request_type, created_at, requesting_org_id, fulfilling_org_id');
       
-      const count = organizations.filter(org => {
-        const orgMonth = format(new Date(org.created_at), 'yyyy-MM');
-        return orgMonth <= monthKey;
-      }).length;
+      if (error) return { total: 0, pending: 0, approved: 0, rejected: 0, thisMonth: 0 };
       
-      months.push({ month: monthLabel, total: count });
-    }
-    return months;
-  }, [organizations]);
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      return {
+        total: data?.length || 0,
+        pending: data?.filter((r: any) => r.status === 'pending').length || 0,
+        approved: data?.filter((r: any) => r.status === 'approved').length || 0,
+        rejected: data?.filter((r: any) => r.status === 'rejected').length || 0,
+        thisMonth: data?.filter((r: any) => new Date(r.created_at) >= startOfMonth).length || 0,
+      };
+    },
+    enabled: !!session,
+  });
 
-  // Calculate plan distribution for pie chart
-  const planData = useMemo(() => {
-    if (!stats?.planBreakdown) return [];
-    return Object.entries(stats.planBreakdown).map(([plan, count]) => ({
-      name: plan.toUpperCase(),
-      value: count as number,
-      color: PLAN_COLORS[plan] || 'hsl(var(--muted))',
-    }));
-  }, [stats?.planBreakdown]);
-
-  // Calculate trends
-  const lastMonthOrgs = organizations?.filter(org => {
-    const created = new Date(org.created_at);
-    const oneMonthAgo = subMonths(new Date(), 1);
-    return created >= oneMonthAgo;
-  }).length || 0;
-
-  const previousMonthOrgs = organizations?.filter(org => {
-    const created = new Date(org.created_at);
-    const oneMonthAgo = subMonths(new Date(), 1);
-    const twoMonthsAgo = subMonths(new Date(), 2);
-    return created >= twoMonthsAgo && created < oneMonthAgo;
-  }).length || 0;
-
-  const growthPercent = previousMonthOrgs > 0 
-    ? Math.round(((lastMonthOrgs - previousMonthOrgs) / previousMonthOrgs) * 100)
-    : lastMonthOrgs > 0 ? 100 : 0;
+  // Fetch member counts per org
+  const { data: orgMembers } = useQuery({
+    queryKey: ['group-org-members'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organization_members')
+        .select('organization_id, status');
+      
+      if (error) return {};
+      
+      const counts: Record<string, { active: number; total: number }> = {};
+      data?.forEach(m => {
+        if (!counts[m.organization_id]) counts[m.organization_id] = { active: 0, total: 0 };
+        counts[m.organization_id].total++;
+        if (m.status === 'active') counts[m.organization_id].active++;
+      });
+      return counts;
+    },
+    enabled: !!session,
+  });
 
   return (
-    <SuperAdminLayout title="Dashboard">
+    <SuperAdminLayout title="Panel de Grupo">
       <div className="space-y-6">
-        {/* Payment Alerts Banner - Only show if there are active payment issues */}
-        {(activePaymentCount > 0 || (paymentStats?.pastDueCount || 0) > 0) && (
-          <Card className="border-destructive/50 bg-destructive/5">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Alertas de Impago</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {paymentStats?.pastDueCount || 0} suscripciones con pago pendiente · 
-                      {formatEUR(paymentStats?.mrrAtRisk || 0)} MRR en riesgo
-                    </p>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="gap-2"
-                  onClick={() => navigate('/super-admin/alerts')}
-                >
-                  Ver Alertas
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* MRR & Financial Metrics Row */}
+        {/* Top Stats Row */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="relative overflow-hidden bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/20 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">MRR Total</CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-primary/20 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {mrrLoading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-              <div>
-                  <span className="text-3xl font-bold">{formatEUR(mrrMetrics?.totalMRR || 0)}</span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ARR: {formatEUR(mrrMetrics?.totalARR || 0)}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-red-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Churn Rate</CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
-                <RefreshCw className="h-5 w-5 text-red-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {mrrLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl font-bold ${(mrrMetrics?.churnRate || 0) > 5 ? 'text-destructive' : ''}`}>
-                    {mrrMetrics?.churnRate || 0}%
-                  </span>
-                  <span className="text-xs text-muted-foreground">mensual</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Conversión Trial</CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Percent className="h-5 w-5 text-green-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {mrrLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-green-600">
-                    {mrrMetrics?.conversionRate || 0}%
-                  </span>
-                  <span className="text-xs text-muted-foreground">trial → paid</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Suscripciones Activas</CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <CreditCard className="h-5 w-5 text-purple-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {mrrLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{mrrMetrics?.activeSubscriptions || 0}</span>
-                  {(mrrMetrics?.newSubscriptionsLastMonth || 0) > 0 && (
-                    <span className="text-sm text-green-600 flex items-center">
-                      <ArrowUpRight className="h-4 w-4" />
-                      +{mrrMetrics?.newSubscriptionsLastMonth}
-                    </span>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Organizaciones"
+            value={organizations?.length || 0}
+            icon={Building2}
+            loading={orgsLoading}
+            description="Empresas del grupo"
+          />
+          <StatCard
+            title="Usuarios Totales"
+            value={stats?.totalUsers || 0}
+            icon={Users}
+            loading={statsLoading}
+            description="Miembros activos"
+          />
+          <StatCard
+            title="Solicitudes Cross-Org"
+            value={serviceRequestStats?.thisMonth || 0}
+            icon={ArrowLeftRight}
+            loading={!serviceRequestStats}
+            description="Este mes"
+          />
+          <StatCard
+            title="Pendientes"
+            value={serviceRequestStats?.pending || 0}
+            icon={Clock}
+            loading={!serviceRequestStats}
+            description="Solicitudes por resolver"
+            highlight={serviceRequestStats?.pending ? serviceRequestStats.pending > 0 : false}
+          />
         </div>
 
-        {/* Trials at Risk Section */}
-        {((trialMetrics?.trialsExpiringIn7Days?.length || 0) > 0 || (trialMetrics?.expiredNotConverted?.length || 0) > 0) && (
-          <Card className="border-orange-500/30 bg-orange-500/5">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Trials en Riesgo</CardTitle>
-                    <CardDescription>
-                      {trialMetrics?.activeTrials || 0} trials activos · {trialMetrics?.conversionRate || 0}% tasa de conversión
-                    </CardDescription>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Expiring Soon */}
-                {(trialMetrics?.trialsExpiringIn7Days?.length || 0) > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-orange-600 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      Expiran en 7 días ({trialMetrics?.trialsExpiringIn7Days?.length})
-                    </h4>
-                    <div className="space-y-2">
-                      {trialMetrics?.trialsExpiringIn7Days?.slice(0, 3).map((trial) => (
-                        <div 
-                          key={trial.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-background/50 cursor-pointer hover:bg-background"
-                          onClick={() => navigate(`/super-admin/organizations/${trial.id}`)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">{trial.name}</span>
+        {/* Organizations Grid */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Organizaciones del Grupo</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {orgsLoading ? (
+              [1, 2, 3].map(i => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="h-40" />
+                </Card>
+              ))
+            ) : (
+              organizations?.map(org => {
+                const brand = getOrgBrand(org.name);
+                const OrgIcon = brand.icon;
+                const members = orgMembers?.[org.id];
+                
+                return (
+                  <Card 
+                    key={org.id} 
+                    className={`relative overflow-hidden bg-gradient-to-br ${brand.gradient} hover:shadow-md transition-shadow cursor-pointer`}
+                    onClick={() => navigate(`/super-admin/organizations/${org.id}`)}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-10 w-10 rounded-lg bg-background/80 flex items-center justify-center ${brand.color}`}>
+                            <OrgIcon className="h-5 w-5" />
                           </div>
-                          <Badge variant="outline" className="text-orange-600 border-orange-500/30">
-                            {trial.daysRemaining} días
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Expired Not Converted */}
-                {(trialMetrics?.expiredNotConverted?.length || 0) > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-red-600 flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      Expirados sin convertir ({trialMetrics?.expiredNotConverted?.length})
-                    </h4>
-                    <div className="space-y-2">
-                      {trialMetrics?.expiredNotConverted?.slice(0, 3).map((trial) => (
-                        <div 
-                          key={trial.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-background/50 cursor-pointer hover:bg-background"
-                          onClick={() => navigate(`/super-admin/organizations/${trial.id}`)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">{trial.name}</span>
+                          <div>
+                            <CardTitle className="text-base">{org.name}</CardTitle>
+                            <CardDescription className="text-xs">
+                              Creada {format(new Date(org.created_at), "MMM yyyy", { locale: es })}
+                            </CardDescription>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {trial.memberCount} miembros
-                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Organizaciones
-              </CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{stats?.totalOrganizations}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Usuarios
-              </CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-green-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-3xl font-bold">{stats?.totalUsers}</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Nuevos (30 días)
-              </CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{stats?.recentOrganizations}</span>
-                  {growthPercent !== 0 && (
-                    <span className={`text-sm flex items-center ${growthPercent > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {growthPercent > 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                      {Math.abs(growthPercent)}%
-                    </span>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Feedback Total
-              </CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-orange-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-3xl font-bold">{stats?.totalFeedback}</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Payment Alerts KPI */}
-          <Card 
-            className="relative overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={() => navigate('/super-admin/alerts')}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-red-500/10 to-transparent rounded-bl-full" />
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Impagos
-              </CardTitle>
-              <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                (paymentStats?.pastDueCount || 0) > 0 ? 'bg-red-500/10' : 'bg-green-500/10'
-              }`}>
-                {(paymentStats?.pastDueCount || 0) > 0 ? (
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                ) : (
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {paymentStatsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl font-bold ${
-                    (paymentStats?.pastDueCount || 0) > 0 ? 'text-destructive' : ''
-                  }`}>
-                    {paymentStats?.pastDueCount || 0}
-                  </span>
-                  {(paymentStats?.mrrAtRisk || 0) > 0 && (
-                    <span className="text-sm text-destructive">{formatEUR(paymentStats?.mrrAtRisk || 0)}</span>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* MRR Evolution Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                Evolución MRR
-              </CardTitle>
-              <CardDescription>Últimos 6 meses</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {mrrLoading ? (
-                <Skeleton className="h-[200px] w-full" />
-              ) : (
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={mrrMetrics?.mrrHistory || []}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" className="text-xs" />
-                      <YAxis className="text-xs" tickFormatter={(v) => `€${v}`} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                        formatter={(value: number) => [`€${value.toLocaleString()}`, 'MRR']}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="mrr" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={2}
-                        dot={{ fill: 'hsl(var(--primary))' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Growth Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Crecimiento de Organizaciones
-              </CardTitle>
-              <CardDescription>Últimos 6 meses</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {orgsLoading ? (
-                <Skeleton className="h-[200px] w-full" />
-              ) : (
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={growthData}>
-                      <defs>
-                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" className="text-xs" />
-                      <YAxis className="text-xs" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }} 
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="total" 
-                        stroke="hsl(var(--primary))" 
-                        fillOpacity={1} 
-                        fill="url(#colorTotal)" 
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Plan Distribution */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                Distribución de Planes
-              </CardTitle>
-              <CardDescription>Por tipo de suscripción</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-[200px] w-full" />
-              ) : planData.length > 0 ? (
-                <div className="h-[200px] flex items-center">
-                  <ResponsiveContainer width="50%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={planData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {planData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex-1 space-y-2">
-                    {planData.map((entry) => (
-                      <div key={entry.name} className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: entry.color }}
-                        />
-                        <span className="text-sm font-medium">{entry.name}</span>
-                        <span className="text-sm text-muted-foreground ml-auto">{entry.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  No hay datos de planes
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Recent Organizations */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Organizaciones Recientes</CardTitle>
-              <CardDescription>Últimas 5 organizaciones registradas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {orgsLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : recentOrgs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay organizaciones aún</p>
-              ) : (
-                <div className="space-y-3">
-                  {recentOrgs.map((org) => (
-                    <div key={org.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Building2 className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{org.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(org.created_at), "d 'de' MMM, yyyy", { locale: es })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{org.memberCount} miembros</Badge>
-                        <Badge variant={org.subscription?.plan === 'free' ? 'secondary' : 'default'}>
-                          {org.subscription?.plan || 'free'}
+                        <Badge variant="outline" className="text-xs">
+                          {members?.active || 0} miembros
                         </Badge>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent Feedback */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Feedback Reciente</CardTitle>
-              <CardDescription>Últimos 5 mensajes de feedback</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {feedbackLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : recentFeedback.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay feedback aún</p>
-              ) : (
-                <div className="space-y-3">
-                  {recentFeedback.map((fb: any) => (
-                    <div key={fb.id} className="p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                      <div className="flex items-center justify-between mb-1">
-                        <Badge variant={
-                          fb.feedback_type === 'bug' ? 'destructive' :
-                          fb.feedback_type === 'suggestion' ? 'default' : 'secondary'
-                        }>
-                          {fb.feedback_type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(fb.created_at), "d MMM", { locale: es })}
-                        </span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div className="text-center p-2 rounded-md bg-background/50">
+                          <p className="text-lg font-bold">{members?.active || 0}</p>
+                          <p className="text-xs text-muted-foreground">Activos</p>
+                        </div>
+                        <div className="text-center p-2 rounded-md bg-background/50">
+                          <p className="text-lg font-bold">{members?.total || 0}</p>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                        </div>
                       </div>
-                      <p className="text-sm line-clamp-2">{fb.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {fb.organizations?.name || 'Org desconocida'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
         </div>
+
+        {/* Service Requests Summary */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Solicitudes de Servicio Cross-Org</h2>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/service-requests')}
+            >
+              Ver todas
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            <MiniStatCard
+              label="Total"
+              value={serviceRequestStats?.total || 0}
+              icon={<ArrowLeftRight className="h-4 w-4 text-muted-foreground" />}
+            />
+            <MiniStatCard
+              label="Pendientes"
+              value={serviceRequestStats?.pending || 0}
+              icon={<Clock className="h-4 w-4 text-yellow-600" />}
+              highlight={!!serviceRequestStats?.pending && serviceRequestStats.pending > 0}
+            />
+            <MiniStatCard
+              label="Aprobadas"
+              value={serviceRequestStats?.approved || 0}
+              icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
+            />
+            <MiniStatCard
+              label="Rechazadas"
+              value={serviceRequestStats?.rejected || 0}
+              icon={<XCircle className="h-4 w-4 text-red-600" />}
+            />
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Acciones Rápidas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-auto py-3"
+                onClick={() => navigate('/super-admin/organizations')}
+              >
+                <Building2 className="h-4 w-4" />
+                <div className="text-left">
+                  <p className="font-medium text-sm">Gestionar Organizaciones</p>
+                  <p className="text-xs text-muted-foreground">Configurar módulos y miembros</p>
+                </div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-auto py-3"
+                onClick={() => navigate('/super-admin/users')}
+              >
+                <Users className="h-4 w-4" />
+                <div className="text-left">
+                  <p className="font-medium text-sm">Usuarios del Grupo</p>
+                  <p className="text-xs text-muted-foreground">Ver todos los miembros</p>
+                </div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="justify-start gap-2 h-auto py-3"
+                onClick={() => navigate('/service-requests')}
+              >
+                <ArrowLeftRight className="h-4 w-4" />
+                <div className="text-left">
+                  <p className="font-medium text-sm">Solicitudes Cross-Org</p>
+                  <p className="text-xs text-muted-foreground">Vehículos y transfers entre empresas</p>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </SuperAdminLayout>
+  );
+}
+
+// ─── Helper Components ──────────────────────────────────────────────────────
+
+function StatCard({ 
+  title, value, icon: Icon, loading, description, highlight 
+}: { 
+  title: string; 
+  value: number; 
+  icon: typeof Building2; 
+  loading: boolean; 
+  description: string;
+  highlight?: boolean;
+}) {
+  return (
+    <Card className={highlight ? 'border-yellow-300 dark:border-yellow-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${highlight ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-muted'}`}>
+          <Icon className={`h-5 w-5 ${highlight ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-8 w-16" />
+        ) : (
+          <>
+            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MiniStatCard({ 
+  label, value, icon, highlight 
+}: { 
+  label: string; 
+  value: number; 
+  icon: ReactNode;
+  highlight?: boolean;
+}) {
+  return (
+    <Card className={`${highlight ? 'border-yellow-300 dark:border-yellow-700 bg-yellow-50/50 dark:bg-yellow-900/10' : ''}`}>
+      <CardContent className="py-4 flex items-center gap-3">
+        {icon}
+        <div>
+          <p className="text-xl font-bold">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

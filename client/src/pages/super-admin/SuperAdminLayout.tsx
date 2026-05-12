@@ -26,17 +26,12 @@ interface SuperAdminLayoutProps {
 }
 
 const navItems = [
-  { to: '/super-admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/super-admin/alerts', icon: Bell, label: 'Alertas', badge: 'alerts' as const },
+  { to: '/super-admin', icon: LayoutDashboard, label: 'Panel de Grupo', end: true },
   { to: '/super-admin/organizations', icon: Building2, label: 'Organizaciones' },
   { to: '/super-admin/users', icon: Users, label: 'Usuarios' },
-  { to: '/super-admin/feedback', icon: MessageSquare, label: 'Feedback', badge: 'feedback' as const },
-  { to: '/super-admin/subscriptions', icon: CreditCard, label: 'Suscripciones' },
-  { to: '/super-admin/coupons', icon: Ticket, label: 'Cupones' },
   { to: '/super-admin/operations', icon: Wrench, label: 'Operaciones' },
-  { to: '/super-admin/feature-flags', icon: Flag, label: 'Feature Flags' },
   { to: '/super-admin/audit-logs', icon: History, label: 'Auditoría' },
-  { to: '/super-admin/docs', icon: Code, label: 'Documentación' },
+  { to: '/super-admin/feedback', icon: MessageSquare, label: 'Feedback', badge: 'feedback' as const },
 ];
 
 export function SuperAdminLayout({ children, title }: SuperAdminLayoutProps) {
@@ -88,7 +83,7 @@ export function SuperAdminLayout({ children, title }: SuperAdminLayoutProps) {
               <span className="flex-1">{item.label}</span>
               {item.badge && getBadgeCount(item.badge) > 0 && (
                 <Badge 
-                  variant={item.badge === 'alerts' && activePaymentCount > 0 ? "destructive" : "secondary"} 
+                  variant="secondary" 
                   className="h-5 min-w-5 flex items-center justify-center text-xs"
                 >
                   {getBadgeCount(item.badge)}
