@@ -104,6 +104,7 @@ import {
   handleUpsertSchedule,
   handleBulkUpsertSchedules,
   handleGetAvailableStaff,
+  handleReorderTeamMembers,
 } from "../scheduleEndpoints";
 import { handleGetStaffCapacity } from "../staffCapacityEndpoint";
 import {
@@ -244,6 +245,7 @@ async function startServer() {
   app.post("/api/get-weekly-schedule", handleGetWeeklySchedule);
   app.post("/api/upsert-schedule", handleUpsertSchedule);
   app.post("/api/bulk-upsert-schedules", handleBulkUpsertSchedules);
+  app.post("/api/reorder-team-members", handleReorderTeamMembers);
   app.post("/api/get-available-staff", handleGetAvailableStaff);
   app.post("/api/get-staff-capacity", handleGetStaffCapacity);
   app.post("/api/get-staff-capacity-week", handleGetStaffCapacityWeek);

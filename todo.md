@@ -586,3 +586,4 @@
 - [x] Filtrar Preparación de desplegable Rental en reservas — solo deben aparecer en columna Escoba
 - [x] Rediseñar UI de página Horarios: horarios como contenido principal, carga semanal más compacta (no debe empujar los horarios abajo)
 - [x] Bug: Carga Semanal aparece intercalada entre equipos de horarios — movida dentro del scroll, después de todos los grids de equipos
+- [x] Feature: Reordenar empleados dentro de cada equipo en el grid de horarios (botones arriba/abajo en hover) con persistencia en Supabase

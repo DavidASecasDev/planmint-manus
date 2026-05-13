@@ -207,9 +207,11 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
       .select(`
         user_id,
         team_id,
+        sort_order,
         teams!inner(id, name, color, organization_id)
       `)
-      .eq("teams.organization_id", orgId);
+      .eq("teams.organization_id", orgId)
+      .order("sort_order", { ascending: true });
 
     if (tmError) throw tmError;
 
@@ -474,6 +476,54 @@ export async function handleGetAvailableStaff(req: Request, res: Response) {
   } catch (err: any) {
     if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
     console.error("[get-available-staff]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+
+/**
+ * POST /api/reorder-team-members
+ * Reorder members within a team by updating their sort_order.
+ * Body: { team_id: string, ordered_user_ids: string[] }
+ */
+export async function handleReorderTeamMembers(req: Request, res: Response) {
+  try {
+    const sb = getServiceClient();
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { team_id, ordered_user_ids } = req.body;
+    if (!team_id || !Array.isArray(ordered_user_ids) || ordered_user_ids.length === 0) {
+      return res.status(400).json({ ok: false, error: "team_id and ordered_user_ids are required" });
+    }
+
+    // Verify the team belongs to the organization
+    const { data: team, error: teamErr } = await sb
+      .from("teams")
+      .select("id")
+      .eq("id", team_id)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (teamErr || !team) {
+      return res.status(404).json({ ok: false, error: "Team not found" });
+    }
+
+    // Update sort_order for each member
+    const updates = ordered_user_ids.map((userId: string, index: number) =>
+      sb
+        .from("team_members")
+        .update({ sort_order: index })
+        .eq("team_id", team_id)
+        .eq("user_id", userId)
+    );
+
+    await Promise.all(updates);
+
+    return res.json({ ok: true });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[reorder-team-members]", err);
     return res.status(500).json({ ok: false, error: err.message });
   }
 }

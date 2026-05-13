@@ -225,8 +225,8 @@ export default function Schedules() {
         profileMap.set(p.id, p);
       }
 
-      // Group teamMembers by team
-      const teamMap = new Map<string, { team_id: string; team_name: string; color: string; memberIds: Set<string> }>();
+      // Group teamMembers by team, preserving sort_order
+      const teamMap = new Map<string, { team_id: string; team_name: string; color: string; members: { user_id: string; sort_order: number }[] }>();
       for (const tm of raw.teamMembers || []) {
         const teamInfo = tm.teams;
         if (!teamInfo) continue;
@@ -235,24 +235,35 @@ export default function Schedules() {
             team_id: teamInfo.id,
             team_name: teamInfo.name,
             color: teamInfo.color,
-            memberIds: new Set(),
+            members: [],
           });
         }
-        teamMap.get(teamInfo.id)!.memberIds.add(tm.user_id);
+        // Avoid duplicates
+        const existing = teamMap.get(teamInfo.id)!;
+        if (!existing.members.some(m => m.user_id === tm.user_id)) {
+          existing.members.push({ user_id: tm.user_id, sort_order: (tm as any).sort_order ?? 0 });
+        }
       }
 
-      // Convert to TeamGroup[]
+      // Convert to TeamGroup[], sorted by sort_order then name
       const teams: TeamGroup[] = Array.from(teamMap.values()).map(t => ({
         team_id: t.team_id,
         team_name: t.team_name,
-        members: Array.from(t.memberIds).map(uid => {
-          const profile = profileMap.get(uid);
-          return {
-            id: uid,
-            name: profile?.name || 'Sin nombre',
-            avatar_url: profile?.avatar_url || null,
-          };
-        }).sort((a, b) => a.name.localeCompare(b.name)),
+        members: t.members
+          .sort((a, b) => {
+            if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+            const nameA = profileMap.get(a.user_id)?.name || '';
+            const nameB = profileMap.get(b.user_id)?.name || '';
+            return nameA.localeCompare(nameB);
+          })
+          .map(m => {
+            const profile = profileMap.get(m.user_id);
+            return {
+              id: m.user_id,
+              name: profile?.name || 'Sin nombre',
+              avatar_url: profile?.avatar_url || null,
+            };
+          }),
       }));
 
       // Convert dailyCounts to dayStats
@@ -329,6 +340,32 @@ export default function Schedules() {
       toast.error(err.message);
     },
   });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (params: { team_id: string; ordered_user_ids: string[] }) => {
+      const res = await apiInvoke('reorder-team-members', {
+        body: params,
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al reordenar');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleReorderMember = (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => {
+    const newMembers = [...members];
+    const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
+    if (targetIndex < 0 || targetIndex >= newMembers.length) return;
+    // Swap
+    [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
+    const ordered_user_ids = newMembers.map(m => m.id);
+    reorderMutation.mutate({ team_id: teamId, ordered_user_ids });
+  };
 
   const createTemplateMutation = useMutation({
     mutationFn: async (params: typeof templateForm) => {
@@ -635,6 +672,7 @@ export default function Schedules() {
                   onSelectCell={setSelectedCell}
                   onAssignShift={handleAssignShift}
                   canAssign={canAssign}
+                  onReorderMember={canAssign ? handleReorderMember : undefined}
                 />
               ))}
 
@@ -768,6 +806,7 @@ interface TeamScheduleGridProps {
   onSelectCell: (cell: { teamId: string; userId: string; date: string } | null) => void;
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
   canAssign: boolean;
+  onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
 }
 
 function TeamScheduleGrid({
@@ -780,6 +819,7 @@ function TeamScheduleGrid({
   onSelectCell,
   onAssignShift,
   canAssign,
+  onReorderMember,
 }: TeamScheduleGridProps) {
   // Calculate weekly hours per member
   const memberWeeklyHours = useMemo(() => {
@@ -892,20 +932,47 @@ function TeamScheduleGrid({
               </tr>
             </thead>
             <tbody>
-              {team.members.map(member => {
+              {team.members.map((member, memberIndex) => {
                 const weeklyHours = memberWeeklyHours.get(member.id) || 0;
+                const isFirst = memberIndex === 0;
+                const isLast = memberIndex === team.members.length - 1;
 
                 return (
                   <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
-                    {/* Name cell */}
-                    <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-3 py-1.5 border-r border-border/30">
-                      <div className="flex items-center gap-2">
+                    {/* Name cell with reorder buttons */}
+                    <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 border-r border-border/30">
+                      <div className="flex items-center gap-1.5">
+                        {/* Reorder buttons — visible on hover */}
+                        {onReorderMember && team.members.length > 1 && (
+                          <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => onReorderMember(team.team_id, team.members, memberIndex, 'up')}
+                              disabled={isFirst}
+                              className={cn(
+                                "p-0 h-3.5 w-3.5 flex items-center justify-center rounded-sm transition-colors",
+                                isFirst ? "text-muted-foreground/20 cursor-default" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                              )}
+                            >
+                              <ChevronLeft className="h-3 w-3 rotate-90" />
+                            </button>
+                            <button
+                              onClick={() => onReorderMember(team.team_id, team.members, memberIndex, 'down')}
+                              disabled={isLast}
+                              className={cn(
+                                "p-0 h-3.5 w-3.5 flex items-center justify-center rounded-sm transition-colors",
+                                isLast ? "text-muted-foreground/20 cursor-default" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                              )}
+                            >
+                              <ChevronRight className="h-3 w-3 rotate-90" />
+                            </button>
+                          </div>
+                        )}
                         <Avatar className="h-7 w-7">
                           <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
                             {getInitials(member.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium truncate max-w-[120px]">
+                        <span className="text-sm font-medium truncate max-w-[110px]">
                           {member.name}
                         </span>
                       </div>
