@@ -652,6 +652,11 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       // Resolve team: prefer staff_schedules.team_id, fallback to team_members
       const effectiveTeamId = s.team_id || userTeamIdFromMembers.get(s.user_id) || null;
       const teamName = effectiveTeamId ? (teamNameById.get(effectiveTeamId) || "Unknown") : "Unknown";
+
+      // Exclude Directiva — they don't participate in operational tasks
+      const tn = teamName.toLowerCase();
+      if (tn.includes("directiva") || tn.includes("direcci")) return;
+
       staffShifts.push({
         userId: s.user_id,
         teamName,
