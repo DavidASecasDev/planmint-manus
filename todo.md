@@ -506,3 +506,4 @@
 - [x] Migrate org actions to backend: update org status, delete org, change plan (bypass RLS)
 - [x] Add confirmation dialog before removing a member from an organization (show consequences)
 - [x] Implement audit logging for all super admin actions (who did what and when)
+- [x] Traducir etiquetas de acciones en Auditoría al español (invitation.created → Invitación creada, etc.)

@@ -22,9 +22,19 @@ const ACTION_COLORS: Record<string, string> = {
   delete: 'bg-red-500/10 text-red-600 border-red-500/20',
   login: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
   logout: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
+  invitation: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  feature_flag: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+  module: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+  org: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  sync: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+  comment: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+  invoice: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  photo: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
+  preset: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
 };
 
 const ACTION_LABELS: Record<string, string> = {
+  // Super admin actions
   'create.member': 'Miembro añadido',
   'update.member_role': 'Rol cambiado',
   'update.member_reactivated': 'Miembro reactivado',
@@ -37,6 +47,37 @@ const ACTION_LABELS: Record<string, string> = {
   'delete.feedback': 'Feedback eliminado',
   'delete.task': 'Tarea eliminada',
   'delete.area': 'Área eliminada',
+  // Invitation actions (from DB triggers)
+  'invitation.created': 'Invitación creada',
+  'invitation.revoked': 'Invitación revocada',
+  'invitation.accepted': 'Invitación aceptada',
+  'invitation.expired': 'Invitación expirada',
+  'invitation.resent': 'Invitación reenviada',
+  // Organization actions
+  'org.delete_requested': 'Eliminación solicitada',
+  'org.created': 'Organización creada',
+  'org.updated': 'Organización actualizada',
+  // Feature flag actions
+  'feature_flag.toggle': 'Feature flag activado/desactivado',
+  'feature_flag.update': 'Feature flag actualizado',
+  'feature_flag.override_created': 'Override de feature flag creado',
+  'feature_flag.override_deleted': 'Override de feature flag eliminado',
+  // Module actions
+  'module_toggle': 'Módulo activado/desactivado',
+  'preset_apply': 'Preset aplicado',
+  // Data actions
+  'sync_vehicles': 'Sincronización de vehículos',
+  'comment_added': 'Comentario añadido',
+  'invoice_added': 'Factura añadida',
+  'invoice_removed': 'Factura eliminada',
+  'photo_added': 'Foto añadida',
+  'photo_removed': 'Foto eliminada',
+  // Generic CRUD
+  'create': 'Creación',
+  'update': 'Actualización',
+  'delete': 'Eliminación',
+  'view': 'Visualización',
+  'upgrade': 'Mejora de plan',
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -46,6 +87,13 @@ const ENTITY_LABELS: Record<string, string> = {
   user_feedback: 'Feedback',
   task: 'Tarea',
   area: 'Área',
+  organization_invitation: 'Invitación',
+  feature_flag: 'Feature Flag',
+  vehicle: 'Vehículo',
+  module: 'Módulo',
+  invoice: 'Factura',
+  photo: 'Foto',
+  comment: 'Comentario',
 };
 
 // ─── Metadata formatter ─────────────────────────────────────────────────────
@@ -196,7 +244,10 @@ export default function AuditLogs() {
                     <SelectItem value="create">Crear</SelectItem>
                     <SelectItem value="update">Actualizar</SelectItem>
                     <SelectItem value="delete">Eliminar</SelectItem>
-                    <SelectItem value="login">Login</SelectItem>
+                    <SelectItem value="invitation">Invitaciones</SelectItem>
+                    <SelectItem value="feature_flag">Feature Flags</SelectItem>
+                    <SelectItem value="module">Módulos</SelectItem>
+                    <SelectItem value="org.">Organización</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={entityFilter} onValueChange={(v) => { setEntityFilter(v); setPage(0); }}>
@@ -207,8 +258,10 @@ export default function AuditLogs() {
                     <SelectItem value="all">Todas las entidades</SelectItem>
                     <SelectItem value="organization_member">Miembros</SelectItem>
                     <SelectItem value="organization">Organizaciones</SelectItem>
+                    <SelectItem value="organization_invitation">Invitaciones</SelectItem>
                     <SelectItem value="subscription">Suscripciones</SelectItem>
                     <SelectItem value="user_feedback">Feedback</SelectItem>
+                    <SelectItem value="feature_flag">Feature Flags</SelectItem>
                     <SelectItem value="task">Tareas</SelectItem>
                     <SelectItem value="area">Áreas</SelectItem>
                   </SelectContent>
