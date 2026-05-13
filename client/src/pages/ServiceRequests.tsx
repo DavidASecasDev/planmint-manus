@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Plus,
@@ -39,10 +39,20 @@ import {
   Plane,
   Users,
   AlertCircle,
+  Eye,
+  Upload,
+  FileText,
+  Mail,
+  Home,
+  Loader2,
+  PlayCircle,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useLocation } from "wouter";
+import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/imageCompression";
 
 interface ServiceRequest {
   id: string;
@@ -50,8 +60,8 @@ interface ServiceRequest {
   requested_by_user_id: string;
   fulfilling_org_id: string;
   request_type: "vehicle" | "transfer";
-  status: "pending" | "approved" | "rejected" | "completed" | "cancelled";
-  priority: "low" | "normal" | "high" | "urgent";
+  status: "pending" | "in_progress" | "vehicle_assigned" | "approved" | "rejected" | "completed" | "cancelled";
+  priority: string;
   start_date: string;
   end_date: string | null;
   vehicle_category: string | null;
@@ -62,6 +72,10 @@ interface ServiceRequest {
   flight_number: string | null;
   client_name: string | null;
   client_phone: string | null;
+  client_email: string | null;
+  client_address: string | null;
+  passport_url: string | null;
+  driving_license_url: string | null;
   notes: string | null;
   internal_notes: string | null;
   resolved_by_user_id: string | null;
@@ -76,47 +90,39 @@ interface ServiceRequest {
   is_incoming: boolean;
 }
 
-interface AvailableOrg {
-  id: string;
-  name: string;
+interface VehicleModel {
+  label: string;
+  marca: string;
+  modelo: string;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendiente", icon: Clock, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  in_progress: { label: "En gestión", icon: PlayCircle, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
+  vehicle_assigned: { label: "Vehículo asignado", icon: Car, color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400" },
   approved: { label: "Aprobada", icon: CheckCircle2, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
+  completed: { label: "Completada", icon: CheckCircle2, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
   rejected: { label: "Rechazada", icon: XCircle, color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
-  completed: { label: "Completada", icon: CheckCircle2, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
   cancelled: { label: "Cancelada", icon: Ban, color: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400" },
-};
-
-const priorityConfig = {
-  low: { label: "Baja", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
-  normal: { label: "Normal", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  high: { label: "Alta", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
-  urgent: { label: "Urgente", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
 };
 
 export default function ServiceRequests() {
   const { session, organization } = useAuth();
   const { hasPermission } = usePermissions();
+  const [, setLocation] = useLocation();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
-  const [availableOrgs, setAvailableOrgs] = useState<AvailableOrg[]>([]);
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showResolveDialog, setShowResolveDialog] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
-  const [resolveAction, setResolveAction] = useState<"approve" | "reject">("approve");
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [internalNotes, setInternalNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPassport, setUploadingPassport] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
 
   // Create form state
   const [createForm, setCreateForm] = useState({
-    fulfilling_org_id: "",
     request_type: "vehicle" as "vehicle" | "transfer",
-    priority: "normal" as "low" | "normal" | "high" | "urgent",
     start_date: "",
     end_date: "",
     vehicle_category: "",
@@ -126,7 +132,11 @@ export default function ServiceRequests() {
     flight_number: "",
     client_name: "",
     client_phone: "",
+    client_email: "",
+    client_address: "",
     notes: "",
+    passport_url: "",
+    driving_license_url: "",
   });
 
   const canCreate = hasPermission("transfers.create");
@@ -152,17 +162,17 @@ export default function ServiceRequests() {
       } else {
         setRequests(json.data || []);
       }
-    } catch (err) {
+    } catch {
       toast.error("Error al cargar solicitudes");
     } finally {
       setLoading(false);
     }
   }, [session?.access_token, activeTab, statusFilter]);
 
-  const fetchAvailableOrgs = useCallback(async () => {
+  const fetchVehicleModels = useCallback(async () => {
     if (!session?.access_token) return;
     try {
-      const res = await fetch("/api/get-available-orgs", {
+      const res = await fetch("/api/get-vehicle-models", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -171,7 +181,7 @@ export default function ServiceRequests() {
       });
       const json = await res.json();
       if (!json.error) {
-        setAvailableOrgs(json.data || []);
+        setVehicleModels(json.data || []);
       }
     } catch {}
   }, [session?.access_token]);
@@ -181,28 +191,138 @@ export default function ServiceRequests() {
   }, [fetchRequests]);
 
   useEffect(() => {
-    fetchAvailableOrgs();
-  }, [fetchAvailableOrgs]);
+    fetchVehicleModels();
+  }, [fetchVehicleModels]);
+
+  const handleFileUpload = async (
+    file: File,
+    docType: "passport" | "driving_license"
+  ): Promise<string | null> => {
+    try {
+      let uploadFile: File = file;
+      // Compress images
+      if (file.type.startsWith("image/")) {
+        const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.85 });
+        uploadFile = compressed.file;
+      }
+
+      const ext = uploadFile.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+      const storagePath = `${organization?.id}/${docType}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("service-request-docs")
+        .upload(storagePath, uploadFile, { upsert: true });
+
+      if (uploadError) {
+        toast.error(`Error al subir ${file.name}`);
+        return null;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("service-request-docs")
+        .getPublicUrl(storagePath);
+
+      return urlData.publicUrl;
+    } catch {
+      toast.error("Error al subir archivo");
+      return null;
+    }
+  };
+
+  const handlePassportUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPassport(true);
+    const url = await handleFileUpload(file, "passport");
+    if (url) {
+      setCreateForm((f) => ({ ...f, passport_url: url }));
+      toast.success("Pasaporte/ID subido");
+    }
+    setUploadingPassport(false);
+  };
+
+  const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLicense(true);
+    const url = await handleFileUpload(file, "driving_license");
+    if (url) {
+      setCreateForm((f) => ({ ...f, driving_license_url: url }));
+      toast.success("Permiso de conducir subido");
+    }
+    setUploadingLicense(false);
+  };
 
   const handleCreate = async () => {
-    if (!createForm.fulfilling_org_id || !createForm.start_date) {
-      toast.error("Organización destino y fecha de inicio son obligatorios");
+    if (!createForm.start_date) {
+      toast.error("La fecha de inicio es obligatoria");
+      return;
+    }
+    if (!createForm.client_name) {
+      toast.error("El nombre del cliente es obligatorio");
       return;
     }
     setSubmitting(true);
     try {
+      const payload: any = {
+        request_type: createForm.request_type,
+        start_date: createForm.start_date,
+        end_date: createForm.end_date || undefined,
+        vehicle_category: createForm.vehicle_category || undefined,
+        passengers: createForm.passengers,
+        pickup_location: createForm.pickup_location || undefined,
+        dropoff_location: createForm.dropoff_location || undefined,
+        flight_number: createForm.flight_number || undefined,
+        client_name: createForm.client_name,
+        client_phone: createForm.client_phone || undefined,
+        client_email: createForm.client_email || undefined,
+        client_address: createForm.request_type === "vehicle" ? (createForm.client_address || undefined) : undefined,
+        notes: createForm.notes || undefined,
+      };
+
       const res = await fetch("/api/create-service-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session!.access_token}`,
         },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.error) {
         toast.error(json.error);
       } else {
+        // Upload documents if provided
+        const requestId = json.data.id;
+        if (createForm.passport_url) {
+          await fetch("/api/upload-service-request-doc", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session!.access_token}`,
+            },
+            body: JSON.stringify({
+              request_id: requestId,
+              doc_type: "passport",
+              file_url: createForm.passport_url,
+            }),
+          });
+        }
+        if (createForm.driving_license_url) {
+          await fetch("/api/upload-service-request-doc", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session!.access_token}`,
+            },
+            body: JSON.stringify({
+              request_id: requestId,
+              doc_type: "driving_license",
+              file_url: createForm.driving_license_url,
+            }),
+          });
+        }
         toast.success("Solicitud creada correctamente");
         setShowCreateDialog(false);
         resetCreateForm();
@@ -210,45 +330,6 @@ export default function ServiceRequests() {
       }
     } catch {
       toast.error("Error al crear la solicitud");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleResolve = async () => {
-    if (!selectedRequest) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/resolve-service-request", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session!.access_token}`,
-        },
-        body: JSON.stringify({
-          request_id: selectedRequest.id,
-          action: resolveAction,
-          internal_notes: internalNotes || undefined,
-          rejection_reason: resolveAction === "reject" ? rejectionReason : undefined,
-        }),
-      });
-      const json = await res.json();
-      if (json.error) {
-        toast.error(json.error);
-      } else {
-        toast.success(
-          resolveAction === "approve"
-            ? "Solicitud aprobada"
-            : "Solicitud rechazada"
-        );
-        setShowResolveDialog(false);
-        setSelectedRequest(null);
-        setRejectionReason("");
-        setInternalNotes("");
-        fetchRequests();
-      }
-    } catch {
-      toast.error("Error al resolver la solicitud");
     } finally {
       setSubmitting(false);
     }
@@ -278,9 +359,7 @@ export default function ServiceRequests() {
 
   const resetCreateForm = () => {
     setCreateForm({
-      fulfilling_org_id: "",
       request_type: "vehicle",
-      priority: "normal",
       start_date: "",
       end_date: "",
       vehicle_category: "",
@@ -290,14 +369,12 @@ export default function ServiceRequests() {
       flight_number: "",
       client_name: "",
       client_phone: "",
+      client_email: "",
+      client_address: "",
       notes: "",
+      passport_url: "",
+      driving_license_url: "",
     });
-  };
-
-  const openResolveDialog = (request: ServiceRequest, action: "approve" | "reject") => {
-    setSelectedRequest(request);
-    setResolveAction(action);
-    setShowResolveDialog(true);
   };
 
   const pendingIncoming = requests.filter(
@@ -350,15 +427,16 @@ export default function ServiceRequests() {
           </TabsList>
         </Tabs>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="pending">Pendientes</SelectItem>
-            <SelectItem value="approved">Aprobadas</SelectItem>
-            <SelectItem value="rejected">Rechazadas</SelectItem>
+            <SelectItem value="in_progress">En gestión</SelectItem>
+            <SelectItem value="vehicle_assigned">Vehículo asignado</SelectItem>
             <SelectItem value="completed">Completadas</SelectItem>
+            <SelectItem value="rejected">Rechazadas</SelectItem>
             <SelectItem value="cancelled">Canceladas</SelectItem>
           </SelectContent>
         </Select>
@@ -382,7 +460,7 @@ export default function ServiceRequests() {
             <h3 className="font-medium text-lg">No hay solicitudes</h3>
             <p className="text-muted-foreground mt-1 text-sm">
               {canCreate
-                ? "Crea una nueva solicitud para pedir un vehículo o transfer a otra organización"
+                ? "Crea una nueva solicitud para pedir un vehículo o transfer"
                 : "No tienes solicitudes de servicio en esta vista"}
             </p>
           </CardContent>
@@ -394,8 +472,7 @@ export default function ServiceRequests() {
               key={request.id}
               request={request}
               canManage={canManage}
-              onApprove={() => openResolveDialog(request, "approve")}
-              onReject={() => openResolveDialog(request, "reject")}
+              onView={() => setLocation(`/service-requests/${request.id}`)}
               onCancel={() => handleCancel(request.id)}
             />
           ))}
@@ -409,27 +486,14 @@ export default function ServiceRequests() {
             <DialogTitle>Nueva Solicitud de Servicio</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Org info */}
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="text-muted-foreground">
+                <strong>De:</strong> {organization?.name} → <strong>A:</strong> Azul Cars
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Organización destino *</Label>
-                <Select
-                  value={createForm.fulfilling_org_id}
-                  onValueChange={(v) =>
-                    setCreateForm({ ...createForm, fulfilling_org_id: v })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableOrgs.map((org) => (
-                      <SelectItem key={org.id} value={org.id}>
-                        {org.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label>Tipo de solicitud *</Label>
                 <Select
@@ -446,6 +510,20 @@ export default function ServiceRequests() {
                     <SelectItem value="transfer">Transfer</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Pasajeros</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={createForm.passengers}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      passengers: parseInt(e.target.value) || 1,
+                    })
+                  }
+                />
               </div>
             </div>
 
@@ -472,55 +550,31 @@ export default function ServiceRequests() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Vehicle category dropdown - only for vehicle type */}
+            {createForm.request_type === "vehicle" && (
               <div className="space-y-2">
-                <Label>Prioridad</Label>
+                <Label>Categoría de vehículo (marca y modelo)</Label>
                 <Select
-                  value={createForm.priority}
-                  onValueChange={(v: "low" | "normal" | "high" | "urgent") =>
-                    setCreateForm({ ...createForm, priority: v })
+                  value={createForm.vehicle_category}
+                  onValueChange={(v) =>
+                    setCreateForm({ ...createForm, vehicle_category: v })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Seleccionar marca/modelo..." />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Baja</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="urgent">Urgente</SelectItem>
+                  <SelectContent className="max-h-[300px]">
+                    {vehicleModels.map((vm) => (
+                      <SelectItem key={vm.label} value={vm.label}>
+                        {vm.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Pasajeros</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={createForm.passengers}
-                  onChange={(e) =>
-                    setCreateForm({
-                      ...createForm,
-                      passengers: parseInt(e.target.value) || 1,
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            {createForm.request_type === "vehicle" && (
-              <div className="space-y-2">
-                <Label>Categoría de vehículo</Label>
-                <Input
-                  placeholder="Ej: SUV, Sedan, Van..."
-                  value={createForm.vehicle_category}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, vehicle_category: e.target.value })
-                  }
-                />
-              </div>
             )}
 
+            {/* Transfer-specific fields */}
             {createForm.request_type === "transfer" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
@@ -564,26 +618,137 @@ export default function ServiceRequests() {
               </>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nombre del cliente</Label>
-                <Input
-                  placeholder="Nombre completo"
-                  value={createForm.client_name}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, client_name: e.target.value })
-                  }
-                />
+            {/* Client info section */}
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Datos del cliente
+              </h4>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nombre completo *</Label>
+                    <Input
+                      placeholder="Nombre del cliente"
+                      value={createForm.client_name}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, client_name: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Teléfono</Label>
+                    <Input
+                      placeholder="+34 600 000 000"
+                      value={createForm.client_phone}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, client_phone: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    Email del cliente
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="cliente@email.com"
+                    value={createForm.client_email}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, client_email: e.target.value })
+                    }
+                  />
+                </div>
+
+                {/* Address - only for vehicle requests */}
+                {createForm.request_type === "vehicle" && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <Home className="h-3.5 w-3.5" />
+                      Dirección del domicilio (país de origen)
+                    </Label>
+                    <Input
+                      placeholder="Dirección completa del cliente"
+                      value={createForm.client_address}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, client_address: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label>Teléfono del cliente</Label>
-                <Input
-                  placeholder="+34 600 000 000"
-                  value={createForm.client_phone}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, client_phone: e.target.value })
-                  }
-                />
+            </div>
+
+            {/* Document uploads */}
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Documentos del cliente
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Pasaporte / ID</Label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handlePassportUpload}
+                      className="hidden"
+                      id="passport-upload"
+                      disabled={uploadingPassport}
+                    />
+                    <label
+                      htmlFor="passport-upload"
+                      className={`flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer text-sm transition-colors ${
+                        createForm.passport_url
+                          ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400"
+                          : "border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      {uploadingPassport ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : createForm.passport_url ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {createForm.passport_url ? "Subido" : "Subir archivo"}
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Permiso de conducir</Label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleLicenseUpload}
+                      className="hidden"
+                      id="license-upload"
+                      disabled={uploadingLicense}
+                    />
+                    <label
+                      htmlFor="license-upload"
+                      className={`flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer text-sm transition-colors ${
+                        createForm.driving_license_url
+                          ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400"
+                          : "border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      {uploadingLicense ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : createForm.driving_license_url ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {createForm.driving_license_url ? "Subido" : "Subir archivo"}
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -602,86 +767,8 @@ export default function ServiceRequests() {
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreate} disabled={submitting}>
+            <Button onClick={handleCreate} disabled={submitting || uploadingPassport || uploadingLicense}>
               {submitting ? "Creando..." : "Crear Solicitud"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Resolve Dialog */}
-      <Dialog open={showResolveDialog} onOpenChange={setShowResolveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {resolveAction === "approve"
-                ? "Aprobar Solicitud"
-                : "Rechazar Solicitud"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {selectedRequest && (
-              <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
-                <p>
-                  <strong>Tipo:</strong>{" "}
-                  {selectedRequest.request_type === "vehicle"
-                    ? "Vehículo"
-                    : "Transfer"}
-                </p>
-                <p>
-                  <strong>De:</strong> {selectedRequest.requesting_org_name}
-                </p>
-                <p>
-                  <strong>Fecha:</strong>{" "}
-                  {format(new Date(selectedRequest.start_date), "dd MMM yyyy HH:mm", {
-                    locale: es,
-                  })}
-                </p>
-                {selectedRequest.client_name && (
-                  <p>
-                    <strong>Cliente:</strong> {selectedRequest.client_name}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {resolveAction === "reject" && (
-              <div className="space-y-2">
-                <Label>Motivo del rechazo</Label>
-                <Textarea
-                  placeholder="Explica por qué se rechaza..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Notas internas (opcional)</Label>
-              <Textarea
-                placeholder="Notas visibles solo para tu organización..."
-                value={internalNotes}
-                onChange={(e) => setInternalNotes(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowResolveDialog(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleResolve}
-              disabled={submitting}
-              variant={resolveAction === "reject" ? "destructive" : "default"}
-            >
-              {submitting
-                ? "Procesando..."
-                : resolveAction === "approve"
-                ? "Aprobar"
-                : "Rechazar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -696,22 +783,19 @@ export default function ServiceRequests() {
 function RequestCard({
   request,
   canManage,
-  onApprove,
-  onReject,
+  onView,
   onCancel,
 }: {
   request: ServiceRequest;
   canManage: boolean;
-  onApprove: () => void;
-  onReject: () => void;
+  onView: () => void;
   onCancel: () => void;
 }) {
-  const status = statusConfig[request.status];
-  const priority = priorityConfig[request.priority];
+  const status = statusConfig[request.status] || statusConfig.pending;
   const StatusIcon = status.icon;
 
   return (
-    <Card className="hover:shadow-sm transition-shadow">
+    <Card className="hover:shadow-sm transition-shadow cursor-pointer" onClick={onView}>
       <CardContent className="py-4">
         <div className="flex items-start justify-between gap-4">
           {/* Left: Info */}
@@ -739,15 +823,6 @@ function RequestCard({
                 )}
                 {request.request_type === "vehicle" ? "Vehículo" : "Transfer"}
               </Badge>
-
-              {/* Priority */}
-              {request.priority !== "normal" && (
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${priority.color}`}
-                >
-                  {priority.label}
-                </span>
-              )}
 
               {/* Status */}
               <span
@@ -792,6 +867,14 @@ function RequestCard({
               )}
             </div>
 
+            {/* Vehicle category */}
+            {request.vehicle_category && (
+              <p className="text-sm text-muted-foreground">
+                <Car className="h-3.5 w-3.5 inline mr-1" />
+                {request.vehicle_category}
+              </p>
+            )}
+
             {/* Locations for transfers */}
             {request.request_type === "transfer" &&
               (request.pickup_location || request.dropoff_location) && (
@@ -825,23 +908,14 @@ function RequestCard({
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Incoming + pending = can approve/reject */}
-            {request.is_incoming &&
-              request.status === "pending" &&
-              canManage && (
-                <>
-                  <Button size="sm" onClick={onApprove}>
-                    Aprobar
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={onReject}>
-                    Rechazar
-                  </Button>
-                </>
-              )}
+          <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Button size="sm" variant="outline" onClick={onView}>
+              <Eye className="h-4 w-4 mr-1" />
+              Ver
+            </Button>
 
-            {/* Outgoing + pending = can cancel */}
-            {!request.is_incoming && request.status === "pending" && (
+            {/* Outgoing + pending/in_progress = can cancel */}
+            {!request.is_incoming && ["pending", "in_progress"].includes(request.status) && (
               <Button size="sm" variant="outline" onClick={onCancel}>
                 Cancelar
               </Button>

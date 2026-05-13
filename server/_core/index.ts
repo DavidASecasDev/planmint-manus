@@ -72,6 +72,11 @@ import {
   handleResolveServiceRequest,
   handleCancelServiceRequest,
   handleGetAvailableOrgs,
+  handleUpdateServiceRequestStatus,
+  handleGetServiceRequestDetail,
+  handleGetVehicleModels,
+  handleUploadServiceRequestDoc,
+  handleGetAvailableVehicles,
 } from "../serviceRequestEndpoints";
 import {
   handleSuperAdminAddMember,
@@ -201,6 +206,11 @@ async function startServer() {
   app.post("/api/resolve-service-request", handleResolveServiceRequest);
   app.post("/api/cancel-service-request", handleCancelServiceRequest);
   app.post("/api/get-available-orgs", handleGetAvailableOrgs);
+  app.post("/api/update-service-request-status", handleUpdateServiceRequestStatus);
+  app.post("/api/get-service-request-detail", handleGetServiceRequestDetail);
+  app.post("/api/get-vehicle-models", handleGetVehicleModels);
+  app.post("/api/upload-service-request-doc", handleUploadServiceRequestDoc);
+  app.post("/api/get-available-vehicles", handleGetAvailableVehicles);
 
   // tRPC API
   app.use(

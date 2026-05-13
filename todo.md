@@ -508,3 +508,12 @@
 - [x] Implement audit logging for all super admin actions (who did what and when)
 - [x] Traducir etiquetas de acciones en Auditoría al español (invitation.created → Invitación creada, etc.)
 - [x] Super Admin: User Detail page — memberships per org, recent activity (audit logs), permissions per org
+- [x] Solicitudes de Servicio: Eliminar campo Prioridad del formulario y vista
+- [x] Solicitudes de Servicio: Organización origen automática (la org del solicitante)
+- [x] Solicitudes de Servicio: Añadir desplegable categoría vehículo (marca+modelo existentes en flota)
+- [x] Solicitudes de Servicio: Añadir campos cliente final (nombre, email, dirección domicilio solo para tipo Vehículo)
+- [x] Solicitudes de Servicio: Añadir campos subida documentos (pasaporte/ID + permiso conducir, imagen o PDF)
+- [x] Solicitudes de Servicio: Vista de detalle/gestión completa con toda la info
+- [x] Solicitudes de Servicio: Flujo de estados paso a paso (Pendiente → En gestión → Vehículo asignado → Completada)
+- [x] Solicitudes de Servicio: Asignar vehículo concreto desde la vista de gestión
+- [x] Solicitudes de Servicio: Añadir notas/comentarios en la vista de gestión
