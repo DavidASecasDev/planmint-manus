@@ -1360,6 +1360,7 @@ export function ReservationsTable() {
                                 onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'rental', userId, teamId)}
                                 date={refDate}
                                 reservationTime={refTime}
+                                assignmentRole="rental"
                               />
                             );
                           })()}
@@ -1374,6 +1375,7 @@ export function ReservationsTable() {
                                 onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'escoba', userId, teamId)}
                                 date={refDate}
                                 reservationTime={refTime}
+                                assignmentRole="escoba"
                               />
                             );
                           })()}

@@ -23,6 +23,11 @@ interface AssigneeSelectProps {
   /** Optional: time of the reservation in HH:MM format (e.g. "11:00").
    *  Used to determine who is on shift at that time instead of the current time. */
   reservationTime?: string | null;
+  /** Optional: assignment role context.
+   *  'rental' = exclude Preparación team (they can't do deliveries/returns)
+   *  'escoba' = show all teams (Preparación can drive as escoba)
+   *  undefined = show all (backwards compatible) */
+  assignmentRole?: 'rental' | 'escoba';
 }
 
 interface Member {
@@ -41,47 +46,65 @@ function parseTimeToMinutes(time: string | null | undefined): number | null {
   return parts[0] * 60 + parts[1];
 }
 
-export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reservationTime }: AssigneeSelectProps) {
+export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reservationTime, assignmentRole }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const { teams } = useTeams();
   const { members: orgMembers } = useOrganizationMembers();
 
-  // Find the Directiva team ID
+  // Find the Directiva team ID and Preparación team ID
   const directivaTeamId = useMemo(() => {
     const dt = teams.find(t => t.name.toLowerCase().includes('directiva') || t.name.toLowerCase().includes('direcci'));
     return dt?.id || null;
   }, [teams]);
 
-  // Fetch Directiva team members to exclude them from the assignee list
+  const preparacionTeamId = useMemo(() => {
+    const pt = teams.find(t => {
+      const tn = t.name.toLowerCase();
+      return tn.includes('preparaci') || tn.includes('preparacion');
+    });
+    return pt?.id || null;
+  }, [teams]);
+
+  // Fetch excluded team members (Directiva always, Preparación when assignmentRole='rental')
   const orgId = orgMembers[0]?.organization_id || null;
-  const { data: directivaUserIds = [] } = useQuery({
-    queryKey: ['directiva-members', directivaTeamId],
+
+  // IDs of teams to exclude from the user list
+  const excludedTeamIds = useMemo(() => {
+    const ids: string[] = [];
+    if (directivaTeamId) ids.push(directivaTeamId);
+    // When assigning Rental role, exclude Preparación (they can only be Escoba)
+    if (assignmentRole === 'rental' && preparacionTeamId) ids.push(preparacionTeamId);
+    return ids;
+  }, [directivaTeamId, preparacionTeamId, assignmentRole]);
+
+  const { data: excludedUserIds = [] } = useQuery({
+    queryKey: ['excluded-members', ...excludedTeamIds],
     queryFn: async (): Promise<string[]> => {
-      if (!directivaTeamId) return [];
+      if (excludedTeamIds.length === 0) return [];
       const { data, error } = await supabase
         .from('team_members')
         .select('user_id')
-        .eq('team_id', directivaTeamId);
+        .in('team_id', excludedTeamIds);
       if (error) {
-        console.error('Error fetching directiva members:', error);
+        console.error('Error fetching excluded members:', error);
         return [];
       }
       return (data || []).map(d => d.user_id);
     },
-    enabled: !!directivaTeamId,
+    enabled: excludedTeamIds.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
-  // Filter to only active members, excluding Directiva, and map to the Member interface
+  // Filter to only active members, excluding Directiva (always) and Preparación (for Rental role)
   const members: Member[] = useMemo(() => {
-    const directivaSet = new Set(directivaUserIds);
+    const excludedSet = new Set(excludedUserIds);
     return orgMembers
-      .filter(m => m.status === 'active' && !directivaSet.has(m.user_id))
+      .filter(m => m.status === 'active' && !excludedSet.has(m.user_id))
       .map(m => ({
         id: m.user_id,
         name: m.name || m.profile?.name || null,
       }));
-  }, [orgMembers, directivaUserIds]);
+  }, [orgMembers, excludedUserIds]);
 
   // Fetch staff availability for the given date
   const { data: availability = {} } = useAvailableStaff(date || null);
@@ -342,12 +365,12 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reser
               })()}
             </>
           )}
-          {teams.filter(t => t.id !== directivaTeamId).length > 0 && (
+          {teams.filter(t => !excludedTeamIds.includes(t.id)).length > 0 && (
             <>
               <p className="text-xs text-muted-foreground px-2 py-1 font-medium mt-2">
                 Equipos
               </p>
-              {teams.filter(t => t.id !== directivaTeamId).map((team) => (
+              {teams.filter(t => !excludedTeamIds.includes(t.id)).map((team) => (
                 <button
                   key={team.id}
                   className={cn(
