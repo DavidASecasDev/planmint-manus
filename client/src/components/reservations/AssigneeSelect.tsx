@@ -8,9 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useTeams } from '@/hooks/useTeams';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useOrganizationMembers } from '@/hooks/usePermissions';
 import { useAvailableStaff } from '@/hooks/useAvailableStaff';
 
 interface AssigneeSelectProps {
@@ -30,23 +28,17 @@ interface Member {
 export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const { teams } = useTeams();
-  const { profile } = useAuth();
+  const { members: orgMembers } = useOrganizationMembers();
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['org-members', profile?.organization_id],
-    queryFn: async () => {
-      if (!profile?.organization_id) return [];
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .eq('organization_id', profile.organization_id);
-      
-      if (error) throw error;
-      return data as Member[];
-    },
-    enabled: !!profile?.organization_id,
-  });
+  // Filter to only active members and map to the Member interface
+  const members: Member[] = useMemo(() => {
+    return orgMembers
+      .filter(m => m.status === 'active')
+      .map(m => ({
+        id: m.user_id,
+        name: m.name || m.profile?.name || null,
+      }));
+  }, [orgMembers]);
 
   // Fetch staff availability for the given date
   const { data: availability = {} } = useAvailableStaff(date || null);

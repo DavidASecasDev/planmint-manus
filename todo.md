@@ -534,3 +534,4 @@
 - [x] Bug: Página Horarios no muestra sidebar/DashboardLayout — se renderiza sin el layout general
 - [x] Bug: Botón "Copiar semana" y columna "Horas" no visibles en producción
 - [x] Bug: Popover de asignación de turno se cierra inmediatamente al hacer clic en celda de Jordan (y posiblemente otras celdas)
+- [x] Bug: AssigneeSelect muestra usuarios eliminados de la organización (David Patuto, Christa) — filtrar solo miembros activos
