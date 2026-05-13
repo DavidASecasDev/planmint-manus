@@ -521,3 +521,10 @@
 - [x] Bug: Pulsar sobre una solicitud no abre el detalle, requiere refrescar la página
 - [x] Rediseñar página de detalle de solicitud de servicio para mejor UX/intuitividad
 - [x] Bug: No se pueden subir fotos de documentos en la vista de detalle de solicitud de servicio
+- [x] Horarios: Crear tablas shift_templates y staff_schedules en Supabase
+- [x] Horarios: Backend endpoints CRUD (turnos, plantillas, consultas por semana)
+- [x] Horarios: Página principal con cuadrante semanal (filas=empleados, cols=días)
+- [x] Horarios: Asignación rápida de turnos con clic en celda
+- [x] Horarios: Cabecera con conteo entregas/devoluciones por día (datos de Reservas)
+- [ ] Horarios: Integración con AssigneeSelect para filtrar por turno activo
+- [x] Horarios: Añadir entrada en sidebar y ruta en App.tsx

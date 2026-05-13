@@ -1,0 +1,806 @@
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiInvoke } from '@/lib/apiClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import {
+  ChevronLeft,
+  ChevronRight,
+  CalendarClock,
+  Plus,
+  Settings2,
+  ArrowDown,
+  ArrowUp,
+  Minus,
+  Users,
+  Pencil,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface ShiftTemplate {
+  id: string;
+  name: string;
+  start_time: string | null;
+  end_time: string | null;
+  color: string;
+  is_day_off: boolean;
+  sort_order: number;
+}
+
+interface ScheduleEntry {
+  id: string;
+  user_id: string;
+  date: string;
+  shift_template_id: string | null;
+  team_id: string | null;
+  notes: string | null;
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+interface TeamGroup {
+  team_id: string;
+  team_name: string;
+  members: StaffMember[];
+}
+
+interface DayStats {
+  deliveries: number;
+  returns: number;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getWeekDates(weekOffset: number): Date[] {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function formatDateISO(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+function formatDayLabel(d: Date): string {
+  const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  return days[d.getDay()];
+}
+
+function formatDateShort(d: Date): string {
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+function isToday(d: Date): boolean {
+  const now = new Date();
+  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+}
+
+function getInitials(name: string): string {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function Schedules() {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const orgId = profile?.organization_id;
+
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedCell, setSelectedCell] = useState<{ userId: string; date: string } | null>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<ShiftTemplate | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    start_time: '',
+    end_time: '',
+    color: '#3B82F6',
+    is_day_off: false,
+  });
+
+  const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
+  const weekStart = formatDateISO(weekDates[0]);
+  const weekEnd = formatDateISO(weekDates[6]);
+
+  // ─── Queries ─────────────────────────────────────────────────────────────
+
+  const { data: shiftTemplates = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ['shift-templates', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const res = await apiInvoke<{ data: ShiftTemplate[] }>('get-shift-templates', {
+        body: { organizationId: orgId },
+      });
+      return res.data?.data || [];
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: weeklyData, isLoading: scheduleLoading } = useQuery({
+    queryKey: ['weekly-schedule', orgId, weekStart, weekEnd],
+    queryFn: async () => {
+      if (!orgId) return null;
+      const res = await apiInvoke<{
+        ok: boolean;
+        data: {
+          teamMembers: Array<{ user_id: string; team_id: string; teams: { id: string; name: string; color: string; organization_id: string } }>;
+          profiles: Array<{ id: string; name: string; avatar_url: string | null }>;
+          schedules: ScheduleEntry[];
+          dailyCounts: Record<string, { entregas: number; devoluciones: number; transfers: number }>;
+        };
+      }>('get-weekly-schedule', {
+        body: { organizationId: orgId, start_date: weekStart, end_date: weekEnd },
+      });
+
+      if (res.error || !res.data) return null;
+      const raw = res.data.data;
+      if (!raw) return null;
+
+      // Build profile lookup
+      const profileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>();
+      for (const p of raw.profiles || []) {
+        profileMap.set(p.id, p);
+      }
+
+      // Group teamMembers by team
+      const teamMap = new Map<string, { team_id: string; team_name: string; color: string; memberIds: Set<string> }>();
+      for (const tm of raw.teamMembers || []) {
+        const teamInfo = tm.teams;
+        if (!teamInfo) continue;
+        if (!teamMap.has(teamInfo.id)) {
+          teamMap.set(teamInfo.id, {
+            team_id: teamInfo.id,
+            team_name: teamInfo.name,
+            color: teamInfo.color,
+            memberIds: new Set(),
+          });
+        }
+        teamMap.get(teamInfo.id)!.memberIds.add(tm.user_id);
+      }
+
+      // Convert to TeamGroup[]
+      const teams: TeamGroup[] = Array.from(teamMap.values()).map(t => ({
+        team_id: t.team_id,
+        team_name: t.team_name,
+        members: Array.from(t.memberIds).map(uid => {
+          const profile = profileMap.get(uid);
+          return {
+            id: uid,
+            name: profile?.name || 'Sin nombre',
+            avatar_url: profile?.avatar_url || null,
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+
+      // Convert dailyCounts to dayStats
+      const dayStats: Record<string, DayStats> = {};
+      for (const [date, counts] of Object.entries(raw.dailyCounts || {})) {
+        dayStats[date] = {
+          deliveries: counts.entregas,
+          returns: counts.devoluciones,
+        };
+      }
+
+      return {
+        teams,
+        schedules: raw.schedules || [],
+        dayStats,
+      };
+    },
+    enabled: !!orgId,
+    staleTime: 30 * 1000,
+  });
+
+  const teams = weeklyData?.teams || [];
+  const schedules = weeklyData?.schedules || [];
+  const dayStats = weeklyData?.dayStats || {};
+
+  // Build schedule lookup: userId+date -> ScheduleEntry
+  const scheduleLookup = useMemo(() => {
+    const map = new Map<string, ScheduleEntry>();
+    for (const s of schedules) {
+      map.set(`${s.user_id}__${s.date}`, s);
+    }
+    return map;
+  }, [schedules]);
+
+  // ─── Mutations ───────────────────────────────────────────────────────────
+
+  const upsertMutation = useMutation({
+    mutationFn: async (params: { userId: string; date: string; shiftTemplateId: string | null }) => {
+      const res = await apiInvoke('upsert-schedule', {
+        body: {
+          organizationId: orgId,
+          user_id: params.userId,
+          date: params.date,
+          shift_template_id: params.shiftTemplateId,
+        },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al guardar');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: async (params: typeof templateForm) => {
+      const res = await apiInvoke('create-shift-template', {
+        body: { organizationId: orgId, ...params },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al crear turno');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shift-templates', orgId] });
+      toast.success('Turno creado');
+      setShowTemplateDialog(false);
+      resetTemplateForm();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async (params: typeof templateForm & { id: string }) => {
+      const { id: template_id, ...rest } = params;
+      const res = await apiInvoke('update-shift-template', {
+        body: { organizationId: orgId, template_id, ...rest },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al actualizar turno');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shift-templates', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+      toast.success('Turno actualizado');
+      setShowTemplateDialog(false);
+      setEditingTemplate(null);
+      resetTemplateForm();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiInvoke('delete-shift-template', {
+        body: { organizationId: orgId, template_id: id },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al eliminar turno');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shift-templates', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+      toast.success('Turno eliminado');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
+
+  const handleAssignShift = useCallback((userId: string, date: string, shiftTemplateId: string | null) => {
+    upsertMutation.mutate({ userId, date, shiftTemplateId });
+    setSelectedCell(null);
+  }, [upsertMutation]);
+
+  const resetTemplateForm = () => {
+    setTemplateForm({ name: '', start_time: '', end_time: '', color: '#3B82F6', is_day_off: false });
+  };
+
+  const openCreateTemplate = () => {
+    setEditingTemplate(null);
+    resetTemplateForm();
+    setShowTemplateDialog(true);
+  };
+
+  const openEditTemplate = (t: ShiftTemplate) => {
+    setEditingTemplate(t);
+    setTemplateForm({
+      name: t.name,
+      start_time: t.start_time || '',
+      end_time: t.end_time || '',
+      color: t.color,
+      is_day_off: t.is_day_off,
+    });
+    setShowTemplateDialog(true);
+  };
+
+  const handleSaveTemplate = () => {
+    if (!templateForm.name.trim()) {
+      toast.error('El nombre del turno es obligatorio');
+      return;
+    }
+    if (editingTemplate) {
+      updateTemplateMutation.mutate({ ...templateForm, id: editingTemplate.id });
+    } else {
+      createTemplateMutation.mutate(templateForm);
+    }
+  };
+
+  // ─── Week label ──────────────────────────────────────────────────────────
+
+  const weekLabel = useMemo(() => {
+    const s = weekDates[0];
+    const e = weekDates[6];
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    if (s.getMonth() === e.getMonth()) {
+      return `${s.getDate()} – ${e.getDate()} ${months[s.getMonth()]} ${s.getFullYear()}`;
+    }
+    return `${s.getDate()} ${months[s.getMonth()]} – ${e.getDate()} ${months[e.getMonth()]} ${e.getFullYear()}`;
+  }, [weekDates]);
+
+  const isCurrentWeek = weekOffset === 0;
+
+  // ─── Render ──────────────────────────────────────────────────────────────
+
+  if (!orgId) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Selecciona una organización</p>
+      </div>
+    );
+  }
+
+  const isLoading = templatesLoading || scheduleLoading;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <CalendarClock className="h-5 w-5 text-primary" />
+          <h1 className="text-xl font-semibold tracking-tight">Horarios</h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Week navigation */}
+          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setWeekOffset(w => w - 1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <button
+              onClick={() => setWeekOffset(0)}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[180px] text-center",
+                isCurrentWeek ? "bg-primary/10 text-primary" : "hover:bg-muted"
+              )}
+            >
+              {weekLabel}
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setWeekOffset(w => w + 1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Manage templates */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={openCreateTemplate}
+          >
+            <Settings2 className="h-4 w-4" />
+            Turnos
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Grid ── */}
+      <div className="flex-1 overflow-auto p-4">
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-32 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : teams.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <Users className="h-12 w-12 text-muted-foreground/40 mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground">No hay equipos configurados</h3>
+            <p className="text-sm text-muted-foreground/60 mt-1">
+              Crea equipos y asigna miembros desde la sección Teams
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {teams.map(team => (
+              <TeamScheduleGrid
+                key={team.team_id}
+                team={team}
+                weekDates={weekDates}
+                scheduleLookup={scheduleLookup}
+                shiftTemplates={shiftTemplates}
+                dayStats={dayStats}
+                selectedCell={selectedCell}
+                onSelectCell={setSelectedCell}
+                onAssignShift={handleAssignShift}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Shift Template Dialog ── */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTemplate ? 'Editar turno' : 'Nuevo turno'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Nombre</Label>
+              <Input
+                value={templateForm.name}
+                onChange={e => setTemplateForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Ej: 7:00 - 15:00"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={templateForm.is_day_off}
+                  onChange={e => setTemplateForm(f => ({ ...f, is_day_off: e.target.checked, start_time: '', end_time: '' }))}
+                  className="rounded border-border"
+                />
+                <span className="text-sm">Es día libre / descanso</span>
+              </label>
+            </div>
+            {!templateForm.is_day_off && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Hora inicio</Label>
+                  <Input
+                    type="time"
+                    value={templateForm.start_time}
+                    onChange={e => setTemplateForm(f => ({ ...f, start_time: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Hora fin</Label>
+                  <Input
+                    type="time"
+                    value={templateForm.end_time}
+                    onChange={e => setTemplateForm(f => ({ ...f, end_time: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+            <div>
+              <Label>Color</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={templateForm.color}
+                  onChange={e => setTemplateForm(f => ({ ...f, color: e.target.value }))}
+                  className="w-10 h-10 rounded cursor-pointer border border-border"
+                />
+                <span className="text-sm text-muted-foreground">{templateForm.color}</span>
+              </div>
+            </div>
+
+            {/* Show existing templates for reference */}
+            {!editingTemplate && shiftTemplates.length > 0 && (
+              <div className="border-t pt-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Turnos existentes:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {shiftTemplates.map(t => (
+                    <div key={t.id} className="flex items-center gap-1.5 group">
+                      <Badge
+                        variant="outline"
+                        className="text-xs cursor-pointer hover:opacity-80"
+                        style={{ borderColor: t.color, color: t.color }}
+                        onClick={() => openEditTemplate(t)}
+                      >
+                        <Pencil className="h-3 w-3 mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {t.name}
+                      </Badge>
+                      <button
+                        onClick={() => {
+                          if (confirm(`¿Eliminar turno "${t.name}"?`)) {
+                            deleteTemplateMutation.mutate(t.id);
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveTemplate}>
+              {editingTemplate ? 'Guardar cambios' : 'Crear turno'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Team Schedule Grid ──────────────────────────────────────────────────────
+
+interface TeamScheduleGridProps {
+  team: TeamGroup;
+  weekDates: Date[];
+  scheduleLookup: Map<string, ScheduleEntry>;
+  shiftTemplates: ShiftTemplate[];
+  dayStats: Record<string, DayStats>;
+  selectedCell: { userId: string; date: string } | null;
+  onSelectCell: (cell: { userId: string; date: string } | null) => void;
+  onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
+}
+
+function TeamScheduleGrid({
+  team,
+  weekDates,
+  scheduleLookup,
+  shiftTemplates,
+  dayStats,
+  selectedCell,
+  onSelectCell,
+  onAssignShift,
+}: TeamScheduleGridProps) {
+  // Only show day stats header on the first team
+  const showDayStats = true;
+
+  return (
+    <Card className="overflow-hidden border-border/40">
+      {/* Team header */}
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold tracking-tight">{team.team_name}</h3>
+        <Badge variant="secondary" className="text-xs ml-1">
+          {team.members.length}
+        </Badge>
+      </div>
+
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[800px]">
+            <thead>
+              <tr>
+                {/* Name column */}
+                <th className="sticky left-0 z-10 bg-background w-[180px] min-w-[180px] px-3 py-2 text-left text-xs font-medium text-muted-foreground border-b border-r border-border/30">
+                  Empleado
+                </th>
+                {/* Day columns */}
+                {weekDates.map(d => {
+                  const dateStr = formatDateISO(d);
+                  const stats = dayStats[dateStr];
+                  const today = isToday(d);
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+                  return (
+                    <th
+                      key={dateStr}
+                      className={cn(
+                        "px-1 py-2 text-center border-b border-border/30 min-w-[110px]",
+                        today && "bg-primary/5",
+                        isWeekend && "bg-muted/20"
+                      )}
+                    >
+                      <div className={cn(
+                        "text-xs font-semibold",
+                        today ? "text-primary" : "text-foreground"
+                      )}>
+                        {formatDayLabel(d)}
+                      </div>
+                      <div className={cn(
+                        "text-[11px]",
+                        today ? "text-primary/80" : "text-muted-foreground"
+                      )}>
+                        {formatDateShort(d)}
+                      </div>
+                      {stats && (stats.deliveries > 0 || stats.returns > 0) && (
+                        <div className="flex items-center justify-center gap-2 mt-1">
+                          {stats.deliveries > 0 && (
+                            <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                              <ArrowUp className="h-3 w-3" />
+                              {stats.deliveries}
+                            </span>
+                          )}
+                          {stats.returns > 0 && (
+                            <span className="flex items-center gap-0.5 text-[10px] text-blue-600 font-medium">
+                              <ArrowDown className="h-3 w-3" />
+                              {stats.returns}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {team.members.map(member => (
+                <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
+                  {/* Name cell */}
+                  <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-3 py-1.5 border-r border-border/30">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+                          {getInitials(member.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium truncate max-w-[120px]">
+                        {member.name}
+                      </span>
+                    </div>
+                  </td>
+                  {/* Schedule cells */}
+                  {weekDates.map(d => {
+                    const dateStr = formatDateISO(d);
+                    const entry = scheduleLookup.get(`${member.id}__${dateStr}`);
+                    const shift = entry?.shift_template_id
+                      ? shiftTemplates.find(t => t.id === entry.shift_template_id)
+                      : null;
+                    const today = isToday(d);
+                    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                    const isSelected = selectedCell?.userId === member.id && selectedCell?.date === dateStr;
+
+                    return (
+                      <td
+                        key={dateStr}
+                        className={cn(
+                          "px-1 py-1 text-center border-border/20",
+                          today && "bg-primary/5",
+                          isWeekend && !today && "bg-muted/20"
+                        )}
+                      >
+                        <Popover
+                          open={isSelected}
+                          onOpenChange={open => {
+                            if (!open) onSelectCell(null);
+                          }}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              onClick={() => onSelectCell({ userId: member.id, date: dateStr })}
+                              className={cn(
+                                "w-full min-h-[36px] rounded-md text-xs font-medium transition-all",
+                                "border border-transparent hover:border-primary/30 hover:shadow-sm",
+                                shift
+                                  ? "text-white shadow-sm"
+                                  : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40"
+                              )}
+                              style={shift ? {
+                                backgroundColor: shift.color,
+                                opacity: shift.is_day_off ? 0.6 : 1,
+                              } : undefined}
+                            >
+                              {shift ? (
+                                <span className="px-1">
+                                  {shift.is_day_off ? shift.name : (
+                                    shift.start_time && shift.end_time
+                                      ? `${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}`
+                                      : shift.name
+                                  )}
+                                </span>
+                              ) : (
+                                <Minus className="h-3 w-3 mx-auto" />
+                              )}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-48 p-2" align="center" side="bottom">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground px-1 pb-1 border-b border-border/30 mb-1">
+                                Asignar turno
+                              </p>
+                              {shiftTemplates.map(t => (
+                                <button
+                                  key={t.id}
+                                  onClick={() => onAssignShift(member.id, dateStr, t.id)}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-muted/60",
+                                    entry?.shift_template_id === t.id && "bg-muted"
+                                  )}
+                                >
+                                  <div
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: t.color }}
+                                  />
+                                  <span className="truncate">{t.name}</span>
+                                </button>
+                              ))}
+                              {entry?.shift_template_id && (
+                                <>
+                                  <div className="border-t border-border/30 my-1" />
+                                  <button
+                                    onClick={() => onAssignShift(member.id, dateStr, null)}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                  >
+                                    <X className="h-3 w-3" />
+                                    <span>Quitar turno</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {team.members.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
+                    No hay miembros en este equipo
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

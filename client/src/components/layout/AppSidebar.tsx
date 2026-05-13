@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -63,6 +63,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/transfers/forms': 'transfers',
   '/movements': 'movements',
   '/fleet': 'fleet',
+  '/schedules': 'schedules',
   '/fleet/audits': 'fleet',
   '/fleet/equipment': 'fleet',
   '/fleet/damages': 'garatech',
@@ -134,6 +135,7 @@ const menuItems = [
   { title: 'Plantillas', url: '/templates', icon: LayoutTemplate },
   { title: 'Reportes', url: '/reports', icon: BarChart3 },
   { title: 'Teams', url: '/teams', icon: Users },
+  { title: 'Horarios', url: '/schedules', icon: CalendarClock },
   { title: 'Solicitudes Servicio', url: '/service-requests', icon: ArrowLeftRight },
   { title: 'Ajustes', url: '/settings', icon: Settings },
 ];

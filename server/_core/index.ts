@@ -95,6 +95,16 @@ import {
   handleSuperAdminGetUserMemberships,
   handleSuperAdminGetUserDetail,
 } from "../superAdminEndpoints";
+import {
+  handleGetShiftTemplates,
+  handleCreateShiftTemplate,
+  handleUpdateShiftTemplate,
+  handleDeleteShiftTemplate,
+  handleGetWeeklySchedule,
+  handleUpsertSchedule,
+  handleBulkUpsertSchedules,
+  handleGetAvailableStaff,
+} from "../scheduleEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -214,6 +224,16 @@ async function startServer() {
   app.post("/api/upload-service-request-doc", serviceRequestDocUpload, handleUploadServiceRequestDoc);
   app.post("/api/get-available-vehicles", handleGetAvailableVehicles);
   app.post("/api/get-service-request-history", handleGetServiceRequestHistory);
+
+  // Staff Schedules
+  app.post("/api/get-shift-templates", handleGetShiftTemplates);
+  app.post("/api/create-shift-template", handleCreateShiftTemplate);
+  app.post("/api/update-shift-template", handleUpdateShiftTemplate);
+  app.post("/api/delete-shift-template", handleDeleteShiftTemplate);
+  app.post("/api/get-weekly-schedule", handleGetWeeklySchedule);
+  app.post("/api/upsert-schedule", handleUpsertSchedule);
+  app.post("/api/bulk-upsert-schedules", handleBulkUpsertSchedules);
+  app.post("/api/get-available-staff", handleGetAvailableStaff);
 
   // tRPC API
   app.use(

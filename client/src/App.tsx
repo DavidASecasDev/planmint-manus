@@ -141,6 +141,7 @@ const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement")
 // Service Requests (cross-org)
 const ServiceRequests = lazy(() => import("./pages/ServiceRequests"));
 const ServiceRequestDetail = lazy(() => import("./pages/ServiceRequestDetail"));
+const Schedules = lazy(() => import("./pages/Schedules"));
 
 // Admin Pages
 const PermissionsDiagnostics = lazy(() => import("./pages/admin/PermissionsDiagnostics"));
@@ -982,6 +983,16 @@ function MainAppRoutes() {
               element={
                 <ProtectedRoute>
                   <ServiceRequestDetail />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Schedules (Horarios) */}
+            <Route 
+              path="/schedules" 
+              element={
+                <ProtectedRoute>
+                  <Schedules />
                 </ProtectedRoute>
               } 
             />

@@ -1,0 +1,393 @@
+/**
+ * Schedule Endpoints — Staff shift scheduling module.
+ * Manages shift templates and daily staff schedule assignments.
+ * Integrates with teams and reservations for workload visibility.
+ */
+import { Request, Response } from "express";
+import {
+  getServiceClient,
+  authenticateSupabaseRequest,
+  AuthError,
+} from "./supabaseAdmin";
+
+// ─── Shift Templates ────────────────────────────────────────────────────────
+
+/** GET shift templates for the org */
+export async function handleGetShiftTemplates(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+    const { data, error } = await sb
+      .from("shift_templates")
+      .select("*")
+      .eq("organization_id", orgId)
+      .order("sort_order", { ascending: true });
+
+    if (error) throw error;
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[get-shift-templates]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Create a new shift template */
+export async function handleCreateShiftTemplate(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { name, start_time, end_time, color, is_day_off } = req.body;
+    if (!name) return res.status(400).json({ ok: false, error: "Name is required" });
+
+    const sb = getServiceClient();
+
+    // Get max sort_order
+    const { data: existing } = await sb
+      .from("shift_templates")
+      .select("sort_order")
+      .eq("organization_id", orgId)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const nextOrder = (existing?.[0]?.sort_order ?? 0) + 1;
+
+    const { data, error } = await sb
+      .from("shift_templates")
+      .insert({
+        organization_id: orgId,
+        name,
+        start_time: is_day_off ? null : start_time,
+        end_time: is_day_off ? null : end_time,
+        color: color || "#3B82F6",
+        is_day_off: is_day_off || false,
+        sort_order: nextOrder,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[create-shift-template]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Update a shift template */
+export async function handleUpdateShiftTemplate(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { template_id, name, start_time, end_time, color, is_day_off } = req.body;
+    if (!template_id) return res.status(400).json({ ok: false, error: "template_id is required" });
+
+    const sb = getServiceClient();
+    const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (name !== undefined) updates.name = name;
+    if (color !== undefined) updates.color = color;
+    if (is_day_off !== undefined) {
+      updates.is_day_off = is_day_off;
+      if (is_day_off) {
+        updates.start_time = null;
+        updates.end_time = null;
+      }
+    }
+    if (start_time !== undefined && !updates.is_day_off) updates.start_time = start_time;
+    if (end_time !== undefined && !updates.is_day_off) updates.end_time = end_time;
+
+    const { data, error } = await sb
+      .from("shift_templates")
+      .update(updates)
+      .eq("id", template_id)
+      .eq("organization_id", orgId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[update-shift-template]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Delete a shift template */
+export async function handleDeleteShiftTemplate(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { template_id } = req.body;
+    if (!template_id) return res.status(400).json({ ok: false, error: "template_id is required" });
+
+    const sb = getServiceClient();
+    const { error } = await sb
+      .from("shift_templates")
+      .delete()
+      .eq("id", template_id)
+      .eq("organization_id", orgId);
+
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[delete-shift-template]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+// ─── Staff Schedules ────────────────────────────────────────────────────────
+
+/** Get weekly schedule for the org (date range) */
+export async function handleGetWeeklySchedule(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { start_date, end_date } = req.body;
+    if (!start_date || !end_date) {
+      return res.status(400).json({ ok: false, error: "start_date and end_date are required" });
+    }
+
+    const sb = getServiceClient();
+
+    // Get schedules for the date range
+    const { data: schedules, error: schedError } = await sb
+      .from("staff_schedules")
+      .select(`
+        id,
+        user_id,
+        date,
+        shift_template_id,
+        team_id,
+        notes,
+        created_by,
+        created_at
+      `)
+      .eq("organization_id", orgId)
+      .gte("date", start_date)
+      .lte("date", end_date);
+
+    if (schedError) throw schedError;
+
+    // Get team members with their profiles and teams
+    const { data: teamMembers, error: tmError } = await sb
+      .from("team_members")
+      .select(`
+        user_id,
+        team_id,
+        teams!inner(id, name, color, organization_id)
+      `)
+      .eq("teams.organization_id", orgId);
+
+    if (tmError) throw tmError;
+
+    // Get profiles for all team members
+    const memberUserIds = Array.from(new Set((teamMembers || []).map((tm: any) => tm.user_id)));
+    const { data: profiles, error: profError } = await sb
+      .from("profiles")
+      .select("id, name, avatar_url")
+      .in("id", memberUserIds.length > 0 ? memberUserIds : ["__none__"]);
+
+    if (profError) throw profError;
+
+    // Get reservation counts for the date range (entregas + devoluciones)
+    const { data: reservations, error: resError } = await sb
+      .from("reservations")
+      .select("desde, hasta, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado")
+      .eq("organization_id", orgId)
+      .or(`desde.gte.${start_date},hasta.gte.${start_date}`)
+      .or(`desde.lte.${end_date},hasta.lte.${end_date}`);
+
+    if (resError) throw resError;
+
+    // Count entregas and devoluciones per day
+    const dailyCounts: Record<string, { entregas: number; devoluciones: number; transfers: number }> = {};
+    (reservations || []).forEach((r: any) => {
+      // Skip cancelled
+      if (r.estado === "Cancelada") return;
+
+      if (r.tipo_actividad === "Transfer" && r.desde) {
+        const day = r.desde.substring(0, 10);
+        if (day >= start_date && day <= end_date) {
+          if (!dailyCounts[day]) dailyCounts[day] = { entregas: 0, devoluciones: 0, transfers: 0 };
+          dailyCounts[day].transfers++;
+        }
+      } else {
+        // Entrega
+        if (r.desde) {
+          const day = r.desde.substring(0, 10);
+          if (day >= start_date && day <= end_date) {
+            if (!dailyCounts[day]) dailyCounts[day] = { entregas: 0, devoluciones: 0, transfers: 0 };
+            dailyCounts[day].entregas++;
+          }
+        }
+        // Devolución
+        if (r.hasta) {
+          const day = r.hasta.substring(0, 10);
+          if (day >= start_date && day <= end_date) {
+            if (!dailyCounts[day]) dailyCounts[day] = { entregas: 0, devoluciones: 0, transfers: 0 };
+            dailyCounts[day].devoluciones++;
+          }
+        }
+      }
+    });
+
+    return res.json({
+      ok: true,
+      data: {
+        schedules: schedules || [],
+        teamMembers: teamMembers || [],
+        profiles: profiles || [],
+        dailyCounts,
+      },
+    });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[get-weekly-schedule]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Upsert a schedule entry (assign or update shift for a user on a date) */
+export async function handleUpsertSchedule(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { user_id, date, shift_template_id, team_id, notes } = req.body;
+    if (!user_id || !date) {
+      return res.status(400).json({ ok: false, error: "user_id and date are required" });
+    }
+
+    const sb = getServiceClient();
+
+    // If shift_template_id is null, delete the schedule entry (clear the cell)
+    if (!shift_template_id) {
+      const { error } = await sb
+        .from("staff_schedules")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("user_id", user_id)
+        .eq("date", date);
+
+      if (error) throw error;
+      return res.json({ ok: true, data: null });
+    }
+
+    // Upsert the schedule
+    const { data, error } = await sb
+      .from("staff_schedules")
+      .upsert(
+        {
+          organization_id: orgId,
+          user_id,
+          date,
+          shift_template_id,
+          team_id: team_id || null,
+          notes: notes || null,
+          created_by: userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "organization_id,user_id,date" }
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[upsert-schedule]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Bulk upsert schedules (for copying a week, etc.) */
+export async function handleBulkUpsertSchedules(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { entries } = req.body;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ ok: false, error: "entries array is required" });
+    }
+
+    const sb = getServiceClient();
+
+    const records = entries.map((e: any) => ({
+      organization_id: orgId,
+      user_id: e.user_id,
+      date: e.date,
+      shift_template_id: e.shift_template_id,
+      team_id: e.team_id || null,
+      notes: e.notes || null,
+      created_by: userId,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { data, error } = await sb
+      .from("staff_schedules")
+      .upsert(records, { onConflict: "organization_id,user_id,date" })
+      .select();
+
+    if (error) throw error;
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[bulk-upsert-schedules]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Get staff available on a specific date (for AssigneeSelect integration) */
+export async function handleGetAvailableStaff(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { date } = req.body;
+    if (!date) return res.status(400).json({ ok: false, error: "date is required" });
+
+    const sb = getServiceClient();
+
+    // Get all schedules for this date
+    const { data: schedules, error: schedError } = await sb
+      .from("staff_schedules")
+      .select(`
+        user_id,
+        shift_template_id,
+        shift_templates!inner(id, name, start_time, end_time, is_day_off)
+      `)
+      .eq("organization_id", orgId)
+      .eq("date", date);
+
+    if (schedError) throw schedError;
+
+    // Build availability map: user_id -> { available, shift_name, start_time, end_time }
+    const availability: Record<string, { available: boolean; shift_name: string; start_time: string | null; end_time: string | null }> = {};
+    (schedules || []).forEach((s: any) => {
+      const template = s.shift_templates;
+      availability[s.user_id] = {
+        available: !template.is_day_off,
+        shift_name: template.name,
+        start_time: template.start_time,
+        end_time: template.end_time,
+      };
+    });
+
+    return res.json({ ok: true, data: availability });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[get-available-staff]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
