@@ -677,3 +677,85 @@ export async function handleSuperAdminGetUserMemberships(req: Request, res: Resp
     return handleError(res, err, "get-user-memberships");
   }
 }
+
+/**
+ * POST /api/super-admin/get-user-detail
+ * Body: { userId }
+ * Returns: profile, email, memberships with org info, user_permissions per org, recent audit_logs
+ */
+export async function handleSuperAdminGetUserDetail(req: Request, res: Response) {
+  try {
+    await authenticateAsSuperAdmin(req.headers.authorization);
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    const serviceClient = getServiceClient();
+
+    // 1. Get profile
+    const { data: profile, error: profileError } = await serviceClient
+      .from("profiles")
+      .select("id, name, avatar_url, role, theme_pref, organization_id, created_at")
+      .eq("id", userId)
+      .single();
+    if (profileError) throw profileError;
+
+    // 2. Get email from auth.admin
+    let email: string | null = null;
+    try {
+      const { data: authUser } = await serviceClient.auth.admin.getUserById(userId);
+      email = authUser?.user?.email || null;
+    } catch {
+      // If auth admin fails, email stays null
+    }
+
+    // 3. Get memberships with org info
+    const { data: memberships, error: membershipsError } = await serviceClient
+      .from("organization_members")
+      .select("id, organization_id, role, status, created_at, updated_at, organization:organizations!organization_members_organization_id_fkey(id, name, status)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (membershipsError) throw membershipsError;
+
+    // 4. Get user_permissions (custom overrides) per org
+    const { data: userPermissions, error: permError } = await serviceClient
+      .from("user_permissions")
+      .select("id, organization_id, permission_key, enabled, created_at")
+      .eq("user_id", userId)
+      .order("organization_id", { ascending: true });
+    if (permError) throw permError;
+
+    // 5. Get role_permissions for each role the user has (to show effective permissions)
+    const uniqueRoles = Array.from(new Set((memberships || []).map((m: any) => m.role)));
+    const rolePermissionsMap: Record<string, any[]> = {};
+    for (const role of uniqueRoles) {
+      const { data: rolePerms } = await serviceClient
+        .from("role_permissions")
+        .select("permission_key, enabled")
+        .eq("role", role);
+      rolePermissionsMap[role] = rolePerms || [];
+    }
+
+    // 6. Get recent audit_logs for this user (as actor)
+    const { data: recentActivity, error: activityError } = await serviceClient
+      .from("audit_logs")
+      .select("id, action, entity_type, entity_id, actor_role, created_at, organization_id, metadata_json, organization:organizations!audit_logs_organization_id_fkey(name)")
+      .eq("actor_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (activityError) throw activityError;
+
+    return res.json({
+      data: {
+        profile: { ...profile, email },
+        memberships: memberships || [],
+        userPermissions: userPermissions || [],
+        rolePermissions: rolePermissionsMap,
+        recentActivity: recentActivity || [],
+      },
+      error: null,
+    });
+  } catch (err: any) {
+    return handleError(res, err, "get-user-detail");
+  }
+}

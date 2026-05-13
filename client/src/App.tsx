@@ -38,6 +38,7 @@ const SuperAdminCoupons = lazy(() => import("./pages/super-admin/Coupons"));
 const SuperAdminOperations = lazy(() => import("./pages/super-admin/Operations"));
 const SuperAdminFeatureFlags = lazy(() => import("./pages/super-admin/FeatureFlags"));
 const SuperAdminDocumentation = lazy(() => import("./pages/super-admin/Documentation"));
+const SuperAdminUserDetail = lazy(() => import("./pages/super-admin/UserDetail"));
 const Help = lazy(() => import("./pages/Help"));
 
 // Auth Pages
@@ -982,6 +983,7 @@ function MainAppRoutes() {
             <Route path="/super-admin/organizations" element={<SuperAdminRoute><SuperAdminOrganizations /></SuperAdminRoute>} />
             <Route path="/super-admin/organizations/:id" element={<SuperAdminRoute><SuperAdminOrganizationDetail /></SuperAdminRoute>} />
             <Route path="/super-admin/users" element={<SuperAdminRoute><SuperAdminUsers /></SuperAdminRoute>} />
+            <Route path="/super-admin/users/:id" element={<SuperAdminRoute><SuperAdminUserDetail /></SuperAdminRoute>} />
             <Route path="/super-admin/feedback" element={<SuperAdminRoute><SuperAdminFeedback /></SuperAdminRoute>} />
             <Route path="/super-admin/subscriptions" element={<SuperAdminRoute><SuperAdminSubscriptions /></SuperAdminRoute>} />
             <Route path="/super-admin/coupons" element={<SuperAdminRoute><SuperAdminCoupons /></SuperAdminRoute>} />

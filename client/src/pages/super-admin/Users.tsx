@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Users, MoreHorizontal, Building2, UserCog, Ban, CheckCircle, UserMinus, UserPlus } from 'lucide-react';
+import { Search, Users, User, MoreHorizontal, Building2, UserCog, Ban, CheckCircle, UserMinus, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DeleteMemberDialog } from '@/components/super-admin/DeleteMemberDialog';
@@ -216,6 +216,10 @@ export default function UsersPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigate(`/super-admin/users/${user.user_id}`)}>
+                                <User className="h-4 w-4 mr-2" />
+                                Ver detalle
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => navigate(`/super-admin/organizations/${user.organization_id}`)}>
                                 <Building2 className="h-4 w-4 mr-2" />
                                 Ver organización

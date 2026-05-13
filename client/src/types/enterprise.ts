@@ -383,14 +383,19 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     create: 'Crear tareas',
     update: 'Editar tareas',
     delete: 'Eliminar tareas',
+    assign: 'Asignar tareas',
     change_status: 'Cambiar estado',
     manage_columns: 'Gestionar columnas',
   },
   areas: {
     view: 'Ver áreas',
     read: 'Ver áreas',
+    create: 'Crear áreas',
+    update: 'Editar áreas',
+    delete: 'Eliminar áreas',
     manage: 'Gestionar áreas',
     manage_access_rules: 'Gestionar reglas de acceso',
+    manage_visibility: 'Gestionar visibilidad',
   },
   tags: {
     view: 'Ver etiquetas',
@@ -409,6 +414,7 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
   integrations: {
     read: 'Ver integraciones',
     manage: 'Gestionar integraciones',
+    manage_api_keys: 'Gestionar claves API',
   },
   billing: {
     read: 'Ver facturación',
@@ -421,6 +427,8 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
   templates: {
     view: 'Ver plantillas',
     read: 'Ver plantillas',
+    create: 'Crear plantillas',
+    apply: 'Aplicar plantillas',
     manage: 'Gestionar plantillas',
     delete: 'Eliminar plantillas',
   },
@@ -505,5 +513,16 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     view: 'Ver flota',
     manage: 'Gestionar flota e inspecciones',
     import: 'Importar flota desde Excel',
+  },
+  members: {
+    view: 'Ver miembros',
+    invite: 'Invitar miembros',
+    change_role: 'Cambiar rol',
+    suspend: 'Suspender miembros',
+    manage_permissions: 'Gestionar permisos',
+    manage_api_keys: 'Gestionar claves API',
+  },
+  security: {
+    view_audit_logs: 'Ver registros de auditoría',
   },
 };

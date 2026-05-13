@@ -86,6 +86,7 @@ import {
   handleSuperAdminDeleteTask,
   handleSuperAdminDeleteArea,
   handleSuperAdminGetUserMemberships,
+  handleSuperAdminGetUserDetail,
 } from "../superAdminEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -192,6 +193,7 @@ async function startServer() {
   app.post("/api/super-admin/delete-task", handleSuperAdminDeleteTask);
   app.post("/api/super-admin/delete-area", handleSuperAdminDeleteArea);
   app.post("/api/super-admin/get-user-memberships", handleSuperAdminGetUserMemberships);
+  app.post("/api/super-admin/get-user-detail", handleSuperAdminGetUserDetail);
 
   // Service Requests (cross-org)
   app.post("/api/list-service-requests", handleListServiceRequests);

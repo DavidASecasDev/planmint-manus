@@ -507,3 +507,4 @@
 - [x] Add confirmation dialog before removing a member from an organization (show consequences)
 - [x] Implement audit logging for all super admin actions (who did what and when)
 - [x] Traducir etiquetas de acciones en Auditoría al español (invitation.created → Invitación creada, etc.)
+- [x] Super Admin: User Detail page — memberships per org, recent activity (audit logs), permissions per org
