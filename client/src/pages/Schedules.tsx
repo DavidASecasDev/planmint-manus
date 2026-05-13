@@ -605,13 +605,7 @@ export default function Schedules() {
           </div>
         </div>
 
-        {/* ── Carga Semanal & Tiempos ── */}
-        <div className="px-4 pt-4 space-y-3">
-          <WeeklyCapacityPanel weekStartDate={weekStart} />
-          <TravelTimeEditor />
-        </div>
-
-        {/* ── Grid ── */}
+        {/* ── Grid (main content — shown first) ── */}
         <div className="flex-1 overflow-auto p-4">
           {isLoading ? (
             <div className="space-y-4">
@@ -645,6 +639,12 @@ export default function Schedules() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* ── Carga Semanal & Tiempos (below schedules) ── */}
+        <div className="px-4 pb-4 space-y-3">
+          <WeeklyCapacityPanel weekStartDate={weekStart} />
+          <TravelTimeEditor />
         </div>
 
         {/* ── Shift Template Dialog ── */}

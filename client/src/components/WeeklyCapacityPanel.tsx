@@ -337,7 +337,7 @@ export function WeeklyCapacityPanel({
   weekStartDate,
 }: WeeklyCapacityPanelProps) {
   const { data, loading, error, refetch } = useWeeklyCapacity(weekStartDate);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
   const [dialog, setDialog] = useState<DialogState>(INITIAL_DIALOG);
 
