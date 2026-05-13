@@ -142,59 +142,150 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
         <div className="max-h-72 overflow-auto">
           {sortedMembers.length > 0 && (
             <>
-              <p className="text-xs text-muted-foreground px-2 py-1 font-medium">
-                Usuarios
-                {date && (
-                  <span className="ml-1 text-[10px] opacity-70">
-                    (en turno ahora)
-                  </span>
-                )}
-              </p>
-              {sortedMembers.map((member) => {
-                const shiftInfo = date ? availability[member.id] : null;
-                const isDayOff = shiftInfo && !shiftInfo.available;
-                const isWorking = shiftInfo && shiftInfo.available;
-                const currentlyOnShift = shiftInfo ? isCurrentlyOnShift(shiftInfo) : false;
-                const shiftEnded = isWorking && !currentlyOnShift;
+              {(() => {
+                if (!date) {
+                  // No date context: show flat list without shift info
+                  return (
+                    <>
+                      <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Usuarios</p>
+                      {sortedMembers.map((member) => (
+                        <button
+                          key={member.id}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors",
+                            userId === member.id && "bg-muted"
+                          )}
+                          onClick={() => handleSelectUser(member.id)}
+                        >
+                          <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate flex-1 text-left">{member.name || 'Sin nombre'}</span>
+                          {userId === member.id && (
+                            <Check className="h-3 w-3 ml-auto flex-shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  );
+                }
+
+                // Split members into groups
+                const onShiftNow: typeof sortedMembers = [];
+                const shiftEndedOrNotStarted: typeof sortedMembers = [];
+                const unscheduled: typeof sortedMembers = [];
+                const dayOff: typeof sortedMembers = [];
+
+                for (const member of sortedMembers) {
+                  const info = availability[member.id];
+                  if (!info) {
+                    unscheduled.push(member);
+                  } else if (!info.available) {
+                    dayOff.push(member);
+                  } else if (isCurrentlyOnShift(info)) {
+                    onShiftNow.push(member);
+                  } else {
+                    shiftEndedOrNotStarted.push(member);
+                  }
+                }
+
+                const renderMember = (member: typeof sortedMembers[0], dimmed: boolean) => {
+                  const info = availability[member.id];
+                  const onShift = info ? isCurrentlyOnShift(info) : false;
+                  const isDayOffMember = info && !info.available;
+                  const isEndedMember = info && info.available && !onShift;
+
+                  return (
+                    <button
+                      key={member.id}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors",
+                        userId === member.id && "bg-muted",
+                        dimmed && "opacity-40"
+                      )}
+                      onClick={() => handleSelectUser(member.id)}
+                    >
+                      <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate flex-1 text-left">{member.name || 'Sin nombre'}</span>
+                      {info && info.available && onShift && (
+                        <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 flex-shrink-0">
+                          <Clock className="h-2.5 w-2.5" />
+                          {info.start_time?.slice(0, 5)}–{info.end_time?.slice(0, 5)}
+                        </span>
+                      )}
+                      {isEndedMember && (
+                        <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0 line-through">
+                          <Clock className="h-2.5 w-2.5" />
+                          {info.start_time?.slice(0, 5)}–{info.end_time?.slice(0, 5)}
+                        </span>
+                      )}
+                      {isDayOffMember && (
+                        <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 flex-shrink-0">
+                          <Moon className="h-2.5 w-2.5" />
+                          Libre
+                        </span>
+                      )}
+                      {userId === member.id && (
+                        <Check className="h-3 w-3 ml-auto flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                };
 
                 return (
-                  <button
-                    key={member.id}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors",
-                      userId === member.id && "bg-muted",
-                      (isDayOff || shiftEnded) && "opacity-40"
+                  <>
+                    {/* Currently on shift */}
+                    {onShiftNow.length > 0 && (
+                      <>
+                        <p className="text-xs text-muted-foreground px-2 py-1 font-medium flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          En turno ahora
+                        </p>
+                        {onShiftNow.map((m) => renderMember(m, false))}
+                      </>
                     )}
-                    onClick={() => handleSelectUser(member.id)}
-                  >
-                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate flex-1 text-left">{member.name || 'Sin nombre'}</span>
-                    {/* Shift badge - currently on shift */}
-                    {isWorking && currentlyOnShift && (
-                      <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 flex-shrink-0">
-                        <Clock className="h-2.5 w-2.5" />
-                        {shiftInfo.start_time?.slice(0, 5)}–{shiftInfo.end_time?.slice(0, 5)}
-                      </span>
+
+                    {/* Separator between on-shift and others */}
+                    {onShiftNow.length > 0 && (shiftEndedOrNotStarted.length > 0 || unscheduled.length > 0 || dayOff.length > 0) && (
+                      <div className="my-1 mx-2 border-t border-border" />
                     )}
-                    {/* Shift badge - shift ended or not started */}
-                    {shiftEnded && (
-                      <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0 line-through">
-                        <Clock className="h-2.5 w-2.5" />
-                        {shiftInfo.start_time?.slice(0, 5)}–{shiftInfo.end_time?.slice(0, 5)}
-                      </span>
+
+                    {/* Shift ended / not started */}
+                    {shiftEndedOrNotStarted.length > 0 && (
+                      <>
+                        <p className="text-xs text-muted-foreground px-2 py-1 font-medium opacity-60">
+                          Fuera de turno
+                        </p>
+                        {shiftEndedOrNotStarted.map((m) => renderMember(m, true))}
+                      </>
                     )}
-                    {isDayOff && (
-                      <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 flex-shrink-0">
-                        <Moon className="h-2.5 w-2.5" />
-                        Libre
-                      </span>
+
+                    {/* Unscheduled */}
+                    {unscheduled.length > 0 && (
+                      <>
+                        {(onShiftNow.length > 0 || shiftEndedOrNotStarted.length > 0) && (
+                          <div className="my-1 mx-2 border-t border-border" />
+                        )}
+                        <p className="text-xs text-muted-foreground px-2 py-1 font-medium opacity-60">
+                          Sin turno asignado
+                        </p>
+                        {unscheduled.map((m) => renderMember(m, true))}
+                      </>
                     )}
-                    {userId === member.id && (
-                      <Check className="h-3 w-3 ml-auto flex-shrink-0" />
+
+                    {/* Day off */}
+                    {dayOff.length > 0 && (
+                      <>
+                        {(onShiftNow.length > 0 || shiftEndedOrNotStarted.length > 0 || unscheduled.length > 0) && (
+                          <div className="my-1 mx-2 border-t border-border" />
+                        )}
+                        <p className="text-xs text-muted-foreground px-2 py-1 font-medium opacity-60">
+                          Día libre
+                        </p>
+                        {dayOff.map((m) => renderMember(m, true))}
+                      </>
                     )}
-                  </button>
+                  </>
                 );
-              })}
+              })()}
             </>
           )}
           {teams.length > 0 && (

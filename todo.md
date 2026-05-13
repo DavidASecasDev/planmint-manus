@@ -543,3 +543,4 @@
 - [x] Rediseñar barra lateral (AppSidebar) para aspecto más profesional y coherente con el diseño Azul (dark, dorado, tipografía elegante)
 - [x] Horarios: Ajustar orden de equipos a Directiva → Mostrador → Rentals → Preparación
 - [x] Bug: AssigneeSelect muestra usuarios cuyo turno ya terminó — filtrar solo los que están actualmente en turno según la hora actual
+- [x] AssigneeSelect: Añadir separador visual entre usuarios "en turno" y los que ya terminaron
