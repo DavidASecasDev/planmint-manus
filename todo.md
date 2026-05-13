@@ -526,5 +526,8 @@
 - [x] Horarios: Página principal con cuadrante semanal (filas=empleados, cols=días)
 - [x] Horarios: Asignación rápida de turnos con clic en celda
 - [x] Horarios: Cabecera con conteo entregas/devoluciones por día (datos de Reservas)
-- [ ] Horarios: Integración con AssigneeSelect para filtrar por turno activo
+- [x] Horarios: Integración con AssigneeSelect para filtrar por turno activo
 - [x] Horarios: Añadir entrada en sidebar y ruta en App.tsx
+- [x] Horarios: Copiar semana anterior — botón para duplicar turnos de la semana previa como plantilla
+- [x] Horarios: Resumen visual por empleado — contador de horas totales semanales al final de cada fila
+- [x] Horarios: Integración con AssigneeSelect — filtrar empleados asignables según turno activo del día

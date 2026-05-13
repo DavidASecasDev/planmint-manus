@@ -1350,6 +1350,7 @@ export function ReservationsTable() {
                               userId={getOperationAssigneeId(row, 'rental', 'user')}
                               teamId={getOperationAssigneeId(row, 'rental', 'team')}
                               onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'rental', userId, teamId)}
+                              date={row.fechaHora ? row.fechaHora.substring(0, 10) : null}
                             />
                           )}
                           {col.type === 'assignee' && col.key === 'asignado_escoba' && (
@@ -1357,6 +1358,7 @@ export function ReservationsTable() {
                               userId={getOperationAssigneeId(row, 'escoba', 'user')}
                               teamId={getOperationAssigneeId(row, 'escoba', 'team')}
                               onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'escoba', userId, teamId)}
+                              date={row.fechaHora ? row.fechaHora.substring(0, 10) : null}
                             />
                           )}
                           {col.type === 'detail' && (

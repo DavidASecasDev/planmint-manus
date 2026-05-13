@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Check, ChevronDown, User, Users } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Check, ChevronDown, User, Users, Clock, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -11,12 +11,15 @@ import { useTeams } from '@/hooks/useTeams';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAvailableStaff } from '@/hooks/useAvailableStaff';
 
 interface AssigneeSelectProps {
   userId: string | null;
   teamId: string | null;
   onChange: (userId: string | null, teamId: string | null) => void;
   disabled?: boolean;
+  /** Optional: date in YYYY-MM-DD format to show shift availability */
+  date?: string | null;
 }
 
 interface Member {
@@ -24,7 +27,7 @@ interface Member {
   name: string | null;
 }
 
-export function AssigneeSelect({ userId, teamId, onChange, disabled }: AssigneeSelectProps) {
+export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const { teams } = useTeams();
   const { profile } = useAuth();
@@ -44,6 +47,30 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled }: AssigneeS
     },
     enabled: !!profile?.organization_id,
   });
+
+  // Fetch staff availability for the given date
+  const { data: availability = {} } = useAvailableStaff(date || null);
+
+  // Sort members: available first, then unscheduled, then day-off
+  const sortedMembers = useMemo(() => {
+    if (!date) return members; // No date = no sorting by availability
+
+    return [...members].sort((a, b) => {
+      const aInfo = availability[a.id];
+      const bInfo = availability[b.id];
+
+      // Priority: available (0) > unscheduled (1) > day-off (2)
+      const getPriority = (info: typeof aInfo) => {
+        if (!info) return 1; // unscheduled
+        if (info.available) return 0; // working
+        return 2; // day off
+      };
+
+      const diff = getPriority(aInfo) - getPriority(bInfo);
+      if (diff !== 0) return diff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [members, availability, date]);
 
   const selectedUser = members.find(m => m.id === userId);
   const selectedTeam = teams.find(t => t.id === teamId);
@@ -68,6 +95,9 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled }: AssigneeS
 
   const displayValue = selectedUser?.name || selectedTeam?.name || null;
 
+  // Show shift info for selected user
+  const selectedUserShift = userId && date ? availability[userId] : null;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild disabled={disabled}>
@@ -80,6 +110,18 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled }: AssigneeS
             <span className="flex items-center gap-1 text-xs truncate">
               {selectedTeam ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
               {displayValue}
+              {selectedUserShift && (
+                <span className={cn(
+                  "ml-1 text-[10px] px-1 py-0.5 rounded",
+                  selectedUserShift.available
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700"
+                )}>
+                  {selectedUserShift.available
+                    ? (selectedUserShift.start_time?.slice(0, 5) || '')
+                    : 'Libre'}
+                </span>
+              )}
             </span>
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
@@ -87,29 +129,54 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled }: AssigneeS
           <ChevronDown className="h-3 w-3 ml-1 opacity-50 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-1" align="start">
-        <div className="max-h-64 overflow-auto">
-          {members.length > 0 && (
+      <PopoverContent className="w-64 p-1" align="start">
+        <div className="max-h-72 overflow-auto">
+          {sortedMembers.length > 0 && (
             <>
               <p className="text-xs text-muted-foreground px-2 py-1 font-medium">
                 Usuarios
+                {date && (
+                  <span className="ml-1 text-[10px] opacity-70">
+                    (turno del día)
+                  </span>
+                )}
               </p>
-              {members.map((member) => (
-                <button
-                  key={member.id}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors",
-                    userId === member.id && "bg-muted"
-                  )}
-                  onClick={() => handleSelectUser(member.id)}
-                >
-                  <User className="h-3 w-3 text-muted-foreground" />
-                  <span className="truncate">{member.name || 'Sin nombre'}</span>
-                  {userId === member.id && (
-                    <Check className="h-3 w-3 ml-auto" />
-                  )}
-                </button>
-              ))}
+              {sortedMembers.map((member) => {
+                const shiftInfo = date ? availability[member.id] : null;
+                const isDayOff = shiftInfo && !shiftInfo.available;
+                const isWorking = shiftInfo && shiftInfo.available;
+
+                return (
+                  <button
+                    key={member.id}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors",
+                      userId === member.id && "bg-muted",
+                      isDayOff && "opacity-50"
+                    )}
+                    onClick={() => handleSelectUser(member.id)}
+                  >
+                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate flex-1 text-left">{member.name || 'Sin nombre'}</span>
+                    {/* Shift badge */}
+                    {isWorking && (
+                      <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 flex-shrink-0">
+                        <Clock className="h-2.5 w-2.5" />
+                        {shiftInfo.start_time?.slice(0, 5)}–{shiftInfo.end_time?.slice(0, 5)}
+                      </span>
+                    )}
+                    {isDayOff && (
+                      <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 flex-shrink-0">
+                        <Moon className="h-2.5 w-2.5" />
+                        Libre
+                      </span>
+                    )}
+                    {userId === member.id && (
+                      <Check className="h-3 w-3 ml-auto flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
             </>
           )}
           {teams.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiInvoke } from '@/lib/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,13 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Popover,
   PopoverContent,
@@ -32,7 +25,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarClock,
-  Plus,
   Settings2,
   ArrowDown,
   ArrowUp,
@@ -41,9 +33,18 @@ import {
   Pencil,
   Trash2,
   X,
+  Copy,
+  Clock,
+  Loader2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,25 @@ function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
+/** Calculate hours from a shift template's start_time and end_time (HH:MM format) */
+function calcShiftHours(shift: ShiftTemplate | null): number {
+  if (!shift || shift.is_day_off || !shift.start_time || !shift.end_time) return 0;
+  const [sh, sm] = shift.start_time.split(':').map(Number);
+  const [eh, em] = shift.end_time.split(':').map(Number);
+  let startMin = sh * 60 + sm;
+  let endMin = eh * 60 + em;
+  // Handle overnight shifts (e.g. 22:00 - 06:00)
+  if (endMin <= startMin) endMin += 24 * 60;
+  return (endMin - startMin) / 60;
+}
+
+/** Format hours nicely: 8h, 7.5h */
+function formatHours(h: number): string {
+  if (h === 0) return '0h';
+  if (Number.isInteger(h)) return `${h}h`;
+  return `${h.toFixed(1)}h`;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function Schedules() {
@@ -143,6 +163,11 @@ export default function Schedules() {
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
   const weekStart = formatDateISO(weekDates[0]);
   const weekEnd = formatDateISO(weekDates[6]);
+
+  // Previous week dates (for copy feature)
+  const prevWeekDates = useMemo(() => getWeekDates(weekOffset - 1), [weekOffset]);
+  const prevWeekStart = formatDateISO(prevWeekDates[0]);
+  const prevWeekEnd = formatDateISO(prevWeekDates[6]);
 
   // ─── Queries ─────────────────────────────────────────────────────────────
 
@@ -323,6 +348,78 @@ export default function Schedules() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // ─── Copy Previous Week Mutation ─────────────────────────────────────────
+
+  const copyWeekMutation = useMutation({
+    mutationFn: async () => {
+      if (!orgId) throw new Error('No organization');
+
+      // 1. Fetch previous week's schedules
+      const prevRes = await apiInvoke<{
+        ok: boolean;
+        data: {
+          schedules: ScheduleEntry[];
+          teamMembers: any[];
+          profiles: any[];
+          dailyCounts: any;
+        };
+      }>('get-weekly-schedule', {
+        body: { organizationId: orgId, start_date: prevWeekStart, end_date: prevWeekEnd },
+      });
+
+      if (prevRes.error || !prevRes.data?.data) {
+        throw new Error('No se pudo obtener la semana anterior');
+      }
+
+      const prevSchedules = prevRes.data.data.schedules || [];
+      if (prevSchedules.length === 0) {
+        throw new Error('La semana anterior no tiene turnos asignados');
+      }
+
+      // 2. Map previous week entries to current week (same day-of-week offset)
+      const entries = prevSchedules
+        .filter(s => s.shift_template_id) // Only copy actual shifts
+        .map(s => {
+          // Find the day offset (0=Mon, 6=Sun) from prev week
+          const prevDate = new Date(s.date + 'T00:00:00');
+          const prevMonday = new Date(prevWeekDates[0]);
+          const dayOffset = Math.round((prevDate.getTime() - prevMonday.getTime()) / (24 * 60 * 60 * 1000));
+
+          if (dayOffset < 0 || dayOffset > 6) return null;
+
+          const targetDate = formatDateISO(weekDates[dayOffset]);
+
+          return {
+            user_id: s.user_id,
+            date: targetDate,
+            shift_template_id: s.shift_template_id,
+            team_id: s.team_id,
+            notes: null,
+          };
+        })
+        .filter(Boolean);
+
+      if (entries.length === 0) {
+        throw new Error('No hay turnos para copiar');
+      }
+
+      // 3. Bulk upsert to current week
+      const res = await apiInvoke('bulk-upsert-schedules', {
+        body: { organizationId: orgId, entries },
+      });
+
+      if (res.error) throw new Error(res.error.message || 'Error al copiar');
+      return entries.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+      toast.success(`${count} turnos copiados de la semana anterior`);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
   // ─── Handlers ────────────────────────────────────────────────────────────
 
   const handleAssignShift = useCallback((userId: string, date: string, shiftTemplateId: string | null) => {
@@ -364,6 +461,11 @@ export default function Schedules() {
     }
   };
 
+  const handleCopyPreviousWeek = () => {
+    if (copyWeekMutation.isPending) return;
+    copyWeekMutation.mutate();
+  };
+
   // ─── Week label ──────────────────────────────────────────────────────────
 
   const weekLabel = useMemo(() => {
@@ -391,196 +493,221 @@ export default function Schedules() {
   const isLoading = templatesLoading || scheduleLoading;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <CalendarClock className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight">Horarios</h1>
+    <TooltipProvider>
+      <div className="flex flex-col h-full">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <CalendarClock className="h-5 w-5 text-primary" />
+            <h1 className="text-xl font-semibold tracking-tight">Horarios</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Copy previous week */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleCopyPreviousWeek}
+                  disabled={copyWeekMutation.isPending || isLoading}
+                >
+                  {copyWeekMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">Copiar semana</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Copiar turnos de la semana anterior</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Week navigation */}
+            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setWeekOffset(w => w - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <button
+                onClick={() => setWeekOffset(0)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[180px] text-center",
+                  isCurrentWeek ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                )}
+              >
+                {weekLabel}
+              </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setWeekOffset(w => w + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Manage templates */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={openCreateTemplate}
+            >
+              <Settings2 className="h-4 w-4" />
+              Turnos
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Week navigation */}
-          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setWeekOffset(w => w - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <button
-              onClick={() => setWeekOffset(0)}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors min-w-[180px] text-center",
-                isCurrentWeek ? "bg-primary/10 text-primary" : "hover:bg-muted"
+        {/* ── Grid ── */}
+        <div className="flex-1 overflow-auto p-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : teams.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <Users className="h-12 w-12 text-muted-foreground/40 mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground">No hay equipos configurados</h3>
+              <p className="text-sm text-muted-foreground/60 mt-1">
+                Crea equipos y asigna miembros desde la sección Teams
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {teams.map(team => (
+                <TeamScheduleGrid
+                  key={team.team_id}
+                  team={team}
+                  weekDates={weekDates}
+                  scheduleLookup={scheduleLookup}
+                  shiftTemplates={shiftTemplates}
+                  dayStats={dayStats}
+                  selectedCell={selectedCell}
+                  onSelectCell={setSelectedCell}
+                  onAssignShift={handleAssignShift}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Shift Template Dialog ── */}
+        <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingTemplate ? 'Editar turno' : 'Nuevo turno'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label>Nombre</Label>
+                <Input
+                  value={templateForm.name}
+                  onChange={e => setTemplateForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Ej: 7:00 - 15:00"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={templateForm.is_day_off}
+                    onChange={e => setTemplateForm(f => ({ ...f, is_day_off: e.target.checked, start_time: '', end_time: '' }))}
+                    className="rounded border-border"
+                  />
+                  <span className="text-sm">Es día libre / descanso</span>
+                </label>
+              </div>
+              {!templateForm.is_day_off && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Hora inicio</Label>
+                    <Input
+                      type="time"
+                      value={templateForm.start_time}
+                      onChange={e => setTemplateForm(f => ({ ...f, start_time: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Hora fin</Label>
+                    <Input
+                      type="time"
+                      value={templateForm.end_time}
+                      onChange={e => setTemplateForm(f => ({ ...f, end_time: e.target.value }))}
+                    />
+                  </div>
+                </div>
               )}
-            >
-              {weekLabel}
-            </button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setWeekOffset(w => w + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Manage templates */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={openCreateTemplate}
-          >
-            <Settings2 className="h-4 w-4" />
-            Turnos
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Grid ── */}
-      <div className="flex-1 overflow-auto p-4">
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-32 w-full rounded-xl" />
-            ))}
-          </div>
-        ) : teams.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center">
-            <Users className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <h3 className="text-lg font-medium text-muted-foreground">No hay equipos configurados</h3>
-            <p className="text-sm text-muted-foreground/60 mt-1">
-              Crea equipos y asigna miembros desde la sección Teams
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {teams.map(team => (
-              <TeamScheduleGrid
-                key={team.team_id}
-                team={team}
-                weekDates={weekDates}
-                scheduleLookup={scheduleLookup}
-                shiftTemplates={shiftTemplates}
-                dayStats={dayStats}
-                selectedCell={selectedCell}
-                onSelectCell={setSelectedCell}
-                onAssignShift={handleAssignShift}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Shift Template Dialog ── */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTemplate ? 'Editar turno' : 'Nuevo turno'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Nombre</Label>
-              <Input
-                value={templateForm.name}
-                onChange={e => setTemplateForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Ej: 7:00 - 15:00"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={templateForm.is_day_off}
-                  onChange={e => setTemplateForm(f => ({ ...f, is_day_off: e.target.checked, start_time: '', end_time: '' }))}
-                  className="rounded border-border"
-                />
-                <span className="text-sm">Es día libre / descanso</span>
-              </label>
-            </div>
-            {!templateForm.is_day_off && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Hora inicio</Label>
-                  <Input
-                    type="time"
-                    value={templateForm.start_time}
-                    onChange={e => setTemplateForm(f => ({ ...f, start_time: e.target.value }))}
+              <div>
+                <Label>Color</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={templateForm.color}
+                    onChange={e => setTemplateForm(f => ({ ...f, color: e.target.value }))}
+                    className="w-10 h-10 rounded cursor-pointer border border-border"
                   />
-                </div>
-                <div>
-                  <Label>Hora fin</Label>
-                  <Input
-                    type="time"
-                    value={templateForm.end_time}
-                    onChange={e => setTemplateForm(f => ({ ...f, end_time: e.target.value }))}
-                  />
+                  <span className="text-sm text-muted-foreground">{templateForm.color}</span>
                 </div>
               </div>
-            )}
-            <div>
-              <Label>Color</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="color"
-                  value={templateForm.color}
-                  onChange={e => setTemplateForm(f => ({ ...f, color: e.target.value }))}
-                  className="w-10 h-10 rounded cursor-pointer border border-border"
-                />
-                <span className="text-sm text-muted-foreground">{templateForm.color}</span>
-              </div>
-            </div>
 
-            {/* Show existing templates for reference */}
-            {!editingTemplate && shiftTemplates.length > 0 && (
-              <div className="border-t pt-3">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Turnos existentes:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {shiftTemplates.map(t => (
-                    <div key={t.id} className="flex items-center gap-1.5 group">
-                      <Badge
-                        variant="outline"
-                        className="text-xs cursor-pointer hover:opacity-80"
-                        style={{ borderColor: t.color, color: t.color }}
-                        onClick={() => openEditTemplate(t)}
-                      >
-                        <Pencil className="h-3 w-3 mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        {t.name}
-                      </Badge>
-                      <button
-                        onClick={() => {
-                          if (confirm(`¿Eliminar turno "${t.name}"?`)) {
-                            deleteTemplateMutation.mutate(t.id);
-                          }
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
+              {/* Show existing templates for reference */}
+              {!editingTemplate && shiftTemplates.length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Turnos existentes:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {shiftTemplates.map(t => (
+                      <div key={t.id} className="flex items-center gap-1.5 group">
+                        <Badge
+                          variant="outline"
+                          className="text-xs cursor-pointer hover:opacity-80"
+                          style={{ borderColor: t.color, color: t.color }}
+                          onClick={() => openEditTemplate(t)}
+                        >
+                          <Pencil className="h-3 w-3 mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          {t.name}
+                        </Badge>
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Eliminar turno "${t.name}"?`)) {
+                              deleteTemplateMutation.mutate(t.id);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveTemplate}>
-              {editingTemplate ? 'Guardar cambios' : 'Crear turno'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveTemplate}>
+                {editingTemplate ? 'Guardar cambios' : 'Crear turno'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -607,23 +734,54 @@ function TeamScheduleGrid({
   onSelectCell,
   onAssignShift,
 }: TeamScheduleGridProps) {
-  // Only show day stats header on the first team
-  const showDayStats = true;
+  // Calculate weekly hours per member
+  const memberWeeklyHours = useMemo(() => {
+    const result = new Map<string, number>();
+    for (const member of team.members) {
+      let totalHours = 0;
+      for (const d of weekDates) {
+        const dateStr = formatDateISO(d);
+        const entry = scheduleLookup.get(`${member.id}__${dateStr}`);
+        if (entry?.shift_template_id) {
+          const shift = shiftTemplates.find(t => t.id === entry.shift_template_id);
+          totalHours += calcShiftHours(shift || null);
+        }
+      }
+      result.set(member.id, totalHours);
+    }
+    return result;
+  }, [team.members, weekDates, scheduleLookup, shiftTemplates]);
+
+  // Team total hours
+  const teamTotalHours = useMemo(() => {
+    let total = 0;
+    memberWeeklyHours.forEach(h => { total += h; });
+    return total;
+  }, [memberWeeklyHours]);
 
   return (
     <Card className="overflow-hidden border-border/40">
       {/* Team header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
-        <Users className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold tracking-tight">{team.team_name}</h3>
-        <Badge variant="secondary" className="text-xs ml-1">
-          {team.members.length}
-        </Badge>
+      <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border/30">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold tracking-tight">{team.team_name}</h3>
+          <Badge variant="secondary" className="text-xs ml-1">
+            {team.members.length}
+          </Badge>
+        </div>
+        {teamTotalHours > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="font-medium">{formatHours(teamTotalHours)}</span>
+            <span>total</span>
+          </div>
+        )}
       </div>
 
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[800px]">
+          <table className="w-full border-collapse min-w-[900px]">
             <thead>
               <tr>
                 {/* Name column */}
@@ -677,122 +835,142 @@ function TeamScheduleGrid({
                     </th>
                   );
                 })}
+                {/* Hours column */}
+                <th className="px-3 py-2 text-center border-b border-l border-border/30 min-w-[70px] bg-muted/10">
+                  <div className="flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    Horas
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {team.members.map(member => (
-                <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
-                  {/* Name cell */}
-                  <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-3 py-1.5 border-r border-border/30">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7">
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
-                          {getInitials(member.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium truncate max-w-[120px]">
-                        {member.name}
-                      </span>
-                    </div>
-                  </td>
-                  {/* Schedule cells */}
-                  {weekDates.map(d => {
-                    const dateStr = formatDateISO(d);
-                    const entry = scheduleLookup.get(`${member.id}__${dateStr}`);
-                    const shift = entry?.shift_template_id
-                      ? shiftTemplates.find(t => t.id === entry.shift_template_id)
-                      : null;
-                    const today = isToday(d);
-                    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                    const isSelected = selectedCell?.userId === member.id && selectedCell?.date === dateStr;
+              {team.members.map(member => {
+                const weeklyHours = memberWeeklyHours.get(member.id) || 0;
 
-                    return (
-                      <td
-                        key={dateStr}
-                        className={cn(
-                          "px-1 py-1 text-center border-border/20",
-                          today && "bg-primary/5",
-                          isWeekend && !today && "bg-muted/20"
-                        )}
-                      >
-                        <Popover
-                          open={isSelected}
-                          onOpenChange={open => {
-                            if (!open) onSelectCell(null);
-                          }}
+                return (
+                  <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
+                    {/* Name cell */}
+                    <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-3 py-1.5 border-r border-border/30">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+                            {getInitials(member.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium truncate max-w-[120px]">
+                          {member.name}
+                        </span>
+                      </div>
+                    </td>
+                    {/* Schedule cells */}
+                    {weekDates.map(d => {
+                      const dateStr = formatDateISO(d);
+                      const entry = scheduleLookup.get(`${member.id}__${dateStr}`);
+                      const shift = entry?.shift_template_id
+                        ? shiftTemplates.find(t => t.id === entry.shift_template_id)
+                        : null;
+                      const today = isToday(d);
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                      const isSelected = selectedCell?.userId === member.id && selectedCell?.date === dateStr;
+
+                      return (
+                        <td
+                          key={dateStr}
+                          className={cn(
+                            "px-1 py-1 text-center border-border/20",
+                            today && "bg-primary/5",
+                            isWeekend && !today && "bg-muted/20"
+                          )}
                         >
-                          <PopoverTrigger asChild>
-                            <button
-                              onClick={() => onSelectCell({ userId: member.id, date: dateStr })}
-                              className={cn(
-                                "w-full min-h-[36px] rounded-md text-xs font-medium transition-all",
-                                "border border-transparent hover:border-primary/30 hover:shadow-sm",
-                                shift
-                                  ? "text-white shadow-sm"
-                                  : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40"
-                              )}
-                              style={shift ? {
-                                backgroundColor: shift.color,
-                                opacity: shift.is_day_off ? 0.6 : 1,
-                              } : undefined}
-                            >
-                              {shift ? (
-                                <span className="px-1">
-                                  {shift.is_day_off ? shift.name : (
-                                    shift.start_time && shift.end_time
-                                      ? `${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}`
-                                      : shift.name
-                                  )}
-                                </span>
-                              ) : (
-                                <Minus className="h-3 w-3 mx-auto" />
-                              )}
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-48 p-2" align="center" side="bottom">
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium text-muted-foreground px-1 pb-1 border-b border-border/30 mb-1">
-                                Asignar turno
-                              </p>
-                              {shiftTemplates.map(t => (
-                                <button
-                                  key={t.id}
-                                  onClick={() => onAssignShift(member.id, dateStr, t.id)}
-                                  className={cn(
-                                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-muted/60",
-                                    entry?.shift_template_id === t.id && "bg-muted"
-                                  )}
-                                >
-                                  <div
-                                    className="w-3 h-3 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: t.color }}
-                                  />
-                                  <span className="truncate">{t.name}</span>
-                                </button>
-                              ))}
-                              {entry?.shift_template_id && (
-                                <>
-                                  <div className="border-t border-border/30 my-1" />
+                          <Popover
+                            open={isSelected}
+                            onOpenChange={open => {
+                              if (!open) onSelectCell(null);
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <button
+                                onClick={() => onSelectCell({ userId: member.id, date: dateStr })}
+                                className={cn(
+                                  "w-full min-h-[36px] rounded-md text-xs font-medium transition-all",
+                                  "border border-transparent hover:border-primary/30 hover:shadow-sm",
+                                  shift
+                                    ? "text-white shadow-sm"
+                                    : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40"
+                                )}
+                                style={shift ? {
+                                  backgroundColor: shift.color,
+                                  opacity: shift.is_day_off ? 0.6 : 1,
+                                } : undefined}
+                              >
+                                {shift ? (
+                                  <span className="px-1">
+                                    {shift.is_day_off ? shift.name : (
+                                      shift.start_time && shift.end_time
+                                        ? `${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}`
+                                        : shift.name
+                                    )}
+                                  </span>
+                                ) : (
+                                  <Minus className="h-3 w-3 mx-auto" />
+                                )}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2" align="center" side="bottom">
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground px-1 pb-1 border-b border-border/30 mb-1">
+                                  Asignar turno
+                                </p>
+                                {shiftTemplates.map(t => (
                                   <button
-                                    onClick={() => onAssignShift(member.id, dateStr, null)}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                    key={t.id}
+                                    onClick={() => onAssignShift(member.id, dateStr, t.id)}
+                                    className={cn(
+                                      "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-muted/60",
+                                      entry?.shift_template_id === t.id && "bg-muted"
+                                    )}
                                   >
-                                    <X className="h-3 w-3" />
-                                    <span>Quitar turno</span>
+                                    <div
+                                      className="w-3 h-3 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: t.color }}
+                                    />
+                                    <span className="truncate">{t.name}</span>
                                   </button>
-                                </>
-                              )}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                                ))}
+                                {entry?.shift_template_id && (
+                                  <>
+                                    <div className="border-t border-border/30 my-1" />
+                                    <button
+                                      onClick={() => onAssignShift(member.id, dateStr, null)}
+                                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                    >
+                                      <X className="h-3 w-3" />
+                                      <span>Quitar turno</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </td>
+                      );
+                    })}
+                    {/* Weekly hours cell */}
+                    <td className="px-3 py-1.5 text-center border-l border-border/30 bg-muted/10">
+                      <span className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        weeklyHours > 0 ? "text-foreground" : "text-muted-foreground/30"
+                      )}>
+                        {weeklyHours > 0 ? formatHours(weeklyHours) : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
               {team.members.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
+                  <td colSpan={9} className="py-6 text-center text-sm text-muted-foreground">
                     No hay miembros en este equipo
                   </td>
                 </tr>
