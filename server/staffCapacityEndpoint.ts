@@ -740,18 +740,52 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
         }
       }
 
-      // Available person-minutes:
-      // Rentals: 60 min per person (full hour available for operations)
-      // Preparación: 60 min per person (available as escoba)
-      // Mostrador: 30 min per person (can help but should stay at desk, 50% available)
-      const availableMinutes =
-        rentals.length * 60 +
-        preparacion.length * 60 +
-        mostrador.length * 30;
+      // ── Demand split: Rental demand vs Escoba demand ──
+      // Operations at base: 1 person (Rental/Mostrador) → BASE_OPERATION_MINUTES
+      // Operations a domicilio: need 1 Rental + 1 Escoba
+      //   - Rental demand: travel round-trip + operation time
+      //   - Escoba demand: travel round-trip only (driver support)
+      let rentalDemandMinutes = 0;  // demand that only Rentals/Mostrador can fulfill
+      let escobaDemandMinutes = 0;  // demand that Preparación/Rentals/Mostrador can fulfill
 
-      const totalNeeded = slotOps.reduce((sum, op) => sum + op.personMinutes, 0);
+      for (const op of slotOps) {
+        if (op.isAtBase) {
+          // At base: only needs 1 Rental/Mostrador person
+          rentalDemandMinutes += BASE_OPERATION_MINUTES;
+        } else {
+          // A domicilio: needs 1 Rental + 1 Escoba
+          const effectiveTravel = op.travelMinutesWithTraffic ?? op.travelMinutesOneWay;
+          const roundTrip = effectiveTravel * 2;
+          // Rental person: round trip + operation
+          rentalDemandMinutes += roundTrip + BASE_OPERATION_MINUTES;
+          // Escoba person: round trip only (drives the Rental there and back)
+          escobaDemandMinutes += roundTrip;
+        }
+      }
 
-      const utilization = availableMinutes > 0 ? totalNeeded / availableMinutes : (totalNeeded > 0 ? 1 : 0);
+      // Available capacity:
+      // Rentals: 60 min/h — can do Rental work AND Escoba work
+      // Mostrador: 30 min/h (50%) — can do Rental work AND Escoba work
+      // Preparación: 60 min/h — can ONLY do Escoba work
+      const rentalCapacity = rentals.length * 60 + mostrador.length * 30;
+      const escobaCapacity = preparacion.length * 60;
+
+      // First, satisfy Rental demand with Rental+Mostrador capacity
+      const rentalOverflow = Math.max(0, rentalDemandMinutes - rentalCapacity);
+      const rentalSurplus = Math.max(0, rentalCapacity - rentalDemandMinutes);
+
+      // Escoba demand can be covered by: Preparación + leftover Rental/Mostrador capacity
+      const totalEscobaCapacity = escobaCapacity + rentalSurplus;
+      const escobaOverflow = Math.max(0, escobaDemandMinutes - totalEscobaCapacity);
+
+      // Total: any overflow from either pool is unmet demand
+      const totalNeeded = rentalDemandMinutes + escobaDemandMinutes;
+      const totalUnmet = rentalOverflow + escobaOverflow;
+      const availableMinutes = rentalCapacity + escobaCapacity;
+
+      const utilization = availableMinutes > 0
+        ? (totalNeeded > 0 ? Math.min(totalNeeded / availableMinutes, totalUnmet > 0 ? 1 : totalNeeded / availableMinutes) : 0)
+        : (totalNeeded > 0 ? 1 : 0);
 
       let status: "sufficient" | "tight" | "deficit" = "sufficient";
       if (utilization > THRESHOLD_DEFICIT) status = "deficit";

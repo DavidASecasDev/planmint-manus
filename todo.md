@@ -582,3 +582,4 @@
 - [x] Excluir equipo Directiva del cálculo de personal disponible en capacidad (no participan en operaciones)
 - [x] Bug: Tabla travel_time_cache no existe en Supabase — creada + corregidos nombres de columna inconsistentes en endpoints
 - [x] Bug: Directiva aparece en desplegables de asignación Rental/Escoba en reservas — excluida de usuarios y equipos
+- [x] Ajustar cálculo de capacidad: Preparación solo cuenta como Escoba (no puede hacer entregas/devoluciones como Rental)
