@@ -141,13 +141,11 @@ const menuItems = [
   { title: 'Ajustes', url: '/settings', icon: Settings },
 ];
 
-/* ── Inline style constants for navy sidebar ── */
-const navyBg = '#001321';
-const navyLight = '#0A1E30';
-const goldAccent = 'oklch(0.72 0.10 80)';
-const textWhite = '#FFFFFF';
-const textMuted = 'rgba(255,255,255,0.55)';
-const borderColor = 'rgba(255,255,255,0.08)';
+/* ── Sidebar styling now uses CSS variables via Tailwind classes ──
+ * --sidebar-background, --sidebar-primary, --sidebar-foreground,
+ * --sidebar-accent, --sidebar-accent-foreground, --sidebar-border
+ * Defined in index.css — no inline style constants needed.
+ */
 
 export function AppSidebar() {
   const { profile, organization, signOut } = useAuth();
@@ -218,34 +216,11 @@ export function AppSidebar() {
 
   /* ── Shared style helpers ── */
   const menuItemBase = cn(
-    "group flex items-center text-sm transition-all duration-150",
+    "group flex items-center text-sm font-sans rounded-lg transition-all duration-150",
+    "text-sidebar-foreground/70",
     isCollapsed ? "justify-center !p-0" : "gap-3 px-3",
-    // Larger touch targets on mobile (min 44px)
-    isCollapsed ? "" : (isMobile ? "py-3.5" : "py-2.5")
+    isCollapsed ? "" : (isMobile ? "py-3" : "py-2.5")
   );
-
-  const menuItemDefault = {
-    color: textMuted,
-    fontFamily: 'Barlow, sans-serif',
-    fontWeight: 500,
-    borderRadius: '6px',
-  };
-
-  const menuItemHover = {
-    backgroundColor: navyLight,
-    color: textWhite,
-  };
-
-  const menuItemActive = {
-    backgroundColor: goldAccent,
-    color: navyBg,
-    fontWeight: 600,
-  };
-
-  const subItemActive = {
-    backgroundColor: 'rgba(201,169,110,0.15)',
-    color: goldAccent,
-  };
 
   /* ── Collapsible menu renderer ── */
   const renderCollapsibleMenu = (
@@ -266,30 +241,16 @@ export function AppSidebar() {
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
                   className={menuItemBase}
-                  style={{
-                    ...menuItemDefault,
-                    ...(isActive ? { color: goldAccent, backgroundColor: 'rgba(201,169,110,0.08)' } : {}),
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      Object.assign(e.currentTarget.style, menuItemHover);
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = isActive ? 'rgba(201,169,110,0.08)' : 'transparent';
-                      e.currentTarget.style.color = isActive ? goldAccent : textMuted;
-                    }
-                  }}
+                  isActive={isActive}
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" />
                   {!isCollapsed && (
                     <>
                       <span className="flex-1 text-left">{label}</span>
                       <ChevronDown className={cn(
-                        "h-4 w-4 transition-transform duration-200",
+                        "h-4 w-4 transition-transform duration-200 text-current",
                         isOpen && "rotate-180"
-                      )} style={{ color: 'inherit' }} />
+                      )} />
                     </>
                   )}
                 </SidebarMenuButton>
@@ -303,8 +264,7 @@ export function AppSidebar() {
         {!isCollapsed && (
           <CollapsibleContent className="overflow-hidden data-[state=open]:animate-sidebar-expand data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150">
             <SidebarMenuSub
-              className="ml-4 mt-1 space-y-0.5 pl-3"
-              style={{ borderLeft: `1px solid ${borderColor}` }}
+              className="ml-4 mt-1 space-y-0.5 pl-3 border-l border-sidebar-border"
             >
               {subItems
                 .filter(filterFn || (() => true))
@@ -319,14 +279,13 @@ export function AppSidebar() {
                       <SidebarMenuSubButton asChild isActive={isSubActive}>
                         <NavLink
                           to={subItem.url}
-                          className={cn("flex items-center gap-2 px-2 text-sm transition-colors", isMobile ? "py-3" : "py-1.5")}
-                          style={{
-                            color: isSubActive ? goldAccent : textMuted,
-                            backgroundColor: isSubActive ? 'rgba(201,169,110,0.12)' : 'transparent',
-                            borderRadius: '4px',
-                            fontFamily: 'Barlow, sans-serif',
-                            fontWeight: isSubActive ? 600 : 400,
-                          }}
+                          className={cn(
+                            "flex items-center gap-2 px-2 text-sm rounded transition-colors",
+                            isMobile ? "py-3" : "py-1.5",
+                            isSubActive
+                              ? "text-sidebar-primary bg-sidebar-primary/10 font-semibold"
+                              : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/50"
+                          )}
                           activeClassName=""
                           onMouseEnter={() => handlePrefetch(subItem.url)}
                           onMouseLeave={cancelPrefetch}
@@ -349,46 +308,23 @@ export function AppSidebar() {
     <TooltipProvider delayDuration={0}>
       <Sidebar
         collapsible="icon"
-        className="border-r"
-        style={{
-          backgroundColor: navyBg,
-          borderColor: borderColor,
-        }}
+        className="border-r border-sidebar-border"
       >
         {/* ── Header ── */}
         <SidebarHeader
-          className="p-4 group-data-[collapsible=icon]:p-2 animate-sidebar-fade-in"
-          style={{ borderBottom: `1px solid ${borderColor}` }}
+          className="p-4 group-data-[collapsible=icon]:p-2 animate-sidebar-fade-in border-b border-sidebar-border"
         >
           <div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-between")}>
             {!isCollapsed && (
-              <div className="flex items-center gap-3">
-                <span
-                  className="text-xl tracking-tight"
-                  style={{
-                    fontFamily: 'Montserrat, sans-serif',
-                    fontWeight: 800,
-                    color: textWhite,
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  AZUL<span style={{ color: goldAccent }}>.</span>
+              <div className="flex items-center gap-2.5">
+                <span className="font-heading text-xl font-extrabold tracking-tight text-sidebar-accent-foreground">
+                  AZUL<span className="text-sidebar-primary">.</span>
                 </span>
-                <span
-                  className="text-[10px]"
-                  style={{
-                    fontFamily: 'Montserrat, sans-serif',
-                    fontWeight: 700,
-                    color: textMuted,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                  }}
-                >
+                <span className="font-heading text-[10px] font-bold uppercase tracking-[0.1em] text-sidebar-foreground/50">
                   Manager
                 </span>
               </div>
             )}
-            {/* Hide collapse button on mobile — Sheet handles open/close */}
             {!isMobile && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -396,10 +332,7 @@ export function AppSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={toggleSidebar}
-                    className="h-8 w-8 transition-colors"
-                    style={{ color: textMuted }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = textWhite; e.currentTarget.style.backgroundColor = navyLight; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
                   >
                     {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                   </Button>
@@ -413,27 +346,16 @@ export function AppSidebar() {
         </SidebarHeader>
 
         {/* ── Gold accent line ── */}
-        <div
-          className="h-[2px]"
-          style={{ background: `linear-gradient(90deg, transparent, ${goldAccent}, transparent)` }}
-        />
+        <div className="h-[1.5px] bg-gradient-to-r from-transparent via-sidebar-primary to-transparent opacity-60" />
 
         {/* ── Content ── */}
         <SidebarContent className="px-3 py-4 group-data-[collapsible=icon]:px-0">
           <SidebarGroup>
             <SidebarGroupLabel
               className={cn(
-                "mb-2 px-3",
+                "mb-2 px-3 font-heading text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/35",
                 isCollapsed && "sr-only"
               )}
-              style={{
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 700,
-                fontSize: '10px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: 'rgba(255,255,255,0.35)',
-              }}
             >
               Menú principal
             </SidebarGroupLabel>
@@ -457,15 +379,13 @@ export function AppSidebar() {
                         >
                           {/* Icon placeholder */}
                           <div
-                            className="h-[18px] w-[18px] shrink-0 rounded animate-pulse"
-                            style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                            className="h-[18px] w-[18px] shrink-0 rounded animate-pulse bg-white/[0.08]"
                           />
                           {/* Text placeholder */}
                           {!isCollapsed && (
                             <div
-                              className="h-3.5 rounded animate-pulse"
+                              className="h-3.5 rounded animate-pulse bg-white/[0.08]"
                               style={{
-                                backgroundColor: 'rgba(255,255,255,0.08)',
                                 width: `${60 + (i % 4) * 20}px`,
                                 animationDelay: `${i * 80}ms`,
                               }}
@@ -497,10 +417,7 @@ export function AppSidebar() {
                                 <NavLink
                                   to={item.url}
                                   className={menuItemBase}
-                                  style={{
-                                    ...menuItemDefault,
-                                    ...(isItemActive ? menuItemActive : {}),
-                                  }}
+                                  data-active={isItemActive}
                                   activeClassName=""
                                   onMouseEnter={() => handlePrefetch(item.url)}
                                   onMouseLeave={cancelPrefetch}
@@ -575,10 +492,7 @@ export function AppSidebar() {
                               <NavLink
                                 to="/settings/admin"
                                 className={menuItemBase}
-                                style={{
-                                  ...menuItemDefault,
-                                  ...(location.pathname.startsWith('/settings/admin') ? menuItemActive : {}),
-                                }}
+                                data-active={location.pathname.startsWith('/settings/admin')}
                                 activeClassName=""
                               >
                                 <Shield className="h-[18px] w-[18px] shrink-0" />
@@ -607,10 +521,7 @@ export function AppSidebar() {
                             <NavLink
                               to="/help"
                               className={menuItemBase}
-                              style={{
-                                ...menuItemDefault,
-                                ...(location.pathname === '/help' ? menuItemActive : {}),
-                              }}
+                              data-active={location.pathname === '/help'}
                               activeClassName=""
                             >
                               <BookOpen className="h-[18px] w-[18px] shrink-0" />
@@ -635,8 +546,8 @@ export function AppSidebar() {
 
         {/* ── Footer ── */}
         <SidebarFooter
-          className="p-4 group-data-[collapsible=icon]:p-2 animate-sidebar-fade-in"
-          style={{ borderTop: `1px solid ${borderColor}`, animationDelay: '200ms' }}
+          className="p-4 group-data-[collapsible=icon]:p-2 animate-sidebar-fade-in border-t border-sidebar-border"
+          style={{ animationDelay: '200ms' }}
         >
           {!isCollapsed ? (
             <div className="space-y-4">
@@ -645,15 +556,11 @@ export function AppSidebar() {
                 variant="outline"
                 size="sm"
                 onClick={() => setFeedbackOpen(true)}
-                className={cn("w-full gap-2 transition-colors", isMobile && "h-11")}
-                style={{
-                  color: textMuted,
-                  borderColor: borderColor,
-                  backgroundColor: 'transparent',
-                  fontFamily: 'Barlow, sans-serif',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = textWhite; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.borderColor = borderColor; }}
+                className={cn(
+                  "w-full gap-2 transition-colors border-sidebar-border text-sidebar-foreground/60 bg-transparent",
+                  "hover:text-sidebar-accent-foreground hover:border-sidebar-foreground/20",
+                  isMobile && "h-11"
+                )}
               >
                 <MessageSquare className="h-4 w-4" />
                 Enviar feedback
@@ -667,55 +574,27 @@ export function AppSidebar() {
                 {!dataReady ? (
                   /* Skeleton avatar + text */
                   <>
-                    <div
-                      className="h-10 w-10 rounded-full animate-pulse shrink-0"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-                    />
+                    <div className="h-10 w-10 rounded-full animate-pulse shrink-0 bg-white/[0.08]" />
                     <div className="flex-1 min-w-0 space-y-2">
-                      <div
-                        className="h-3.5 w-20 rounded animate-pulse"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-                      />
-                      <div
-                        className="h-3 w-14 rounded animate-pulse"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
-                      />
+                      <div className="h-3.5 w-20 rounded animate-pulse bg-white/[0.08]" />
+                      <div className="h-3 w-14 rounded animate-pulse bg-white/[0.06]" />
                     </div>
                   </>
                 ) : (
                   /* Real avatar + text */
                   <>
-                    <Avatar className="h-10 w-10 shadow-sm" style={{ border: `2px solid ${borderColor}` }}>
+                    <Avatar className="h-10 w-10 shadow-sm ring-2 ring-sidebar-border">
                       <AvatarFallback
-                        className="text-sm font-semibold"
-                        style={{
-                          backgroundColor: goldAccent,
-                          color: navyBg,
-                          fontFamily: 'Montserrat, sans-serif',
-                          fontWeight: 700,
-                        }}
+                        className="text-sm font-heading font-bold bg-sidebar-primary text-sidebar-background"
                       >
                         {getInitials(profile?.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p
-                        className="truncate text-sm"
-                        style={{
-                          fontFamily: 'Barlow, sans-serif',
-                          fontWeight: 600,
-                          color: textWhite,
-                        }}
-                      >
+                      <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
                         {profile?.name || 'Usuario'}
                       </p>
-                      <p
-                        className="text-xs"
-                        style={{
-                          fontFamily: 'Barlow, sans-serif',
-                          color: textMuted,
-                        }}
-                      >
+                      <p className="text-xs text-sidebar-foreground/60">
                         {getRoleBadge(displayRole)}
                       </p>
                     </div>
@@ -727,10 +606,10 @@ export function AppSidebar() {
                       variant="ghost"
                       size="icon"
                       onClick={signOut}
-                      className={cn("transition-colors", isMobile ? "h-11 w-11" : "h-9 w-9")}
-                      style={{ color: textMuted }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className={cn(
+                        "transition-colors text-sidebar-foreground/60 hover:text-red-400 hover:bg-red-500/10",
+                        isMobile ? "h-11 w-11" : "h-9 w-9"
+                      )}
                     >
                       <LogOut className="h-4 w-4" />
                     </Button>
@@ -748,10 +627,7 @@ export function AppSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setFeedbackOpen(true)}
-                    className="h-8 w-8 transition-colors"
-                    style={{ color: textMuted }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = textWhite; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; }}
+                    className="h-8 w-8 transition-colors text-sidebar-foreground/60 hover:text-sidebar-accent-foreground"
                   >
                     <MessageSquare className="h-4 w-4" />
                   </Button>
@@ -760,16 +636,8 @@ export function AppSidebar() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Avatar className="h-9 w-9 shadow-sm cursor-pointer" style={{ border: `2px solid ${borderColor}` }}>
-                    <AvatarFallback
-                      className="text-xs font-semibold"
-                      style={{
-                        backgroundColor: goldAccent,
-                        color: navyBg,
-                        fontFamily: 'Montserrat, sans-serif',
-                        fontWeight: 700,
-                      }}
-                    >
+                  <Avatar className="h-9 w-9 shadow-sm cursor-pointer ring-2 ring-sidebar-border">
+                    <AvatarFallback className="text-xs font-heading font-bold bg-sidebar-primary text-sidebar-background">
                       {getInitials(profile?.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -787,10 +655,7 @@ export function AppSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={signOut}
-                    className="h-8 w-8 transition-colors"
-                    style={{ color: textMuted }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = textMuted; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    className="h-8 w-8 transition-colors text-sidebar-foreground/60 hover:text-red-400 hover:bg-red-500/10"
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>

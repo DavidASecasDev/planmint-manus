@@ -47,14 +47,14 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar: dark navy */
+    /* Sidebar: dark navy — refined */
     --sidebar-background: 200 100% 6%;
-    --sidebar-foreground: 0 0% 100%;
+    --sidebar-foreground: 210 15% 65%;
     --sidebar-primary: 37 45% 61%;
     --sidebar-primary-foreground: 200 100% 6%;
-    --sidebar-accent: 208 66% 11%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 208 50% 14%;
+    --sidebar-accent: 207 55% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 207 40% 15%;
     --sidebar-ring: 37 45% 61%;
 
     --chart-1: 37 45% 61%;
@@ -117,13 +117,13 @@
     --input: 207 30% 17%;
     --ring: 37 48% 63%;
 
-    /* Sidebar: deepest navy layer */
+    /* Sidebar: deepest navy layer — refined */
     --sidebar-background: 207 80% 4%;  /* #060F17 */
-    --sidebar-foreground: 38 20% 90%;
+    --sidebar-foreground: 210 12% 62%;
     --sidebar-primary: 37 48% 63%;
     --sidebar-primary-foreground: 207 80% 4%;
-    --sidebar-accent: 207 50% 11%;
-    --sidebar-accent-foreground: 38 20% 90%;
+    --sidebar-accent: 207 45% 12%;
+    --sidebar-accent-foreground: 38 15% 95%;
     --sidebar-border: 207 35% 14%;
     --sidebar-ring: 37 48% 63%;
 
@@ -255,6 +255,64 @@
   .gold-line {
     height: 2px;
     background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+  }
+
+  /* ── Sidebar premium overrides ── */
+  [data-sidebar="menu-button"] {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border-radius: 8px !important;
+    transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  [data-sidebar="menu-button"]:hover {
+    background: hsl(207 55% 12% / 0.8) !important;
+    color: hsl(0 0% 98%) !important;
+  }
+
+  [data-sidebar="menu-button"][data-active="true"] {
+    background: linear-gradient(135deg, hsl(var(--sidebar-primary)) 0%, hsl(37 50% 55%) 100%) !important;
+    color: hsl(200 100% 6%) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 8px hsl(37 45% 61% / 0.25), 0 0 0 1px hsl(37 45% 61% / 0.1) !important;
+  }
+
+  [data-sidebar="menu-button"] svg {
+    opacity: 0.7;
+    transition: opacity 180ms ease;
+  }
+
+  [data-sidebar="menu-button"]:hover svg,
+  [data-sidebar="menu-button"][data-active="true"] svg {
+    opacity: 1;
+  }
+
+  /* Sidebar group label */
+  [data-sidebar="group-label"] {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: hsl(210 15% 40%);
+    padding-left: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Sidebar scrollbar */
+  [data-sidebar="content"]::-webkit-scrollbar {
+    width: 4px;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar-thumb {
+    background: hsl(207 40% 20%);
+    border-radius: 4px;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
+    background: hsl(207 40% 28%);
   }
 
   /* ── PWA Install Banner animations ── */

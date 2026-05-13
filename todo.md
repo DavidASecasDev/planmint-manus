@@ -540,3 +540,4 @@
 - [x] Bug: Checkboxes de permisos de Horarios no son interactivos/clickables en la pantalla de gestión de permisos
 - [x] Horarios: Añadir permiso schedules.view_directiva para controlar quién puede ver los turnos del equipo Directiva
 - [x] Permisos: Mostrar roles personalizados (como Rental) en la tabla de "Permisos por defecto" entre Manager y Miembro
+- [x] Rediseñar barra lateral (AppSidebar) para aspecto más profesional y coherente con el diseño Azul (dark, dorado, tipografía elegante)
