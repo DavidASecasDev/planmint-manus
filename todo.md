@@ -544,3 +544,5 @@
 - [x] Horarios: Ajustar orden de equipos a Directiva → Mostrador → Rentals → Preparación
 - [x] Bug: AssigneeSelect muestra usuarios cuyo turno ya terminó — filtrar solo los que están actualmente en turno según la hora actual
 - [x] AssigneeSelect: Añadir separador visual entre usuarios "en turno" y los que ya terminaron
+- [x] Bug: AssigneeSelect muestra turno incorrecto para usuarios con múltiples equipos (Kristian 07-15 en Rentals aparece como 14-22 de Mostrador)
+- [x] Bug: Copiar semana anterior pierde un día en la página de Horarios

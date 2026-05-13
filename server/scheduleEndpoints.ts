@@ -407,16 +407,68 @@ export async function handleGetAvailableStaff(req: Request, res: Response) {
     if (schedError) throw schedError;
 
     // Build availability map: user_id -> { available, shift_name, start_time, end_time }
-    const availability: Record<string, { available: boolean; shift_name: string; start_time: string | null; end_time: string | null }> = {};
+    // A user may have multiple schedule entries (one per team). We collect all shifts
+    // and pick the one that is currently active, or the earliest upcoming one.
+    const userShifts: Record<string, Array<{ available: boolean; shift_name: string; start_time: string | null; end_time: string | null }>> = {};
     (schedules || []).forEach((s: any) => {
       const template = s.shift_templates;
-      availability[s.user_id] = {
+      if (!userShifts[s.user_id]) userShifts[s.user_id] = [];
+      userShifts[s.user_id].push({
         available: !template.is_day_off,
         shift_name: template.name,
         start_time: template.start_time,
         end_time: template.end_time,
-      };
+      });
     });
+
+    // Helper: convert HH:MM to minutes since midnight
+    const toMinutes = (t: string | null): number => {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const availability: Record<string, { available: boolean; shift_name: string; start_time: string | null; end_time: string | null }> = {};
+    for (const [uid, shifts] of Object.entries(userShifts)) {
+      if (shifts.length === 1) {
+        availability[uid] = shifts[0];
+        continue;
+      }
+
+      // If any shift is a day-off and another is working, prefer the working one
+      const workingShifts = shifts.filter(s => s.available);
+      const dayOffShifts = shifts.filter(s => !s.available);
+
+      if (workingShifts.length === 0) {
+        // All are day-off
+        availability[uid] = dayOffShifts[0];
+        continue;
+      }
+
+      // Among working shifts, find the one currently active
+      const activeShift = workingShifts.find(s => {
+        if (!s.start_time || !s.end_time) return false;
+        const startMin = toMinutes(s.start_time);
+        const endMin = toMinutes(s.end_time);
+        // Handle overnight shifts
+        if (endMin <= startMin) {
+          return currentMinutes >= startMin || currentMinutes <= endMin;
+        }
+        return currentMinutes >= startMin && currentMinutes <= endMin;
+      });
+
+      if (activeShift) {
+        availability[uid] = activeShift;
+      } else {
+        // No active shift right now — pick the earliest start_time shift (the one for today)
+        // Sort by start_time and pick the first one
+        workingShifts.sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
+        availability[uid] = workingShifts[0];
+      }
+    }
 
     return res.json({ ok: true, data: availability });
   } catch (err: any) {
