@@ -271,10 +271,25 @@ export default function Schedules() {
 
   const allTeams = weeklyData?.teams || [];
   // Filter out Directiva team if user doesn't have view_directiva permission
-  const teams = allTeams.filter(t => {
-    if (t.team_name.toLowerCase() === 'directiva' && !canViewDirectiva) return false;
-    return true;
-  });
+  // Then sort by custom order: Directiva → Mostrador → Rentals → Preparación
+  const TEAM_ORDER: Record<string, number> = {
+    directiva: 1,
+    mostrador: 2,
+    rentals: 3,
+    rental: 3,
+    'preparación': 4,
+    preparacion: 4,
+  };
+  const teams = allTeams
+    .filter(t => {
+      if (t.team_name.toLowerCase() === 'directiva' && !canViewDirectiva) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const orderA = TEAM_ORDER[a.team_name.toLowerCase()] ?? 99;
+      const orderB = TEAM_ORDER[b.team_name.toLowerCase()] ?? 99;
+      return orderA - orderB;
+    });
   const schedules = weeklyData?.schedules || [];
   const dayStats = weeklyData?.dayStats || {};
 

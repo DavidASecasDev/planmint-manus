@@ -541,3 +541,4 @@
 - [x] Horarios: Añadir permiso schedules.view_directiva para controlar quién puede ver los turnos del equipo Directiva
 - [x] Permisos: Mostrar roles personalizados (como Rental) en la tabla de "Permisos por defecto" entre Manager y Miembro
 - [x] Rediseñar barra lateral (AppSidebar) para aspecto más profesional y coherente con el diseño Azul (dark, dorado, tipografía elegante)
+- [x] Horarios: Ajustar orden de equipos a Directiva → Mostrador → Rentals → Preparación
