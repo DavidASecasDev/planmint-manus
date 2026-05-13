@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { apiInvoke } from '@/lib/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -146,8 +147,15 @@ function formatHours(h: number): string {
 
 export default function Schedules() {
   const { profile } = useAuth();
+  const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const orgId = profile?.organization_id;
+
+  // Permission flags
+  const canView = hasPermission('schedules.view');
+  const canAssign = hasPermission('schedules.assign');
+  const canManageTemplates = hasPermission('schedules.manage_templates');
+  const canManage = hasPermission('schedules.manage');
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCell, setSelectedCell] = useState<{ teamId: string; userId: string; date: string } | null>(null);
@@ -502,28 +510,30 @@ export default function Schedules() {
         {/* ── Header ── */}
         <div className="flex items-center justify-end px-2 py-3">
           <div className="flex items-center gap-2">
-            {/* Copy previous week */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={handleCopyPreviousWeek}
-                  disabled={copyWeekMutation.isPending || isLoading}
-                >
-                  {copyWeekMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                  <span className="hidden sm:inline">Copiar semana</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copiar turnos de la semana anterior</p>
-              </TooltipContent>
-            </Tooltip>
+            {/* Copy previous week — requires schedules.manage */}
+            {canManage && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={handleCopyPreviousWeek}
+                    disabled={copyWeekMutation.isPending || isLoading}
+                  >
+                    {copyWeekMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">Copiar semana</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Copiar turnos de la semana anterior</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
             {/* Week navigation */}
             <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -554,16 +564,18 @@ export default function Schedules() {
               </Button>
             </div>
 
-            {/* Manage templates */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={openCreateTemplate}
-            >
-              <Settings2 className="h-4 w-4" />
-              Turnos
-            </Button>
+            {/* Manage templates — requires schedules.manage_templates */}
+            {canManageTemplates && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={openCreateTemplate}
+              >
+                <Settings2 className="h-4 w-4" />
+                Turnos
+              </Button>
+            )}
           </div>
         </div>
 
@@ -596,6 +608,7 @@ export default function Schedules() {
                   selectedCell={selectedCell}
                   onSelectCell={setSelectedCell}
                   onAssignShift={handleAssignShift}
+                  canAssign={canAssign}
                 />
               ))}
             </div>
@@ -722,6 +735,7 @@ interface TeamScheduleGridProps {
   selectedCell: { teamId: string; userId: string; date: string } | null;
   onSelectCell: (cell: { teamId: string; userId: string; date: string } | null) => void;
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
+  canAssign: boolean;
 }
 
 function TeamScheduleGrid({
@@ -733,6 +747,7 @@ function TeamScheduleGrid({
   selectedCell,
   onSelectCell,
   onAssignShift,
+  canAssign,
 }: TeamScheduleGridProps) {
   // Calculate weekly hours per member
   const memberWeeklyHours = useMemo(() => {
@@ -883,6 +898,7 @@ function TeamScheduleGrid({
                             isWeekend && !today && "bg-muted/20"
                           )}
                         >
+                          {canAssign ? (
                           <Popover
                             open={isSelected}
                             onOpenChange={open => {
@@ -953,6 +969,32 @@ function TeamScheduleGrid({
                               </div>
                             </PopoverContent>
                           </Popover>
+                          ) : (
+                            <div
+                              className={cn(
+                                "w-full min-h-[36px] rounded-md text-xs font-medium flex items-center justify-center",
+                                shift
+                                  ? "text-white shadow-sm"
+                                  : "text-muted-foreground/40"
+                              )}
+                              style={shift ? {
+                                backgroundColor: shift.color,
+                                opacity: shift.is_day_off ? 0.6 : 1,
+                              } : undefined}
+                            >
+                              {shift ? (
+                                <span className="px-1">
+                                  {shift.is_day_off ? shift.name : (
+                                    shift.start_time && shift.end_time
+                                      ? `${shift.start_time.slice(0, 5)}\u2013${shift.end_time.slice(0, 5)}`
+                                      : shift.name
+                                  )}
+                                </span>
+                              ) : (
+                                <Minus className="h-3 w-3 mx-auto" />
+                              )}
+                            </div>
+                          )}
                         </td>
                       );
                     })}

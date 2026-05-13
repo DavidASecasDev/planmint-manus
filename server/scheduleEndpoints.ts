@@ -9,6 +9,7 @@ import {
   authenticateSupabaseRequest,
   AuthError,
 } from "./supabaseAdmin";
+import { checkUserPermission } from "./permissionHelper";
 
 // ─── Shift Templates ────────────────────────────────────────────────────────
 
@@ -19,6 +20,11 @@ export async function handleGetShiftTemplates(req: Request, res: Response) {
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
     const sb = getServiceClient();
+
+    // Permission: schedules.view
+    const { allowed: canView } = await checkUserPermission(sb, orgId, userId, "schedules.view");
+    if (!canView) return res.status(403).json({ ok: false, error: "No permission to view schedules" });
+
     const { data, error } = await sb
       .from("shift_templates")
       .select("*")
@@ -40,10 +46,14 @@ export async function handleCreateShiftTemplate(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_templates or schedules.manage
+    const { allowed: canManageTemplates } = await checkUserPermission(sb, orgId, userId, "schedules.manage_templates");
+    if (!canManageTemplates) return res.status(403).json({ ok: false, error: "No permission to manage shift templates" });
+
     const { name, start_time, end_time, color, is_day_off } = req.body;
     if (!name) return res.status(400).json({ ok: false, error: "Name is required" });
-
-    const sb = getServiceClient();
 
     // Get max sort_order
     const { data: existing } = await sb
@@ -84,10 +94,15 @@ export async function handleUpdateShiftTemplate(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_templates or schedules.manage
+    const { allowed: canManageTemplates } = await checkUserPermission(sb, orgId, userId, "schedules.manage_templates");
+    if (!canManageTemplates) return res.status(403).json({ ok: false, error: "No permission to manage shift templates" });
+
     const { template_id, name, start_time, end_time, color, is_day_off } = req.body;
     if (!template_id) return res.status(400).json({ ok: false, error: "template_id is required" });
 
-    const sb = getServiceClient();
     const updates: Record<string, any> = { updated_at: new Date().toISOString() };
     if (name !== undefined) updates.name = name;
     if (color !== undefined) updates.color = color;
@@ -124,10 +139,15 @@ export async function handleDeleteShiftTemplate(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_templates or schedules.manage
+    const { allowed: canManageTemplates } = await checkUserPermission(sb, orgId, userId, "schedules.manage_templates");
+    if (!canManageTemplates) return res.status(403).json({ ok: false, error: "No permission to manage shift templates" });
+
     const { template_id } = req.body;
     if (!template_id) return res.status(400).json({ ok: false, error: "template_id is required" });
 
-    const sb = getServiceClient();
     const { error } = await sb
       .from("shift_templates")
       .delete()
@@ -151,12 +171,16 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
+    const sb = getServiceClient();
+
+    // Permission: schedules.view
+    const { allowed: canView } = await checkUserPermission(sb, orgId, userId, "schedules.view");
+    if (!canView) return res.status(403).json({ ok: false, error: "No permission to view schedules" });
+
     const { start_date, end_date } = req.body;
     if (!start_date || !end_date) {
       return res.status(400).json({ ok: false, error: "start_date and end_date are required" });
     }
-
-    const sb = getServiceClient();
 
     // Get schedules for the date range
     const { data: schedules, error: schedError } = await sb
@@ -262,12 +286,16 @@ export async function handleUpsertSchedule(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
+    const sb = getServiceClient();
+
+    // Permission: schedules.assign or schedules.manage
+    const { allowed: canAssign } = await checkUserPermission(sb, orgId, userId, "schedules.assign");
+    if (!canAssign) return res.status(403).json({ ok: false, error: "No permission to assign shifts" });
+
     const { user_id, date, shift_template_id, team_id, notes } = req.body;
     if (!user_id || !date) {
       return res.status(400).json({ ok: false, error: "user_id and date are required" });
     }
-
-    const sb = getServiceClient();
 
     // If shift_template_id is null, delete the schedule entry (clear the cell)
     if (!shift_template_id) {
@@ -316,12 +344,16 @@ export async function handleBulkUpsertSchedules(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage (bulk operations require full manage permission)
+    const { allowed: canManage } = await checkUserPermission(sb, orgId, userId, "schedules.manage");
+    if (!canManage) return res.status(403).json({ ok: false, error: "No permission to manage schedules (bulk operations)" });
+
     const { entries } = req.body;
     if (!Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({ ok: false, error: "entries array is required" });
     }
-
-    const sb = getServiceClient();
 
     const records = entries.map((e: any) => ({
       organization_id: orgId,
@@ -358,6 +390,8 @@ export async function handleGetAvailableStaff(req: Request, res: Response) {
     if (!date) return res.status(400).json({ ok: false, error: "date is required" });
 
     const sb = getServiceClient();
+
+    // No specific permission needed — this is used by AssigneeSelect which is already gated by the parent module
 
     // Get all schedules for this date
     const { data: schedules, error: schedError } = await sb

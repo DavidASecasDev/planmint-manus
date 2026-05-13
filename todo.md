@@ -535,3 +535,5 @@
 - [x] Bug: Botón "Copiar semana" y columna "Horas" no visibles en producción
 - [x] Bug: Popover de asignación de turno se cierra inmediatamente al hacer clic en celda de Jordan (y posiblemente otras celdas)
 - [x] Bug: AssigneeSelect muestra usuarios eliminados de la organización (David Patuto, Christa) — filtrar solo miembros activos
+- [x] Horarios: Añadir permisos específicos (ver, editar/asignar turnos, gestionar plantillas) al sistema de permisos
+- [x] Horarios: Aplicar permisos en frontend (ocultar/deshabilitar según rol) y backend (validar en endpoints)

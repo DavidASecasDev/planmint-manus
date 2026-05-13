@@ -19,6 +19,7 @@ import {
   Truck,
   Camera,
   Receipt,
+  CalendarClock,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/hooks/usePermissions';
@@ -243,6 +244,17 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'fleet.view', label: 'Ver flota', description: 'Permite ver el listado de vehículos e inspecciones' },
       { key: 'fleet.manage', label: 'Gestionar flota', description: 'Permite gestionar inspecciones y datos de flota' },
       { key: 'fleet.import', label: 'Importar flota', description: 'Permite importar vehículos desde archivos Excel' },
+    ],
+  },
+  {
+    id: 'schedules',
+    label: 'Horarios',
+    icon: CalendarClock,
+    permissions: [
+      { key: 'schedules.view', label: 'Ver horarios', description: 'Permite ver la cuadrícula semanal de turnos del equipo' },
+      { key: 'schedules.assign', label: 'Asignar turnos', description: 'Permite asignar y quitar turnos a empleados en la cuadrícula' },
+      { key: 'schedules.manage_templates', label: 'Gestionar plantillas de turno', description: 'Permite crear, editar y eliminar plantillas de turno (horarios tipo)' },
+      { key: 'schedules.manage', label: 'Gestionar todo (Horarios)', description: 'Acceso completo: copiar semanas, gestionar plantillas y asignar turnos' },
     ],
   },
   {

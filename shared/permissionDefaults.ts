@@ -58,6 +58,8 @@ export const ALL_PERMISSION_KEYS = [
   "daily_tasks.view", "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
   // Fleet
   "fleet.view", "fleet.manage", "fleet.import",
+  // Schedules (Horarios)
+  "schedules.view", "schedules.assign", "schedules.manage_templates", "schedules.manage",
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
@@ -82,6 +84,7 @@ export const BASE_VIEW_PERMISSIONS: PermissionKey[] = [
   "transfers.view",
   "forms.view",
   "time_tracking.view",
+  "schedules.view",
 ];
 
 /**
@@ -109,6 +112,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "movements.create", "movements.manage", "movements.delete", "movements.edit_photos", "movements.upload_receipt",
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "fleet.manage", "fleet.import",
+    "schedules.assign", "schedules.manage_templates", "schedules.manage",
   ],
   manager: [
     "tasks.create", "tasks.update", "tasks.assign", "tasks.change_status",
@@ -125,6 +129,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "time_tracking.view_team", "time_tracking.create",
     "movements.create", "movements.manage", "movements.edit_photos", "movements.upload_receipt",
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
+    "schedules.assign",
   ],
   member: [
     "tasks.create", "tasks.update",
@@ -289,6 +294,11 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["fleet.view"] = pj?.fleet?.view ?? false;
   flat["fleet.manage"] = pj?.fleet?.manage ?? false;
   flat["fleet.import"] = pj?.fleet?.import ?? pj?.fleet?.manage ?? false;
+  // Schedules (Horarios)
+  flat["schedules.view"] = pj?.schedules?.view ?? false;
+  flat["schedules.assign"] = pj?.schedules?.assign ?? pj?.schedules?.manage ?? false;
+  flat["schedules.manage_templates"] = pj?.schedules?.manage_templates ?? pj?.schedules?.manage ?? false;
+  flat["schedules.manage"] = pj?.schedules?.manage ?? false;
 
   return flat;
 }

@@ -116,7 +116,12 @@ export type PermissionKey =
   // Fleet
   | 'fleet.view'
   | 'fleet.manage'
-  | 'fleet.import';
+  | 'fleet.import'
+  // Schedules (Horarios)
+  | 'schedules.view'
+  | 'schedules.assign'
+  | 'schedules.manage_templates'
+  | 'schedules.manage';
 
 export interface PermissionsData {
   success: boolean;

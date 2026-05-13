@@ -120,6 +120,7 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/movements': 'movements.view',
   '/tasks/daily': 'daily_tasks.view',
   '/fleet': 'fleet.view',
+  '/schedules': 'schedules.view',
 };
 
 const menuItems = [
