@@ -580,3 +580,4 @@
   - [x] Refetch automático de datos de capacidad tras asignación exitosa
 - [x] Bug: Capacidad muestra 0 personas disponibles en todas las franjas — staff_schedules.team_id es NULL, debe buscar equipo en team_members
 - [x] Excluir equipo Directiva del cálculo de personal disponible en capacidad (no participan en operaciones)
+- [x] Bug: Tabla travel_time_cache no existe en Supabase — creada + corregidos nombres de columna inconsistentes en endpoints

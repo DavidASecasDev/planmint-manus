@@ -1,0 +1,18 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS public.travel_time_cache (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  organization_id uuid NOT NULL,\n  origin text DEFAULT 'base',\n  destination text NOT NULL,\n  destination_normalized text NOT NULL,\n  departure_hour_bucket integer NOT NULL DEFAULT 0,\n  travel_minutes_one_way real,\n  travel_minutes_with_traffic real,\n  distance_meters real,\n  google_maps_status text,\n  source text NOT NULL DEFAULT 'google',\n  updated_at timestamptz DEFAULT now(),\n  expires_at timestamptz,\n  UNIQUE(organization_id, destination_normalized, departure_hour_bucket)\n);\n\nCREATE INDEX IF NOT EXISTS idx_travel_time_cache_org_dest \n  ON public.travel_time_cache(organization_id, destination_normalized);\n\nCREATE INDEX IF NOT EXISTS idx_travel_time_cache_expires \n  ON public.travel_time_cache(expires_at);\n\nALTER TABLE public.travel_time_cache ENABLE ROW LEVEL SECURITY;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute CREATE TABLE IF NOT EXISTS public.travel_time_cache (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  organization_id uuid NOT NULL,\n  origin text DEFAULT 'base',\n  destination text NOT NULL,\n  destination_normalized text NOT NULL,\n  departure_hour_bucket integer NOT NULL DEFAULT 0,\n  travel_minutes_one_way real,\n  travel_minutes_with_traffic real,\n  distance_meters real,\n  google_maps_status text,\n  source text NOT NULL DEFAULT 'google',\n  updated_at timestamptz DEFAULT now(),\n  expires_at timestamptz,\n  UNIQUE(organization_id, destination_normalized, departure_hour_bucket)\n);\n\nCREATE INDEX IF NOT EXISTS idx_travel_time_cache_org_dest \n  ON public.travel_time_cache(organization_id, destination_normalized);\n\nCREATE INDEX IF NOT EXISTS idx_travel_time_cache_expires \n  ON public.travel_time_cache(expires_at);\n\nALTER TABLE public.travel_time_cache ENABLE ROW LEVEL SECURITY;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 2 column 10 near \"uuid PRIMARY KEY DEFAULT gen_random_uuid(),",
+    "  organization_id uuid NOT NULL,",
+    "  origin text DEFAULT 'base',",
+    "  destination text NOT NULL,",
+    "  destination_normalized text NOT NULL,",
+    "  departure_hour_bucket integer NOT NULL DEFAULT 0,",
+    "  travel_minutes_one_way real,",
+    "  travel_minutes_with_traffic real,",
+    "  distance_meters real,",
+    "  google_maps_status text,",
+    "  source text NOT NUL"
+  ]
+}

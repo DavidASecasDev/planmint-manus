@@ -143,17 +143,17 @@ export async function handleListTravelTimeOverrides(req: Request, res: Response)
     // Group by destination (normalized), pick the most relevant entry per destination
     const grouped = new Map<string, any>();
     for (const row of data || []) {
-      const key = row.dest_normalized || row.destination;
+      const key = row.destination_normalized || row.destination;
       if (!grouped.has(key)) {
         grouped.set(key, {
           destination: row.destination,
-          destNormalized: row.dest_normalized,
-          travelMinutes: row.travel_minutes,
-          travelMinutesTraffic: row.travel_minutes_traffic,
+          destNormalized: row.destination_normalized,
+          travelMinutes: row.travel_minutes_one_way,
+          travelMinutesTraffic: row.travel_minutes_with_traffic,
           distanceMeters: row.distance_meters,
           source: row.source,
           isManualOverride: row.source === "manual",
-          hourBucket: row.hour_bucket,
+          hourBucket: row.departure_hour_bucket,
           updatedAt: row.updated_at,
         });
       } else {
@@ -162,13 +162,13 @@ export async function handleListTravelTimeOverrides(req: Request, res: Response)
         if (row.source === "manual" && existing.source !== "manual") {
           grouped.set(key, {
             destination: row.destination,
-            destNormalized: row.dest_normalized,
-            travelMinutes: row.travel_minutes,
-            travelMinutesTraffic: row.travel_minutes_traffic,
+            destNormalized: row.destination_normalized,
+            travelMinutes: row.travel_minutes_one_way,
+            travelMinutesTraffic: row.travel_minutes_with_traffic,
             distanceMeters: row.distance_meters,
             source: row.source,
             isManualOverride: true,
-            hourBucket: row.hour_bucket,
+            hourBucket: row.departure_hour_bucket,
             updatedAt: row.updated_at,
           });
         }
@@ -217,14 +217,17 @@ export async function handleUpsertTravelTimeOverride(req: Request, res: Response
     const hourBuckets = [0, 1, 2, 3, 4, 5];
     const rows = hourBuckets.map((bucket) => ({
       organization_id: orgId,
+      origin: "base",
       destination: destination.trim(),
-      dest_normalized: destNormalized,
-      hour_bucket: bucket,
-      travel_minutes: travelMinutes,
-      travel_minutes_traffic: travelMinutes, // Manual = same for traffic
+      destination_normalized: destNormalized,
+      departure_hour_bucket: bucket,
+      travel_minutes_one_way: travelMinutes,
+      travel_minutes_with_traffic: travelMinutes, // Manual = same for traffic
       distance_meters: null,
+      google_maps_status: "manual",
       source: "manual",
       updated_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Manual overrides expire in 1 year
     }));
 
     // Delete existing entries for this destination, then insert
@@ -232,7 +235,7 @@ export async function handleUpsertTravelTimeOverride(req: Request, res: Response
       .from("travel_time_cache")
       .delete()
       .eq("organization_id", orgId)
-      .eq("dest_normalized", destNormalized);
+      .eq("destination_normalized", destNormalized);
 
     const { error } = await sb.from("travel_time_cache").insert(rows);
     if (error) throw error;
@@ -276,7 +279,7 @@ export async function handleDeleteTravelTimeOverride(req: Request, res: Response
       .from("travel_time_cache")
       .delete()
       .eq("organization_id", orgId)
-      .eq("dest_normalized", destNormalized);
+      .eq("destination_normalized", destNormalized);
 
     if (error) throw error;
 
