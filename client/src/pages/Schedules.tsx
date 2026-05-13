@@ -637,14 +637,14 @@ export default function Schedules() {
                   canAssign={canAssign}
                 />
               ))}
+
+              {/* ── Carga Semanal & Tiempos (after all team grids) ── */}
+              <div className="space-y-3 pt-2">
+                <WeeklyCapacityPanel weekStartDate={weekStart} />
+                <TravelTimeEditor />
+              </div>
             </div>
           )}
-        </div>
-
-        {/* ── Carga Semanal & Tiempos (below schedules) ── */}
-        <div className="px-4 pb-4 space-y-3">
-          <WeeklyCapacityPanel weekStartDate={weekStart} />
-          <TravelTimeEditor />
         </div>
 
         {/* ── Shift Template Dialog ── */}

@@ -585,3 +585,4 @@
 - [x] Ajustar cálculo de capacidad: Preparación solo cuenta como Escoba (no puede hacer entregas/devoluciones como Rental)
 - [x] Filtrar Preparación de desplegable Rental en reservas — solo deben aparecer en columna Escoba
 - [x] Rediseñar UI de página Horarios: horarios como contenido principal, carga semanal más compacta (no debe empujar los horarios abajo)
+- [x] Bug: Carga Semanal aparece intercalada entre equipos de horarios — movida dentro del scroll, después de todos los grids de equipos
