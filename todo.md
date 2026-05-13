@@ -572,3 +572,9 @@
   - [x] Backend: Extender endpoint de capacidad para incluir empleados de Mostrador disponibles por franja
   - [x] Frontend: Mostrar sugerencias de refuerzo en StaffCapacityAlert (Reservas)
   - [x] Frontend: Mostrar sugerencias de refuerzo en WeeklyCapacityPanel (Horarios)
+- [x] Feature: Botón "Asignar como refuerzo" desde sugerencias de capacidad
+  - [x] Backend: Endpoint para obtener operaciones sin asignar/con necesidad en una franja horaria
+  - [x] Backend: Endpoint para asignar empleado de refuerzo a operación (rental o escoba)
+  - [x] Frontend: Diálogo de asignación de refuerzo con lista de operaciones disponibles
+  - [x] Integrar botón en StaffCapacityAlert y WeeklyCapacityPanel junto a cada empleado sugerido
+  - [x] Refetch automático de datos de capacidad tras asignación exitosa

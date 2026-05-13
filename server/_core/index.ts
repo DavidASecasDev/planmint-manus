@@ -112,6 +112,10 @@ import {
   handleUpsertTravelTimeOverride,
   handleDeleteTravelTimeOverride,
 } from "../staffCapacityWeekEndpoint";
+import {
+  handleGetUnassignedOperations,
+  handleAssignReinforcement,
+} from "../reinforcementEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -246,6 +250,8 @@ async function startServer() {
   app.post("/api/travel-time-overrides/list", handleListTravelTimeOverrides);
   app.post("/api/travel-time-overrides/upsert", handleUpsertTravelTimeOverride);
   app.post("/api/travel-time-overrides/delete", handleDeleteTravelTimeOverride);
+  app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
+  app.post("/api/assign-reinforcement", handleAssignReinforcement);
 
   // tRPC API
   app.use(
