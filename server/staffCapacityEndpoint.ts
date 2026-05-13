@@ -1,12 +1,13 @@
 /**
- * Staff Capacity Endpoint — Calculates workload vs staff availability.
+ * Staff Capacity Endpoint v2 — Calculates workload vs staff availability.
  *
- * For a given date, it:
- * 1. Fetches all non-cancelled reservations (entregas + devoluciones)
- * 2. Fetches staff schedules (who is working, in which team, and when)
- * 3. Uses Google Maps Distance Matrix to estimate travel times from base
- * 4. Computes per-hour-slot workload (in person-minutes) vs available person-minutes
- * 5. Returns capacity status: sufficient / tight / deficit
+ * Improvements over v1:
+ * - Persistent travel time cache in Supabase (travel_time_cache table)
+ * - Google Maps departure_time with traffic estimation based on operation hour
+ * - duration_in_traffic used when available (more accurate)
+ * - Tiered fallback: Supabase cache → Google Maps → default estimate
+ * - Cache keyed by (destination_normalized, departure_hour_bucket) for traffic variance
+ * - 7-day cache expiry; invalidated when location/hour changes
  */
 import { Request, Response } from "express";
 import {
@@ -25,7 +26,7 @@ const BASE_COORDS = "39.5516,2.7278"; // lat,lng for distance matrix
 /** Time in minutes for a single operation at base (entrega or devolución) */
 const BASE_OPERATION_MINUTES = 10;
 
-/** Default travel time (minutes one-way) when Google Maps fails or location is unknown */
+/** Default travel time (minutes one-way) when all sources fail */
 const DEFAULT_TRAVEL_MINUTES = 15;
 
 /** Locations considered "at base" (no extra travel time) */
@@ -43,10 +44,27 @@ const BASE_LOCATION_KEYWORDS = [
 const THRESHOLD_TIGHT = 0.70;  // 70% = tight
 const THRESHOLD_DEFICIT = 0.85; // 85% = deficit
 
-/** Cache for travel times (location string -> minutes one-way) */
-const travelTimeCache = new Map<string, number>();
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const cacheTimestamps = new Map<string, number>();
+/** Hour buckets for traffic-aware caching (group hours into traffic periods) */
+function getHourBucket(hour: number): number {
+  // 0 = night (22-06), 1 = morning rush (07-09), 2 = midday (10-13),
+  // 3 = afternoon (14-16), 4 = evening rush (17-19), 5 = evening (20-21)
+  if (hour >= 22 || hour < 7) return 0;
+  if (hour >= 7 && hour < 10) return 1;
+  if (hour >= 10 && hour < 14) return 2;
+  if (hour >= 14 && hour < 17) return 3;
+  if (hour >= 17 && hour < 20) return 4;
+  return 5;
+}
+
+/** Normalize destination string for cache key consistency */
+function normalizeDestination(dest: string): string {
+  return dest
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[,.\-]+$/, "")
+    .trim();
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,49 +81,209 @@ function isBaseLocation(location: string | null): boolean {
 }
 
 /**
- * Get travel time in minutes from base to a destination using Google Maps.
- * Uses caching to avoid repeated API calls for the same location.
+ * Build a Unix timestamp for a specific date and hour in Europe/Madrid timezone.
+ * Used as departure_time for Google Maps traffic estimation.
  */
-async function getTravelMinutes(destination: string): Promise<number> {
-  const cacheKey = destination.toLowerCase().trim();
+function buildDepartureTimestamp(dateStr: string, hour: number): number {
+  // dateStr is YYYY-MM-DD, hour is 0-23
+  // Create a date in local time (server runs in UTC, but we want Madrid time)
+  const dt = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:00:00+02:00`);
+  return Math.floor(dt.getTime() / 1000);
+}
 
-  // Check cache
-  const cachedTime = travelTimeCache.get(cacheKey);
-  const cachedAt = cacheTimestamps.get(cacheKey);
-  if (cachedTime !== undefined && cachedAt && Date.now() - cachedAt < CACHE_TTL_MS) {
-    return cachedTime;
-  }
+// ─── Travel Time Cache (Supabase-backed) ────────────────────────────────────
 
-  try {
-    const result = await makeRequest<DistanceMatrixResult>(
-      "/maps/api/distancematrix/json",
-      {
-        origins: BASE_COORDS,
-        destinations: `${destination}, Mallorca, Spain`,
-        mode: "driving",
-        units: "metric",
-        language: "es",
-      }
-    );
+interface CachedTravelTime {
+  travel_minutes_one_way: number;
+  travel_minutes_with_traffic: number | null;
+  distance_meters: number | null;
+  source: string;
+}
 
-    if (
-      result.status === "OK" &&
-      result.rows?.[0]?.elements?.[0]?.status === "OK"
-    ) {
-      const durationSeconds = result.rows[0].elements[0].duration.value;
-      const minutes = Math.ceil(durationSeconds / 60);
-      travelTimeCache.set(cacheKey, minutes);
-      cacheTimestamps.set(cacheKey, Date.now());
-      return minutes;
+/**
+ * Look up cached travel times from Supabase for multiple destinations.
+ * Returns a map of normalizedDest -> CachedTravelTime (only for cache hits).
+ */
+async function getCachedTravelTimes(
+  sb: ReturnType<typeof getServiceClient>,
+  orgId: string,
+  lookups: Array<{ destNormalized: string; hourBucket: number }>
+): Promise<Map<string, CachedTravelTime>> {
+  const result = new Map<string, CachedTravelTime>();
+  if (lookups.length === 0) return result;
+
+  // Build unique keys
+  const uniqueKeys = lookups.map((l) => `${l.destNormalized}|${l.hourBucket}`);
+
+  // Query in batches of 50
+  for (let i = 0; i < lookups.length; i += 50) {
+    const batch = lookups.slice(i, i + 50);
+    const destNorms = batch.map((l) => l.destNormalized);
+
+    const { data, error } = await sb
+      .from("travel_time_cache")
+      .select("destination_normalized, departure_hour_bucket, travel_minutes_one_way, travel_minutes_with_traffic, distance_meters, source")
+      .eq("organization_id", orgId)
+      .in("destination_normalized", destNorms)
+      .gt("expires_at", new Date().toISOString());
+
+    if (error) {
+      console.error("[staff-capacity] Cache read error:", error);
+      continue;
     }
-  } catch (err) {
-    console.error(`[staff-capacity] Google Maps error for "${destination}":`, err);
+
+    for (const row of data || []) {
+      const key = `${row.destination_normalized}|${row.departure_hour_bucket}`;
+      if (uniqueKeys.includes(key)) {
+        result.set(key, {
+          travel_minutes_one_way: row.travel_minutes_one_way,
+          travel_minutes_with_traffic: row.travel_minutes_with_traffic,
+          distance_meters: row.distance_meters,
+          source: row.source,
+        });
+      }
+    }
   }
 
-  // Fallback
-  travelTimeCache.set(cacheKey, DEFAULT_TRAVEL_MINUTES);
-  cacheTimestamps.set(cacheKey, Date.now());
-  return DEFAULT_TRAVEL_MINUTES;
+  return result;
+}
+
+/**
+ * Save travel times to Supabase cache (upsert).
+ */
+async function saveTravelTimesToCache(
+  sb: ReturnType<typeof getServiceClient>,
+  orgId: string,
+  entries: Array<{
+    destination: string;
+    destNormalized: string;
+    hourBucket: number;
+    travelMinutes: number;
+    travelMinutesTraffic: number | null;
+    distanceMeters: number | null;
+    source: string;
+  }>
+): Promise<void> {
+  if (entries.length === 0) return;
+
+  const rows = entries.map((e) => ({
+    organization_id: orgId,
+    origin: "base",
+    destination: e.destination,
+    destination_normalized: e.destNormalized,
+    departure_hour_bucket: e.hourBucket,
+    travel_minutes_one_way: e.travelMinutes,
+    travel_minutes_with_traffic: e.travelMinutesTraffic,
+    distance_meters: e.distanceMeters,
+    google_maps_status: "OK",
+    source: e.source,
+    updated_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  }));
+
+  // Upsert in batches
+  for (let i = 0; i < rows.length; i += 50) {
+    const batch = rows.slice(i, i + 50);
+    const { error } = await sb
+      .from("travel_time_cache")
+      .upsert(batch, {
+        onConflict: "organization_id,destination_normalized,departure_hour_bucket",
+      });
+
+    if (error) {
+      console.error("[staff-capacity] Cache write error:", error);
+    }
+  }
+}
+
+// ─── Google Maps with Traffic ───────────────────────────────────────────────
+
+interface DistanceMatrixResultWithTraffic {
+  rows: Array<{
+    elements: Array<{
+      distance: { text: string; value: number };
+      duration: { text: string; value: number };
+      duration_in_traffic?: { text: string; value: number };
+      status: string;
+    }>;
+  }>;
+  origin_addresses: string[];
+  destination_addresses: string[];
+  status: string;
+}
+
+/**
+ * Fetch travel times from Google Maps Distance Matrix with traffic estimation.
+ * Groups destinations by departure hour for traffic-aware results.
+ */
+async function fetchGoogleMapsTravelTimes(
+  destinations: Array<{ location: string; departureTimestamp: number; hour: number }>,
+  dateStr: string
+): Promise<Map<string, { minutes: number; minutesTraffic: number | null; distanceMeters: number | null }>> {
+  const result = new Map<string, { minutes: number; minutesTraffic: number | null; distanceMeters: number | null }>();
+
+  // Group by departure hour bucket for efficient batching
+  const byBucket = new Map<number, Array<{ location: string; departureTimestamp: number }>>();
+  for (const d of destinations) {
+    const bucket = getHourBucket(d.hour);
+    if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+    byBucket.get(bucket)!.push(d);
+  }
+
+  for (const [bucket, group] of Array.from(byBucket.entries())) {
+    // Deduplicate locations within the same bucket
+    const uniqueLocs = Array.from(new Set(group.map((g: { location: string; departureTimestamp: number }) => g.location)));
+    // Use the first departure timestamp from this bucket
+    const departureTime = group[0].departureTimestamp;
+
+    // Google Maps Distance Matrix supports up to 25 destinations per request
+    for (let i = 0; i < uniqueLocs.length; i += 25) {
+      const batch = uniqueLocs.slice(i, i + 25);
+      const destinationsStr = batch.map((l) => `${l}, Mallorca, Spain`).join("|");
+
+      try {
+        // Determine if departure_time is in the future (required for traffic)
+        const now = Math.floor(Date.now() / 1000);
+        const params: Record<string, unknown> = {
+          origins: BASE_COORDS,
+          destinations: destinationsStr,
+          mode: "driving",
+          units: "metric",
+          language: "es",
+        };
+
+        // Only add departure_time if it's in the future (Google Maps requirement)
+        if (departureTime > now) {
+          params.departure_time = departureTime;
+        }
+
+        const apiResult = await makeRequest<DistanceMatrixResultWithTraffic>(
+          "/maps/api/distancematrix/json",
+          params
+        );
+
+        if (apiResult.status === "OK") {
+          batch.forEach((loc, idx) => {
+            const element = apiResult.rows?.[0]?.elements?.[idx];
+            if (element?.status === "OK") {
+              const minutes = Math.ceil(element.duration.value / 60);
+              const minutesTraffic = element.duration_in_traffic
+                ? Math.ceil(element.duration_in_traffic.value / 60)
+                : null;
+              const distanceMeters = element.distance?.value ?? null;
+
+              const key = `${normalizeDestination(loc)}|${bucket}`;
+              result.set(key, { minutes, minutesTraffic, distanceMeters });
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`[staff-capacity] Google Maps error for bucket ${bucket}:`, err);
+      }
+    }
+  }
+
+  return result;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -118,6 +296,8 @@ interface Operation {
   location: string | null;
   isAtBase: boolean;
   travelMinutesOneWay: number;
+  travelMinutesWithTraffic: number | null;
+  travelSource: string; // "cache" | "google_maps" | "fallback"
   /** Total person-minutes this operation consumes */
   personMinutes: number;
   /** Number of people required */
@@ -151,6 +331,7 @@ interface CapacityResult {
   deficitHours: number[];
   tightHours: number[];
   summary: string;
+  cacheStats: { hits: number; misses: number; googleCalls: number };
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -203,7 +384,9 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
             hour: parseInt(dt.substring(11, 13), 10),
             location,
             isAtBase: atBase,
-            travelMinutesOneWay: 0, // Will be calculated
+            travelMinutesOneWay: 0,
+            travelMinutesWithTraffic: null,
+            travelSource: "none",
             personMinutes: 0,
             peopleNeeded: atBase ? 1 : 2,
             isCompleted: r.transfer_completado,
@@ -223,8 +406,10 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
             location,
             isAtBase: atBase,
             travelMinutesOneWay: 0,
+            travelMinutesWithTraffic: null,
+            travelSource: "none",
             personMinutes: 0,
-            peopleNeeded: atBase ? 1 : 2, // At base: 1 person. Domicilio: 2 (rental + escoba)
+            peopleNeeded: atBase ? 1 : 2,
             isCompleted: r.entrega_completada,
           });
         }
@@ -242,88 +427,153 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
             location,
             isAtBase: atBase,
             travelMinutesOneWay: 0,
+            travelMinutesWithTraffic: null,
+            travelSource: "none",
             personMinutes: 0,
-            peopleNeeded: atBase ? 1 : 2, // At base: 1 person. Domicilio: 2 (escoba goes, picks up car)
+            peopleNeeded: atBase ? 1 : 2,
             isCompleted: r.devolucion_completada,
           });
         }
       }
     }
 
-    // ── 2. Calculate travel times for non-base operations ───────────────────
-    const uniqueLocations = new Set<string>();
-    for (const op of operations) {
+    // ── 2. Calculate travel times with tiered fallback ──────────────────────
+    // Collect all non-base operations that need travel time
+    const needsTravelTime: Array<{
+      opIndex: number;
+      location: string;
+      destNormalized: string;
+      hourBucket: number;
+      hour: number;
+    }> = [];
+
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
       if (!op.isAtBase && op.location) {
-        uniqueLocations.add(op.location);
+        needsTravelTime.push({
+          opIndex: i,
+          location: op.location,
+          destNormalized: normalizeDestination(op.location),
+          hourBucket: getHourBucket(op.hour),
+          hour: op.hour,
+        });
       }
     }
 
-    // Batch fetch travel times
-    const travelTimes = new Map<string, number>();
-    const locationArray = Array.from(uniqueLocations);
+    let cacheHits = 0;
+    let cacheMisses = 0;
+    let googleCalls = 0;
 
-    // Google Maps Distance Matrix supports up to 25 destinations per request
-    for (let i = 0; i < locationArray.length; i += 25) {
-      const batch = locationArray.slice(i, i + 25);
-      const destinations = batch.map((l) => `${l}, Mallorca, Spain`).join("|");
+    if (needsTravelTime.length > 0) {
+      // Step 1: Check Supabase cache
+      const cacheKeys = needsTravelTime.map((n) => ({
+        destNormalized: n.destNormalized,
+        hourBucket: n.hourBucket,
+      }));
 
-      try {
-        const result = await makeRequest<DistanceMatrixResult>(
-          "/maps/api/distancematrix/json",
-          {
-            origins: BASE_COORDS,
-            destinations,
-            mode: "driving",
-            units: "metric",
-            language: "es",
-          }
-        );
+      const cachedTimes = await getCachedTravelTimes(sb, orgId, cacheKeys);
 
-        if (result.status === "OK") {
-          batch.forEach((loc, idx) => {
-            const element = result.rows?.[0]?.elements?.[idx];
-            if (element?.status === "OK") {
-              const minutes = Math.ceil(element.duration.value / 60);
-              travelTimes.set(loc, minutes);
-              travelTimeCache.set(loc.toLowerCase().trim(), minutes);
-              cacheTimestamps.set(loc.toLowerCase().trim(), Date.now());
-            } else {
-              travelTimes.set(loc, DEFAULT_TRAVEL_MINUTES);
-            }
-          });
+      // Step 2: Identify cache misses
+      const misses: Array<typeof needsTravelTime[0]> = [];
+
+      for (const entry of needsTravelTime) {
+        const cacheKey = `${entry.destNormalized}|${entry.hourBucket}`;
+        const cached = cachedTimes.get(cacheKey);
+
+        if (cached) {
+          cacheHits++;
+          const op = operations[entry.opIndex];
+          op.travelMinutesOneWay = cached.travel_minutes_one_way;
+          op.travelMinutesWithTraffic = cached.travel_minutes_with_traffic;
+          op.travelSource = "cache";
+        } else {
+          cacheMisses++;
+          misses.push(entry);
         }
-      } catch (err) {
-        console.error("[staff-capacity] Distance matrix batch error:", err);
-        batch.forEach((loc) => travelTimes.set(loc, DEFAULT_TRAVEL_MINUTES));
+      }
+
+      // Step 3: Fetch from Google Maps for cache misses
+      if (misses.length > 0) {
+        const googleDestinations = misses.map((m) => ({
+          location: m.location,
+          departureTimestamp: buildDepartureTimestamp(date, m.hour),
+          hour: m.hour,
+        }));
+
+        googleCalls = misses.length;
+        const googleResults = await fetchGoogleMapsTravelTimes(googleDestinations, date);
+
+        // Save new entries to cache
+        const cacheEntries: Array<{
+          destination: string;
+          destNormalized: string;
+          hourBucket: number;
+          travelMinutes: number;
+          travelMinutesTraffic: number | null;
+          distanceMeters: number | null;
+          source: string;
+        }> = [];
+
+        for (const miss of misses) {
+          const key = `${miss.destNormalized}|${miss.hourBucket}`;
+          const googleResult = googleResults.get(key);
+
+          const op = operations[miss.opIndex];
+
+          if (googleResult) {
+            op.travelMinutesOneWay = googleResult.minutes;
+            op.travelMinutesWithTraffic = googleResult.minutesTraffic;
+            op.travelSource = "google_maps";
+
+            cacheEntries.push({
+              destination: miss.location,
+              destNormalized: miss.destNormalized,
+              hourBucket: miss.hourBucket,
+              travelMinutes: googleResult.minutes,
+              travelMinutesTraffic: googleResult.minutesTraffic,
+              distanceMeters: googleResult.distanceMeters,
+              source: "google_maps",
+            });
+          } else {
+            // Fallback: use default estimate
+            op.travelMinutesOneWay = DEFAULT_TRAVEL_MINUTES;
+            op.travelMinutesWithTraffic = null;
+            op.travelSource = "fallback";
+
+            cacheEntries.push({
+              destination: miss.location,
+              destNormalized: miss.destNormalized,
+              hourBucket: miss.hourBucket,
+              travelMinutes: DEFAULT_TRAVEL_MINUTES,
+              travelMinutesTraffic: null,
+              distanceMeters: null,
+              source: "fallback",
+            });
+          }
+        }
+
+        // Save to Supabase cache (fire-and-forget, don't block response)
+        saveTravelTimesToCache(sb, orgId, cacheEntries).catch((err) =>
+          console.error("[staff-capacity] Cache save error:", err)
+        );
       }
     }
 
-    // Also check cache for any we already know
-    for (const loc of Array.from(uniqueLocations)) {
-      if (!travelTimes.has(loc)) {
-        const cached = travelTimeCache.get(loc.toLowerCase().trim());
-        travelTimes.set(loc, cached ?? DEFAULT_TRAVEL_MINUTES);
-      }
-    }
-
-    // Assign travel times and compute person-minutes
+    // ── 3. Compute person-minutes per operation ─────────────────────────────
     for (const op of operations) {
       if (op.isAtBase) {
         op.travelMinutesOneWay = 0;
-        // At base: just the operation time, 1 person
         op.personMinutes = BASE_OPERATION_MINUTES;
       } else {
-        const travel = op.location ? (travelTimes.get(op.location) ?? DEFAULT_TRAVEL_MINUTES) : DEFAULT_TRAVEL_MINUTES;
-        op.travelMinutesOneWay = travel;
-        // Domicilio: round trip + operation time, times number of people
-        // Both people travel together, so total person-minutes = (travel*2 + operation) * peopleNeeded
-        // Actually: both people spend the same time (travel out + operation + travel back)
-        const timePerPerson = travel * 2 + BASE_OPERATION_MINUTES;
+        // Use traffic-aware time if available, otherwise standard time
+        const effectiveTravel = op.travelMinutesWithTraffic ?? op.travelMinutesOneWay;
+        // Round trip + operation time, times number of people
+        const timePerPerson = effectiveTravel * 2 + BASE_OPERATION_MINUTES;
         op.personMinutes = timePerPerson * op.peopleNeeded;
       }
     }
 
-    // ── 3. Fetch staff schedules for this date ──────────────────────────────
+    // ── 4. Fetch staff schedules for this date ──────────────────────────────
     const { data: schedules, error: schedErr } = await sb
       .from("staff_schedules")
       .select(`
@@ -360,7 +610,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
     const staffShifts: StaffShift[] = [];
     (schedules || []).forEach((s: any) => {
       const template = s.shift_templates;
-      if (template.is_day_off) return; // Day off = not available
+      if (template.is_day_off) return;
 
       const teamName = s.team_id ? (teamNameById.get(s.team_id) || "Unknown") : "Unknown";
       staffShifts.push({
@@ -371,15 +621,13 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       });
     });
 
-    // ── 4. Build hourly slots ───────────────────────────────────────────────
-    // Find the range of hours we need to cover (from earliest operation to latest)
+    // ── 5. Build hourly slots ───────────────────────────────────────────────
     let minHour = 24;
     let maxHour = 0;
     for (const op of operations) {
       if (op.hour < minHour) minHour = op.hour;
       if (op.hour > maxHour) maxHour = op.hour;
     }
-    // Also consider staff shift range
     for (const ss of staffShifts) {
       const startH = Math.floor(ss.startMinutes / 60);
       const endH = Math.ceil(ss.endMinutes / 60);
@@ -401,11 +649,11 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
           deficitHours: [],
           tightHours: [],
           summary: "No hay operaciones ni personal programado para este día.",
+          cacheStats: { hits: cacheHits, misses: cacheMisses, googleCalls },
         } as CapacityResult,
       });
     }
 
-    // Ensure reasonable range
     if (minHour > maxHour) { minHour = 7; maxHour = 22; }
 
     const hourSlots: HourSlot[] = [];
@@ -415,13 +663,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       const slotEnd = (h + 1) * 60;
 
       // Operations in this hour
-      const slotOps = operations.filter((op) => {
-        // An operation "occupies" the hour it starts in, plus potentially more hours
-        // For simplicity, we assign the full person-minutes to the starting hour
-        // For long operations (travel > 60min), we could split across hours, but
-        // for now we keep it simple
-        return op.hour === h;
-      });
+      const slotOps = operations.filter((op) => op.hour === h);
 
       // Staff available in this hour
       const rentals: string[] = [];
@@ -433,7 +675,6 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
         if (seenUsers.has(ss.userId + "_" + ss.teamName)) continue;
         seenUsers.add(ss.userId + "_" + ss.teamName);
 
-        // Check if this staff member's shift covers this hour
         let coversHour = false;
         if (ss.endMinutes <= ss.startMinutes) {
           // Overnight shift
@@ -457,11 +698,11 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       // Available person-minutes:
       // Rentals: 60 min per person (full hour available for operations)
       // Preparación: 60 min per person (available as escoba)
-      // Mostrador: 30 min per person (can help but should stay at desk, so only 50% available)
+      // Mostrador: 30 min per person (can help but should stay at desk, 50% available)
       const availableMinutes =
         rentals.length * 60 +
         preparacion.length * 60 +
-        mostrador.length * 30; // Mostrador at 50% capacity for field ops
+        mostrador.length * 30;
 
       const totalNeeded = slotOps.reduce((sum, op) => sum + op.personMinutes, 0);
 
@@ -483,27 +724,40 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       });
     }
 
-    // ── 5. Compute overall status ───────────────────────────────────────────
+    // ── 6. Compute overall status ───────────────────────────────────────────
     const totalNeeded = hourSlots.reduce((s, h) => s + h.totalPersonMinutes, 0);
     const totalAvailable = hourSlots.reduce((s, h) => s + h.availablePersonMinutes, 0);
     const overallUtil = totalAvailable > 0 ? totalNeeded / totalAvailable : (totalNeeded > 0 ? 1 : 0);
 
     let overallStatus: "sufficient" | "tight" | "deficit" = "sufficient";
-    // Overall status is the worst status of any hour slot
     if (hourSlots.some((h) => h.status === "deficit")) overallStatus = "deficit";
     else if (hourSlots.some((h) => h.status === "tight")) overallStatus = "tight";
 
     const deficitHours = hourSlots.filter((h) => h.status === "deficit").map((h) => h.hour);
     const tightHours = hourSlots.filter((h) => h.status === "tight").map((h) => h.hour);
 
-    // Build summary
+    // Build summary with travel info
+    const nonBaseOps = operations.filter((o) => !o.isAtBase);
+    const avgTravel = nonBaseOps.length > 0
+      ? Math.round(nonBaseOps.reduce((s, o) => s + (o.travelMinutesWithTraffic ?? o.travelMinutesOneWay), 0) / nonBaseOps.length)
+      : 0;
+
     let summary = "";
     if (overallStatus === "sufficient") {
       summary = `Personal suficiente para cubrir las ${operations.length} operaciones del día.`;
+      if (nonBaseOps.length > 0) {
+        summary += ` ${nonBaseOps.length} a domicilio (media ${avgTravel} min desplazamiento).`;
+      }
     } else if (overallStatus === "tight") {
-      summary = `Personal justo. ${tightHours.length} franja(s) horaria(s) con carga alta (${tightHours.map((h) => `${h}:00`).join(", ")}).`;
+      summary = `Personal justo. ${tightHours.length} franja(s) con carga alta (${tightHours.map((h) => `${h}:00`).join(", ")}).`;
+      if (nonBaseOps.length > 0) {
+        summary += ` ${nonBaseOps.length} op. a domicilio (media ${avgTravel} min).`;
+      }
     } else {
-      summary = `Déficit de personal detectado. ${deficitHours.length} franja(s) horaria(s) con sobrecarga (${deficitHours.map((h) => `${h}:00`).join(", ")}). Se recomienda refuerzo.`;
+      summary = `Déficit de personal. ${deficitHours.length} franja(s) con sobrecarga (${deficitHours.map((h) => `${h}:00`).join(", ")}). Se recomienda refuerzo.`;
+      if (nonBaseOps.length > 0) {
+        summary += ` ${nonBaseOps.length} op. a domicilio (media ${avgTravel} min).`;
+      }
     }
 
     const result: CapacityResult = {
@@ -517,6 +771,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       deficitHours,
       tightHours,
       summary,
+      cacheStats: { hits: cacheHits, misses: cacheMisses, googleCalls },
     };
 
     return res.json({ ok: true, data: result });

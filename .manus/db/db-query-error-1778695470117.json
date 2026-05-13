@@ -1,0 +1,15 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS travel_time_cache (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,\n  origin text NOT NULL DEFAULT 'base',\n  destination text NOT NULL,\n  destination_normalized text NOT NULL,\n  departure_hour_bucket smallint NOT NULL DEFAULT 0,\n  travel_minutes_one_way smallint NOT NULL,\n  travel_minutes_with_traffic smallint,\n  distance_meters integer,\n  google_maps_status text DEFAULT 'OK',\n  source text NOT NULL DEFAULT 'google_maps',\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now(),\n  expires_at timestamptz DEFAULT (now() + interval '7 days'),\n  UNIQUE(organization_id, destination_normalized, departure_hour_bucket)\n);\n\nCREATE INDEX IF NOT EXISTS idx_travel_cache_org_dest ON travel_time_cache(organization_id, destination_normalized);\nCREATE INDEX IF NOT EXISTS idx_travel_cache_expires ON travel_time_cache(expires_at);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute \nCREATE TABLE IF NOT EXISTS travel_time_cache (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,\n  origin text NOT NULL DEFAULT 'base',\n  destination text NOT NULL,\n  destination_normalized text NOT NULL,\n  departure_hour_bucket smallint NOT NULL DEFAULT 0,\n  travel_minutes_one_way smallint NOT NULL,\n  travel_minutes_with_traffic smallint,\n  distance_meters integer,\n  google_maps_status text DEFAULT 'OK',\n  source text NOT NULL DEFAULT 'google_maps',\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now(),\n  expires_at timestamptz DEFAULT (now() + interval '7 days'),\n  UNIQUE(organization_id, destination_normalized, departure_hour_bucket)\n);\n\nCREATE INDEX IF NOT EXISTS idx_travel_cache_org_dest ON travel_time_cache(organization_id, destination_normalized);\nCREATE INDEX IF NOT EXISTS idx_travel_cache_expires ON travel_time_cache(expires_at);\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 2: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 2 column 10 near \"uuid DEFAULT gen_random_uuid() PRIMARY KEY,",
+    "  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,",
+    "  origin text NOT NULL DEFAULT 'base',",
+    "  destination text NOT NULL,",
+    "  destination_normalized text NOT NULL,",
+    "  departure_hour_bucket smallint NOT NULL DEFAULT 0,",
+    "  travel_minutes_one_way smallint NOT NULL,",
+    "  travel_minutes_with_traffic smallint"
+  ]
+}

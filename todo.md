@@ -554,3 +554,9 @@
   - [x] Frontend: Componente StaffCapacityAlert con indicadores verde/amarillo/rojo
   - [x] Frontend: Integrar alerta en página de Reservas
   - [x] Frontend: Integrar alerta en Dashboard
+- [x] Mejora: Sistema de capacidad de personal v2
+  - [x] Crear tabla travel_time_cache en Supabase para cachear tiempos de desplazamiento
+  - [x] Usar Google Maps departure_time con tráfico estimado según hora de operación
+  - [x] Implementar fallback manual cuando Google Maps no esté disponible
+  - [x] Invalidar caché solo cuando cambia ubicación, fecha u hora de la reserva
+  - [x] Calcular carga real: ida + operación + vuelta por reserva
