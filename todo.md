@@ -547,3 +547,10 @@
 - [x] Bug: AssigneeSelect muestra turno incorrecto para usuarios con múltiples equipos (Kristian 07-15 en Rentals aparece como 14-22 de Mostrador)
 - [x] Bug: Copiar semana anterior pierde un día en la página de Horarios
 - [x] Bug: AssigneeSelect usa la hora actual para filtrar turnos — debe usar la hora confirmada de la reserva
+- [x] Feature: Sistema de detección de déficit de personal
+  - [x] Backend: Endpoint de cálculo de carga de trabajo por franjas horarias
+  - [x] Backend: Integración Google Maps para tiempos de desplazamiento
+  - [x] Backend: Lógica de comparación carga vs disponibilidad (Rentals + Preparación + Mostrador reserva)
+  - [x] Frontend: Componente StaffCapacityAlert con indicadores verde/amarillo/rojo
+  - [x] Frontend: Integrar alerta en página de Reservas
+  - [x] Frontend: Integrar alerta en Dashboard

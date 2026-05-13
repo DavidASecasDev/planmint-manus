@@ -10,10 +10,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { OperationalPanel } from '@/components/dashboard/OperationalPanel';
 import { EquipmentStockWidget } from '@/components/dashboard/EquipmentStockWidget';
+import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
+import { useMemo } from 'react';
+import { format } from 'date-fns';
 
 export default function Dashboard() {
   const { profile, organization } = useAuth();
   const { role } = usePermissions();
+
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   const displayRoleLabel = (roleStr: string | null | undefined) => {
     if (!roleStr) return 'Miembro';
@@ -58,6 +63,9 @@ export default function Dashboard() {
             })}
           </p>
         </div>
+
+        {/* Staff Capacity Alert */}
+        <StaffCapacityAlert date={todayStr} compact />
 
         {/* Full Operational Panel */}
         <OperationalPanel />

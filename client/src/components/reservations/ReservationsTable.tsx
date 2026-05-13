@@ -17,6 +17,7 @@ import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
 import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
+import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
@@ -934,6 +935,9 @@ export function ReservationsTable() {
           </div>
         </div>
       </div>
+
+      {/* Staff Capacity Alert */}
+      <StaffCapacityAlert date={urlFilters.dateFrom || null} />
 
       {/* Time Slot Summary View */}
       {showTimeSlots ? (

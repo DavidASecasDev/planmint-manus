@@ -105,6 +105,7 @@ import {
   handleBulkUpsertSchedules,
   handleGetAvailableStaff,
 } from "../scheduleEndpoints";
+import { handleGetStaffCapacity } from "../staffCapacityEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -234,6 +235,7 @@ async function startServer() {
   app.post("/api/upsert-schedule", handleUpsertSchedule);
   app.post("/api/bulk-upsert-schedules", handleBulkUpsertSchedules);
   app.post("/api/get-available-staff", handleGetAvailableStaff);
+  app.post("/api/get-staff-capacity", handleGetStaffCapacity);
 
   // tRPC API
   app.use(
