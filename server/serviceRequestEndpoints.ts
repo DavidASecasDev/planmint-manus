@@ -208,6 +208,22 @@ export async function handleCreateServiceRequest(req: Request, res: Response) {
       return res.status(500).json({ data: null, error: error.message });
     }
 
+    // Log initial status in history
+    const { data: profile } = await serviceClient
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .single();
+
+    await serviceClient.from("service_request_status_history").insert({
+      request_id: data.id,
+      from_status: null,
+      to_status: "pending",
+      changed_by_user_id: userId,
+      changed_by_name: profile?.name || "Usuario",
+      notes: "Solicitud creada",
+    });
+
     return res.json({ data, error: null });
   } catch (err: any) {
     if (err instanceof AuthError) {
@@ -345,6 +361,22 @@ export async function handleUpdateServiceRequestStatus(req: Request, res: Respon
       console.error("[updateServiceRequestStatus] Update error:", updateErr);
       return res.status(500).json({ data: null, error: updateErr.message });
     }
+
+    // Log status change in history
+    const { data: changerProfile } = await serviceClient
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .single();
+
+    await serviceClient.from("service_request_status_history").insert({
+      request_id: body.request_id,
+      from_status: request.status,
+      to_status: body.status,
+      changed_by_user_id: userId,
+      changed_by_name: changerProfile?.name || "Usuario",
+      notes: body.internal_notes || body.rejection_reason || null,
+    });
 
     return res.json({ data: updated, error: null });
   } catch (err: any) {
@@ -497,6 +529,22 @@ export async function handleCancelServiceRequest(req: Request, res: Response) {
       console.error("[cancelServiceRequest] Update error:", updateErr);
       return res.status(500).json({ data: null, error: updateErr.message });
     }
+
+    // Log cancellation in history
+    const { data: cancellerProfile } = await serviceClient
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .single();
+
+    await serviceClient.from("service_request_status_history").insert({
+      request_id: request_id,
+      from_status: request.status,
+      to_status: "cancelled",
+      changed_by_user_id: userId,
+      changed_by_name: cancellerProfile?.name || "Usuario",
+      notes: "Solicitud cancelada",
+    });
 
     return res.json({ data: updated, error: null });
   } catch (err: any) {
@@ -770,12 +818,84 @@ export async function handleResolveServiceRequest(req: Request, res: Response) {
       return res.status(500).json({ data: null, error: updateErr.message });
     }
 
+    // Log status change in history
+    const { data: resolverProfile } = await serviceClient
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .single();
+
+    await serviceClient.from("service_request_status_history").insert({
+      request_id: request_id,
+      from_status: request.status,
+      to_status: updateData.status,
+      changed_by_user_id: userId,
+      changed_by_name: resolverProfile?.name || "Usuario",
+      notes: internal_notes || rejection_reason || null,
+    });
+
     return res.json({ data: updated, error: null });
   } catch (err: any) {
     if (err instanceof AuthError) {
       return res.status(err.status).json({ data: null, error: err.message });
     }
     console.error("[resolveServiceRequest] Error:", err);
+    return res.status(500).json({ data: null, error: "Internal server error" });
+  }
+}
+
+// ─── 10. Get Service Request Status History ──────────────────────────────────
+export async function handleGetServiceRequestHistory(req: Request, res: Response) {
+  try {
+    const { userId, organizationId } = await authenticateSupabaseRequest(
+      req.headers.authorization
+    );
+
+    if (!organizationId) {
+      return res.status(400).json({ data: null, error: "No organization context" });
+    }
+
+    const { request_id } = req.body;
+
+    if (!request_id) {
+      return res.status(400).json({ data: null, error: "request_id is required" });
+    }
+
+    const serviceClient = getServiceClient();
+
+    // Verify the request exists and user has access
+    const { data: request, error: fetchErr } = await serviceClient
+      .from("service_requests")
+      .select("requesting_org_id, fulfilling_org_id")
+      .eq("id", request_id)
+      .single();
+
+    if (fetchErr || !request) {
+      return res.status(404).json({ data: null, error: "Service request not found" });
+    }
+
+    if (request.requesting_org_id !== organizationId && request.fulfilling_org_id !== organizationId) {
+      return res.status(403).json({ data: null, error: "No tienes acceso a esta solicitud" });
+    }
+
+    // Fetch history ordered by created_at ascending (oldest first)
+    const { data: history, error } = await serviceClient
+      .from("service_request_status_history")
+      .select("*")
+      .eq("request_id", request_id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("[getServiceRequestHistory] Error:", error);
+      return res.status(500).json({ data: null, error: error.message });
+    }
+
+    return res.json({ data: history || [], error: null });
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ data: null, error: err.message });
+    }
+    console.error("[getServiceRequestHistory] Error:", err);
     return res.status(500).json({ data: null, error: "Internal server error" });
   }
 }

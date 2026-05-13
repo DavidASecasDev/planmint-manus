@@ -77,6 +77,7 @@ import {
   handleGetVehicleModels,
   handleUploadServiceRequestDoc,
   handleGetAvailableVehicles,
+  handleGetServiceRequestHistory,
 } from "../serviceRequestEndpoints";
 import {
   handleSuperAdminAddMember,
@@ -211,6 +212,7 @@ async function startServer() {
   app.post("/api/get-vehicle-models", handleGetVehicleModels);
   app.post("/api/upload-service-request-doc", handleUploadServiceRequestDoc);
   app.post("/api/get-available-vehicles", handleGetAvailableVehicles);
+  app.post("/api/get-service-request-history", handleGetServiceRequestHistory);
 
   // tRPC API
   app.use(

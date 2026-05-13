@@ -45,6 +45,7 @@ import {
   ArrowRight,
   Download,
   Upload,
+  History,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
@@ -90,6 +91,17 @@ interface ServiceRequestDetail {
   vehicle_info: { id: string; matricula: string; modelo: string } | null;
 }
 
+interface StatusHistoryEntry {
+  id: string;
+  request_id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_by_user_id: string;
+  changed_by_name: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 interface AvailableVehicle {
   id: string;
   matricula: string;
@@ -126,6 +138,8 @@ export default function ServiceRequestDetailPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const canManage = hasPermission("transfers.manage");
   const isAzulCars = organization?.id === AZUL_CARS_ORG_ID;
@@ -157,6 +171,29 @@ export default function ServiceRequestDetailPage() {
     }
   }, [session?.access_token, requestId, navigate]);
 
+  const fetchHistory = useCallback(async () => {
+    if (!session?.access_token || !requestId) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/get-service-request-history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ request_id: requestId }),
+      });
+      const json = await res.json();
+      if (!json.error) {
+        setStatusHistory(json.data || []);
+      }
+    } catch {
+      // Silently fail for history
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [session?.access_token, requestId]);
+
   const fetchAvailableVehicles = useCallback(async () => {
     if (!session?.access_token || !isAzulCars) return;
     try {
@@ -176,7 +213,8 @@ export default function ServiceRequestDetailPage() {
 
   useEffect(() => {
     fetchDetail();
-  }, [fetchDetail]);
+    fetchHistory();
+  }, [fetchDetail, fetchHistory]);
 
   useEffect(() => {
     fetchAvailableVehicles();
@@ -206,6 +244,7 @@ export default function ServiceRequestDetailPage() {
       } else {
         toast.success(`Estado actualizado a "${statusConfig[newStatus]?.label || newStatus}"`);
         fetchDetail();
+        fetchHistory();
       }
     } catch {
       toast.error("Error al actualizar el estado");
@@ -498,6 +537,94 @@ export default function ServiceRequestDetailPage() {
               </CardContent>
             </Card>
           )}
+          {/* Status History Timeline */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Historial de cambios
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {historyLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex gap-3">
+                      <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : statusHistory.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay historial todavía</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
+
+                  <div className="space-y-4">
+                    {statusHistory.map((entry) => {
+                      const toConf = statusConfig[entry.to_status];
+                      const fromConf = entry.from_status ? statusConfig[entry.from_status] : null;
+                      const ToIcon = toConf?.icon || Clock;
+                      const dotColor = toConf?.color || "text-muted-foreground";
+
+                      return (
+                        <div key={entry.id} className="relative flex gap-4 pl-8">
+                          {/* Timeline dot */}
+                          <div className={`absolute left-2.5 w-3 h-3 rounded-full border-2 border-background ${toConf?.bgColor || 'bg-muted'}`} />
+
+                          <div className="flex-1 min-w-0 pb-3">
+                            {/* Status transition */}
+                            <div className="flex items-center gap-2 text-sm flex-wrap">
+                              <ToIcon className={`h-4 w-4 ${dotColor} shrink-0`} />
+                              {entry.from_status ? (
+                                <>
+                                  <span className="text-muted-foreground">
+                                    {fromConf?.label || entry.from_status}
+                                  </span>
+                                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <span className="font-medium">
+                                    {toConf?.label || entry.to_status}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="font-medium">
+                                  {toConf?.label || entry.to_status}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Notes */}
+                            {entry.notes && (
+                              <p className="text-xs text-muted-foreground mt-1 italic">
+                                {entry.notes}
+                              </p>
+                            )}
+
+                            {/* User and time */}
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <span>{entry.changed_by_name || "Usuario"}</span>
+                              <span>&middot;</span>
+                              <span>
+                                {format(new Date(entry.created_at), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar: Actions + Meta */}

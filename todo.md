@@ -517,3 +517,4 @@
 - [x] Solicitudes de Servicio: Flujo de estados paso a paso (Pendiente → En gestión → Vehículo asignado → Completada)
 - [x] Solicitudes de Servicio: Asignar vehículo concreto desde la vista de gestión
 - [x] Solicitudes de Servicio: Añadir notas/comentarios en la vista de gestión
+- [x] Solicitudes de Servicio: Historial de cambios de estado con quién y cuándo en la vista de detalle
