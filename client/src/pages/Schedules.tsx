@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { apiInvoke } from '@/lib/apiClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -484,24 +485,22 @@ export default function Schedules() {
 
   if (!orgId) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Selecciona una organización</p>
-      </div>
+      <AppLayout title="Horarios" fullWidth>
+        <div className="flex items-center justify-center h-full">
+          <p className="text-muted-foreground">Selecciona una organización</p>
+        </div>
+      </AppLayout>
     );
   }
 
   const isLoading = templatesLoading || scheduleLoading;
 
   return (
+    <AppLayout title="Horarios" fullWidth>
     <TooltipProvider>
       <div className="flex flex-col h-full">
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <CalendarClock className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-semibold tracking-tight">Horarios</h1>
-          </div>
-
+        <div className="flex items-center justify-end px-2 py-3">
           <div className="flex items-center gap-2">
             {/* Copy previous week */}
             <Tooltip>
@@ -708,6 +707,7 @@ export default function Schedules() {
         </Dialog>
       </div>
     </TooltipProvider>
+    </AppLayout>
   );
 }
 

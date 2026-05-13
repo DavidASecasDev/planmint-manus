@@ -531,3 +531,5 @@
 - [x] Horarios: Copiar semana anterior — botón para duplicar turnos de la semana previa como plantilla
 - [x] Horarios: Resumen visual por empleado — contador de horas totales semanales al final de cada fila
 - [x] Horarios: Integración con AssigneeSelect — filtrar empleados asignables según turno activo del día
+- [x] Bug: Página Horarios no muestra sidebar/DashboardLayout — se renderiza sin el layout general
+- [x] Bug: Botón "Copiar semana" y columna "Horas" no visibles en producción
