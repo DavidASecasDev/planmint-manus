@@ -503,3 +503,6 @@
 - [x] Bug: RLS policy violation when adding member to organization from super admin — fixed by creating backend endpoint /api/super-admin/add-member using serviceClient
 - [x] Migrate super admin actions to backend: update member role, suspend member, remove member (bypass RLS)
 - [x] Add org management from Users Global view: assign user to org from their profile page
+- [x] Migrate org actions to backend: update org status, delete org, change plan (bypass RLS)
+- [x] Add confirmation dialog before removing a member from an organization (show consequences)
+- [x] Implement audit logging for all super admin actions (who did what and when)

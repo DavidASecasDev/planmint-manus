@@ -1,6 +1,7 @@
 /**
  * Super Admin Express endpoints.
  * These use the service_role client to bypass RLS for administrative operations.
+ * All mutating actions are logged to audit_logs for traceability.
  */
 import { Request, Response } from "express";
 import {
@@ -8,6 +9,8 @@ import {
   extractBearerToken,
   AuthError,
 } from "./supabaseAdmin";
+
+// ─── Auth helper ────────────────────────────────────────────────────────────
 
 async function authenticateAsSuperAdmin(
   authHeader: string | undefined
@@ -21,7 +24,6 @@ async function authenticateAsSuperAdmin(
     throw new AuthError("Invalid or expired token", 401);
   }
   const userId = userData.user.id;
-  // Verify super admin status
   const { data: superAdmin } = await serviceClient
     .from("super_admins")
     .select("user_id")
@@ -33,6 +35,39 @@ async function authenticateAsSuperAdmin(
   return { userId, email: userData.user.email || "" };
 }
 
+// ─── Audit helper ───────────────────────────────────────────────────────────
+
+interface AuditEntry {
+  organizationId?: string | null;
+  actorUserId: string;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  metadata?: Record<string, any>;
+}
+
+async function logAudit(entry: AuditEntry, req: Request) {
+  try {
+    const serviceClient = getServiceClient();
+    await serviceClient.from("audit_logs").insert({
+      organization_id: entry.organizationId || null,
+      actor_user_id: entry.actorUserId,
+      actor_role: "super_admin",
+      action: entry.action,
+      entity_type: entry.entityType,
+      entity_id: entry.entityId || null,
+      metadata_json: entry.metadata ? JSON.stringify(entry.metadata) : null,
+      ip_address: req.ip || req.headers["x-forwarded-for"]?.toString() || null,
+      user_agent: req.headers["user-agent"] || null,
+    });
+  } catch (err) {
+    console.error("[audit-log] Failed to write audit entry:", err);
+    // Never fail the main operation because of audit logging
+  }
+}
+
+// ─── Error helper ───────────────────────────────────────────────────────────
+
 function handleError(res: Response, err: any, context: string) {
   if (err instanceof AuthError) {
     return res.status(err.status).json({ error: err.message });
@@ -41,16 +76,15 @@ function handleError(res: Response, err: any, context: string) {
   return res.status(500).json({ error: err.message || "Internal server error" });
 }
 
+// ─── Member endpoints ───────────────────────────────────────────────────────
+
 /**
  * POST /api/super-admin/add-member
  * Body: { userId, organizationId, role }
  */
-export async function handleSuperAdminAddMember(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminAddMember(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { userId, organizationId, role } = req.body;
     if (!userId || !organizationId || !role) {
       return res.status(400).json({ error: "userId, organizationId, and role are required" });
@@ -65,26 +99,21 @@ export async function handleSuperAdminAddMember(
       .eq("organization_id", organizationId)
       .maybeSingle();
 
+    let isReactivation = false;
     if (existing) {
       if (existing.status === "active") {
         return res.status(409).json({ error: "El usuario ya es miembro activo de esta organización" });
       }
-      // Reactivate if suspended
       const { error } = await serviceClient
         .from("organization_members")
         .update({ status: "active", role })
         .eq("id", existing.id);
       if (error) throw error;
+      isReactivation = true;
     } else {
-      // Insert new membership
       const { error } = await serviceClient
         .from("organization_members")
-        .insert({
-          user_id: userId,
-          organization_id: organizationId,
-          role,
-          status: "active",
-        });
+        .insert({ user_id: userId, organization_id: organizationId, role, status: "active" });
       if (error) throw error;
     }
 
@@ -94,11 +123,16 @@ export async function handleSuperAdminAddMember(
       .select("name")
       .eq("id", organizationId)
       .single();
-
     const orgDisplayName = orgData?.name || "una organización";
-    const isReactivation = existing && existing.status !== "active";
 
-    // Send in-app notification to the user
+    // Get user name for audit
+    const { data: userData } = await serviceClient
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .single();
+
+    // Send notification
     await serviceClient.from("notifications").insert({
       organization_id: organizationId,
       user_id: userId,
@@ -114,10 +148,22 @@ export async function handleSuperAdminAddMember(
       is_read: false,
     });
 
-    return res.json({
-      data: { success: true, reactivated: !!isReactivation },
-      error: null,
-    });
+    // Audit log
+    await logAudit({
+      organizationId,
+      actorUserId: admin.userId,
+      action: isReactivation ? "update.member_reactivated" : "create.member",
+      entityType: "organization_member",
+      entityId: userId,
+      metadata: {
+        targetUserName: userData?.name || userId,
+        orgName: orgDisplayName,
+        role,
+        reactivated: isReactivation,
+      },
+    }, req);
+
+    return res.json({ data: { success: true, reactivated: isReactivation }, error: null });
   } catch (err: any) {
     return handleError(res, err, "add-member");
   }
@@ -127,22 +173,42 @@ export async function handleSuperAdminAddMember(
  * POST /api/super-admin/update-member-role
  * Body: { memberId, newRole }
  */
-export async function handleSuperAdminUpdateMemberRole(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminUpdateMemberRole(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { memberId, newRole } = req.body;
     if (!memberId || !newRole) {
       return res.status(400).json({ error: "memberId and newRole are required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get current member info for audit
+    const { data: member } = await serviceClient
+      .from("organization_members")
+      .select("user_id, role, organization_id, profiles:user_id(name), organizations:organization_id(name)")
+      .eq("id", memberId)
+      .single();
+
     const { error } = await serviceClient
       .from("organization_members")
       .update({ role: newRole })
       .eq("id", memberId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: member?.organization_id,
+      actorUserId: admin.userId,
+      action: "update.member_role",
+      entityType: "organization_member",
+      entityId: memberId,
+      metadata: {
+        targetUserName: (member?.profiles as any)?.name || member?.user_id,
+        orgName: (member?.organizations as any)?.name,
+        oldRole: member?.role,
+        newRole,
+      },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "update-member-role");
@@ -153,12 +219,9 @@ export async function handleSuperAdminUpdateMemberRole(
  * POST /api/super-admin/update-member-status
  * Body: { memberId, status }
  */
-export async function handleSuperAdminUpdateMemberStatus(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminUpdateMemberStatus(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { memberId, status } = req.body;
     if (!memberId || !status) {
       return res.status(400).json({ error: "memberId and status are required" });
@@ -167,11 +230,34 @@ export async function handleSuperAdminUpdateMemberStatus(
       return res.status(400).json({ error: "status must be 'active' or 'suspended'" });
     }
     const serviceClient = getServiceClient();
+
+    // Get current member info for audit
+    const { data: member } = await serviceClient
+      .from("organization_members")
+      .select("user_id, status, organization_id, profiles:user_id(name), organizations:organization_id(name)")
+      .eq("id", memberId)
+      .single();
+
     const { error } = await serviceClient
       .from("organization_members")
       .update({ status })
       .eq("id", memberId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: member?.organization_id,
+      actorUserId: admin.userId,
+      action: status === "active" ? "update.member_reactivated" : "update.member_suspended",
+      entityType: "organization_member",
+      entityId: memberId,
+      metadata: {
+        targetUserName: (member?.profiles as any)?.name || member?.user_id,
+        orgName: (member?.organizations as any)?.name,
+        oldStatus: member?.status,
+        newStatus: status,
+      },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "update-member-status");
@@ -182,38 +268,57 @@ export async function handleSuperAdminUpdateMemberStatus(
  * POST /api/super-admin/remove-member
  * Body: { memberId }
  */
-export async function handleSuperAdminRemoveMember(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminRemoveMember(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { memberId } = req.body;
     if (!memberId) {
       return res.status(400).json({ error: "memberId is required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get member info before deletion for audit
+    const { data: member } = await serviceClient
+      .from("organization_members")
+      .select("user_id, role, organization_id, profiles:user_id(name), organizations:organization_id(name)")
+      .eq("id", memberId)
+      .single();
+
     const { error } = await serviceClient
       .from("organization_members")
       .delete()
       .eq("id", memberId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: member?.organization_id,
+      actorUserId: admin.userId,
+      action: "delete.member",
+      entityType: "organization_member",
+      entityId: memberId,
+      metadata: {
+        targetUserName: (member?.profiles as any)?.name || member?.user_id,
+        targetUserId: member?.user_id,
+        orgName: (member?.organizations as any)?.name,
+        role: member?.role,
+      },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "remove-member");
   }
 }
 
+// ─── Organization endpoints ─────────────────────────────────────────────────
+
 /**
  * POST /api/super-admin/update-org-status
  * Body: { orgId, status }
  */
-export async function handleSuperAdminUpdateOrgStatus(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminUpdateOrgStatus(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { orgId, status } = req.body;
     if (!orgId || !status) {
       return res.status(400).json({ error: "orgId and status are required" });
@@ -222,11 +327,33 @@ export async function handleSuperAdminUpdateOrgStatus(
       return res.status(400).json({ error: "status must be 'active', 'suspended', or 'deleted'" });
     }
     const serviceClient = getServiceClient();
+
+    // Get current org info for audit
+    const { data: org } = await serviceClient
+      .from("organizations")
+      .select("name, status")
+      .eq("id", orgId)
+      .single();
+
     const { error } = await serviceClient
       .from("organizations")
       .update({ status })
       .eq("id", orgId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: orgId,
+      actorUserId: admin.userId,
+      action: `update.org_status`,
+      entityType: "organization",
+      entityId: orgId,
+      metadata: {
+        orgName: org?.name,
+        oldStatus: org?.status,
+        newStatus: status,
+      },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "update-org-status");
@@ -237,28 +364,64 @@ export async function handleSuperAdminUpdateOrgStatus(
  * POST /api/super-admin/delete-organization
  * Body: { orgId }
  */
-export async function handleSuperAdminDeleteOrganization(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminDeleteOrganization(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { orgId } = req.body;
     if (!orgId) {
       return res.status(400).json({ error: "orgId is required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get org info before deletion for audit
+    const { data: org } = await serviceClient
+      .from("organizations")
+      .select("name, status")
+      .eq("id", orgId)
+      .single();
+
+    // Count related data for audit metadata
+    const { count: memberCount } = await serviceClient
+      .from("organization_members")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId);
+    const { count: taskCount } = await serviceClient
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId);
+    const { count: areaCount } = await serviceClient
+      .from("areas")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId);
+
     // Delete related data first
     await serviceClient.from("tasks").delete().eq("organization_id", orgId);
     await serviceClient.from("areas").delete().eq("organization_id", orgId);
     await serviceClient.from("organization_members").delete().eq("organization_id", orgId);
     await serviceClient.from("subscriptions").delete().eq("organization_id", orgId);
-    // Then delete the organization
+
     const { error } = await serviceClient
       .from("organizations")
       .delete()
       .eq("id", orgId);
     if (error) throw error;
+
+    // Log audit AFTER deletion (org_id won't have FK, but that's fine for history)
+    // We use null for organization_id since the org no longer exists
+    await logAudit({
+      organizationId: null,
+      actorUserId: admin.userId,
+      action: "delete.organization",
+      entityType: "organization",
+      entityId: orgId,
+      metadata: {
+        orgName: org?.name,
+        deletedMembers: memberCount || 0,
+        deletedTasks: taskCount || 0,
+        deletedAreas: areaCount || 0,
+      },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "delete-organization");
@@ -269,38 +432,62 @@ export async function handleSuperAdminDeleteOrganization(
  * POST /api/super-admin/update-org-plan
  * Body: { orgId, plan }
  */
-export async function handleSuperAdminUpdateOrgPlan(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminUpdateOrgPlan(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { orgId, plan } = req.body;
     if (!orgId || !plan) {
       return res.status(400).json({ error: "orgId and plan are required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get current plan for audit
+    const { data: sub } = await serviceClient
+      .from("subscriptions")
+      .select("plan")
+      .eq("organization_id", orgId)
+      .single();
+
+    const { data: org } = await serviceClient
+      .from("organizations")
+      .select("name")
+      .eq("id", orgId)
+      .single();
+
     const { error } = await serviceClient
       .from("subscriptions")
       .update({ plan })
       .eq("organization_id", orgId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: orgId,
+      actorUserId: admin.userId,
+      action: "update.org_plan",
+      entityType: "subscription",
+      entityId: orgId,
+      metadata: {
+        orgName: org?.name,
+        oldPlan: sub?.plan,
+        newPlan: plan,
+      },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "update-org-plan");
   }
 }
 
+// ─── Feedback endpoints ─────────────────────────────────────────────────────
+
 /**
  * POST /api/super-admin/update-feedback
  * Body: { feedbackId, readAt?, resolvedAt?, internalNotes? }
  */
-export async function handleSuperAdminUpdateFeedback(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminUpdateFeedback(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { feedbackId, readAt, resolvedAt, internalNotes } = req.body;
     if (!feedbackId) {
       return res.status(400).json({ error: "feedbackId is required" });
@@ -309,12 +496,31 @@ export async function handleSuperAdminUpdateFeedback(
     if (readAt !== undefined) updates.read_at = readAt;
     if (resolvedAt !== undefined) updates.resolved_at = resolvedAt;
     if (internalNotes !== undefined) updates.internal_notes = internalNotes;
+
     const serviceClient = getServiceClient();
+
+    // Get feedback info for audit
+    const { data: feedback } = await serviceClient
+      .from("user_feedback")
+      .select("organization_id, type")
+      .eq("id", feedbackId)
+      .single();
+
     const { error } = await serviceClient
       .from("user_feedback")
       .update(updates)
       .eq("id", feedbackId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: feedback?.organization_id,
+      actorUserId: admin.userId,
+      action: "update.feedback",
+      entityType: "user_feedback",
+      entityId: feedbackId,
+      metadata: { updatedFields: Object.keys(updates), feedbackType: feedback?.type },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "update-feedback");
@@ -325,48 +531,80 @@ export async function handleSuperAdminUpdateFeedback(
  * POST /api/super-admin/delete-feedback
  * Body: { feedbackId }
  */
-export async function handleSuperAdminDeleteFeedback(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminDeleteFeedback(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { feedbackId } = req.body;
     if (!feedbackId) {
       return res.status(400).json({ error: "feedbackId is required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get feedback info before deletion for audit
+    const { data: feedback } = await serviceClient
+      .from("user_feedback")
+      .select("organization_id, type, content")
+      .eq("id", feedbackId)
+      .single();
+
     const { error } = await serviceClient
       .from("user_feedback")
       .delete()
       .eq("id", feedbackId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: feedback?.organization_id,
+      actorUserId: admin.userId,
+      action: "delete.feedback",
+      entityType: "user_feedback",
+      entityId: feedbackId,
+      metadata: { feedbackType: feedback?.type },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "delete-feedback");
   }
 }
 
+// ─── Data management endpoints ──────────────────────────────────────────────
+
 /**
  * POST /api/super-admin/delete-task
  * Body: { taskId }
  */
-export async function handleSuperAdminDeleteTask(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminDeleteTask(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { taskId } = req.body;
     if (!taskId) {
       return res.status(400).json({ error: "taskId is required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get task info before deletion for audit
+    const { data: task } = await serviceClient
+      .from("tasks")
+      .select("organization_id, title")
+      .eq("id", taskId)
+      .single();
+
     const { error } = await serviceClient
       .from("tasks")
       .delete()
       .eq("id", taskId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: task?.organization_id,
+      actorUserId: admin.userId,
+      action: "delete.task",
+      entityType: "task",
+      entityId: taskId,
+      metadata: { taskTitle: task?.title },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "delete-task");
@@ -377,37 +615,50 @@ export async function handleSuperAdminDeleteTask(
  * POST /api/super-admin/delete-area
  * Body: { areaId }
  */
-export async function handleSuperAdminDeleteArea(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminDeleteArea(req: Request, res: Response) {
   try {
-    await authenticateAsSuperAdmin(req.headers.authorization);
+    const admin = await authenticateAsSuperAdmin(req.headers.authorization);
     const { areaId } = req.body;
     if (!areaId) {
       return res.status(400).json({ error: "areaId is required" });
     }
     const serviceClient = getServiceClient();
+
+    // Get area info before deletion for audit
+    const { data: area } = await serviceClient
+      .from("areas")
+      .select("organization_id, name")
+      .eq("id", areaId)
+      .single();
+
     const { error } = await serviceClient
       .from("areas")
       .delete()
       .eq("id", areaId);
     if (error) throw error;
+
+    await logAudit({
+      organizationId: area?.organization_id,
+      actorUserId: admin.userId,
+      action: "delete.area",
+      entityType: "area",
+      entityId: areaId,
+      metadata: { areaName: area?.name },
+    }, req);
+
     return res.json({ data: { success: true }, error: null });
   } catch (err: any) {
     return handleError(res, err, "delete-area");
   }
 }
 
+// ─── Query endpoints ────────────────────────────────────────────────────────
+
 /**
  * POST /api/super-admin/get-user-memberships
  * Body: { userId }
- * Returns all organization memberships for a given user.
  */
-export async function handleSuperAdminGetUserMemberships(
-  req: Request,
-  res: Response
-) {
+export async function handleSuperAdminGetUserMemberships(req: Request, res: Response) {
   try {
     await authenticateAsSuperAdmin(req.headers.authorization);
     const { userId } = req.body;
