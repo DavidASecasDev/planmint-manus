@@ -533,3 +533,4 @@
 - [x] Horarios: Integración con AssigneeSelect — filtrar empleados asignables según turno activo del día
 - [x] Bug: Página Horarios no muestra sidebar/DashboardLayout — se renderiza sin el layout general
 - [x] Bug: Botón "Copiar semana" y columna "Horas" no visibles en producción
+- [x] Bug: Popover de asignación de turno se cierra inmediatamente al hacer clic en celda de Jordan (y posiblemente otras celdas)

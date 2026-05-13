@@ -150,7 +150,7 @@ export default function Schedules() {
   const orgId = profile?.organization_id;
 
   const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedCell, setSelectedCell] = useState<{ userId: string; date: string } | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ teamId: string; userId: string; date: string } | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ShiftTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState({
@@ -719,8 +719,8 @@ interface TeamScheduleGridProps {
   scheduleLookup: Map<string, ScheduleEntry>;
   shiftTemplates: ShiftTemplate[];
   dayStats: Record<string, DayStats>;
-  selectedCell: { userId: string; date: string } | null;
-  onSelectCell: (cell: { userId: string; date: string } | null) => void;
+  selectedCell: { teamId: string; userId: string; date: string } | null;
+  onSelectCell: (cell: { teamId: string; userId: string; date: string } | null) => void;
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
 }
 
@@ -872,7 +872,7 @@ function TeamScheduleGrid({
                         : null;
                       const today = isToday(d);
                       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                      const isSelected = selectedCell?.userId === member.id && selectedCell?.date === dateStr;
+                      const isSelected = selectedCell?.teamId === team.team_id && selectedCell?.userId === member.id && selectedCell?.date === dateStr;
 
                       return (
                         <td
@@ -891,7 +891,7 @@ function TeamScheduleGrid({
                           >
                             <PopoverTrigger asChild>
                               <button
-                                onClick={() => onSelectCell({ userId: member.id, date: dateStr })}
+                                onClick={() => onSelectCell({ teamId: team.team_id, userId: member.id, date: dateStr })}
                                 className={cn(
                                   "w-full min-h-[36px] rounded-md text-xs font-medium transition-all",
                                   "border border-transparent hover:border-primary/30 hover:shadow-sm",
