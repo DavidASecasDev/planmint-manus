@@ -76,6 +76,7 @@ import {
   handleGetServiceRequestDetail,
   handleGetVehicleModels,
   handleUploadServiceRequestDoc,
+  serviceRequestDocUpload,
   handleGetAvailableVehicles,
   handleGetServiceRequestHistory,
 } from "../serviceRequestEndpoints";
@@ -210,7 +211,7 @@ async function startServer() {
   app.post("/api/update-service-request-status", handleUpdateServiceRequestStatus);
   app.post("/api/get-service-request-detail", handleGetServiceRequestDetail);
   app.post("/api/get-vehicle-models", handleGetVehicleModels);
-  app.post("/api/upload-service-request-doc", handleUploadServiceRequestDoc);
+  app.post("/api/upload-service-request-doc", serviceRequestDocUpload, handleUploadServiceRequestDoc);
   app.post("/api/get-available-vehicles", handleGetAvailableVehicles);
   app.post("/api/get-service-request-history", handleGetServiceRequestHistory);
 

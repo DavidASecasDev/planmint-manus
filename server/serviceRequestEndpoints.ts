@@ -5,6 +5,7 @@
  * Only users with 'transfers.manage' permission in the fulfilling org can manage.
  */
 import { Request, Response } from "express";
+import multer from "multer";
 import {
   getServiceClient,
   authenticateSupabaseRequest,
@@ -12,6 +13,10 @@ import {
 } from "./supabaseAdmin";
 import { checkUserPermission } from "./permissionHelper";
 import { AZUL_CARS_ORG_ID } from "../shared/const";
+
+// Multer config for file uploads (memory storage, max 10MB)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+export const serviceRequestDocUpload = upload.single("file");
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -645,12 +650,14 @@ export async function handleUploadServiceRequestDoc(req: Request, res: Response)
       return res.status(400).json({ data: null, error: "No organization context" });
     }
 
-    const { request_id, doc_type, file_url } = req.body;
+    const request_id = req.body.request_id;
+    const doc_type = req.body.doc_type;
+    const file = (req as any).file as Express.Multer.File | undefined;
 
-    if (!request_id || !doc_type || !file_url) {
+    if (!request_id || !doc_type) {
       return res.status(400).json({
         data: null,
-        error: "request_id, doc_type, and file_url are required",
+        error: "request_id and doc_type are required",
       });
     }
 
@@ -659,6 +666,10 @@ export async function handleUploadServiceRequestDoc(req: Request, res: Response)
         data: null,
         error: "doc_type must be 'passport' or 'driving_license'",
       });
+    }
+
+    if (!file) {
+      return res.status(400).json({ data: null, error: "No file provided" });
     }
 
     const serviceClient = getServiceClient();
@@ -678,11 +689,33 @@ export async function handleUploadServiceRequestDoc(req: Request, res: Response)
       return res.status(403).json({ data: null, error: "No tienes acceso a esta solicitud" });
     }
 
+    // Upload file to Supabase Storage using service role key
+    const ext = file.originalname.split(".").pop() || "bin";
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
+    const storagePath = `${organizationId}/${doc_type}/${fileName}`;
+
+    const { error: uploadError } = await serviceClient.storage
+      .from("service-request-docs")
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("[uploadServiceRequestDoc] Storage upload error:", uploadError);
+      return res.status(500).json({ data: null, error: "Error al subir archivo al almacenamiento" });
+    }
+
+    // Get public URL
+    const { data: urlData } = serviceClient.storage
+      .from("service-request-docs")
+      .getPublicUrl(storagePath);
+
     // Update the appropriate column
     const column = doc_type === "passport" ? "passport_url" : "driving_license_url";
     const { data: updated, error: updateErr } = await serviceClient
       .from("service_requests")
-      .update({ [column]: file_url })
+      .update({ [column]: urlData.publicUrl })
       .eq("id", request_id)
       .select()
       .single();

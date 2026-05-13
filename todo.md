@@ -520,3 +520,4 @@
 - [x] Solicitudes de Servicio: Historial de cambios de estado con quién y cuándo en la vista de detalle
 - [x] Bug: Pulsar sobre una solicitud no abre el detalle, requiere refrescar la página
 - [x] Rediseñar página de detalle de solicitud de servicio para mejor UX/intuitividad
+- [x] Bug: No se pueden subir fotos de documentos en la vista de detalle de solicitud de servicio

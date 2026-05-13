@@ -55,7 +55,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/imageCompression";
 import { AZUL_CARS_ORG_ID } from "@shared/const";
 import { motion } from "framer-motion";
@@ -339,22 +338,16 @@ export default function ServiceRequestDetailPage() {
         const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.85 });
         uploadFile = compressed.file;
       }
-      const ext = uploadFile.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-      const storagePath = `${organization?.id}/${docType}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("service-request-docs")
-        .upload(storagePath, uploadFile, { upsert: true });
-
-      if (uploadError) { toast.error(`Error al subir ${file.name}`); return; }
-
-      const { data: urlData } = supabase.storage.from("service-request-docs").getPublicUrl(storagePath);
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("request_id", request.id);
+      formData.append("doc_type", docType);
 
       const res = await fetch("/api/upload-service-request-doc", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
-        body: JSON.stringify({ request_id: request.id, doc_type: docType, file_url: urlData.publicUrl }),
+        headers: { Authorization: `Bearer ${session!.access_token}` },
+        body: formData,
       });
       const json = await res.json();
       if (json.error) toast.error(json.error);
@@ -363,6 +356,8 @@ export default function ServiceRequestDetailPage() {
       toast.error("Error al subir el documento");
     } finally {
       setUploadingDoc(null);
+      // Reset the input so the same file can be re-selected
+      e.target.value = "";
     }
   };
 
