@@ -535,11 +535,13 @@ export async function handleToggleRolePermission(req: Request, res: Response) {
     // Permission check: caller must have members.manage_permissions to toggle role permissions
     await requirePermission(serviceClient, orgId, userId, "members.manage_permissions");
 
+    // Use upsert to handle both existing and new permission keys
     const { error } = await serviceClient
       .from("role_permissions")
-      .update({ enabled: p_enabled })
-      .eq("role", p_role)
-      .eq("permission_key", p_permission_key);
+      .upsert(
+        { role: p_role, permission_key: p_permission_key, enabled: p_enabled },
+        { onConflict: "role,permission_key" }
+      );
 
     if (error) {
       console.error("[toggleRolePermission] Update error:", error);

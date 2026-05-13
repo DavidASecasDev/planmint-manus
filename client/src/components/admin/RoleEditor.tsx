@@ -227,6 +227,17 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       import: 'Permite importar vehículos desde archivos Excel',
     },
   },
+  schedules: {
+    label: 'Horarios',
+    icon: Clock,
+    description: {
+      view: 'Permite ver la cuadrícula semanal de turnos',
+      assign: 'Permite asignar y quitar turnos a empleados',
+      manage_templates: 'Permite crear, editar y eliminar plantillas de turno',
+      view_directiva: 'Permite ver los horarios del equipo Directiva',
+      manage: 'Acceso completo a horarios',
+    },
+  },
 };
 
 interface RoleFormData {

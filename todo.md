@@ -537,3 +537,5 @@
 - [x] Bug: AssigneeSelect muestra usuarios eliminados de la organización (David Patuto, Christa) — filtrar solo miembros activos
 - [x] Horarios: Añadir permisos específicos (ver, editar/asignar turnos, gestionar plantillas) al sistema de permisos
 - [x] Horarios: Aplicar permisos en frontend (ocultar/deshabilitar según rol) y backend (validar en endpoints)
+- [x] Bug: Checkboxes de permisos de Horarios no son interactivos/clickables en la pantalla de gestión de permisos
+- [x] Horarios: Añadir permiso schedules.view_directiva para controlar quién puede ver los turnos del equipo Directiva

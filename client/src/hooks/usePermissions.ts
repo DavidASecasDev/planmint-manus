@@ -121,6 +121,7 @@ export type PermissionKey =
   | 'schedules.view'
   | 'schedules.assign'
   | 'schedules.manage_templates'
+  | 'schedules.view_directiva'
   | 'schedules.manage';
 
 export interface PermissionsData {

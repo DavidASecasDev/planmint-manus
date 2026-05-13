@@ -156,6 +156,7 @@ export default function Schedules() {
   const canAssign = hasPermission('schedules.assign');
   const canManageTemplates = hasPermission('schedules.manage_templates');
   const canManage = hasPermission('schedules.manage');
+  const canViewDirectiva = hasPermission('schedules.view_directiva');
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCell, setSelectedCell] = useState<{ teamId: string; userId: string; date: string } | null>(null);
@@ -268,7 +269,12 @@ export default function Schedules() {
     staleTime: 30 * 1000,
   });
 
-  const teams = weeklyData?.teams || [];
+  const allTeams = weeklyData?.teams || [];
+  // Filter out Directiva team if user doesn't have view_directiva permission
+  const teams = allTeams.filter(t => {
+    if (t.team_name.toLowerCase() === 'directiva' && !canViewDirectiva) return false;
+    return true;
+  });
   const schedules = weeklyData?.schedules || [];
   const dayStats = weeklyData?.dayStats || {};
 

@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { usePermissions, useOrganizationMembers, OrgRole } from '@/hooks/usePermissions';
+import { getDefaultPermissionsForRole as getDefaultPermissionsForRoleFn } from '@shared/permissionDefaults';
 import { useCustomRoles } from '@/hooks/useCustomRoles';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -438,7 +439,9 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
 
   const getPermissionValue = (role: string, permissionKey: string): boolean => {
     const perm = rolePermissions.find(rp => rp.role === role && rp.permission_key === permissionKey);
-    return perm?.enabled ?? false;
+    if (perm) return perm.enabled;
+    // Fall back to shared defaults if no DB row exists
+    return getDefaultPermissionsForRoleFn(role as OrgRole)[permissionKey] ?? false;
   };
 
   const handleToggle = async (role: string, permissionKey: string, currentValue: boolean) => {
