@@ -106,6 +106,12 @@ import {
   handleGetAvailableStaff,
 } from "../scheduleEndpoints";
 import { handleGetStaffCapacity } from "../staffCapacityEndpoint";
+import {
+  handleGetStaffCapacityWeek,
+  handleListTravelTimeOverrides,
+  handleUpsertTravelTimeOverride,
+  handleDeleteTravelTimeOverride,
+} from "../staffCapacityWeekEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -236,6 +242,10 @@ async function startServer() {
   app.post("/api/bulk-upsert-schedules", handleBulkUpsertSchedules);
   app.post("/api/get-available-staff", handleGetAvailableStaff);
   app.post("/api/get-staff-capacity", handleGetStaffCapacity);
+  app.post("/api/get-staff-capacity-week", handleGetStaffCapacityWeek);
+  app.post("/api/travel-time-overrides/list", handleListTravelTimeOverrides);
+  app.post("/api/travel-time-overrides/upsert", handleUpsertTravelTimeOverride);
+  app.post("/api/travel-time-overrides/delete", handleDeleteTravelTimeOverride);
 
   // tRPC API
   app.use(

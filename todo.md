@@ -560,3 +560,11 @@
   - [x] Implementar fallback manual cuando Google Maps no esté disponible
   - [x] Invalidar caché solo cuando cambia ubicación, fecha u hora de la reserva
   - [x] Calcular carga real: ida + operación + vuelta por reserva
+- [x] Feature: Panel de Carga Semanal en Horarios
+  - [x] Backend: Endpoint staff-capacity-week que devuelve 7 días de capacidad
+  - [x] Frontend: Componente WeeklyCapacityPanel con heatmap de utilización
+  - [x] Integrar en la página de Horarios
+- [x] Feature: Editor manual de tiempos de desplazamiento
+  - [x] Backend: Endpoints para listar y editar tiempos cacheados
+  - [x] Frontend: Componente TravelTimeEditor con tabla editable
+  - [x] Integrar en la página de Horarios (sección configuración)

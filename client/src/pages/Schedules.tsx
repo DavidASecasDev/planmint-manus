@@ -41,6 +41,8 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { WeeklyCapacityPanel } from '@/components/WeeklyCapacityPanel';
+import { TravelTimeEditor } from '@/components/TravelTimeEditor';
 import {
   Tooltip,
   TooltipContent,
@@ -601,6 +603,12 @@ export default function Schedules() {
               </Button>
             )}
           </div>
+        </div>
+
+        {/* ── Carga Semanal & Tiempos ── */}
+        <div className="px-4 pt-4 space-y-3">
+          <WeeklyCapacityPanel weekStartDate={weekStart} />
+          <TravelTimeEditor />
         </div>
 
         {/* ── Grid ── */}
