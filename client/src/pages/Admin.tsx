@@ -425,6 +425,7 @@ export default function Admin() {
 
 const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermissionsTable(_props, ref) {
   const { rolePermissions, isLoading, toggleRolePermission, isUpdating } = useRolePermissions();
+  const { customRoles, updateRoleAsync, isUpdating: isUpdatingCustom } = useCustomRoles();
   const { toast } = useToast();
 
   if (isLoading) {
@@ -435,17 +436,41 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
     );
   }
 
-  const roles: OrgRole[] = ['owner', 'admin', 'manager', 'member', 'read_only'];
+  // Build column list: system roles with custom roles inserted between manager and member
+  type ColDef = { key: string; label: string; isSystem: boolean; isOwner: boolean; customRole?: any };
+  const columns: ColDef[] = [
+    { key: 'owner', label: 'Owner', isSystem: true, isOwner: true },
+    { key: 'admin', label: 'Admin', isSystem: true, isOwner: false },
+    { key: 'manager', label: 'Manager', isSystem: true, isOwner: false },
+    // Custom roles go here
+    ...customRoles.map(cr => ({
+      key: `custom:${cr.id}`,
+      label: cr.name,
+      isSystem: false,
+      isOwner: false,
+      customRole: cr,
+    })),
+    { key: 'member', label: 'Miembro', isSystem: true, isOwner: false },
+    { key: 'read_only', label: 'Solo lectura', isSystem: true, isOwner: false },
+  ];
 
-  const getPermissionValue = (role: string, permissionKey: string): boolean => {
-    const perm = rolePermissions.find(rp => rp.role === role && rp.permission_key === permissionKey);
-    if (perm) return perm.enabled;
-    // Fall back to shared defaults if no DB row exists
-    return getDefaultPermissionsForRoleFn(role as OrgRole)[permissionKey] ?? false;
+  const getPermissionValue = (col: ColDef, permissionKey: string): boolean => {
+    if (col.isSystem) {
+      // System role: check role_permissions table, fall back to shared defaults
+      const perm = rolePermissions.find(rp => rp.role === col.key && rp.permission_key === permissionKey);
+      if (perm) return perm.enabled;
+      return getDefaultPermissionsForRoleFn(col.key as OrgRole)[permissionKey] ?? false;
+    } else {
+      // Custom role: read from permissions_json (flattened)
+      const cr = col.customRole;
+      if (!cr?.permissions_json) return false;
+      const flat = flattenCustomRolePermissionsFn(cr.permissions_json as Record<string, any>);
+      return flat[permissionKey] ?? false;
+    }
   };
 
-  const handleToggle = async (role: string, permissionKey: string, currentValue: boolean) => {
-    if (role === 'owner') {
+  const handleToggle = async (col: ColDef, permissionKey: string, currentValue: boolean) => {
+    if (col.isOwner) {
       toast({
         title: "No permitido",
         description: "Los permisos del Owner no pueden ser modificados.",
@@ -455,7 +480,18 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
     }
 
     try {
-      await toggleRolePermission(role, permissionKey, currentValue);
+      if (col.isSystem) {
+        await toggleRolePermission(col.key, permissionKey, currentValue);
+      } else {
+        // Custom role: update permissions_json
+        const cr = col.customRole;
+        const pj = { ...(cr.permissions_json || {}) } as Record<string, any>;
+        // permissionKey is like "schedules.view" → category="schedules", action="view"
+        const [category, action] = permissionKey.split('.');
+        if (!pj[category]) pj[category] = {};
+        pj[category] = { ...pj[category], [action]: !currentValue };
+        await updateRoleAsync({ id: cr.id, permissions: pj as any });
+      }
       toast({
         title: "Permiso actualizado",
         description: `El permiso ha sido ${!currentValue ? 'activado' : 'desactivado'}.`
@@ -469,13 +505,12 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
     }
   };
 
+  const isBusy = isUpdating || isUpdatingCustom;
+
   return (
     <Accordion type="multiple" defaultValue={PERMISSION_CATEGORIES_DEF.map(c => c.id)} className="space-y-2">
       {PERMISSION_CATEGORIES_DEF.map((category) => {
         const Icon = category.icon;
-        const enabledCounts = roles.map(role => 
-          category.permissions.filter(p => getPermissionValue(role, p.key)).length
-        );
 
         return (
           <AccordionItem key={category.id} value={category.id} className="border rounded-lg px-2">
@@ -489,50 +524,53 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40%]">Permiso</TableHead>
-                    {roles.map(role => (
-                      <TableHead key={role} className="text-center">
-                        {systemRoleLabels[role] || role}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {category.permissions.map(perm => (
-                    <TableRow key={perm.key}>
-                      <TableCell>
-                        <div>
-                          <span className="font-medium text-sm">{perm.label}</span>
-                          <p className="text-xs text-muted-foreground mt-0.5">{perm.description}</p>
-                        </div>
-                      </TableCell>
-                      {roles.map(role => {
-                        const isEnabled = getPermissionValue(role, perm.key);
-                        const isOwner = role === 'owner';
-                        return (
-                          <TableCell key={role} className="text-center">
-                            <button
-                              onClick={() => handleToggle(role, perm.key, isEnabled)}
-                              disabled={isUpdating || isOwner}
-                              className={`transition-opacity ${isOwner ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:opacity-80'}`}
-                              title={isOwner ? 'Los permisos del Owner no pueden ser modificados' : 'Click para cambiar'}
-                            >
-                              {isEnabled ? (
-                                <Badge variant="default" className="bg-green-500">✓</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-muted-foreground">✗</Badge>
-                              )}
-                            </button>
-                          </TableCell>
-                        );
-                      })}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[30%] min-w-[200px]">Permiso</TableHead>
+                      {columns.map(col => (
+                        <TableHead key={col.key} className="text-center min-w-[80px]">
+                          <span className={col.isSystem ? '' : 'text-blue-600 font-semibold'}>
+                            {col.label}
+                          </span>
+                        </TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {category.permissions.map(perm => (
+                      <TableRow key={perm.key}>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium text-sm">{perm.label}</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">{perm.description}</p>
+                          </div>
+                        </TableCell>
+                        {columns.map(col => {
+                          const isEnabled = getPermissionValue(col, perm.key);
+                          return (
+                            <TableCell key={col.key} className="text-center">
+                              <button
+                                onClick={() => handleToggle(col, perm.key, isEnabled)}
+                                disabled={isBusy || col.isOwner}
+                                className={`transition-opacity ${col.isOwner ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:opacity-80'}`}
+                                title={col.isOwner ? 'Los permisos del Owner no pueden ser modificados' : 'Click para cambiar'}
+                              >
+                                {isEnabled ? (
+                                  <Badge variant="default" className="bg-green-500">✓</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground">✗</Badge>
+                                )}
+                              </button>
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );
@@ -543,3 +581,4 @@ const RolePermissionsTable = React.forwardRef<HTMLDivElement>(function RolePermi
 
 // Re-export for the import
 import { useRolePermissions } from '@/hooks/usePermissions';
+import { flattenCustomRolePermissions as flattenCustomRolePermissionsFn } from '@shared/permissionDefaults';

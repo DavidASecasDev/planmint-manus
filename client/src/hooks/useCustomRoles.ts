@@ -135,6 +135,7 @@ export function useCustomRoles() {
     isLoading,
     createRole: createRole.mutate,
     updateRole: updateRole.mutate,
+    updateRoleAsync: updateRole.mutateAsync,
     deleteRole: deleteRole.mutate,
     isCreating: createRole.isPending,
     isUpdating: updateRole.isPending,
