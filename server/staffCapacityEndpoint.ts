@@ -619,6 +619,23 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
     const profileNameById = new Map<string, string>();
     (profiles || []).forEach((p: any) => profileNameById.set(p.id, p.name || "Sin nombre"));
 
+    // Fetch team_members to resolve team when staff_schedules.team_id is NULL
+    // (staff_schedules often stores team_id as NULL; the canonical user→team
+    //  association lives in team_members)
+    const { data: teamMembers } = await sb
+      .from("team_members")
+      .select("user_id, team_id")
+      .eq("organization_id", orgId)
+      .in("user_id", allUserIds.length > 0 ? allUserIds : ["__none__"]);
+
+    const userTeamIdFromMembers = new Map<string, string>();
+    (teamMembers || []).forEach((tm: any) => {
+      // If a user belongs to multiple teams, keep the first one found
+      if (!userTeamIdFromMembers.has(tm.user_id)) {
+        userTeamIdFromMembers.set(tm.user_id, tm.team_id);
+      }
+    });
+
     // Classify staff by team and their shift hours
     interface StaffShift {
       userId: string;
@@ -632,7 +649,9 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       const template = s.shift_templates;
       if (template.is_day_off) return;
 
-      const teamName = s.team_id ? (teamNameById.get(s.team_id) || "Unknown") : "Unknown";
+      // Resolve team: prefer staff_schedules.team_id, fallback to team_members
+      const effectiveTeamId = s.team_id || userTeamIdFromMembers.get(s.user_id) || null;
+      const teamName = effectiveTeamId ? (teamNameById.get(effectiveTeamId) || "Unknown") : "Unknown";
       staffShifts.push({
         userId: s.user_id,
         teamName,

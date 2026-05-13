@@ -578,3 +578,4 @@
   - [x] Frontend: Diálogo de asignación de refuerzo con lista de operaciones disponibles
   - [x] Integrar botón en StaffCapacityAlert y WeeklyCapacityPanel junto a cada empleado sugerido
   - [x] Refetch automático de datos de capacidad tras asignación exitosa
+- [x] Bug: Capacidad muestra 0 personas disponibles en todas las franjas — staff_schedules.team_id es NULL, debe buscar equipo en team_members
