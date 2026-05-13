@@ -542,3 +542,4 @@
 - [x] Permisos: Mostrar roles personalizados (como Rental) en la tabla de "Permisos por defecto" entre Manager y Miembro
 - [x] Rediseñar barra lateral (AppSidebar) para aspecto más profesional y coherente con el diseño Azul (dark, dorado, tipografía elegante)
 - [x] Horarios: Ajustar orden de equipos a Directiva → Mostrador → Rentals → Preparación
+- [x] Bug: AssigneeSelect muestra usuarios cuyo turno ya terminó — filtrar solo los que están actualmente en turno según la hora actual

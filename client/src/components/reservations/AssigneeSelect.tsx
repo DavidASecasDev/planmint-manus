@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Check, ChevronDown, User, Users, Clock, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -43,7 +43,23 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
   // Fetch staff availability for the given date
   const { data: availability = {} } = useAvailableStaff(date || null);
 
-  // Sort members: available first, then unscheduled, then day-off
+  // Check if a user is currently on shift (their shift window includes the current time)
+  const isCurrentlyOnShift = useCallback((info: { available: boolean; start_time: string | null; end_time: string | null } | undefined): boolean => {
+    if (!info || !info.available || !info.start_time || !info.end_time) return false;
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const [sh, sm] = info.start_time.split(':').map(Number);
+    const [eh, em] = info.end_time.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    // Handle overnight shifts (e.g. 22:00 - 06:00)
+    if (endMin <= startMin) {
+      return currentMinutes >= startMin || currentMinutes <= endMin;
+    }
+    return currentMinutes >= startMin && currentMinutes <= endMin;
+  }, []);
+
+  // Sort members: currently on shift first, then upcoming/ended shift, then unscheduled, then day-off
   const sortedMembers = useMemo(() => {
     if (!date) return members; // No date = no sorting by availability
 
@@ -51,18 +67,19 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
       const aInfo = availability[a.id];
       const bInfo = availability[b.id];
 
-      // Priority: available (0) > unscheduled (1) > day-off (2)
+      // Priority: currently on shift (0) > has shift but not now (1) > unscheduled (2) > day-off (3)
       const getPriority = (info: typeof aInfo) => {
-        if (!info) return 1; // unscheduled
-        if (info.available) return 0; // working
-        return 2; // day off
+        if (!info) return 2; // unscheduled
+        if (!info.available) return 3; // day off
+        if (isCurrentlyOnShift(info)) return 0; // currently working
+        return 1; // shift assigned but not current
       };
 
       const diff = getPriority(aInfo) - getPriority(bInfo);
       if (diff !== 0) return diff;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [members, availability, date]);
+  }, [members, availability, date, isCurrentlyOnShift]);
 
   const selectedUser = members.find(m => m.id === userId);
   const selectedTeam = teams.find(t => t.id === teamId);
@@ -129,7 +146,7 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                 Usuarios
                 {date && (
                   <span className="ml-1 text-[10px] opacity-70">
-                    (turno del día)
+                    (en turno ahora)
                   </span>
                 )}
               </p>
@@ -137,6 +154,8 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                 const shiftInfo = date ? availability[member.id] : null;
                 const isDayOff = shiftInfo && !shiftInfo.available;
                 const isWorking = shiftInfo && shiftInfo.available;
+                const currentlyOnShift = shiftInfo ? isCurrentlyOnShift(shiftInfo) : false;
+                const shiftEnded = isWorking && !currentlyOnShift;
 
                 return (
                   <button
@@ -144,15 +163,22 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                     className={cn(
                       "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-muted transition-colors",
                       userId === member.id && "bg-muted",
-                      isDayOff && "opacity-50"
+                      (isDayOff || shiftEnded) && "opacity-40"
                     )}
                     onClick={() => handleSelectUser(member.id)}
                   >
                     <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                     <span className="truncate flex-1 text-left">{member.name || 'Sin nombre'}</span>
-                    {/* Shift badge */}
-                    {isWorking && (
+                    {/* Shift badge - currently on shift */}
+                    {isWorking && currentlyOnShift && (
                       <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 flex-shrink-0">
+                        <Clock className="h-2.5 w-2.5" />
+                        {shiftInfo.start_time?.slice(0, 5)}–{shiftInfo.end_time?.slice(0, 5)}
+                      </span>
+                    )}
+                    {/* Shift badge - shift ended or not started */}
+                    {shiftEnded && (
+                      <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0 line-through">
                         <Clock className="h-2.5 w-2.5" />
                         {shiftInfo.start_time?.slice(0, 5)}–{shiftInfo.end_time?.slice(0, 5)}
                       </span>
