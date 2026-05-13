@@ -546,3 +546,4 @@
 - [x] AssigneeSelect: Añadir separador visual entre usuarios "en turno" y los que ya terminaron
 - [x] Bug: AssigneeSelect muestra turno incorrecto para usuarios con múltiples equipos (Kristian 07-15 en Rentals aparece como 14-22 de Mostrador)
 - [x] Bug: Copiar semana anterior pierde un día en la página de Horarios
+- [x] Bug: AssigneeSelect usa la hora actual para filtrar turnos — debe usar la hora confirmada de la reserva

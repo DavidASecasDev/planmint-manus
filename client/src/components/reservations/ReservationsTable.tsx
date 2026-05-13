@@ -1345,22 +1345,34 @@ export function ReservationsTable() {
                               />
                             </div>
                           )}
-                          {col.type === 'assignee' && col.key === 'asignado_rental' && (
-                            <AssigneeSelect
-                              userId={getOperationAssigneeId(row, 'rental', 'user')}
-                              teamId={getOperationAssigneeId(row, 'rental', 'team')}
-                              onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'rental', userId, teamId)}
-                              date={row.fechaHora ? row.fechaHora.substring(0, 10) : null}
-                            />
-                          )}
-                          {col.type === 'assignee' && col.key === 'asignado_escoba' && (
-                            <AssigneeSelect
-                              userId={getOperationAssigneeId(row, 'escoba', 'user')}
-                              teamId={getOperationAssigneeId(row, 'escoba', 'team')}
-                              onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'escoba', userId, teamId)}
-                              date={row.fechaHora ? row.fechaHora.substring(0, 10) : null}
-                            />
-                          )}
+                          {col.type === 'assignee' && col.key === 'asignado_rental' && (() => {
+                            const refDatetime = row.confirmedDatetime || row.fechaHora;
+                            const refDate = refDatetime ? refDatetime.substring(0, 10) : null;
+                            const refTime = refDatetime && refDatetime.length >= 16 ? refDatetime.substring(11, 16) : null;
+                            return (
+                              <AssigneeSelect
+                                userId={getOperationAssigneeId(row, 'rental', 'user')}
+                                teamId={getOperationAssigneeId(row, 'rental', 'team')}
+                                onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'rental', userId, teamId)}
+                                date={refDate}
+                                reservationTime={refTime}
+                              />
+                            );
+                          })()}
+                          {col.type === 'assignee' && col.key === 'asignado_escoba' && (() => {
+                            const refDatetime = row.confirmedDatetime || row.fechaHora;
+                            const refDate = refDatetime ? refDatetime.substring(0, 10) : null;
+                            const refTime = refDatetime && refDatetime.length >= 16 ? refDatetime.substring(11, 16) : null;
+                            return (
+                              <AssigneeSelect
+                                userId={getOperationAssigneeId(row, 'escoba', 'user')}
+                                teamId={getOperationAssigneeId(row, 'escoba', 'team')}
+                                onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'escoba', userId, teamId)}
+                                date={refDate}
+                                reservationTime={refTime}
+                              />
+                            );
+                          })()}
                           {col.type === 'detail' && (
                             <Button
                               variant="ghost"

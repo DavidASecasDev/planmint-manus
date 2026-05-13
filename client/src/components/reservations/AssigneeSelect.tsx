@@ -18,6 +18,9 @@ interface AssigneeSelectProps {
   disabled?: boolean;
   /** Optional: date in YYYY-MM-DD format to show shift availability */
   date?: string | null;
+  /** Optional: time of the reservation in HH:MM format (e.g. "11:00").
+   *  Used to determine who is on shift at that time instead of the current time. */
+  reservationTime?: string | null;
 }
 
 interface Member {
@@ -25,7 +28,18 @@ interface Member {
   name: string | null;
 }
 
-export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: AssigneeSelectProps) {
+/**
+ * Parse a time string "HH:MM" into minutes since midnight.
+ * Returns null if the string is invalid.
+ */
+function parseTimeToMinutes(time: string | null | undefined): number | null {
+  if (!time) return null;
+  const parts = time.split(':').map(Number);
+  if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  return parts[0] * 60 + parts[1];
+}
+
+export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reservationTime }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const { teams } = useTeams();
   const { members: orgMembers } = useOrganizationMembers();
@@ -43,23 +57,29 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
   // Fetch staff availability for the given date
   const { data: availability = {} } = useAvailableStaff(date || null);
 
-  // Check if a user is currently on shift (their shift window includes the current time)
-  const isCurrentlyOnShift = useCallback((info: { available: boolean; start_time: string | null; end_time: string | null } | undefined): boolean => {
-    if (!info || !info.available || !info.start_time || !info.end_time) return false;
+  // Determine the reference time in minutes:
+  // If reservationTime is provided, use it; otherwise fall back to current time.
+  const referenceMinutes = useMemo(() => {
+    const parsed = parseTimeToMinutes(reservationTime);
+    if (parsed !== null) return parsed;
     const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const [sh, sm] = info.start_time.split(':').map(Number);
-    const [eh, em] = info.end_time.split(':').map(Number);
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
+    return now.getHours() * 60 + now.getMinutes();
+  }, [reservationTime]);
+
+  // Check if a user's shift covers the reference time
+  const isOnShiftAtTime = useCallback((info: { available: boolean; start_time: string | null; end_time: string | null } | undefined): boolean => {
+    if (!info || !info.available || !info.start_time || !info.end_time) return false;
+    const startMin = parseTimeToMinutes(info.start_time);
+    const endMin = parseTimeToMinutes(info.end_time);
+    if (startMin === null || endMin === null) return false;
     // Handle overnight shifts (e.g. 22:00 - 06:00)
     if (endMin <= startMin) {
-      return currentMinutes >= startMin || currentMinutes <= endMin;
+      return referenceMinutes >= startMin || referenceMinutes <= endMin;
     }
-    return currentMinutes >= startMin && currentMinutes <= endMin;
-  }, []);
+    return referenceMinutes >= startMin && referenceMinutes <= endMin;
+  }, [referenceMinutes]);
 
-  // Sort members: currently on shift first, then upcoming/ended shift, then unscheduled, then day-off
+  // Sort members: on shift at reservation time first, then others
   const sortedMembers = useMemo(() => {
     if (!date) return members; // No date = no sorting by availability
 
@@ -67,19 +87,19 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
       const aInfo = availability[a.id];
       const bInfo = availability[b.id];
 
-      // Priority: currently on shift (0) > has shift but not now (1) > unscheduled (2) > day-off (3)
+      // Priority: on shift at time (0) > has shift but not at time (1) > unscheduled (2) > day-off (3)
       const getPriority = (info: typeof aInfo) => {
         if (!info) return 2; // unscheduled
         if (!info.available) return 3; // day off
-        if (isCurrentlyOnShift(info)) return 0; // currently working
-        return 1; // shift assigned but not current
+        if (isOnShiftAtTime(info)) return 0; // on shift at reservation time
+        return 1; // shift assigned but not at this time
       };
 
       const diff = getPriority(aInfo) - getPriority(bInfo);
       if (diff !== 0) return diff;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [members, availability, date, isCurrentlyOnShift]);
+  }, [members, availability, date, isOnShiftAtTime]);
 
   const selectedUser = members.find(m => m.id === userId);
   const selectedTeam = teams.find(t => t.id === teamId);
@@ -106,6 +126,11 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
 
   // Show shift info for selected user
   const selectedUserShift = userId && date ? availability[userId] : null;
+
+  // Label for the section header
+  const onShiftLabel = reservationTime
+    ? `En turno a las ${reservationTime}`
+    : 'En turno ahora';
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -169,8 +194,8 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                 }
 
                 // Split members into groups
-                const onShiftNow: typeof sortedMembers = [];
-                const shiftEndedOrNotStarted: typeof sortedMembers = [];
+                const onShiftAtTime: typeof sortedMembers = [];
+                const notOnShiftAtTime: typeof sortedMembers = [];
                 const unscheduled: typeof sortedMembers = [];
                 const dayOff: typeof sortedMembers = [];
 
@@ -180,18 +205,18 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                     unscheduled.push(member);
                   } else if (!info.available) {
                     dayOff.push(member);
-                  } else if (isCurrentlyOnShift(info)) {
-                    onShiftNow.push(member);
+                  } else if (isOnShiftAtTime(info)) {
+                    onShiftAtTime.push(member);
                   } else {
-                    shiftEndedOrNotStarted.push(member);
+                    notOnShiftAtTime.push(member);
                   }
                 }
 
                 const renderMember = (member: typeof sortedMembers[0], dimmed: boolean) => {
                   const info = availability[member.id];
-                  const onShift = info ? isCurrentlyOnShift(info) : false;
+                  const onShift = info ? isOnShiftAtTime(info) : false;
                   const isDayOffMember = info && !info.available;
-                  const isEndedMember = info && info.available && !onShift;
+                  const isNotOnShiftMember = info && info.available && !onShift;
 
                   return (
                     <button
@@ -211,7 +236,7 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                           {info.start_time?.slice(0, 5)}–{info.end_time?.slice(0, 5)}
                         </span>
                       )}
-                      {isEndedMember && (
+                      {isNotOnShiftMember && (
                         <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0 line-through">
                           <Clock className="h-2.5 w-2.5" />
                           {info.start_time?.slice(0, 5)}–{info.end_time?.slice(0, 5)}
@@ -232,36 +257,36 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
 
                 return (
                   <>
-                    {/* Currently on shift */}
-                    {onShiftNow.length > 0 && (
+                    {/* On shift at reservation time */}
+                    {onShiftAtTime.length > 0 && (
                       <>
                         <p className="text-xs text-muted-foreground px-2 py-1 font-medium flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          En turno ahora
+                          {onShiftLabel}
                         </p>
-                        {onShiftNow.map((m) => renderMember(m, false))}
+                        {onShiftAtTime.map((m) => renderMember(m, false))}
                       </>
                     )}
 
                     {/* Separator between on-shift and others */}
-                    {onShiftNow.length > 0 && (shiftEndedOrNotStarted.length > 0 || unscheduled.length > 0 || dayOff.length > 0) && (
+                    {onShiftAtTime.length > 0 && (notOnShiftAtTime.length > 0 || unscheduled.length > 0 || dayOff.length > 0) && (
                       <div className="my-1 mx-2 border-t border-border" />
                     )}
 
-                    {/* Shift ended / not started */}
-                    {shiftEndedOrNotStarted.length > 0 && (
+                    {/* Not on shift at this time */}
+                    {notOnShiftAtTime.length > 0 && (
                       <>
                         <p className="text-xs text-muted-foreground px-2 py-1 font-medium opacity-60">
                           Fuera de turno
                         </p>
-                        {shiftEndedOrNotStarted.map((m) => renderMember(m, true))}
+                        {notOnShiftAtTime.map((m) => renderMember(m, true))}
                       </>
                     )}
 
                     {/* Unscheduled */}
                     {unscheduled.length > 0 && (
                       <>
-                        {(onShiftNow.length > 0 || shiftEndedOrNotStarted.length > 0) && (
+                        {(onShiftAtTime.length > 0 || notOnShiftAtTime.length > 0) && (
                           <div className="my-1 mx-2 border-t border-border" />
                         )}
                         <p className="text-xs text-muted-foreground px-2 py-1 font-medium opacity-60">
@@ -274,7 +299,7 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date }: Ass
                     {/* Day off */}
                     {dayOff.length > 0 && (
                       <>
-                        {(onShiftNow.length > 0 || shiftEndedOrNotStarted.length > 0 || unscheduled.length > 0) && (
+                        {(onShiftAtTime.length > 0 || notOnShiftAtTime.length > 0 || unscheduled.length > 0) && (
                           <div className="my-1 mx-2 border-t border-border" />
                         )}
                         <p className="text-xs text-muted-foreground px-2 py-1 font-medium opacity-60">
