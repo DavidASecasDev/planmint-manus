@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Check, ChevronDown, User, Users, Clock, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -44,15 +46,42 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reser
   const { teams } = useTeams();
   const { members: orgMembers } = useOrganizationMembers();
 
-  // Filter to only active members and map to the Member interface
+  // Find the Directiva team ID
+  const directivaTeamId = useMemo(() => {
+    const dt = teams.find(t => t.name.toLowerCase().includes('directiva') || t.name.toLowerCase().includes('direcci'));
+    return dt?.id || null;
+  }, [teams]);
+
+  // Fetch Directiva team members to exclude them from the assignee list
+  const orgId = orgMembers[0]?.organization_id || null;
+  const { data: directivaUserIds = [] } = useQuery({
+    queryKey: ['directiva-members', directivaTeamId],
+    queryFn: async (): Promise<string[]> => {
+      if (!directivaTeamId) return [];
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('user_id')
+        .eq('team_id', directivaTeamId);
+      if (error) {
+        console.error('Error fetching directiva members:', error);
+        return [];
+      }
+      return (data || []).map(d => d.user_id);
+    },
+    enabled: !!directivaTeamId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  });
+
+  // Filter to only active members, excluding Directiva, and map to the Member interface
   const members: Member[] = useMemo(() => {
+    const directivaSet = new Set(directivaUserIds);
     return orgMembers
-      .filter(m => m.status === 'active')
+      .filter(m => m.status === 'active' && !directivaSet.has(m.user_id))
       .map(m => ({
         id: m.user_id,
         name: m.name || m.profile?.name || null,
       }));
-  }, [orgMembers]);
+  }, [orgMembers, directivaUserIds]);
 
   // Fetch staff availability for the given date
   const { data: availability = {} } = useAvailableStaff(date || null);
@@ -313,12 +342,12 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reser
               })()}
             </>
           )}
-          {teams.length > 0 && (
+          {teams.filter(t => t.id !== directivaTeamId).length > 0 && (
             <>
               <p className="text-xs text-muted-foreground px-2 py-1 font-medium mt-2">
                 Equipos
               </p>
-              {teams.map((team) => (
+              {teams.filter(t => t.id !== directivaTeamId).map((team) => (
                 <button
                   key={team.id}
                   className={cn(
