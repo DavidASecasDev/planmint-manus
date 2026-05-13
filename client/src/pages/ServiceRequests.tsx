@@ -50,7 +50,7 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/imageCompression";
 
@@ -109,7 +109,7 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
 export default function ServiceRequests() {
   const { session, organization } = useAuth();
   const { hasPermission } = usePermissions();
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -472,7 +472,7 @@ export default function ServiceRequests() {
               key={request.id}
               request={request}
               canManage={canManage}
-              onView={() => setLocation(`/service-requests/${request.id}`)}
+              onView={() => navigate(`/service-requests/${request.id}`)}
               onCancel={() => handleCancel(request.id)}
             />
           ))}
