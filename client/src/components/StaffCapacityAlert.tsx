@@ -3,6 +3,7 @@
  *
  * Shows a compact banner with overall status and expandable hourly breakdown.
  * Colors: green (sufficient), amber (tight), red (deficit).
+ * When deficit/tight, shows reinforcement suggestions from Mostrador team.
  */
 import { useState } from "react";
 import {
@@ -14,8 +15,14 @@ import {
   MapPin,
   Users,
   Loader2,
+  ShieldPlus,
+  UserPlus,
 } from "lucide-react";
-import { useStaffCapacity, type HourSlot } from "@/hooks/useStaffCapacity";
+import {
+  useStaffCapacity,
+  type HourSlot,
+  type ReinforcementSuggestion,
+} from "@/hooks/useStaffCapacity";
 
 interface StaffCapacityAlertProps {
   date: string | null; // YYYY-MM-DD
@@ -81,12 +88,21 @@ function HourSlotBar({ slot }: { slot: HourSlot }) {
         <span className="text-xs font-medium">{slot.operations.length}</span>
         <span className="text-[10px] text-muted-foreground">ops</span>
       </div>
+      {slot.reinforcements && slot.reinforcements.length > 0 && (
+        <div className="flex items-center gap-1 shrink-0" title={`Refuerzos: ${slot.reinforcements.map((r) => r.name).join(", ")}`}>
+          <UserPlus className="h-3 w-3 text-blue-500" />
+          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+            +{slot.reinforcements.length}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
 function OperationDetail({ slot }: { slot: HourSlot }) {
-  if (slot.operations.length === 0) return null;
+  if (slot.operations.length === 0 && (!slot.reinforcements || slot.reinforcements.length === 0))
+    return null;
 
   return (
     <div className="ml-28 pl-3 border-l-2 border-gray-200 dark:border-gray-700 mb-2">
@@ -123,6 +139,78 @@ function OperationDetail({ slot }: { slot: HourSlot }) {
           </span>
         </div>
       ))}
+      {/* Reinforcement suggestions for this slot */}
+      {slot.reinforcements && slot.reinforcements.length > 0 && (
+        <div className="mt-1 pt-1 border-t border-blue-200/50 dark:border-blue-800/50">
+          {slot.reinforcements.map((r) => (
+            <div
+              key={r.userId}
+              className="flex items-center gap-2 py-0.5 text-[11px] text-blue-600 dark:text-blue-400"
+            >
+              <UserPlus className="h-2.5 w-2.5" />
+              <span className="font-medium">{r.name}</span>
+              <span className="text-blue-500/70 dark:text-blue-400/70">
+                ({r.teamName})
+              </span>
+              <span className="text-[10px] text-blue-500/60 dark:text-blue-400/60">
+                {r.shiftStart} - {r.shiftEnd}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReinforcementPanel({ reinforcements }: { reinforcements: ReinforcementSuggestion[] }) {
+  if (!reinforcements || reinforcements.length === 0) return null;
+
+  return (
+    <div className="mt-3 p-3 rounded-lg bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldPlus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <h5 className="text-xs font-semibold text-blue-800 dark:text-blue-200 uppercase tracking-wider">
+          Refuerzos sugeridos de Mostrador
+        </h5>
+      </div>
+      <div className="space-y-1.5">
+        {reinforcements.map((r) => (
+          <div
+            key={r.userId}
+            className="flex items-center gap-3 py-1.5 px-2 rounded-md bg-white/60 dark:bg-gray-900/40"
+          >
+            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+              <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">
+                {r.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  {r.name}
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                  {r.teamName}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Clock className="h-2.5 w-2.5 text-blue-500/60" />
+                <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70">
+                  Turno {r.shiftStart} - {r.shiftEnd}
+                </span>
+                <span className="text-[10px] text-blue-500/50">·</span>
+                <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70">
+                  Puede cubrir franjas: {r.availableHours.map((h) => `${String(h).padStart(2, "0")}:00`).join(", ")}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-blue-600/60 dark:text-blue-400/60 mt-2 italic">
+        Estos empleados de Mostrador podrían apoyar como refuerzo en las franjas con mayor carga.
+      </p>
     </div>
   );
 }
@@ -147,31 +235,49 @@ export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlert
 
   const config = STATUS_CONFIG[data.overallStatus];
   const StatusIcon = config.icon;
+  const hasReinforcements = data.reinforcements && data.reinforcements.length > 0;
 
   // Compact mode for dashboard
   if (compact) {
     return (
-      <div
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${config.bg} ${config.border}`}
-      >
-        <StatusIcon className={`h-5 w-5 shrink-0 ${config.text}`} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`text-sm font-semibold ${config.text}`}>
-              {config.label}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {data.overallUtilization}% carga
+      <div className="space-y-2">
+        <div
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${config.bg} ${config.border}`}
+        >
+          <StatusIcon className={`h-5 w-5 shrink-0 ${config.text}`} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-semibold ${config.text}`}>
+                {config.label}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {data.overallUtilization}% carga
+              </span>
+              {hasReinforcements && (
+                <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                  <UserPlus className="h-3 w-3" />
+                  {data.reinforcements.length} refuerzo(s)
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {data.summary}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-lg font-bold tabular-nums">{data.totalOperations}</div>
+            <div className="text-[10px] text-muted-foreground">operaciones</div>
+          </div>
+        </div>
+        {/* Show reinforcement names in compact mode too */}
+        {hasReinforcements && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50">
+            <ShieldPlus className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+            <span className="text-[11px] text-blue-700 dark:text-blue-300">
+              Refuerzos sugeridos: <strong>{data.reinforcements.map((r) => r.name).join(", ")}</strong>
             </span>
           </div>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {data.summary}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="text-lg font-bold tabular-nums">{data.totalOperations}</div>
-          <div className="text-[10px] text-muted-foreground">operaciones</div>
-        </div>
+        )}
       </div>
     );
   }
@@ -207,6 +313,12 @@ export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlert
             {data.tightHours.length > 0 && data.deficitHours.length === 0 && (
               <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
                 {data.tightHours.length} franja(s) ajustada(s)
+              </span>
+            )}
+            {hasReinforcements && (
+              <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                <UserPlus className="h-3 w-3" />
+                {data.reinforcements.length} refuerzo(s) disponible(s)
               </span>
             )}
           </div>
@@ -253,6 +365,9 @@ export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlert
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500" /> &gt;85% Déficit
             </span>
+            <span className="flex items-center gap-1">
+              <UserPlus className="h-2.5 w-2.5 text-blue-500" /> Refuerzo disponible
+            </span>
           </div>
 
           <div className="space-y-0.5">
@@ -265,6 +380,11 @@ export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlert
                 </div>
               ))}
           </div>
+
+          {/* Reinforcement suggestions panel */}
+          {hasReinforcements && (
+            <ReinforcementPanel reinforcements={data.reinforcements} />
+          )}
 
           {/* Summary stats */}
           <div className="flex items-center gap-6 mt-4 pt-3 border-t border-gray-200/50 dark:border-gray-700/50 text-xs text-muted-foreground">

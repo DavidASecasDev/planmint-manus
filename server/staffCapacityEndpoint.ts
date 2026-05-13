@@ -305,6 +305,15 @@ interface Operation {
   isCompleted: boolean;
 }
 
+interface ReinforcementSuggestion {
+  userId: string;
+  name: string;
+  teamName: string;
+  shiftStart: string; // "07:00"
+  shiftEnd: string;   // "15:00"
+  availableHours: number[]; // hours this person could cover
+}
+
 interface HourSlot {
   hour: number;
   label: string; // "09:00 - 10:00"
@@ -318,6 +327,7 @@ interface HourSlot {
   };
   utilizationPct: number;
   status: "sufficient" | "tight" | "deficit";
+  reinforcements: ReinforcementSuggestion[];
 }
 
 interface CapacityResult {
@@ -332,6 +342,7 @@ interface CapacityResult {
   tightHours: number[];
   summary: string;
   cacheStats: { hits: number; misses: number; googleCalls: number };
+  reinforcements: ReinforcementSuggestion[];
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -599,6 +610,15 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
     const teamNameById = new Map<string, string>();
     (teams || []).forEach((t: any) => teamNameById.set(t.id, t.name));
 
+    // Fetch user profiles for names
+    const allUserIds = Array.from(new Set((schedules || []).map((s: any) => s.user_id)));
+    const { data: profiles } = await sb
+      .from("profiles")
+      .select("id, name")
+      .in("id", allUserIds.length > 0 ? allUserIds : ["__none__"]);
+    const profileNameById = new Map<string, string>();
+    (profiles || []).forEach((p: any) => profileNameById.set(p.id, p.name || "Sin nombre"));
+
     // Classify staff by team and their shift hours
     interface StaffShift {
       userId: string;
@@ -650,6 +670,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
           tightHours: [],
           summary: "No hay operaciones ni personal programado para este día.",
           cacheStats: { hits: cacheHits, misses: cacheMisses, googleCalls },
+          reinforcements: [],
         } as CapacityResult,
       });
     }
@@ -712,6 +733,53 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       if (utilization > THRESHOLD_DEFICIT) status = "deficit";
       else if (utilization > THRESHOLD_TIGHT) status = "tight";
 
+      // Build reinforcement suggestions for tight/deficit slots
+      const slotReinforcements: ReinforcementSuggestion[] = [];
+      if (status === "tight" || status === "deficit") {
+        // Find Mostrador staff on shift this hour who are NOT already counted as Rentals/Preparación
+        const rentalsSet = new Set(rentals);
+        const prepSet = new Set(preparacion);
+        for (const ss of staffShifts) {
+          const tn = ss.teamName.toLowerCase();
+          if (!tn.includes("mostrador")) continue;
+          if (rentalsSet.has(ss.userId) || prepSet.has(ss.userId)) continue;
+
+          let coversHour = false;
+          if (ss.endMinutes <= ss.startMinutes) {
+            coversHour = slotStart >= ss.startMinutes || slotEnd <= ss.endMinutes;
+          } else {
+            coversHour = slotStart >= ss.startMinutes && slotStart < ss.endMinutes;
+          }
+          if (!coversHour) continue;
+
+          // Check if already added
+          if (slotReinforcements.some((r) => r.userId === ss.userId)) continue;
+
+          const startH = Math.floor(ss.startMinutes / 60);
+          const startM = ss.startMinutes % 60;
+          const endH = Math.floor(ss.endMinutes / 60);
+          const endM = ss.endMinutes % 60;
+
+          // Calculate all hours this person covers
+          const availHours: number[] = [];
+          if (ss.endMinutes > ss.startMinutes) {
+            for (let hr = startH; hr < endH; hr++) availHours.push(hr);
+          } else {
+            for (let hr = startH; hr < 24; hr++) availHours.push(hr);
+            for (let hr = 0; hr < endH; hr++) availHours.push(hr);
+          }
+
+          slotReinforcements.push({
+            userId: ss.userId,
+            name: profileNameById.get(ss.userId) || "Sin nombre",
+            teamName: ss.teamName,
+            shiftStart: `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`,
+            shiftEnd: `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`,
+            availableHours: availHours,
+          });
+        }
+      }
+
       hourSlots.push({
         hour: h,
         label: `${String(h).padStart(2, "0")}:00 - ${String(h + 1).padStart(2, "0")}:00`,
@@ -721,6 +789,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
         availableStaff: { rentals, preparacion, mostrador },
         utilizationPct: Math.round(utilization * 100),
         status,
+        reinforcements: slotReinforcements,
       });
     }
 
@@ -760,6 +829,27 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       }
     }
 
+    // Aggregate unique reinforcements across all deficit/tight slots
+    const allReinforcements: ReinforcementSuggestion[] = [];
+    const seenReinforcement = new Set<string>();
+    for (const slot of hourSlots) {
+      for (const r of slot.reinforcements) {
+        if (!seenReinforcement.has(r.userId)) {
+          seenReinforcement.add(r.userId);
+          // Merge available hours from all slots
+          const allHoursForUser = hourSlots
+            .filter((s) => s.reinforcements.some((sr) => sr.userId === r.userId))
+            .map((s) => s.hour);
+          allReinforcements.push({ ...r, availableHours: allHoursForUser });
+        }
+      }
+    }
+
+    // Update summary with reinforcement info
+    if (allReinforcements.length > 0 && (overallStatus === "deficit" || overallStatus === "tight")) {
+      summary += ` Posibles refuerzos de Mostrador: ${allReinforcements.map((r) => r.name).join(", ")}.`;
+    }
+
     const result: CapacityResult = {
       date,
       overallStatus,
@@ -772,6 +862,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       tightHours,
       summary,
       cacheStats: { hits: cacheHits, misses: cacheMisses, googleCalls },
+      reinforcements: allReinforcements,
     };
 
     return res.json({ ok: true, data: result });

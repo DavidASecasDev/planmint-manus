@@ -568,3 +568,7 @@
   - [x] Backend: Endpoints para listar y editar tiempos cacheados
   - [x] Frontend: Componente TravelTimeEditor con tabla editable
   - [x] Integrar en la página de Horarios (sección configuración)
+- [x] Feature: Sugerencia automática de refuerzos de Mostrador
+  - [x] Backend: Extender endpoint de capacidad para incluir empleados de Mostrador disponibles por franja
+  - [x] Frontend: Mostrar sugerencias de refuerzo en StaffCapacityAlert (Reservas)
+  - [x] Frontend: Mostrar sugerencias de refuerzo en WeeklyCapacityPanel (Horarios)

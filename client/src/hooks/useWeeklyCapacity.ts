@@ -4,6 +4,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface ReinforcementSuggestion {
+  userId: string;
+  name: string;
+  teamName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  availableHours: number[];
+}
+
 export interface DaySummary {
   date: string;
   overallStatus: "sufficient" | "tight" | "deficit";
@@ -14,6 +23,7 @@ export interface DaySummary {
   deficitHours: number[];
   tightHours: number[];
   summary: string;
+  reinforcements: ReinforcementSuggestion[];
 }
 
 export function useWeeklyCapacity(startDate: string | null) {

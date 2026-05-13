@@ -18,6 +18,15 @@ export interface CapacityOperation {
   isCompleted: boolean;
 }
 
+export interface ReinforcementSuggestion {
+  userId: string;
+  name: string;
+  teamName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  availableHours: number[];
+}
+
 export interface HourSlot {
   hour: number;
   label: string;
@@ -31,6 +40,7 @@ export interface HourSlot {
   };
   utilizationPct: number;
   status: "sufficient" | "tight" | "deficit";
+  reinforcements: ReinforcementSuggestion[];
 }
 
 export interface CapacityResult {
@@ -44,6 +54,7 @@ export interface CapacityResult {
   deficitHours: number[];
   tightHours: number[];
   summary: string;
+  reinforcements: ReinforcementSuggestion[];
 }
 
 export function useStaffCapacity(date: string | null) {

@@ -12,6 +12,15 @@ import { handleGetStaffCapacity } from "./staffCapacityEndpoint";
 
 // ─── Weekly Capacity ───────────────────────────────────────────────────────
 
+interface ReinforcementSuggestion {
+  userId: string;
+  name: string;
+  teamName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  availableHours: number[];
+}
+
 interface DaySummary {
   date: string;
   overallStatus: "sufficient" | "tight" | "deficit";
@@ -22,6 +31,7 @@ interface DaySummary {
   deficitHours: number[];
   tightHours: number[];
   summary: string;
+  reinforcements: ReinforcementSuggestion[];
 }
 
 /**
@@ -77,6 +87,7 @@ export async function handleGetStaffCapacityWeek(req: Request, res: Response) {
             deficitHours: d.deficitHours,
             tightHours: d.tightHours,
             summary: d.summary,
+            reinforcements: d.reinforcements || [],
           } as DaySummary;
         }
 
@@ -91,6 +102,7 @@ export async function handleGetStaffCapacityWeek(req: Request, res: Response) {
           deficitHours: [],
           tightHours: [],
           summary: "Sin datos disponibles.",
+          reinforcements: [],
         };
       })
     );

@@ -12,6 +12,9 @@ import {
   TrendingUp,
   Users,
   Calendar,
+  ShieldPlus,
+  Clock,
+  UserPlus,
 } from "lucide-react";
 import {
   useWeeklyCapacity,
@@ -225,6 +228,42 @@ function DayDetail({ day }: { day: DaySummary }) {
                   {String(h).padStart(2, "0")}:00
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Reinforcement suggestions */}
+          {day.reinforcements && day.reinforcements.length > 0 && (
+            <div className="mt-3 p-2.5 rounded-lg bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-1.5 mb-2">
+                <ShieldPlus className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[11px] font-semibold text-blue-800 dark:text-blue-200 uppercase tracking-wider">
+                  Refuerzos sugeridos
+                </span>
+              </div>
+              <div className="space-y-1">
+                {day.reinforcements.map((r) => (
+                  <div
+                    key={r.userId}
+                    className="flex items-center gap-2 py-1 px-2 rounded bg-white/60 dark:bg-gray-900/40"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                      <span className="text-[9px] font-bold text-blue-700 dark:text-blue-300">
+                        {r.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-medium text-blue-900 dark:text-blue-100">
+                      {r.name}
+                    </span>
+                    <span className="text-[10px] px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                      {r.teamName}
+                    </span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-blue-500/70 ml-auto">
+                      <Clock className="h-2.5 w-2.5" />
+                      {r.shiftStart}-{r.shiftEnd}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
