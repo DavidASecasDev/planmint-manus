@@ -2,17 +2,15 @@
  * AddressAutocompleteCell — An editable cell with Google Places autocomplete
  * for the "Dirección" column in the reservations table.
  * 
- * Behavior:
- * - Click to edit (same as EditableCell)
- * - While typing, shows autocomplete suggestions from Google Places
- * - Selecting a suggestion fills the field with the full address
- * - User can also type a custom address and press Enter
+ * Uses a React Portal to render the dropdown outside the table's overflow:hidden
+ * ScrollArea, ensuring suggestions are always visible.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { MapPin } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { MapPin, Loader2 } from 'lucide-react';
+import { apiInvoke } from '@/lib/apiClient';
 
 interface Prediction {
   description: string;
@@ -36,15 +34,17 @@ export function AddressAutocompleteCell({
   className,
   placeholder = '—'
 }: AddressAutocompleteCellProps) {
-  const { session } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || '');
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -53,11 +53,41 @@ export function AddressAutocompleteCell({
     }
   }, [isEditing]);
 
+  // Calculate dropdown position relative to viewport
+  const updateDropdownPosition = useCallback(() => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 300),
+    });
+  }, []);
+
+  // Update position when dropdown shows or on scroll
+  useEffect(() => {
+    if (!showDropdown || !isEditing) return;
+    updateDropdownPosition();
+
+    // Update on scroll/resize
+    const handleScroll = () => updateDropdownPosition();
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [showDropdown, isEditing, updateDropdownPosition]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     if (!isEditing) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         handleBlur();
       }
     };
@@ -66,36 +96,37 @@ export function AddressAutocompleteCell({
   }, [isEditing, editValue]);
 
   const fetchPredictions = useCallback(async (input: string) => {
-    if (!input || input.trim().length < 3 || !session?.access_token) {
+    if (!input || input.trim().length < 3) {
       setPredictions([]);
       setShowDropdown(false);
       return;
     }
 
+    setIsLoading(true);
     try {
-      const res = await fetch('/api/places-autocomplete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ input: input.trim() }),
-      });
+      const { data, error } = await apiInvoke<{ ok: boolean; predictions: Prediction[] }>(
+        'places-autocomplete',
+        { body: { input: input.trim() } }
+      );
 
-      const json = await res.json();
-      if (json.ok && json.predictions?.length > 0) {
-        setPredictions(json.predictions);
+      if (!error && data && data.ok && data.predictions?.length > 0) {
+        setPredictions(data.predictions);
         setShowDropdown(true);
         setSelectedIndex(-1);
+        // Update position after setting predictions
+        requestAnimationFrame(updateDropdownPosition);
       } else {
         setPredictions([]);
         setShowDropdown(false);
       }
-    } catch {
+    } catch (err) {
+      console.error('[AddressAutocomplete] Error:', err);
       setPredictions([]);
       setShowDropdown(false);
+    } finally {
+      setIsLoading(false);
     }
-  }, [session?.access_token]);
+  }, [updateDropdownPosition]);
 
   const handleInputChange = (val: string) => {
     setEditValue(val);
@@ -165,47 +196,71 @@ export function AddressAutocompleteCell({
     }
   };
 
+  // Render the dropdown via Portal to escape overflow:hidden ancestors
+  const renderDropdown = () => {
+    if (!showDropdown || predictions.length === 0 || !dropdownPos) return null;
+
+    return createPortal(
+      <div
+        ref={dropdownRef}
+        className="fixed bg-popover border border-border rounded-md shadow-lg overflow-hidden"
+        style={{
+          top: dropdownPos.top,
+          left: dropdownPos.left,
+          width: dropdownPos.width,
+          zIndex: 9999,
+        }}
+      >
+        {predictions.map((pred, idx) => (
+          <button
+            key={pred.placeId}
+            type="button"
+            className={cn(
+              "w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors flex items-start gap-2",
+              idx === selectedIndex && "bg-accent"
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault(); // Prevent blur
+              handleSelectPrediction(pred);
+            }}
+            onMouseEnter={() => setSelectedIndex(idx)}
+          >
+            <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <div className="font-medium truncate">{pred.mainText}</div>
+              {pred.secondaryText && (
+                <div className="text-muted-foreground truncate text-[10px]">{pred.secondaryText}</div>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>,
+      document.body
+    );
+  };
+
   if (isEditing) {
     return (
-      <div ref={containerRef} className="relative">
-        <Input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className={cn("h-7 text-xs pr-6", className)}
-          placeholder="Escribe una dirección..."
-        />
-        <MapPin className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        
-        {showDropdown && predictions.length > 0 && (
-          <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
-            {predictions.map((pred, idx) => (
-              <button
-                key={pred.placeId}
-                type="button"
-                className={cn(
-                  "w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors flex items-start gap-2",
-                  idx === selectedIndex && "bg-accent"
-                )}
-                onMouseDown={(e) => {
-                  e.preventDefault(); // Prevent blur
-                  handleSelectPrediction(pred);
-                }}
-                onMouseEnter={() => setSelectedIndex(idx)}
-              >
-                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{pred.mainText}</div>
-                  {pred.secondaryText && (
-                    <div className="text-muted-foreground truncate text-[10px]">{pred.secondaryText}</div>
-                  )}
-                </div>
-              </button>
-            ))}
+      <>
+        <div ref={containerRef} className="relative">
+          <Input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={cn("h-7 text-xs pr-7", className)}
+            placeholder="Escribe una dirección..."
+          />
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none">
+            {isLoading ? (
+              <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+            ) : (
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
           </div>
-        )}
-      </div>
+        </div>
+        {renderDropdown()}
+      </>
     );
   }
 
