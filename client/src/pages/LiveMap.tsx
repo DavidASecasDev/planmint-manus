@@ -75,19 +75,30 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   }
 }
 
+// ── Route result type ──
+interface RouteResult {
+  positions: [number, number][];
+  durationMinutes: number;
+  distanceKm: number;
+}
+
 // ── OSRM route helper (free, no API key, real road routes) ──
 async function fetchRoute(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
-): Promise<[number, number][] | null> {
+): Promise<RouteResult | null> {
   try {
     const resp = await fetch(
       `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
     );
     const data = await resp.json();
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
       // GeoJSON coordinates are [lng, lat], Leaflet needs [lat, lng]
-      return data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+      const positions = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+      const durationMinutes = Math.round(route.duration / 60);
+      const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+      return { positions, durationMinutes, distanceKm };
     }
     return null;
   } catch {
@@ -117,8 +128,8 @@ export default function LiveMapPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const geocodeCache = useRef<Record<string, { lat: number; lng: number } | null>>({});
-  const [routes, setRoutes] = useState<Record<string, [number, number][]>>({});
-  const routeCache = useRef<Record<string, [number, number][] | null>>({});
+  const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
+  const routeCache = useRef<Record<string, RouteResult | null>>({});
 
   // Tick for relative time display
   useEffect(() => {
@@ -194,7 +205,7 @@ export default function LiveMapPage() {
   useEffect(() => {
     let cancelled = false;
     async function fetchAllRoutes() {
-      const newRoutes: Record<string, [number, number][]> = {};
+      const newRoutes: Record<string, RouteResult> = {};
       for (const rec of geocodedRecords) {
         if (cancelled) return;
         const cacheKey = `${rec.lat},${rec.lng}`;
@@ -274,8 +285,9 @@ export default function LiveMapPage() {
               style={{ minHeight: '400px' }}
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                subdomains="abcd"
               />
 
               {/* Base marker */}
@@ -291,19 +303,31 @@ export default function LiveMapPage() {
 
               {/* Polylines from base to each destination (real road routes) */}
               {geocodedRecords.map((rec) => {
-                const routePositions = routes[rec.id];
-                if (!routePositions) return null;
+                const routeData = routes[rec.id];
+                if (!routeData) return null;
+                const color = rec.operation_type === 'entrega' ? '#2563eb' : '#d97706';
                 return (
                   <Polyline
                     key={`line-${rec.id}`}
-                    positions={routePositions}
+                    positions={routeData.positions}
                     pathOptions={{
-                      color: rec.operation_type === 'entrega' ? '#3b82f6' : '#f59e0b',
-                      weight: 3,
-                      opacity: 0.75,
-                      dashArray: '10, 6',
+                      color,
+                      weight: 5,
+                      opacity: 0.85,
+                      lineCap: 'round',
+                      lineJoin: 'round',
                     }}
-                  />
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-semibold">
+                          {rec.operation_type === 'entrega' ? '🚗 Entrega' : '🔄 Devolución'}
+                        </p>
+                        <p className="text-xs mt-1">📍 {rec.destination_address}</p>
+                        <p className="text-xs mt-1 font-medium">⏱ ETA: {routeData.durationMinutes} min ({routeData.distanceKm} km)</p>
+                      </div>
+                    </Popup>
+                  </Polyline>
                 );
               })}
 
