@@ -1623,6 +1623,7 @@ export function ReservationsTable() {
                           {col.type === 'actions' && col.key === 'acciones_ruta' && (() => {
                             const currentEstado = getOperationFieldValue(row, 'estado');
                             const isEnCamino = currentEstado === 'En camino';
+                            const isCompletada = currentEstado === 'Completada';
                             const hasAddress = !!getOperationFieldValue(row, 'direccion');
                             const arrived = llegoState[row.id];
                             const isLlegoLoading = llegoLoading[row.id];
@@ -1645,8 +1646,8 @@ export function ReservationsTable() {
                                   <Navigation className="h-3.5 w-3.5" />
                                 </a>
 
-                                {/* 2. Iniciar — Marcar En camino */}
-                                {!isEnCamino && !arrived && (
+                                {/* 2. Iniciar — Marcar En camino (only if not already en camino, not arrived, and not completada) */}
+                                {!isEnCamino && !isCompletada && !arrived && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleIniciar(row); }}
                                     disabled={isIniciarLoading}
@@ -1675,6 +1676,13 @@ export function ReservationsTable() {
                                   >
                                     <MapPinCheck className={cn("h-3.5 w-3.5", isLlegoLoading && "animate-pulse")} />
                                   </button>
+                                )}
+
+                                {/* Static completion indicator while llegoState is loading from DB */}
+                                {isCompletada && !arrived && (
+                                  <span className="p-1 flex items-center gap-0.5" title="Trayecto completado">
+                                    <MapPinCheck className="h-3.5 w-3.5 text-emerald-500" />
+                                  </span>
                                 )}
 
                                 {/* Indicador de llegada confirmada */}
