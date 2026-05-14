@@ -25,6 +25,7 @@ import { PunctualitySummary } from './PunctualitySummary';
 import { useStaffCapacity } from '@/hooks/useStaffCapacity';
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -116,6 +117,7 @@ export function ReservationsTable() {
     archiveReservation,
     isFullAccess,
   } = useReservations();
+  const { profile } = useAuth();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const [urlFilters, setUrlFilters] = usePersistedFilters({
@@ -238,10 +240,12 @@ export function ReservationsTable() {
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
 
-  // Track "Llegué" state per operation (rowId -> { realMinutes, loading })
+  // Track "Llegüé" state per operation (rowId -> { realMinutes, loading })
   const [llegoState, setLlegoState] = useState<Record<string, { realMinutes: number; estimatedMinutes: number | null }>>({});
   const [llegoLoading, setLlegoLoading] = useState<Record<string, boolean>>({});
   const [iniciarLoading, setIniciarLoading] = useState<Record<string, boolean>>({});
+  // Track who started/arrived for each operation
+  const [arrivalUsers, setArrivalUsers] = useState<Record<string, { startedBy: string | null; arrivedBy: string | null }>>({});
 
   // (arrival status loading moved below operationRows declaration)
 
@@ -258,7 +262,7 @@ export function ReservationsTable() {
           reservation_id: row.reservationId,
           operation_type: opType,
           destination_address: getOperationFieldValue(row, 'direccion') || getOperationFieldValue(row, 'lugar') || '',
-          assigned_user_name: getOperationFieldValue(row, 'asignado_rental') || '',
+          assigned_user_name: profile?.name || getOperationFieldValue(row, 'asignado_rental') || '',
           estimated_minutes: row.travelMinutes ?? null,
         },
       });
@@ -281,6 +285,7 @@ export function ReservationsTable() {
           reservation_id: row.reservationId,
           operation_type: opType,
           estimated_minutes: row.travelMinutes,
+          llego_user_name: profile?.name || '',
         },
       });
       if (resp.data?.ok) {
@@ -431,26 +436,40 @@ export function ReservationsTable() {
             llego_at: string | null;
             real_minutes: number | null;
             estimated_minutes: number | null;
+            started_by: string | null;
+            arrived_by: string | null;
           }>;
         }>('en-camino-tracking/status', {
           body: { reservation_ids: reservationIds },
         });
         if (cancelled || !resp.data?.ok) return;
         const newState: Record<string, { realMinutes: number; estimatedMinutes: number | null }> = {};
+        const newArrivalUsers: Record<string, { startedBy: string | null; arrivedBy: string | null }> = {};
         for (const row of operationRows) {
           const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devoluci\u00f3n' ? 'devolucion' : null;
           if (!opType) continue;
           const key = `${row.reservationId}:${opType}`;
           const status = resp.data.statuses[key];
-          if (status?.llego_at && status.real_minutes != null) {
-            newState[row.id] = {
-              realMinutes: status.real_minutes,
-              estimatedMinutes: status.estimated_minutes,
-            };
+          if (status) {
+            if (status.llego_at && status.real_minutes != null) {
+              newState[row.id] = {
+                realMinutes: status.real_minutes,
+                estimatedMinutes: status.estimated_minutes,
+              };
+            }
+            if (status.started_by || status.arrived_by) {
+              newArrivalUsers[row.id] = {
+                startedBy: status.started_by,
+                arrivedBy: status.arrived_by,
+              };
+            }
           }
         }
         if (Object.keys(newState).length > 0) {
           setLlegoState(prev => ({ ...prev, ...newState }));
+        }
+        if (Object.keys(newArrivalUsers).length > 0) {
+          setArrivalUsers(prev => ({ ...prev, ...newArrivalUsers }));
         }
       } catch (err) {
         console.error('[en-camino-status] Error loading arrival status:', err);
@@ -1466,6 +1485,12 @@ export function ReservationsTable() {
                                       <p>Tiempo real: {arrived.realMinutes} min</p>
                                       {arrived.estimatedMinutes != null && <p>Estimado Maps: {arrived.estimatedMinutes} min</p>}
                                       {diff != null && <p className={diffColor}>{diff > 0 ? `+${diff}` : diff} min diferencia</p>}
+                                      {arrivalUsers[row.id]?.startedBy && (
+                                        <p className="text-muted-foreground mt-1">Inició: {arrivalUsers[row.id].startedBy}</p>
+                                      )}
+                                      {arrivalUsers[row.id]?.arrivedBy && (
+                                        <p className="text-muted-foreground">Llegó: {arrivalUsers[row.id].arrivedBy}</p>
+                                      )}
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
@@ -1675,6 +1700,12 @@ export function ReservationsTable() {
                                           <p className={arrived.realMinutes - arrived.estimatedMinutes <= 0 ? 'text-emerald-600' : 'text-amber-600'}>
                                             Diferencia: {arrived.realMinutes - arrived.estimatedMinutes > 0 ? '+' : ''}{arrived.realMinutes - arrived.estimatedMinutes} min
                                           </p>
+                                        )}
+                                        {arrivalUsers[row.id]?.startedBy && (
+                                          <p className="text-muted-foreground mt-1">Inició: {arrivalUsers[row.id].startedBy}</p>
+                                        )}
+                                        {arrivalUsers[row.id]?.arrivedBy && (
+                                          <p className="text-muted-foreground">Llegó: {arrivalUsers[row.id].arrivedBy}</p>
                                         )}
                                       </TooltipContent>
                                     </Tooltip>

@@ -145,10 +145,11 @@ export async function handleEnCaminoList(req: Request, res: Response) {
  */
 export async function handleEnCaminoLlego(req: Request, res: Response) {
   try {
-    const { reservation_id, operation_type, estimated_minutes } = req.body as {
+    const { reservation_id, operation_type, estimated_minutes, llego_user_name } = req.body as {
       reservation_id?: string;
       operation_type?: string;
       estimated_minutes?: number | null;
+      llego_user_name?: string;
     };
 
     if (!reservation_id || !operation_type) {
@@ -158,10 +159,15 @@ export async function handleEnCaminoLlego(req: Request, res: Response) {
     const sb = getServiceClient();
     const now = new Date().toISOString();
 
-    // Update the record with arrival timestamp
+    // Update the record with arrival timestamp and who arrived
+    const updatePayload: Record<string, unknown> = { llego_at: now };
+    if (llego_user_name) {
+      updatePayload.llego_user_name = llego_user_name;
+    }
+
     const { data, error } = await sb
       .from("en_camino_tracking")
-      .update({ llego_at: now })
+      .update(updatePayload)
       .eq("reservation_id", reservation_id)
       .eq("operation_type", operation_type)
       .select("en_camino_at, llego_at")
@@ -212,7 +218,7 @@ export async function handleEnCaminoStatus(req: Request, res: Response) {
 
     const { data, error } = await sb
       .from("en_camino_tracking")
-      .select("reservation_id, operation_type, en_camino_at, llego_at, estimated_minutes")
+      .select("reservation_id, operation_type, en_camino_at, llego_at, estimated_minutes, assigned_user_name, llego_user_name")
       .in("reservation_id", reservation_ids);
 
     if (error) {
@@ -226,6 +232,8 @@ export async function handleEnCaminoStatus(req: Request, res: Response) {
       llego_at: string | null;
       real_minutes: number | null;
       estimated_minutes: number | null;
+      started_by: string | null;
+      arrived_by: string | null;
     }> = {};
 
     for (const row of data || []) {
@@ -241,6 +249,8 @@ export async function handleEnCaminoStatus(req: Request, res: Response) {
         llego_at: row.llego_at,
         real_minutes: realMinutes,
         estimated_minutes: row.estimated_minutes ?? null,
+        started_by: row.assigned_user_name || null,
+        arrived_by: row.llego_user_name || null,
       };
     }
 

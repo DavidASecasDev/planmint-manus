@@ -622,3 +622,7 @@
 - [x] Feature: Sistema de alias de ubicaciones — Parking G Aeropuerto con coordenadas exactas, tramo final manual (waypoints internos), y +2min ETA para acceso con barreras
 - [x] Bug: ETA al aeropuerto muestra 4 min (OSRM) pero Google Maps marca 7 min — ajustar alias con tiempo mínimo fijo basado en Google Maps
 - [x] Feature: Permitir escribir "Parking G" en el campo Dirección y que el sistema lo reconozca como alias del aeropuerto para calcular trayecto correctamente
+- [x] Cancelar operación "En camino" atascada de reserva 3400 (Portals Nous, Calvià)
+- [x] Feature: Registrar nombre del usuario que pulsa "Iniciar" (En camino) en la tabla en_camino_tracking
+- [x] Feature: Registrar nombre del usuario que pulsa "Llegüé" en la tabla en_camino_tracking
+- [x] Feature: Mostrar nombre del usuario que inició/llegó en el Mapa En Camino y en la tabla de reservas
