@@ -601,3 +601,4 @@
 - [x] Feature: Mostrar tiempo de desplazamiento estimado en la fila de la reserva (columna "Trayecto" con colores: verde ≤15min, ámbar ≤30min, rojo >30min)
 - [x] Bug: Columna Trayecto muestra '\u2019' en vez de formato legible — corregido a "X min"
 - [x] Bug: Base location incorrecta — actualizada a Azul Cars (Carrer del Canal de Sant Jordi, 29, L3, 07610 Palma), eliminado aeropuerto de keywords base
+- [x] Feature: Botón de navegación Google Maps junto a la dirección en la tabla de reservas (abre ruta al destino)

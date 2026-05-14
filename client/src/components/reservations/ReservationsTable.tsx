@@ -3,7 +3,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
@@ -1442,12 +1442,27 @@ export function ReservationsTable() {
                           )}
                           {col.type === 'text' && col.key === 'direccion' && (
                             <div className={cn(
+                              "flex items-center gap-0.5",
                               row.isCompleted && "line-through text-muted-foreground"
                             )}>
-                              <AddressAutocompleteCell
-                                value={getOperationFieldValue(row, col.key)}
-                                onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
-                              />
+                              <div className="flex-1 min-w-0">
+                                <AddressAutocompleteCell
+                                  value={getOperationFieldValue(row, col.key)}
+                                  onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                                />
+                              </div>
+                              {getOperationFieldValue(row, col.key) && (
+                                <a
+                                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(getOperationFieldValue(row, col.key) || '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 p-1 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                  title="Abrir en Google Maps"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Navigation className="h-3.5 w-3.5" />
+                                </a>
+                              )}
                             </div>
                           )}
                           {col.type === 'text' && col.key !== 'direccion' && (
