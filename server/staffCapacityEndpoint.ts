@@ -386,7 +386,8 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       if (r.tipo_actividad === "Transfer") {
         const dt = r.confirmed_entrega_datetime || r.desde;
         if (dt && dt.substring(0, 10) === date) {
-          const location = r.lugar_entrega || r.lugar_entrega_direccion || r.lugar_entrega_ciudad || null;
+          // Prioritize exact address (direccion) for Google Maps accuracy, fallback to lugar name
+          const location = r.lugar_entrega_direccion || r.lugar_entrega || r.lugar_entrega_ciudad || null;
           const atBase = isBaseLocation(location);
           operations.push({
             reservationId: r.id,
@@ -407,7 +408,8 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
         // Entrega
         const entregaDt = r.confirmed_entrega_datetime || r.desde;
         if (entregaDt && entregaDt.substring(0, 10) === date) {
-          const location = r.lugar_entrega || r.lugar_entrega_direccion || r.lugar_entrega_ciudad || null;
+          // Prioritize exact address (direccion) for Google Maps accuracy, fallback to lugar name
+          const location = r.lugar_entrega_direccion || r.lugar_entrega || r.lugar_entrega_ciudad || null;
           const atBase = isBaseLocation(location);
           operations.push({
             reservationId: r.id,
@@ -428,7 +430,8 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
         // Devolución
         const devolDt = r.confirmed_devolucion_datetime || r.hasta;
         if (devolDt && devolDt.substring(0, 10) === date) {
-          const location = r.lugar_devolucion || r.lugar_devolucion_direccion || r.lugar_devolucion_ciudad || null;
+          // Prioritize exact address (direccion) for Google Maps accuracy, fallback to lugar name
+          const location = r.lugar_devolucion_direccion || r.lugar_devolucion || r.lugar_devolucion_ciudad || null;
           const atBase = isBaseLocation(location);
           operations.push({
             reservationId: r.id,

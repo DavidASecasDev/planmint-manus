@@ -65,6 +65,7 @@ const COLUMNS: Column[] = [
   { key: 'tipo_actividad', label: 'Tipo Actividad', width: 'w-24', type: 'chip', fieldName: 'tipo_actividad', filterable: true },
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
   { key: 'lugar', label: 'Lugar', width: 'w-56', type: 'text', filterable: true },
+  { key: 'direccion', label: 'Dirección', width: 'w-64', type: 'text', filterable: true },
   { key: 'cliente', label: 'Cliente', width: 'w-36', type: 'readonly', filterable: true },
   { key: 'modelo', label: 'Modelo', width: 'w-44', type: 'text', filterable: true },
   { key: 'auto', label: 'Auto', width: 'w-28', type: 'text', filterable: true },
@@ -90,6 +91,7 @@ interface OperationRow {
   fechaHora: string | null;
   confirmedDatetime: string | null;
   lugar: string | null;
+  direccion: string | null;
   isCompleted: boolean;
 }
 
@@ -122,6 +124,7 @@ export function ReservationsTable() {
     cf_contacto: '',
     cf_external_reservation_id: '',
     cf_lugar: '',
+    cf_direccion: '',
     cf_cliente: '',
     cf_modelo: '',
     cf_auto: '',
@@ -140,7 +143,7 @@ export function ReservationsTable() {
   // Derive columnFilters from URL params (cf_ prefix)
   const columnFilters = useMemo<ColumnFilters>(() => {
     const cf: ColumnFilters = {};
-    const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'cliente', 'modelo', 'auto'] as const;
+    const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'direccion', 'cliente', 'modelo', 'auto'] as const;
     for (const k of cfKeys) {
       const val = urlFilters[`cf_${k}` as keyof typeof urlFilters] as string;
       if (val) cf[k] = val;
@@ -152,7 +155,7 @@ export function ReservationsTable() {
     setUrlFilters(prev => {
       const newCf = typeof updater === 'function' ? updater(columnFilters) : updater;
       const update: Record<string, any> = { ...prev };
-      const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'cliente', 'modelo', 'auto'];
+      const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'direccion', 'cliente', 'modelo', 'auto'];
       for (const k of cfKeys) {
         update[`cf_${k}`] = newCf[k] || '';
       }
@@ -268,6 +271,7 @@ export function ReservationsTable() {
           fechaHora: r.desde,
           confirmedDatetime: r.confirmed_entrega_datetime,
           lugar: r.lugar_entrega || r.lugar_devolucion,
+          direccion: r.lugar_entrega_direccion || r.lugar_devolucion_direccion || null,
           isCompleted: r.transfer_completado,
         });
       } else {
@@ -280,6 +284,7 @@ export function ReservationsTable() {
           fechaHora: r.desde,
           confirmedDatetime: r.confirmed_entrega_datetime,
           lugar: r.lugar_entrega,
+          direccion: r.lugar_entrega_direccion || null,
           isCompleted: r.entrega_completada,
         });
         
@@ -292,6 +297,7 @@ export function ReservationsTable() {
           fechaHora: r.hasta,
           confirmedDatetime: r.confirmed_devolucion_datetime,
           lugar: r.lugar_devolucion,
+          direccion: r.lugar_devolucion_direccion || null,
           isCompleted: r.devolucion_completada,
         });
       }
@@ -308,6 +314,8 @@ export function ReservationsTable() {
       return row.tipoOperacion;
     } else if (key === 'lugar') {
       return row.lugar;
+    } else if (key === 'direccion') {
+      return row.direccion;
     } else if (key === 'cliente') {
       return [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(' ') || null;
     }
@@ -433,7 +441,8 @@ export function ReservationsTable() {
           (r.email && r.email.toLowerCase().includes(searchLower)) ||
           r.auto?.toLowerCase().includes(searchLower) ||
           r.modelo?.toLowerCase().includes(searchLower) ||
-          row.lugar?.toLowerCase().includes(searchLower)
+          row.lugar?.toLowerCase().includes(searchLower) ||
+          row.direccion?.toLowerCase().includes(searchLower)
         );
       });
     }
@@ -530,7 +539,7 @@ export function ReservationsTable() {
   const clearAllFilters = () => {
     setUrlFilters(prev => {
       const reset: Record<string, any> = { ...prev, search: '', dateFrom: '', dateTo: '', confirmedDateFrom: '', confirmedDateTo: '' };
-      const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'cliente', 'modelo', 'auto'];
+      const cfKeys = ['tipo_actividad', 'estado', 'pagado', 'hosp', 'checkin', 'contacto', 'external_reservation_id', 'lugar', 'direccion', 'cliente', 'modelo', 'auto'];
       for (const k of cfKeys) reset[`cf_${k}`] = '';
       return reset as typeof prev;
     });
@@ -647,6 +656,11 @@ export function ReservationsTable() {
       return row.lugar;
     }
     
+    // Para direccion, es específico por operación
+    if (fieldKey === 'direccion') {
+      return row.direccion;
+    }
+    
     // Para modelo y auto, son campos de la reserva
     if (reservationLevelFields.includes(fieldKey)) {
       return (r[fieldKey as keyof typeof r] as string) || null;
@@ -680,6 +694,13 @@ export function ReservationsTable() {
     if (fieldKey === 'lugar') {
       const lugarField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega' : 'lugar_devolucion';
       handleUpdate(row.reservationId, { [lugarField]: value });
+      return;
+    }
+    
+    // Para direccion, es específico por operación
+    if (fieldKey === 'direccion') {
+      const dirField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega_direccion' : 'lugar_devolucion_direccion';
+      handleUpdate(row.reservationId, { [dirField]: value });
       return;
     }
     
@@ -778,6 +799,8 @@ export function ReservationsTable() {
         return row.confirmedDatetime || '—';
       case 'lugar':
         return row.lugar || '—';
+      case 'direccion':
+        return row.direccion || '—';
       case 'cliente':
         return getClientName(r);
       case 'external_reservation_id':

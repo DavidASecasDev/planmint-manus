@@ -587,3 +587,9 @@
 - [x] Rediseñar UI de página Horarios: horarios como contenido principal, carga semanal más compacta (no debe empujar los horarios abajo)
 - [x] Bug: Carga Semanal aparece intercalada entre equipos de horarios — movida dentro del scroll, después de todos los grids de equipos
 - [x] Feature: Reordenar empleados dentro de cada equipo en el grid de horarios (botones arriba/abajo en hover) con persistencia en Supabase
+- [x] Auditar sistema de tiempos de desplazamiento: campo dirección, Google Maps, cálculo ida/vuelta, actualización periódica, uso en carga de trabajo
+  - [x] Verificar campo de dirección exacta en reservas — añadida columna "Dirección" en ReservationsTable (lugar_entrega_direccion / lugar_devolucion_direccion)
+  - [x] Verificar integración Google Maps para cálculo de tiempos — endpoint usa dirección exacta como prioridad para Google Maps Distance Matrix
+  - [x] Verificar cálculo de tiempo ida (base → ubicación) y vuelta (ubicación → base) — effectiveTravel * 2 + BASE_OPERATION_MINUTES
+  - [x] Verificar actualización automática cada 5 minutos — useStaffCapacity y useWeeklyCapacity ahora hacen polling cada 5 min
+  - [x] Verificar que los tiempos alimentan correctamente el cálculo de carga de trabajo — personMinutes usa travelMinutesWithTraffic cuando disponible
