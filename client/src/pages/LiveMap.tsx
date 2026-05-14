@@ -40,6 +40,58 @@ const PALMA_CENTER = { lat: 39.5696, lng: 2.6502 };
 const POLL_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_ZOOM = 11;
 
+// ── Location Aliases ──
+// Known locations that don't geocode well or need exact coordinates
+interface LocationAlias {
+  coords: { lat: number; lng: number };
+  // OSRM routing target (nearest routable point on public road)
+  routingTarget: { lat: number; lng: number };
+  // Manual last-mile waypoints from routing target to final destination
+  lastMileWaypoints: [number, number][];
+  // Extra minutes to add to ETA for internal access (barriers, etc.)
+  extraMinutes: number;
+}
+
+const LOCATION_ALIASES: Record<string, LocationAlias> = {
+  'parking_g_aeropuerto': {
+    // Exact Parking G location (Transport Meeting Point)
+    coords: { lat: 39.5505, lng: 2.7275 },
+    // Nearest routable point: roundabout on Carretera de l'Aeroport
+    routingTarget: { lat: 39.5472, lng: 2.7252 },
+    // Manual waypoints: from roundabout, through access road with barriers, to Parking G
+    lastMileWaypoints: [
+      [39.5472, 2.7252], // Roundabout exit on Carretera de l'Aeroport
+      [39.5478, 2.7258], // Start of internal access road
+      [39.5485, 2.7263], // Barrier point
+      [39.5492, 2.7268], // Past barriers, internal road
+      [39.5498, 2.7272], // Approaching Parking G
+      [39.5505, 2.7275], // Parking G - Transport Meeting Point
+    ],
+    extraMinutes: 2, // Barriers + slow internal road
+  },
+};
+
+// Keywords that match each alias
+const ALIAS_MATCHERS: { keywords: string[]; aliasKey: string }[] = [
+  {
+    keywords: ['aeropuerto', 'aeropuerto de palma', 'pmi', 'parking g', 'aeropuerto palma de mallorca', '07611'],
+    aliasKey: 'parking_g_aeropuerto',
+  },
+];
+
+// Check if an address matches a known alias
+function matchLocationAlias(address: string): LocationAlias | null {
+  const normalized = address.toLowerCase().trim();
+  for (const matcher of ALIAS_MATCHERS) {
+    for (const keyword of matcher.keywords) {
+      if (normalized.includes(keyword)) {
+        return LOCATION_ALIASES[matcher.aliasKey];
+      }
+    }
+  }
+  return null;
+}
+
 // ── Custom marker icons ──
 const createIcon = (color: string, pulse: boolean = false) => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32" height="32">
@@ -58,10 +110,16 @@ const entregaIcon = createIcon('#3b82f6', true); // blue
 const devolucionIcon = createIcon('#f59e0b', true); // amber
 const baseIcon = createIcon('#10b981'); // green (base)
 
-// ── Geocode helper (uses server-side proxy) ──
+// ── Geocode helper (uses aliases first, then Nominatim) ──
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  // Check aliases first
+  const alias = matchLocationAlias(address);
+  if (alias) {
+    return alias.coords;
+  }
+  
   try {
-    // Use Nominatim (free, no API key) for geocoding
+    // Fallback to Nominatim (free, no API key) for geocoding
     const resp = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=es`
     );
@@ -83,21 +141,35 @@ interface RouteResult {
 }
 
 // ── OSRM route helper (free, no API key, real road routes) ──
+// If the destination matches a location alias, routes to the routing target
+// and appends manual last-mile waypoints
 async function fetchRoute(
   from: { lat: number; lng: number },
-  to: { lat: number; lng: number }
+  to: { lat: number; lng: number },
+  destinationAddress?: string
 ): Promise<RouteResult | null> {
   try {
+    // Check if destination has a known alias with last-mile waypoints
+    const alias = destinationAddress ? matchLocationAlias(destinationAddress) : null;
+    const routeTo = alias ? alias.routingTarget : to;
+    
     const resp = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
+      `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${routeTo.lng},${routeTo.lat}?overview=full&geometries=geojson`
     );
     const data = await resp.json();
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
       const route = data.routes[0];
       // GeoJSON coordinates are [lng, lat], Leaflet needs [lat, lng]
-      const positions = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-      const durationMinutes = Math.round(route.duration / 60);
+      let positions: [number, number][] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+      let durationMinutes = Math.round(route.duration / 60);
       const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+      
+      // Append last-mile waypoints if alias exists
+      if (alias) {
+        positions = [...positions, ...alias.lastMileWaypoints];
+        durationMinutes += alias.extraMinutes;
+      }
+      
       return { positions, durationMinutes, distanceKm };
     }
     return null;
@@ -214,7 +286,7 @@ export default function LiveMapPage() {
           if (cached) newRoutes[rec.id] = cached;
           continue;
         }
-        const route = await fetchRoute(AZUL_CARS_BASE, { lat: rec.lat, lng: rec.lng });
+        const route = await fetchRoute(AZUL_CARS_BASE, { lat: rec.lat, lng: rec.lng }, rec.destination_address || undefined);
         routeCache.current[cacheKey] = route;
         if (route) newRoutes[rec.id] = route;
       }

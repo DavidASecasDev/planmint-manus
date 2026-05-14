@@ -619,3 +619,4 @@
 - [x] Mejora: Cambiar tiles del mapa a CartoDB Voyager (más limpio y profesional)
 - [x] Mejora: Polylines más gruesas (weight 5), colores vibrantes, línea sólida con bordes redondeados
 - [x] Feature: Indicador ETA en cada ruta del mapa basado en duración OSRM (popup con minutos y km)
+- [x] Feature: Sistema de alias de ubicaciones — Parking G Aeropuerto con coordenadas exactas, tramo final manual (waypoints internos), y +2min ETA para acceso con barreras
