@@ -21,6 +21,7 @@ import { AddReservationDialog } from './AddReservationDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
 import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
 import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
+import { PunctualitySummary } from './PunctualitySummary';
 import { useStaffCapacity } from '@/hooks/useStaffCapacity';
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
@@ -241,6 +242,8 @@ export function ReservationsTable() {
   const [llegoLoading, setLlegoLoading] = useState<Record<string, boolean>>({});
   const [iniciarLoading, setIniciarLoading] = useState<Record<string, boolean>>({});
 
+  // (arrival status loading moved below operationRows declaration)
+
   const handleIniciar = useCallback(async (row: OperationRow) => {
     const rowId = row.id;
     setIniciarLoading(prev => ({ ...prev, [rowId]: true }));
@@ -255,6 +258,7 @@ export function ReservationsTable() {
           operation_type: opType,
           destination_address: getOperationFieldValue(row, 'direccion') || getOperationFieldValue(row, 'lugar') || '',
           assigned_user_name: getOperationFieldValue(row, 'asignado_rental') || '',
+          estimated_minutes: row.travelMinutes ?? null,
         },
       });
       toast.success('Operaci\u00f3n marcada como En camino');
@@ -409,6 +413,50 @@ export function ReservationsTable() {
       return row;
     });
   }, [operationRows, travelTimeLookup]);
+
+  // Load persisted arrival status from DB on mount / when rows change
+  useEffect(() => {
+    if (operationRows.length === 0) return;
+    const reservationIds = Array.from(new Set(operationRows.map(r => r.reservationId)));
+    if (reservationIds.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await apiInvoke<{
+          ok: boolean;
+          statuses: Record<string, {
+            en_camino_at: string;
+            llego_at: string | null;
+            real_minutes: number | null;
+            estimated_minutes: number | null;
+          }>;
+        }>('en-camino-tracking/status', {
+          body: { reservation_ids: reservationIds },
+        });
+        if (cancelled || !resp.data?.ok) return;
+        const newState: Record<string, { realMinutes: number; estimatedMinutes: number | null }> = {};
+        for (const row of operationRows) {
+          const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devoluci\u00f3n' ? 'devolucion' : null;
+          if (!opType) continue;
+          const key = `${row.reservationId}:${opType}`;
+          const status = resp.data.statuses[key];
+          if (status?.llego_at && status.real_minutes != null) {
+            newState[row.id] = {
+              realMinutes: status.real_minutes,
+              estimatedMinutes: status.estimated_minutes,
+            };
+          }
+        }
+        if (Object.keys(newState).length > 0) {
+          setLlegoState(prev => ({ ...prev, ...newState }));
+        }
+      } catch (err) {
+        console.error('[en-camino-status] Error loading arrival status:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [operationRows]);
 
   // Helper para obtener valor de campo según operación (para filtros)
   const getRowFieldValue = (row: OperationRow, key: string): string | null => {
@@ -1085,6 +1133,9 @@ export function ReservationsTable() {
 
       {/* Staff Capacity Alert */}
       <StaffCapacityAlert date={urlFilters.dateFrom || null} />
+
+      {/* Daily Punctuality Summary */}
+      <PunctualitySummary date={urlFilters.dateFrom || null} />
 
       {/* Time Slot Summary View */}
       {showTimeSlots ? (

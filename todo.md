@@ -609,3 +609,6 @@
 - [x] Feature: Botón "Llegué" en fila de reserva — registra timestamp de llegada, calcula tiempo real vs estimado de Google Maps, muestra comparativa visual
 - [x] Feature: Polylines en mapa en vivo — líneas de ruta desde base Azul Cars hasta cada destino "En camino", color azul para entregas y ámbar para devoluciones
 - [x] Refactor: Separar acciones de Dirección en 3 iconos independientes — Navegación (abrir Google Maps), Iniciar (marcar En camino), Llegué (confirmar llegada). Flujo secuencial con visibilidad condicional según estado.
+- [x] Bug: Mapa En Camino (/live-map) muestra error "Error al cargar esta sección" — causa: react-leaflet@5 requiere React 19, downgraded a v4.2.1 compatible con React 18
+- [x] Feature: Persistir estado "Llegué" en BD para que sobreviva a recargas de página
+- [x] Feature: Resumen diario de puntualidad (% de llegadas dentro del tiempo estimado)

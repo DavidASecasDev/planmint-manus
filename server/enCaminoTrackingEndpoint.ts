@@ -15,6 +15,7 @@ interface EnCaminoRecord {
   operation_type: "entrega" | "devolucion";
   destination_address?: string;
   assigned_user_name?: string;
+  estimated_minutes?: number | null;
 }
 
 /**
@@ -34,7 +35,7 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
       return handleEnCaminoDelete(req, res);
     }
 
-    const { reservation_id, operation_type, destination_address, assigned_user_name } =
+    const { reservation_id, operation_type, destination_address, assigned_user_name, estimated_minutes } =
       req.body as EnCaminoRecord;
 
     if (!reservation_id || !operation_type) {
@@ -56,6 +57,7 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
           en_camino_at: new Date().toISOString(),
           destination_address: destination_address || null,
           assigned_user_name: assigned_user_name || null,
+          estimated_minutes: estimated_minutes ?? null,
         },
         { onConflict: "reservation_id,operation_type" }
       )
@@ -188,6 +190,136 @@ export async function handleEnCaminoLlego(req: Request, res: Response) {
     });
   } catch (err) {
     console.error("[en-camino-tracking/llego] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
+/**
+ * POST /api/en-camino-tracking/status
+ * Get arrival status for multiple reservation operations.
+ * Body: { reservation_ids: string[] }
+ * Returns map of reservation_id -> { en_camino_at, llego_at, real_minutes, estimated_minutes }
+ */
+export async function handleEnCaminoStatus(req: Request, res: Response) {
+  try {
+    const { reservation_ids } = req.body as { reservation_ids?: string[] };
+
+    if (!reservation_ids || !Array.isArray(reservation_ids) || reservation_ids.length === 0) {
+      return res.json({ ok: true, statuses: {} });
+    }
+
+    const sb = getServiceClient();
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("reservation_id, operation_type, en_camino_at, llego_at, estimated_minutes")
+      .in("reservation_id", reservation_ids);
+
+    if (error) {
+      console.error("[en-camino-tracking/status] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    // Build a map: key = "reservation_id:operation_type"
+    const statuses: Record<string, {
+      en_camino_at: string;
+      llego_at: string | null;
+      real_minutes: number | null;
+      estimated_minutes: number | null;
+    }> = {};
+
+    for (const row of data || []) {
+      const key = `${row.reservation_id}:${row.operation_type}`;
+      let realMinutes: number | null = null;
+      if (row.llego_at && row.en_camino_at) {
+        realMinutes = Math.round(
+          (new Date(row.llego_at).getTime() - new Date(row.en_camino_at).getTime()) / 60000
+        );
+      }
+      statuses[key] = {
+        en_camino_at: row.en_camino_at,
+        llego_at: row.llego_at,
+        real_minutes: realMinutes,
+        estimated_minutes: row.estimated_minutes ?? null,
+      };
+    }
+
+    return res.json({ ok: true, statuses });
+  } catch (err) {
+    console.error("[en-camino-tracking/status] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
+/**
+ * POST /api/en-camino-tracking/summary
+ * Get daily punctuality summary.
+ * Body: { date: 'YYYY-MM-DD' }
+ * Returns stats: total arrivals, on-time count, late count, avg difference
+ */
+export async function handleEnCaminoSummary(req: Request, res: Response) {
+  try {
+    const { date } = req.body as { date?: string };
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    const sb = getServiceClient();
+    const startOfDay = `${targetDate}T00:00:00.000Z`;
+    const endOfDay = `${targetDate}T23:59:59.999Z`;
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("reservation_id, operation_type, en_camino_at, llego_at, estimated_minutes")
+      .gte("en_camino_at", startOfDay)
+      .lte("en_camino_at", endOfDay)
+      .not("llego_at", "is", null);
+
+    if (error) {
+      console.error("[en-camino-tracking/summary] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    const arrivals = data || [];
+    const totalArrivals = arrivals.length;
+    let onTime = 0;
+    let late = 0;
+    let totalDiffMinutes = 0;
+    let withEstimate = 0;
+
+    for (const row of arrivals) {
+      if (!row.en_camino_at || !row.llego_at) continue;
+      const realMinutes = Math.round(
+        (new Date(row.llego_at).getTime() - new Date(row.en_camino_at).getTime()) / 60000
+      );
+      const estimated = row.estimated_minutes;
+      if (estimated != null && estimated > 0) {
+        withEstimate++;
+        const diff = realMinutes - estimated;
+        totalDiffMinutes += diff;
+        if (diff <= 5) {
+          onTime++;
+        } else {
+          late++;
+        }
+      }
+    }
+
+    const avgDiff = withEstimate > 0 ? Math.round(totalDiffMinutes / withEstimate) : 0;
+    const onTimePercent = withEstimate > 0 ? Math.round((onTime / withEstimate) * 100) : 0;
+
+    return res.json({
+      ok: true,
+      summary: {
+        date: targetDate,
+        total_arrivals: totalArrivals,
+        with_estimate: withEstimate,
+        on_time: onTime,
+        late: late,
+        on_time_percent: onTimePercent,
+        avg_diff_minutes: avgDiff,
+      },
+    });
+  } catch (err) {
+    console.error("[en-camino-tracking/summary] Error:", err);
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }
