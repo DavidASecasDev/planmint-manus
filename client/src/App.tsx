@@ -89,6 +89,7 @@ const ReportsVehicles = lazy(() => import("./pages/ReportsVehicles"));
 const ReportsMovements = lazy(() => import("./pages/ReportsMovements"));
 const ReportsTransfers = lazy(() => import("./pages/ReportsTransfers"));
 const ReportsGaratech = lazy(() => import("./pages/ReportsGaratech"));
+const ReportsTravel = lazy(() => import("./pages/ReportsTravel"));
 
 // Forms
 const Forms = lazy(() => import("./pages/Forms"));
@@ -553,6 +554,16 @@ function MainAppRoutes() {
                     moduleDescription="El módulo de Informes no está habilitado para tu organización."
                   >
                     <Reports />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/reports/travel" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="reports" moduleName="Informes">
+                    <ReportsTravel />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

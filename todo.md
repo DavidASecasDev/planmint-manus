@@ -626,3 +626,5 @@
 - [x] Feature: Registrar nombre del usuario que pulsa "Iniciar" (En camino) en la tabla en_camino_tracking
 - [x] Feature: Registrar nombre del usuario que pulsa "Llegüé" en la tabla en_camino_tracking
 - [x] Feature: Mostrar nombre del usuario que inició/llegó en el Mapa En Camino y en la tabla de reservas
+- [x] DB: Añadir columna llego_user_name (text) a en_camino_tracking en Supabase
+- [x] Feature: Mini-reporte diario de trayectos — quién hizo cada entrega/devolución, tiempo real vs estimado

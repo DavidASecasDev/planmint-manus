@@ -368,3 +368,106 @@ export async function handleEnCaminoDelete(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }
+
+/**
+ * POST /api/en-camino-tracking/history
+ * Get detailed daily travel history for the report.
+ * Body: { date: 'YYYY-MM-DD' }
+ * Returns all trips for the day with user attribution and time comparison.
+ */
+export async function handleEnCaminoHistory(req: Request, res: Response) {
+  try {
+    const { date } = req.body as { date?: string };
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    const sb = getServiceClient();
+    const startOfDay = `${targetDate}T00:00:00.000Z`;
+    const endOfDay = `${targetDate}T23:59:59.999Z`;
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("id, reservation_id, operation_type, en_camino_at, llego_at, estimated_minutes, destination_address, assigned_user_name, llego_user_name")
+      .gte("en_camino_at", startOfDay)
+      .lte("en_camino_at", endOfDay)
+      .order("en_camino_at", { ascending: true });
+
+    if (error) {
+      console.error("[en-camino-tracking/history] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    const trips = (data || []).map((row) => {
+      const realMinutes = row.llego_at && row.en_camino_at
+        ? Math.round((new Date(row.llego_at).getTime() - new Date(row.en_camino_at).getTime()) / 60000)
+        : null;
+      const diff = realMinutes != null && row.estimated_minutes != null && row.estimated_minutes > 0
+        ? realMinutes - row.estimated_minutes
+        : null;
+      const status: 'on_time' | 'late' | 'very_late' | 'en_route' =
+        row.llego_at == null ? 'en_route' :
+        diff == null ? 'on_time' :
+        diff <= 5 ? 'on_time' :
+        diff <= 15 ? 'late' : 'very_late';
+
+      return {
+        id: row.id,
+        reservation_id: row.reservation_id,
+        operation_type: row.operation_type,
+        destination_address: row.destination_address,
+        started_by: row.assigned_user_name,
+        arrived_by: row.llego_user_name,
+        en_camino_at: row.en_camino_at,
+        llego_at: row.llego_at,
+        estimated_minutes: row.estimated_minutes,
+        real_minutes: realMinutes,
+        diff_minutes: diff,
+        status,
+      };
+    });
+
+    // Per-user stats
+    const userStats: Record<string, { trips: number; totalReal: number; totalEstimated: number; onTime: number; late: number }> = {};
+    for (const trip of trips) {
+      const userName = trip.started_by || 'Sin asignar';
+      if (!userStats[userName]) {
+        userStats[userName] = { trips: 0, totalReal: 0, totalEstimated: 0, onTime: 0, late: 0 };
+      }
+      userStats[userName].trips++;
+      if (trip.real_minutes != null) {
+        userStats[userName].totalReal += trip.real_minutes;
+      }
+      if (trip.estimated_minutes != null) {
+        userStats[userName].totalEstimated += trip.estimated_minutes;
+      }
+      if (trip.status === 'on_time') userStats[userName].onTime++;
+      if (trip.status === 'late' || trip.status === 'very_late') userStats[userName].late++;
+    }
+
+    const userSummary = Object.entries(userStats).map(([name, stats]) => ({
+      name,
+      trips: stats.trips,
+      avg_real_minutes: stats.trips > 0 ? Math.round(stats.totalReal / stats.trips) : 0,
+      avg_estimated_minutes: stats.trips > 0 ? Math.round(stats.totalEstimated / stats.trips) : 0,
+      on_time: stats.onTime,
+      late: stats.late,
+      on_time_percent: stats.trips > 0 ? Math.round((stats.onTime / stats.trips) * 100) : 0,
+    }));
+
+    return res.json({
+      ok: true,
+      date: targetDate,
+      trips,
+      user_summary: userSummary,
+      totals: {
+        total_trips: trips.length,
+        completed: trips.filter(t => t.status !== 'en_route').length,
+        en_route: trips.filter(t => t.status === 'en_route').length,
+        on_time: trips.filter(t => t.status === 'on_time').length,
+        late: trips.filter(t => t.status === 'late' || t.status === 'very_late').length,
+      },
+    });
+  } catch (err) {
+    console.error("[en-camino-tracking/history] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}

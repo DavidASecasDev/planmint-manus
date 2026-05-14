@@ -7,7 +7,7 @@ import { useOrganizationModules } from '@/hooks/useOrganizationModules';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { cn } from '@/lib/utils';
-import { BarChart3, Car, ArrowUpDown, Repeat2, Wrench, Loader2, Lock } from 'lucide-react';
+import { BarChart3, Car, ArrowUpDown, Repeat2, Wrench, Loader2, Lock, Navigation } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -22,6 +22,7 @@ interface ReportSection {
 
 const REPORT_SECTIONS: ReportSection[] = [
   { key: 'general', label: 'General', icon: BarChart3, path: '/reports' },
+  { key: 'travel', label: 'Trayectos', icon: Navigation, path: '/reports/travel' },
   { key: 'vehicles', label: 'Flota', icon: Car, path: '/reports/vehicles', moduleKey: 'vehicle_status' },
   { key: 'movements', label: 'Movimientos', icon: ArrowUpDown, path: '/reports/movements', moduleKey: 'movements' },
   { key: 'transfers', label: 'Transfers', icon: Repeat2, path: '/reports/transfers', moduleKey: 'transfers' },
