@@ -643,3 +643,7 @@
 - [ ] Feature: Integrar Geolocation API en ReservationsTable al pulsar Iniciar (opt-in dialog)
 - [ ] Feature: Mostrar marcador de vehículo en tiempo real en LiveMap con posición GPS del rental
 - [x] Feature: Badge "En vivo" en sidebar del mapa y indicador en tabla de reservas
+- [x] Feature: Ruta en vivo desde posición actual del rental hasta destino (polyline dinámica)
+- [x] Feature: Notificación push al equipo cuando rental marca "En camino"
+- [x] Feature: Historial de posiciones intermedias para replay de trayectos completados
+- [ ] Feature: Vista de replay de trayecto en el mapa (operaciones completadas)

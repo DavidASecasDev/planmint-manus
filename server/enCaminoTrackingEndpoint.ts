@@ -109,6 +109,44 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
       content: `${userLabel} ha salido hacia ${destLabel}`,
     }).catch((err) => console.warn('[en-camino-tracking] Notification error:', err));
 
+    // Create in-app notifications for all team members in the organization
+    try {
+      // Get the reservation's organization_id
+      const { data: resOrg } = await sb
+        .from('reservations')
+        .select('organization_id')
+        .eq('id', reservation_id)
+        .single();
+      
+      if (resOrg?.organization_id) {
+        // Get all active team members in the organization
+        const { data: members } = await sb
+          .from('organization_members')
+          .select('user_id')
+          .eq('organization_id', resOrg.organization_id)
+          .eq('status', 'active');
+        
+        if (members && members.length > 0) {
+          const notificationTitle = `🚗 ${opLabel} en camino`;
+          const notificationBody = `${userLabel} ha salido hacia ${destLabel}${clienteLabel}`;
+          
+          const notifications = members.map((m: { user_id: string }) => ({
+            organization_id: resOrg.organization_id,
+            user_id: m.user_id,
+            type: 'en_camino_alert',
+            title: notificationTitle,
+            body: notificationBody.substring(0, 500),
+            entity_type: 'en_camino',
+            entity_id: reservation_id,
+          }));
+          
+          await sb.from('notifications').insert(notifications);
+        }
+      }
+    } catch (notifErr) {
+      console.warn('[en-camino-tracking] Team notification error:', notifErr);
+    }
+
     return res.json({ ok: true, record: data });
   } catch (err) {
     console.error("[en-camino-tracking] Error:", err);
@@ -569,6 +607,22 @@ export async function handleEnCaminoLocation(req: Request, res: Response) {
       return res.status(404).json({ ok: false, error: "No active en_camino record found" });
     }
 
+    // Also record this position in location_history for route replay
+    try {
+      await sb.from("location_history").insert({
+        tracking_id: data.id,
+        reservation_id,
+        operation_type,
+        latitude: lat,
+        longitude: lng,
+        accuracy: (req.body as any).accuracy ?? null,
+        recorded_at: new Date().toISOString(),
+      });
+    } catch (histErr) {
+      // Non-critical: don't fail the location update if history insert fails
+      console.warn("[en-camino-tracking/location] History insert error:", histErr);
+    }
+
     return res.json({ ok: true });
   } catch (err) {
     console.error("[en-camino-tracking/location] Error:", err);
@@ -577,10 +631,58 @@ export async function handleEnCaminoLocation(req: Request, res: Response) {
 }
 
 /**
- * POST /api/en-camino-tracking/location-stop
- * Stop sharing location for an operation.
- * Body: { reservation_id, operation_type }
+ * POST /api/en-camino-tracking/location-history
+ * Get the location history for a specific tracking operation.
+ * Body: { reservation_id, operation_type } or { tracking_id }
+ * Returns an ordered array of positions for route replay.
  */
+export async function handleEnCaminoLocationHistory(req: Request, res: Response) {
+  try {
+    const { reservation_id, operation_type, tracking_id } = req.body as {
+      reservation_id?: string;
+      operation_type?: string;
+      tracking_id?: string;
+    };
+
+    const sb = getServiceClient();
+
+    let query = sb
+      .from("location_history")
+      .select("id, latitude, longitude, accuracy, recorded_at")
+      .order("recorded_at", { ascending: true });
+
+    if (tracking_id) {
+      query = query.eq("tracking_id", tracking_id);
+    } else if (reservation_id && operation_type) {
+      query = query
+        .eq("reservation_id", reservation_id)
+        .eq("operation_type", operation_type);
+    } else {
+      return res.status(400).json({ ok: false, error: "tracking_id or (reservation_id + operation_type) required" });
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[en-camino-tracking/location-history] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    return res.json({
+      ok: true,
+      positions: (data || []).map((p: any) => ({
+        lat: p.latitude,
+        lng: p.longitude,
+        accuracy: p.accuracy,
+        time: p.recorded_at,
+      })),
+    });
+  } catch (err) {
+    console.error("[en-camino-tracking/location-history] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
 export async function handleEnCaminoLocationStop(req: Request, res: Response) {
   try {
     const { reservation_id, operation_type } = req.body as {

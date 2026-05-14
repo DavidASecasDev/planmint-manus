@@ -6,9 +6,10 @@ import { format, subDays, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   Navigation, Clock, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight,
-  User, MapPin, ArrowRight, TrendingUp, Calendar, RefreshCw
+  User, MapPin, ArrowRight, TrendingUp, Calendar, RefreshCw, Route
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RouteReplaySheet } from '@/components/reports/RouteReplaySheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -55,6 +56,8 @@ export default function ReportsTravel() {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [data, setData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [replayTrip, setReplayTrip] = useState<Trip | null>(null);
+  const [replayOpen, setReplayOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -238,6 +241,7 @@ export default function ReportsTravel() {
                       <th className="pb-2 font-medium text-center">Real</th>
                       <th className="pb-2 font-medium text-center">Diferencia</th>
                       <th className="pb-2 font-medium text-center">Estado</th>
+                      <th className="pb-2 font-medium text-center">Recorrido</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -303,6 +307,21 @@ export default function ReportsTravel() {
                               {config.label}
                             </span>
                           </td>
+                          <td className="py-2.5 text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setReplayTrip(trip);
+                                setReplayOpen(true);
+                              }}
+                              title="Ver recorrido en el mapa"
+                            >
+                              <Route className="h-3.5 w-3.5 mr-1" />
+                              Ver
+                            </Button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -336,6 +355,11 @@ export default function ReportsTravel() {
           </Card>
         )}
       </div>
+      <RouteReplaySheet
+        open={replayOpen}
+        onOpenChange={setReplayOpen}
+        trip={replayTrip}
+      />
     </ReportsLayout>
   );
 }

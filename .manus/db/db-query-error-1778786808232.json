@@ -1,0 +1,15 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS location_history (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  tracking_id UUID NOT NULL REFERENCES en_camino_tracking(id) ON DELETE CASCADE,\n  reservation_id UUID NOT NULL,\n  operation_type TEXT NOT NULL CHECK (operation_type IN ('entrega', 'devolucion')),\n  latitude DOUBLE PRECISION NOT NULL,\n  longitude DOUBLE PRECISION NOT NULL,\n  accuracy DOUBLE PRECISION,\n  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_location_history_tracking ON location_history(tracking_id);\nCREATE INDEX IF NOT EXISTS idx_location_history_reservation ON location_history(reservation_id, operation_type);\nCREATE INDEX IF NOT EXISTS idx_location_history_recorded ON location_history(recorded_at);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute CREATE TABLE IF NOT EXISTS location_history (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  tracking_id UUID NOT NULL REFERENCES en_camino_tracking(id) ON DELETE CASCADE,\n  reservation_id UUID NOT NULL,\n  operation_type TEXT NOT NULL CHECK (operation_type IN ('entrega', 'devolucion')),\n  latitude DOUBLE PRECISION NOT NULL,\n  longitude DOUBLE PRECISION NOT NULL,\n  accuracy DOUBLE PRECISION,\n  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_location_history_tracking ON location_history(tracking_id);\nCREATE INDEX IF NOT EXISTS idx_location_history_reservation ON location_history(reservation_id, operation_type);\nCREATE INDEX IF NOT EXISTS idx_location_history_recorded ON location_history(recorded_at);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 2 column 10 near \"UUID DEFAULT gen_random_uuid() PRIMARY KEY,",
+    "  tracking_id UUID NOT NULL REFERENCES en_camino_tracking(id) ON DELETE CASCADE,",
+    "  reservation_id UUID NOT NULL,",
+    "  operation_type TEXT NOT NULL CHECK (operation_type IN ('entrega', 'devolucion')),",
+    "  latitude DOUBLE PRECISION NOT NULL,",
+    "  longitude DOUBLE PRECISION NOT NULL,",
+    "  accuracy DOUBLE PRECISION,",
+    "  recorded_at TIMEST"
+  ]
+}

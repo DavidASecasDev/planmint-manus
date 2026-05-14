@@ -189,6 +189,7 @@ function getToastAction(
     form_response: `/notifications`,
     vehicle_prep: `/vehicle-status`,
     invitation: `/admin/members`,
+    en_camino: `/live-map`,
   };
 
   const route = routes[entity_type];

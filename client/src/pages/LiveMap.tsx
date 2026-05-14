@@ -257,6 +257,7 @@ export default function LiveMapPage() {
   const geocodeCache = useRef<Record<string, GeocodeResult | null>>({});
   const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
   const routeCache = useRef<Record<string, RouteResult | null>>({});
+  const [liveRoutes, setLiveRoutes] = useState<Record<string, RouteResult>>({});
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
 
   // Tick for relative time display
@@ -358,6 +359,36 @@ export default function LiveMapPage() {
     }
     return () => { cancelled = true; };
   }, [geocodedRecords]);
+
+  // Fetch live routes from rental's current position to destination
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchLiveRoutes() {
+      const newLiveRoutes: Record<string, RouteResult> = {};
+      const liveRecords = geocodedRecords.filter(r => {
+        const original = records.find(o => o.id === r.id);
+        return original?.sharing_location && original?.current_lat != null && original?.current_lng != null;
+      });
+      for (const rec of liveRecords) {
+        if (cancelled) return;
+        const original = records.find(o => o.id === rec.id)!;
+        const route = await fetchRoute(
+          { lat: original.current_lat!, lng: original.current_lng! },
+          { lat: rec.lat, lng: rec.lng },
+          rec.destination_address || undefined
+        );
+        if (route) newLiveRoutes[rec.id] = route;
+      }
+      if (!cancelled) setLiveRoutes(newLiveRoutes);
+    }
+    const liveCount = records.filter(r => r.sharing_location && r.current_lat != null).length;
+    if (liveCount > 0 && geocodedRecords.length > 0) {
+      fetchLiveRoutes();
+    } else {
+      setLiveRoutes({});
+    }
+    return () => { cancelled = true; };
+  }, [records, geocodedRecords]);
 
   const entregas = geocodedRecords.filter(r => r.operation_type === 'entrega');
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
@@ -550,6 +581,39 @@ export default function LiveMapPage() {
                   );
                 })}
 
+                {/* Live route polylines (from rental's current position to destination) */}
+                {Object.entries(liveRoutes).map(([recId, routeData]) => {
+                  const rec = geocodedRecords.find(r => r.id === recId);
+                  if (!rec) return null;
+                  return (
+                    <Polyline
+                      key={`live-route-${recId}`}
+                      positions={routeData.positions}
+                      pathOptions={{
+                        color: '#10b981',
+                        weight: 4,
+                        opacity: 0.9,
+                        dashArray: '8, 6',
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                      }}
+                    >
+                      <Popup>
+                        <div className="text-sm min-w-[180px]">
+                          <div className="flex items-center gap-1.5 font-semibold mb-1.5 text-emerald-600">
+                            <Radio className="h-3.5 w-3.5" /> Ruta en vivo
+                          </div>
+                          <p className="text-xs text-gray-600">{rec.destination_address}</p>
+                          <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-700">
+                            <Clock className="h-3 w-3" />
+                            Restante: {routeData.durationMinutes} min ({routeData.distanceKm} km)
+                          </div>
+                        </div>
+                      </Popup>
+                    </Polyline>
+                  );
+                })}
+
                 {/* Live location car markers */}
                 {records.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
                   <Marker
@@ -719,11 +783,26 @@ export default function LiveMapPage() {
                             <span className="text-[10px] text-muted-foreground">
                               Salió a las {format(enCaminoAt, 'HH:mm')}
                             </span>
-                            {routeData && (
-                              <span className="text-[10px] font-medium text-muted-foreground">
-                                ETA {routeData.durationMinutes}' / {routeData.distanceKm} km
-                              </span>
-                            )}
+                            {(() => {
+                              const liveRoute = liveRoutes[rec.id];
+                              const baseRoute = geocoded ? routes[geocoded.id] : null;
+                              if (liveRoute) {
+                                return (
+                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                                    <Navigation className="h-2.5 w-2.5" />
+                                    {liveRoute.durationMinutes}' / {liveRoute.distanceKm} km restante
+                                  </span>
+                                );
+                              }
+                              if (baseRoute) {
+                                return (
+                                  <span className="text-[10px] font-medium text-muted-foreground">
+                                    ETA {baseRoute.durationMinutes}' / {baseRoute.distanceKm} km
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
 
                           {/* Live location badge */}

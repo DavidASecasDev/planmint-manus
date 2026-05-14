@@ -4,7 +4,7 @@
  * Bell icon: muted-foreground | Badge: gold accent
  * Popover: popover bg | foreground text
  */
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -33,6 +33,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   equipment_shortage: Baby,
   invitation_sent: Mail,
   invitation_accepted: UserPlus,
+  en_camino_alert: Navigation,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -48,6 +49,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   equipment_shortage: '#EC4899',
   invitation_sent: '#A855F7',
   invitation_accepted: '#10B981',
+  en_camino_alert: '#10B981',
 };
 
 export function NotificationBell() {
