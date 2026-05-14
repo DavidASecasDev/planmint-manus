@@ -119,6 +119,7 @@ import {
   handleAssignReinforcement,
 } from "../reinforcementEndpoint";
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
+import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory } from "../enCaminoTrackingEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -259,6 +260,7 @@ async function startServer() {
   app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
   app.post("/api/assign-reinforcement", handleAssignReinforcement);
   app.post("/api/places-autocomplete", handlePlacesAutocomplete);
+  app.post("/api/geocode", handleGeocode);
   app.post("/api/en-camino-tracking", handleEnCaminoTrack);
   app.post("/api/en-camino-tracking/llego", handleEnCaminoLlego);
   app.post("/api/en-camino-tracking/status", handleEnCaminoStatus);

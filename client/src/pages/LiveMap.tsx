@@ -110,16 +110,16 @@ const entregaIcon = createIcon('#3b82f6', true); // blue
 const devolucionIcon = createIcon('#f59e0b', true); // amber
 const baseIcon = createIcon('#10b981'); // green (base)
 
-// ── Geocode helper (uses aliases first, then Nominatim) ──
+// ── Geocode helper (uses aliases → Nominatim → Google Maps API fallback) ──
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  // Check aliases first
+  // 1. Check aliases first (instant, no network)
   const alias = matchLocationAlias(address);
   if (alias) {
     return alias.coords;
   }
   
+  // 2. Try Nominatim (free, no API key)
   try {
-    // Fallback to Nominatim (free, no API key) for geocoding
     const resp = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=es`
     );
@@ -127,10 +127,24 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
     if (data && data.length > 0) {
       return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
     }
-    return null;
   } catch {
-    return null;
+    // Nominatim failed, continue to fallback
   }
+
+  // 3. Fallback: Google Maps Geocoding via server proxy
+  try {
+    const { data: geoData } = await apiInvoke<{ ok: boolean; result: { lat: number; lng: number; formattedAddress: string } | null }>(
+      'geocode',
+      { body: { address } }
+    );
+    if (geoData?.ok && geoData.result) {
+      return { lat: geoData.result.lat, lng: geoData.result.lng };
+    }
+  } catch {
+    // Google Maps fallback also failed
+  }
+
+  return null;
 }
 
 // ── Route result type ──

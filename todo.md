@@ -628,3 +628,5 @@
 - [x] Feature: Mostrar nombre del usuario que inició/llegó en el Mapa En Camino y en la tabla de reservas
 - [x] DB: Añadir columna llego_user_name (text) a en_camino_tracking en Supabase
 - [x] Feature: Mini-reporte diario de trayectos — quién hizo cada entrega/devolución, tiempo real vs estimado
+- [x] Bug: Laura no ve los minutos de trayecto en la tabla de reservas (descartado por usuario)
+- [x] Bug: La ruta (polyline) no aparece en el Mapa En Camino para operaciones activas (causa: Nominatim no reconoce hoteles/resorts, solucionado con fallback a Google Maps Geocoding)
