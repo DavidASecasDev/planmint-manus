@@ -620,3 +620,5 @@
 - [x] Mejora: Polylines más gruesas (weight 5), colores vibrantes, línea sólida con bordes redondeados
 - [x] Feature: Indicador ETA en cada ruta del mapa basado en duración OSRM (popup con minutos y km)
 - [x] Feature: Sistema de alias de ubicaciones — Parking G Aeropuerto con coordenadas exactas, tramo final manual (waypoints internos), y +2min ETA para acceso con barreras
+- [x] Bug: ETA al aeropuerto muestra 4 min (OSRM) pero Google Maps marca 7 min — ajustar alias con tiempo mínimo fijo basado en Google Maps
+- [x] Feature: Permitir escribir "Parking G" en el campo Dirección y que el sistema lo reconozca como alias del aeropuerto para calcular trayecto correctamente

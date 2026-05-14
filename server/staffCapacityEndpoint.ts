@@ -40,6 +40,52 @@ const BASE_LOCATION_KEYWORDS = [
   "base",
 ];
 
+/**
+ * Location aliases — Known destinations with fixed travel times.
+ * Used when Google Maps doesn't recognize the address (e.g. "Parking G")
+ * or returns inaccurate results for airport internal roads.
+ * Travel times are based on real Google Maps measurements.
+ */
+interface LocationAliasConfig {
+  /** Keywords that trigger this alias (lowercase) */
+  keywords: string[];
+  /** Fixed travel time in minutes (based on Google Maps real measurement) */
+  fixedTravelMinutes: number;
+  /** The actual address to send to Google Maps if needed */
+  googleMapsAddress: string;
+  /** Whether to always use fixedTravelMinutes instead of Google Maps result */
+  alwaysUseFixed: boolean;
+}
+
+const LOCATION_ALIASES: LocationAliasConfig[] = [
+  {
+    keywords: [
+      'aeropuerto', 'aeropuerto de palma', 'aeropuerto palma',
+      'parking g', 'pmi', '07611',
+      'clubs to hire', 'transport meeting point',
+    ],
+    fixedTravelMinutes: 9, // 7 min drive (Google Maps) + 2 min internal road with barriers
+    googleMapsAddress: 'Aeropuerto de Palma de Mallorca, 07611 Palma, Illes Balears, Spain',
+    alwaysUseFixed: true, // Always use 9 min because Google Maps doesn't account for internal barriers
+  },
+];
+
+/**
+ * Check if a location matches a known alias.
+ * Returns the alias config if matched, null otherwise.
+ */
+function matchLocationAlias(location: string): LocationAliasConfig | null {
+  const normalized = location.toLowerCase().trim();
+  for (const alias of LOCATION_ALIASES) {
+    for (const keyword of alias.keywords) {
+      if (normalized.includes(keyword)) {
+        return alias;
+      }
+    }
+  }
+  return null;
+}
+
 /** Capacity thresholds */
 const THRESHOLD_TIGHT = 0.70;  // 70% = tight
 const THRESHOLD_DEFICIT = 0.85; // 85% = deficit
@@ -486,8 +532,24 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
     let googleCalls = 0;
 
     if (needsTravelTime.length > 0) {
-      // Step 1: Check Supabase cache
-      const cacheKeys = needsTravelTime.map((n) => ({
+      // Step 0: Resolve location aliases (fixed travel times for known locations)
+      const remainingNeedsTravelTime: typeof needsTravelTime = [];
+      for (const entry of needsTravelTime) {
+        const alias = matchLocationAlias(entry.location);
+        if (alias && alias.alwaysUseFixed) {
+          // Apply fixed travel time directly — skip cache and Google Maps
+          const op = operations[entry.opIndex];
+          op.travelMinutesOneWay = alias.fixedTravelMinutes;
+          op.travelMinutesWithTraffic = alias.fixedTravelMinutes;
+          op.travelSource = "alias";
+          cacheHits++; // Count as a "hit" for stats
+        } else {
+          remainingNeedsTravelTime.push(entry);
+        }
+      }
+
+      // Step 1: Check Supabase cache (only for non-alias destinations)
+      const cacheKeys = remainingNeedsTravelTime.map((n) => ({
         destNormalized: n.destNormalized,
         hourBucket: n.hourBucket,
       }));
@@ -497,7 +559,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       // Step 2: Identify cache misses
       const misses: Array<typeof needsTravelTime[0]> = [];
 
-      for (const entry of needsTravelTime) {
+      for (const entry of remainingNeedsTravelTime) {
         const cacheKey = `${entry.destNormalized}|${entry.hourBucket}`;
         const cached = cachedTimes.get(cacheKey);
 

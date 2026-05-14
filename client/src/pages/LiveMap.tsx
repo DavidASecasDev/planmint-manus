@@ -167,7 +167,10 @@ async function fetchRoute(
       // Append last-mile waypoints if alias exists
       if (alias) {
         positions = [...positions, ...alias.lastMileWaypoints];
-        durationMinutes += alias.extraMinutes;
+        // Enforce minimum 9 min total (7 min drive + 2 min barriers) based on Google Maps
+        // OSRM often underestimates airport routes
+        const minimumMinutes = 7 + alias.extraMinutes; // 7 + 2 = 9
+        durationMinutes = Math.max(durationMinutes + alias.extraMinutes, minimumMinutes);
       }
       
       return { positions, durationMinutes, distanceKm };
