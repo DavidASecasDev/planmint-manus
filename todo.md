@@ -631,3 +631,4 @@
 - [x] Bug: Laura no ve los minutos de trayecto en la tabla de reservas (descartado por usuario)
 - [x] Bug: La ruta (polyline) no aparece en el Mapa En Camino para operaciones activas (causa: Nominatim no reconoce hoteles/resorts, solucionado con fallback a Google Maps Geocoding)
 - [x] Feature: Indicador visual en Mapa En Camino para rutas geocodificadas con Google Maps fallback vs Nominatim vs alias
+- [x] Bug: Botón "Llegué" no finaliza la operación En Camino — al refrescar la página, vuelve a aparecer como activa (fix: actualizar estado_entrega/estado_devolucion a Completada en la reserva)
