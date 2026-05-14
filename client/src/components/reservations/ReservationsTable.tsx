@@ -69,7 +69,7 @@ const COLUMNS: Column[] = [
   { key: 'tipo_actividad', label: 'Tipo Actividad', width: 'w-24', type: 'chip', fieldName: 'tipo_actividad', filterable: true },
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
   { key: 'lugar', label: 'Lugar', width: 'w-56', type: 'text', filterable: true },
-  { key: 'direccion', label: 'Dirección', width: 'w-64', type: 'text', filterable: true },
+  { key: 'direccion', label: 'Dirección', width: 'w-80', type: 'text', filterable: true },
   { key: 'tiempo_desplazamiento', label: 'Trayecto', width: 'w-24', type: 'readonly', filterable: false },
   { key: 'cliente', label: 'Cliente', width: 'w-36', type: 'readonly', filterable: true },
   { key: 'modelo', label: 'Modelo', width: 'w-44', type: 'text', filterable: true },
@@ -1371,7 +1371,8 @@ export function ReservationsTable() {
                         <div
                           key={col.key}
                           className={cn(
-                            "flex items-center px-1 py-1 overflow-hidden",
+                            "flex items-center px-1 py-1",
+                            col.key === 'direccion' ? 'overflow-visible' : 'overflow-hidden',
                             col.width,
                             col.sticky && "sticky left-0 z-10",
                             col.sticky && row.dayColor
