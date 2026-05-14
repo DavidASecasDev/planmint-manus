@@ -606,3 +606,5 @@
 - [x] Feature: Registrar timestamp en tabla en_camino_tracking cuando se pulsa "En camino" — incluye reservation_id, operation_type, destination_address, assigned_user_name
 - [x] Feature: Notificación push al equipo cuando un rental marca operación como "En camino" — usa notifyOwner con detalles de reserva y cliente
 - [x] Feature: Vista de mapa en tiempo real (/live-map) con Leaflet + OpenStreetMap — muestra base Azul Cars, entregas (azul) y devoluciones (ámbar), sidebar con lista, polling cada 30s, geocodificación automática
+- [x] Feature: Botón "Llegué" en fila de reserva — registra timestamp de llegada, calcula tiempo real vs estimado de Google Maps, muestra comparativa visual
+- [x] Feature: Polylines en mapa en vivo — líneas de ruta desde base Azul Cars hasta cada destino "En camino", color azul para entregas y ámbar para devoluciones

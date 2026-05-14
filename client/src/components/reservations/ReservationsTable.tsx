@@ -3,7 +3,8 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
@@ -234,6 +235,42 @@ export function ReservationsTable() {
   const [showArchivedSheet, setShowArchivedSheet] = useState(false);
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
+
+  // Track "Llegué" state per operation (rowId -> { realMinutes, loading })
+  const [llegoState, setLlegoState] = useState<Record<string, { realMinutes: number; estimatedMinutes: number | null }>>({});
+  const [llegoLoading, setLlegoLoading] = useState<Record<string, boolean>>({});
+
+  const handleLlego = useCallback(async (row: OperationRow) => {
+    const rowId = row.id;
+    setLlegoLoading(prev => ({ ...prev, [rowId]: true }));
+    try {
+      const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+      const resp = await apiInvoke<{ ok: boolean; real_minutes: number; estimated_minutes: number | null }>('en-camino-tracking/llego', {
+        body: {
+          reservation_id: row.reservationId,
+          operation_type: opType,
+          estimated_minutes: row.travelMinutes,
+        },
+      });
+      if (resp.data?.ok) {
+        setLlegoState(prev => ({
+          ...prev,
+          [rowId]: { realMinutes: resp.data!.real_minutes, estimatedMinutes: resp.data!.estimated_minutes },
+        }));
+        const real = resp.data.real_minutes;
+        const est = resp.data.estimated_minutes;
+        const comparison = est != null ? ` (estimado: ${est} min)` : '';
+        toast.success(`Llegada registrada: ${real} min${comparison}`);
+      } else {
+        toast.error('Error al registrar llegada');
+      }
+    } catch (err) {
+      console.error('[llego] Error:', err);
+      toast.error('Error al registrar llegada');
+    } finally {
+      setLlegoLoading(prev => ({ ...prev, [rowId]: false }));
+    }
+  }, []);
 
   // Ref for the scroll container to enable arrow key navigation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1331,6 +1368,62 @@ export function ReservationsTable() {
                           )}
                           {col.key === 'tiempo_desplazamiento' && (() => {
                             const mins = row.travelMinutes;
+                            const isEnCamino = getOperationFieldValue(row, 'estado') === 'En camino';
+                            const arrived = llegoState[row.id];
+                            const isLlegoLoading = llegoLoading[row.id];
+
+                            // Already arrived — show real vs estimated
+                            if (arrived) {
+                              const diff = arrived.estimatedMinutes != null ? arrived.realMinutes - arrived.estimatedMinutes : null;
+                              const diffColor = diff == null ? '' : diff <= 0 ? 'text-emerald-600' : diff <= 5 ? 'text-amber-600' : 'text-red-600';
+                              return (
+                                <TooltipProvider delayDuration={200}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-xs px-1 font-medium tabular-nums flex items-center gap-0.5">
+                                        <MapPinCheck className="h-3 w-3 text-emerald-500" />
+                                        <span className={diffColor}>{arrived.realMinutes} min</span>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                      <p>Real: {arrived.realMinutes} min</p>
+                                      {arrived.estimatedMinutes != null && <p>Estimado: {arrived.estimatedMinutes} min</p>}
+                                      {diff != null && <p className={diffColor}>{diff > 0 ? `+${diff}` : diff} min diferencia</p>}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            }
+
+                            // En camino — show Llegué button
+                            if (isEnCamino && !row.isCompleted) {
+                              return (
+                                <div className="flex items-center gap-0.5">
+                                  {mins != null && mins > 0 && (
+                                    <span className={cn(
+                                      "text-[10px] tabular-nums",
+                                      mins <= 15 ? 'text-emerald-600' : mins <= 30 ? 'text-amber-600' : 'text-red-600'
+                                    )}>
+                                      {mins}'
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleLlego(row); }}
+                                    disabled={isLlegoLoading}
+                                    className={cn(
+                                      "text-[10px] font-medium px-1.5 py-0.5 rounded-md transition-colors",
+                                      "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-800/60",
+                                      isLlegoLoading && "opacity-50 cursor-wait"
+                                    )}
+                                    title="Marcar llegada al destino"
+                                  >
+                                    {isLlegoLoading ? '...' : 'Llegué'}
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            // Normal state — show travel time
                             if (mins === null) return <span className="text-xs px-1 text-muted-foreground/50">—</span>;
                             if (mins === 0) return (
                               <span className="text-xs px-1 font-medium text-emerald-600 dark:text-emerald-400">Base</span>

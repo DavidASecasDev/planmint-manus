@@ -137,6 +137,62 @@ export async function handleEnCaminoList(req: Request, res: Response) {
 }
 
 /**
+ * POST /api/en-camino-tracking/llego
+ * Record that a rental has arrived at the destination.
+ * Updates the llego_at timestamp and returns real vs estimated travel time.
+ */
+export async function handleEnCaminoLlego(req: Request, res: Response) {
+  try {
+    const { reservation_id, operation_type, estimated_minutes } = req.body as {
+      reservation_id?: string;
+      operation_type?: string;
+      estimated_minutes?: number | null;
+    };
+
+    if (!reservation_id || !operation_type) {
+      return res.status(400).json({ ok: false, error: "reservation_id and operation_type required" });
+    }
+
+    const sb = getServiceClient();
+    const now = new Date().toISOString();
+
+    // Update the record with arrival timestamp
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .update({ llego_at: now })
+      .eq("reservation_id", reservation_id)
+      .eq("operation_type", operation_type)
+      .select("en_camino_at, llego_at")
+      .single();
+
+    if (error) {
+      console.error("[en-camino-tracking/llego] Update error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    if (!data) {
+      return res.status(404).json({ ok: false, error: "No en_camino record found for this operation" });
+    }
+
+    // Calculate real travel time in minutes
+    const enCaminoAt = new Date(data.en_camino_at);
+    const llegoAt = new Date(data.llego_at);
+    const realMinutes = Math.round((llegoAt.getTime() - enCaminoAt.getTime()) / 60000);
+
+    return res.json({
+      ok: true,
+      real_minutes: realMinutes,
+      estimated_minutes: estimated_minutes ?? null,
+      en_camino_at: data.en_camino_at,
+      llego_at: data.llego_at,
+    });
+  } catch (err) {
+    console.error("[en-camino-tracking/llego] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
+/**
  * DELETE /api/en-camino-tracking
  * Remove a tracking record (e.g., when operation is completed or cancelled).
  */

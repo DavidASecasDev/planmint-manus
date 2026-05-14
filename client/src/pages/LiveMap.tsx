@@ -4,7 +4,7 @@
  * Polls the en-camino-tracking endpoint every 30 seconds
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
@@ -237,6 +237,23 @@ export default function LiveMapPage() {
                   </div>
                 </Popup>
               </Marker>
+
+              {/* Polylines from base to each destination */}
+              {geocodedRecords.map((rec) => (
+                <Polyline
+                  key={`line-${rec.id}`}
+                  positions={[
+                    [AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng],
+                    [rec.lat, rec.lng],
+                  ]}
+                  pathOptions={{
+                    color: rec.operation_type === 'entrega' ? '#3b82f6' : '#f59e0b',
+                    weight: 2.5,
+                    opacity: 0.7,
+                    dashArray: '8, 6',
+                  }}
+                />
+              ))}
 
               {/* En camino markers */}
               {geocodedRecords.map((rec) => (
