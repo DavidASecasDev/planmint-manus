@@ -1342,7 +1342,7 @@ export function ReservationsTable() {
                                 : 'text-red-600 dark:text-red-400';
                             return (
                               <span className={cn("text-xs px-1 font-medium tabular-nums", color, row.isCompleted && "line-through opacity-60")}>
-                                {mins}\u2019
+                                {mins} min
                               </span>
                             );
                           })()}

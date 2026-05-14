@@ -19,9 +19,9 @@ import { makeRequest, type DistanceMatrixResult } from "./_core/map";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-/** Base location: Polígono Son Oms, Palma (near PMI airport) */
-const BASE_LOCATION = "Polígono Son Oms, Palma de Mallorca, Spain";
-const BASE_COORDS = "39.5516,2.7278"; // lat,lng for distance matrix
+/** Base location: Azul Cars, Polígono Son Oms, Palma */
+const BASE_LOCATION = "Carrer del Canal de Sant Jordi, 29, L3, 07610 Palma, Illes Balears, Spain";
+const BASE_COORDS = "39.5340,2.7420"; // lat,lng for Azul Cars (Polígono Son Oms)
 
 /** Time in minutes for a single operation at base (entrega or devolución) */
 const BASE_OPERATION_MINUTES = 10;
@@ -31,13 +31,13 @@ const DEFAULT_TRAVEL_MINUTES = 15;
 
 /** Locations considered "at base" (no extra travel time) */
 const BASE_LOCATION_KEYWORDS = [
-  "aeropuerto",
   "son oms",
   "polígono son oms",
   "poligono son oms",
   "oficina azul",
-  "pmi",
-  "aeropuerto de palma",
+  "azul cars",
+  "canal de sant jordi",
+  "base",
 ];
 
 /** Capacity thresholds */
@@ -166,7 +166,14 @@ async function saveTravelTimesToCache(
 ): Promise<void> {
   if (entries.length === 0) return;
 
-  const rows = entries.map((e) => ({
+  // Deduplicate by composite key to avoid upsert conflict errors
+  const deduped = new Map<string, typeof entries[0]>();
+  for (const e of entries) {
+    const key = `${e.destNormalized}|${e.hourBucket}`;
+    deduped.set(key, e); // last write wins
+  }
+
+  const rows = Array.from(deduped.values()).map((e) => ({
     organization_id: orgId,
     origin: "base",
     destination: e.destination,
