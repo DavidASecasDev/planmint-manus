@@ -117,6 +117,7 @@ import {
   handleGetUnassignedOperations,
   handleAssignReinforcement,
 } from "../reinforcementEndpoint";
+import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -254,6 +255,7 @@ async function startServer() {
   app.post("/api/travel-time-overrides/delete", handleDeleteTravelTimeOverride);
   app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
   app.post("/api/assign-reinforcement", handleAssignReinforcement);
+  app.post("/api/places-autocomplete", handlePlacesAutocomplete);
 
   // tRPC API
   app.use(

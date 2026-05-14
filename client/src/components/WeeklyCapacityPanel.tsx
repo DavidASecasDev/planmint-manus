@@ -4,7 +4,7 @@
  * Includes "Asignar" button per reinforcement suggestion that opens the
  * ReinforcementAssignDialog to assign a Mostrador employee to unassigned operations.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -17,6 +17,7 @@ import {
   ShieldPlus,
   Clock,
   UserPlus,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,19 @@ const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 function formatDateShort(dateStr: string): string {
   const parts = dateStr.split("-");
   return `${parseInt(parts[2])}/${parseInt(parts[1])}`;
+}
+
+function formatRelativeTime(date: Date | null): string {
+  if (!date) return '';
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 10) return 'ahora';
+  if (diffSec < 60) return `hace ${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `hace ${diffMin} min`;
+  const diffHr = Math.floor(diffMin / 60);
+  return `hace ${diffHr}h`;
 }
 
 // ─── Dialog state type ──────────────────────────────────────────────────────
@@ -336,10 +350,17 @@ function DayDetail({
 export function WeeklyCapacityPanel({
   weekStartDate,
 }: WeeklyCapacityPanelProps) {
-  const { data, loading, error, refetch } = useWeeklyCapacity(weekStartDate);
+  const { data, loading, error, lastUpdated, refetch } = useWeeklyCapacity(weekStartDate);
   const [expanded, setExpanded] = useState(false);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
   const [dialog, setDialog] = useState<DialogState>(INITIAL_DIALOG);
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s to update the relative time display
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const openAssignDialog = (date: string, hour: number, r: ReinforcementSuggestion) => {
     setDialog({
@@ -406,7 +427,13 @@ export function WeeklyCapacityPanel({
             </div>
           ) : null}
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {lastUpdated && (
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70" title={`Última actualización: ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}>
+                <RefreshCw className="h-3 w-3" />
+                {formatRelativeTime(lastUpdated)}
+              </span>
+            )}
             {expanded ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />
             ) : (

@@ -593,3 +593,5 @@
   - [x] Verificar cálculo de tiempo ida (base → ubicación) y vuelta (ubicación → base) — effectiveTravel * 2 + BASE_OPERATION_MINUTES
   - [x] Verificar actualización automática cada 5 minutos — useStaffCapacity y useWeeklyCapacity ahora hacen polling cada 5 min
   - [x] Verificar que los tiempos alimentan correctamente el cálculo de carga de trabajo — personMinutes usa travelMinutesWithTraffic cuando disponible
+- [x] Feature: Autocompletado de direcciones con Google Places en el campo "Dirección" de reservas
+- [x] Feature: Indicador visual "Actualizado hace X min" en paneles de capacidad (diario y semanal)

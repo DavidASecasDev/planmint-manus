@@ -35,6 +35,7 @@ export function useWeeklyCapacity(startDate: string | null) {
   const [data, setData] = useState<DaySummary[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchWeekly = useCallback(async () => {
@@ -59,6 +60,7 @@ export function useWeeklyCapacity(startDate: string | null) {
         setData(null);
       } else {
         setData(json.data);
+        setLastUpdated(new Date());
       }
     } catch (err: any) {
       setError(err.message || "Error de red");
@@ -89,5 +91,5 @@ export function useWeeklyCapacity(startDate: string | null) {
     };
   }, [startDate, session?.access_token, fetchWeekly]);
 
-  return { data, loading, error, refetch: fetchWeekly };
+  return { data, loading, error, lastUpdated, refetch: fetchWeekly };
 }

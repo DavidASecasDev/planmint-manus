@@ -6,7 +6,7 @@
  * When deficit/tight, shows reinforcement suggestions from Mostrador team
  * with an "Asignar" button that opens the ReinforcementAssignDialog.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,6 +18,7 @@ import {
   Loader2,
   ShieldPlus,
   UserPlus,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,6 +89,21 @@ const INITIAL_DIALOG: DialogState = {
     availableHours: 0,
   },
 };
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function formatRelativeTime(date: Date | null): string {
+  if (!date) return '';
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 10) return 'ahora';
+  if (diffSec < 60) return `hace ${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `hace ${diffMin} min`;
+  const diffHr = Math.floor(diffMin / 60);
+  return `hace ${diffHr}h`;
+}
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
@@ -296,10 +312,17 @@ function ReinforcementPanel({
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlertProps) {
-  const { data, loading, error, refetch } = useStaffCapacity(date);
+  const { data, loading, error, lastUpdated, refetch } = useStaffCapacity(date);
   const [expanded, setExpanded] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(INITIAL_DIALOG);
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s to update the relative time display
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const openAssignDialog = (hour: number, r: ReinforcementSuggestion) => {
     if (!date) return;
@@ -430,6 +453,12 @@ export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlert
               <div className="text-lg font-bold tabular-nums">{data.totalOperations}</div>
               <div className="text-[10px] text-muted-foreground">ops pendientes</div>
             </div>
+            {lastUpdated && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70" title={`Última actualización: ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}>
+                <RefreshCw className="h-3 w-3" />
+                <span>{formatRelativeTime(lastUpdated)}</span>
+              </div>
+            )}
             {expanded ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />
             ) : (

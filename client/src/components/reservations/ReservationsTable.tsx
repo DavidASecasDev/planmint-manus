@@ -13,6 +13,7 @@ import { Reservation, UpdateReservationData, RentlyExtra } from '@/types/reserva
 import { ChipSelect } from './ChipSelect';
 import { AssigneeSelect } from './AssigneeSelect';
 import { EditableCell } from './EditableCell';
+import { AddressAutocompleteCell } from './AddressAutocompleteCell';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
@@ -1362,7 +1363,17 @@ export function ReservationsTable() {
                               />
                             )
                           )}
-                          {col.type === 'text' && (
+                          {col.type === 'text' && col.key === 'direccion' && (
+                            <div className={cn(
+                              row.isCompleted && "line-through text-muted-foreground"
+                            )}>
+                              <AddressAutocompleteCell
+                                value={getOperationFieldValue(row, col.key)}
+                                onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                              />
+                            </div>
+                          )}
+                          {col.type === 'text' && col.key !== 'direccion' && (
                             <div className={cn(
                               row.isCompleted && "line-through text-muted-foreground"
                             )}>

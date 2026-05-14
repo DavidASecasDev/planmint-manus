@@ -66,6 +66,7 @@ export function useStaffCapacity(date: string | null) {
   const [data, setData] = useState<CapacityResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchCapacity = useCallback(async () => {
@@ -90,6 +91,7 @@ export function useStaffCapacity(date: string | null) {
         setData(null);
       } else {
         setData(json.data);
+        setLastUpdated(new Date());
       }
     } catch (err: any) {
       setError(err.message || "Error de red");
@@ -120,5 +122,5 @@ export function useStaffCapacity(date: string | null) {
     };
   }, [date, session?.access_token, fetchCapacity]);
 
-  return { data, loading, error, refetch: fetchCapacity };
+  return { data, loading, error, lastUpdated, refetch: fetchCapacity };
 }
