@@ -1737,7 +1737,7 @@ export function ReservationsTable() {
                               <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                             </Button>
                           )}
-                          {col.type === 'actions' && (
+                          {col.type === 'actions' && col.key === 'actions' && (
                             <div className="flex items-center gap-0.5">
                               {isFullAccess && (
                                 <Button
