@@ -595,3 +595,4 @@
   - [x] Verificar que los tiempos alimentan correctamente el cálculo de carga de trabajo — personMinutes usa travelMinutesWithTraffic cuando disponible
 - [x] Feature: Autocompletado de direcciones con Google Places en el campo "Dirección" de reservas
 - [x] Feature: Indicador visual "Actualizado hace X min" en paneles de capacidad (diario y semanal)
+- [x] Auditoría coherencia tiempos de desplazamiento: tipo UpdateReservationData corregido, refresh inmediato al cambiar dirección/lugar

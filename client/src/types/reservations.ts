@@ -234,6 +234,9 @@ export interface UpdateReservationData {
   // Campos editables de reserva
   lugar_entrega?: string | null;
   lugar_devolucion?: string | null;
+  // Dirección exacta (para Google Maps)
+  lugar_entrega_direccion?: string | null;
+  lugar_devolucion_direccion?: string | null;
   modelo?: string | null;
   auto?: string | null;
   // Campos operativos legacy

@@ -106,6 +106,15 @@ export function useStaffCapacity(date: string | null) {
     fetchCapacity();
   }, [fetchCapacity]);
 
+  // Listen for address changes to trigger immediate refresh
+  useEffect(() => {
+    const handler = () => {
+      fetchCapacity();
+    };
+    window.addEventListener('capacity-refresh-needed', handler);
+    return () => window.removeEventListener('capacity-refresh-needed', handler);
+  }, [fetchCapacity]);
+
   // Auto-refresh every 5 minutes
   useEffect(() => {
     if (!date || !session?.access_token) return;

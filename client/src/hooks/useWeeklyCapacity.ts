@@ -75,6 +75,15 @@ export function useWeeklyCapacity(startDate: string | null) {
     fetchWeekly();
   }, [fetchWeekly]);
 
+  // Listen for address changes to trigger immediate refresh
+  useEffect(() => {
+    const handler = () => {
+      fetchWeekly();
+    };
+    window.addEventListener('capacity-refresh-needed', handler);
+    return () => window.removeEventListener('capacity-refresh-needed', handler);
+  }, [fetchWeekly]);
+
   // Auto-refresh every 5 minutes
   useEffect(() => {
     if (!startDate || !session?.access_token) return;

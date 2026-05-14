@@ -695,6 +695,10 @@ export function ReservationsTable() {
     if (fieldKey === 'lugar') {
       const lugarField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega' : 'lugar_devolucion';
       handleUpdate(row.reservationId, { [lugarField]: value });
+      // Trigger capacity refresh after location change (delay to allow DB write)
+      setTimeout(() => {
+        window.dispatchEvent(new Event('capacity-refresh-needed'));
+      }, 2000);
       return;
     }
     
@@ -702,6 +706,10 @@ export function ReservationsTable() {
     if (fieldKey === 'direccion') {
       const dirField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega_direccion' : 'lugar_devolucion_direccion';
       handleUpdate(row.reservationId, { [dirField]: value });
+      // Trigger capacity refresh after address change (delay to allow DB write)
+      setTimeout(() => {
+        window.dispatchEvent(new Event('capacity-refresh-needed'));
+      }, 2000);
       return;
     }
     
