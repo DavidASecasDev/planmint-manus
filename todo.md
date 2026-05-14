@@ -613,3 +613,5 @@
 - [x] Feature: Persistir estado "Llegué" en BD para que sobreviva a recargas de página
 - [x] Feature: Resumen diario de puntualidad (% de llegadas dentro del tiempo estimado)
 - [x] Fix: Mover iconos de acción (Navegación, Iniciar, Llegué) a columna propia "Acciones" para evitar superposición con Dirección y Cliente
+- [x] Bug: LiveMap no muestra el sidebar de navegación principal — faltaba envolver en AppLayout
+- [x] Bug: Polylines van en línea recta por encima del agua — reemplazadas con rutas reales por carretera usando OSRM Directions API

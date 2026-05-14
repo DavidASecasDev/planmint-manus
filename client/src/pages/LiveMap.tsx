@@ -15,6 +15,7 @@ import { RefreshCw, Navigation, Clock, MapPin, User, Car, ArrowRight } from 'luc
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 // ── Types ──
 interface EnCaminoRecord {
@@ -74,6 +75,26 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   }
 }
 
+// ── OSRM route helper (free, no API key, real road routes) ──
+async function fetchRoute(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<[number, number][] | null> {
+  try {
+    const resp = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
+    );
+    const data = await resp.json();
+    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+      // GeoJSON coordinates are [lng, lat], Leaflet needs [lat, lng]
+      return data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Map auto-fit component ──
 function FitBounds({ markers }: { markers: GeocodedRecord[] }) {
   const map = useMap();
@@ -96,6 +117,8 @@ export default function LiveMapPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const geocodeCache = useRef<Record<string, { lat: number; lng: number } | null>>({});
+  const [routes, setRoutes] = useState<Record<string, [number, number][]>>({});
+  const routeCache = useRef<Record<string, [number, number][] | null>>({});
 
   // Tick for relative time display
   useEffect(() => {
@@ -167,10 +190,38 @@ export default function LiveMapPage() {
     return formatDistanceToNow(date, { addSuffix: true, locale: es });
   };
 
+  // Fetch real road routes when geocoded records change
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchAllRoutes() {
+      const newRoutes: Record<string, [number, number][]> = {};
+      for (const rec of geocodedRecords) {
+        if (cancelled) return;
+        const cacheKey = `${rec.lat},${rec.lng}`;
+        if (routeCache.current[cacheKey] !== undefined) {
+          const cached = routeCache.current[cacheKey];
+          if (cached) newRoutes[rec.id] = cached;
+          continue;
+        }
+        const route = await fetchRoute(AZUL_CARS_BASE, { lat: rec.lat, lng: rec.lng });
+        routeCache.current[cacheKey] = route;
+        if (route) newRoutes[rec.id] = route;
+      }
+      if (!cancelled) setRoutes(newRoutes);
+    }
+    if (geocodedRecords.length > 0) {
+      fetchAllRoutes();
+    } else {
+      setRoutes({});
+    }
+    return () => { cancelled = true; };
+  }, [geocodedRecords]);
+
   const entregas = geocodedRecords.filter(r => r.operation_type === 'entrega');
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
 
   return (
+    <AppLayout title="Mapa En Camino" fullWidth>
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
@@ -238,22 +289,23 @@ export default function LiveMapPage() {
                 </Popup>
               </Marker>
 
-              {/* Polylines from base to each destination */}
-              {geocodedRecords.map((rec) => (
-                <Polyline
-                  key={`line-${rec.id}`}
-                  positions={[
-                    [AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng],
-                    [rec.lat, rec.lng],
-                  ]}
-                  pathOptions={{
-                    color: rec.operation_type === 'entrega' ? '#3b82f6' : '#f59e0b',
-                    weight: 2.5,
-                    opacity: 0.7,
-                    dashArray: '8, 6',
-                  }}
-                />
-              ))}
+              {/* Polylines from base to each destination (real road routes) */}
+              {geocodedRecords.map((rec) => {
+                const routePositions = routes[rec.id];
+                if (!routePositions) return null;
+                return (
+                  <Polyline
+                    key={`line-${rec.id}`}
+                    positions={routePositions}
+                    pathOptions={{
+                      color: rec.operation_type === 'entrega' ? '#3b82f6' : '#f59e0b',
+                      weight: 3,
+                      opacity: 0.75,
+                      dashArray: '10, 6',
+                    }}
+                  />
+                );
+              })}
 
               {/* En camino markers */}
               {geocodedRecords.map((rec) => (
@@ -349,5 +401,6 @@ export default function LiveMapPage() {
         </div>
       </div>
     </div>
+    </AppLayout>
   );
 }
