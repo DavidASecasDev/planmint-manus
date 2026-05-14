@@ -608,3 +608,4 @@
 - [x] Feature: Vista de mapa en tiempo real (/live-map) con Leaflet + OpenStreetMap — muestra base Azul Cars, entregas (azul) y devoluciones (ámbar), sidebar con lista, polling cada 30s, geocodificación automática
 - [x] Feature: Botón "Llegué" en fila de reserva — registra timestamp de llegada, calcula tiempo real vs estimado de Google Maps, muestra comparativa visual
 - [x] Feature: Polylines en mapa en vivo — líneas de ruta desde base Azul Cars hasta cada destino "En camino", color azul para entregas y ámbar para devoluciones
+- [x] Refactor: Separar acciones de Dirección en 3 iconos independientes — Navegación (abrir Google Maps), Iniciar (marcar En camino), Llegué (confirmar llegada). Flujo secuencial con visibilidad condicional según estado.

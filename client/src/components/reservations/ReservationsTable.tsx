@@ -3,7 +3,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -239,6 +239,32 @@ export function ReservationsTable() {
   // Track "Llegué" state per operation (rowId -> { realMinutes, loading })
   const [llegoState, setLlegoState] = useState<Record<string, { realMinutes: number; estimatedMinutes: number | null }>>({});
   const [llegoLoading, setLlegoLoading] = useState<Record<string, boolean>>({});
+  const [iniciarLoading, setIniciarLoading] = useState<Record<string, boolean>>({});
+
+  const handleIniciar = useCallback(async (row: OperationRow) => {
+    const rowId = row.id;
+    setIniciarLoading(prev => ({ ...prev, [rowId]: true }));
+    try {
+      // Mark operation as 'En camino'
+      handleOperationFieldUpdate(row, 'estado', 'En camino');
+      // Record timestamp in en_camino_tracking table
+      const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+      await apiInvoke('en-camino-tracking', {
+        body: {
+          reservation_id: row.reservationId,
+          operation_type: opType,
+          destination_address: getOperationFieldValue(row, 'direccion') || getOperationFieldValue(row, 'lugar') || '',
+          assigned_user_name: getOperationFieldValue(row, 'asignado_rental') || '',
+        },
+      });
+      toast.success('Operaci\u00f3n marcada como En camino');
+    } catch (err) {
+      console.error('[iniciar] Error:', err);
+      toast.error('Error al iniciar trayecto');
+    } finally {
+      setIniciarLoading(prev => ({ ...prev, [rowId]: false }));
+    }
+  }, []);
 
   const handleLlego = useCallback(async (row: OperationRow) => {
     const rowId = row.id;
@@ -1368,11 +1394,9 @@ export function ReservationsTable() {
                           )}
                           {col.key === 'tiempo_desplazamiento' && (() => {
                             const mins = row.travelMinutes;
-                            const isEnCamino = getOperationFieldValue(row, 'estado') === 'En camino';
                             const arrived = llegoState[row.id];
-                            const isLlegoLoading = llegoLoading[row.id];
 
-                            // Already arrived — show real vs estimated
+                            // Already arrived — show real travel time with comparison
                             if (arrived) {
                               const diff = arrived.estimatedMinutes != null ? arrived.realMinutes - arrived.estimatedMinutes : null;
                               const diffColor = diff == null ? '' : diff <= 0 ? 'text-emerald-600' : diff <= 5 ? 'text-amber-600' : 'text-red-600';
@@ -1386,8 +1410,8 @@ export function ReservationsTable() {
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                      <p>Real: {arrived.realMinutes} min</p>
-                                      {arrived.estimatedMinutes != null && <p>Estimado: {arrived.estimatedMinutes} min</p>}
+                                      <p>Tiempo real: {arrived.realMinutes} min</p>
+                                      {arrived.estimatedMinutes != null && <p>Estimado Maps: {arrived.estimatedMinutes} min</p>}
                                       {diff != null && <p className={diffColor}>{diff > 0 ? `+${diff}` : diff} min diferencia</p>}
                                     </TooltipContent>
                                   </Tooltip>
@@ -1395,35 +1419,7 @@ export function ReservationsTable() {
                               );
                             }
 
-                            // En camino — show Llegué button
-                            if (isEnCamino && !row.isCompleted) {
-                              return (
-                                <div className="flex items-center gap-0.5">
-                                  {mins != null && mins > 0 && (
-                                    <span className={cn(
-                                      "text-[10px] tabular-nums",
-                                      mins <= 15 ? 'text-emerald-600' : mins <= 30 ? 'text-amber-600' : 'text-red-600'
-                                    )}>
-                                      {mins}'
-                                    </span>
-                                  )}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleLlego(row); }}
-                                    disabled={isLlegoLoading}
-                                    className={cn(
-                                      "text-[10px] font-medium px-1.5 py-0.5 rounded-md transition-colors",
-                                      "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-800/60",
-                                      isLlegoLoading && "opacity-50 cursor-wait"
-                                    )}
-                                    title="Marcar llegada al destino"
-                                  >
-                                    {isLlegoLoading ? '...' : 'Llegué'}
-                                  </button>
-                                </div>
-                              );
-                            }
-
-                            // Normal state — show travel time
+                            // Normal state — show estimated travel time
                             if (mins === null) return <span className="text-xs px-1 text-muted-foreground/50">—</span>;
                             if (mins === 0) return (
                               <span className="text-xs px-1 font-medium text-emerald-600 dark:text-emerald-400">Base</span>
@@ -1533,7 +1529,15 @@ export function ReservationsTable() {
                               />
                             )
                           )}
-                          {col.type === 'text' && col.key === 'direccion' && (
+                          {col.type === 'text' && col.key === 'direccion' && (() => {
+                            const currentEstado = getOperationFieldValue(row, 'estado');
+                            const isEnCamino = currentEstado === 'En camino';
+                            const hasAddress = !!getOperationFieldValue(row, col.key);
+                            const arrived = llegoState[row.id];
+                            const isLlegoLoading = llegoLoading[row.id];
+                            const isIniciarLoading = iniciarLoading[row.id];
+
+                            return (
                             <div className={cn(
                               "flex items-center gap-0.5",
                               row.isCompleted && "line-through text-muted-foreground"
@@ -1544,45 +1548,88 @@ export function ReservationsTable() {
                                   onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
                                 />
                               </div>
-                              {getOperationFieldValue(row, col.key) && (
-                                <a
-                                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(getOperationFieldValue(row, col.key) || '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={cn(
-                                    "shrink-0 p-1 rounded-md transition-colors",
-                                    getOperationFieldValue(row, 'estado') === 'En camino'
-                                      ? "text-blue-700 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300"
-                                      : "text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                              {hasAddress && !row.isCompleted && (
+                                <div className="flex items-center gap-0 shrink-0">
+                                  {/* 1. Navegaci\u00f3n — Abrir Google Maps (siempre visible) */}
+                                  <a
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(getOperationFieldValue(row, col.key) || '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                    title="Abrir ruta en Google Maps"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Navigation className="h-3.5 w-3.5" />
+                                  </a>
+
+                                  {/* 2. Iniciar — Marcar En camino (visible si NO est\u00e1 en camino y no ha llegado) */}
+                                  {!isEnCamino && !arrived && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleIniciar(row); }}
+                                      disabled={isIniciarLoading}
+                                      className={cn(
+                                        "p-1 rounded-md transition-colors",
+                                        "text-sky-500 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950",
+                                        isIniciarLoading && "opacity-50 cursor-wait"
+                                      )}
+                                      title="Iniciar trayecto (marcar En camino)"
+                                    >
+                                      <Play className={cn("h-3.5 w-3.5", isIniciarLoading && "animate-pulse")} />
+                                    </button>
                                   )}
-                                  title={getOperationFieldValue(row, 'estado') === 'En camino' ? 'En camino — Abrir en Google Maps' : 'Navegar y marcar En camino'}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Mark operation as 'En camino' if not already
-                                    const currentEstado = getOperationFieldValue(row, 'estado');
-                                    if (currentEstado !== 'En camino') {
-                                      handleOperationFieldUpdate(row, 'estado', 'En camino');
-                                    }
-                                    // Record timestamp in en_camino_tracking table
-                                    const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
-                                    apiInvoke('en-camino-tracking', {
-                                      body: {
-                                        reservation_id: row.reservationId,
-                                        operation_type: opType,
-                                        destination_address: getOperationFieldValue(row, 'direccion') || getOperationFieldValue(row, 'lugar') || '',
-                                        assigned_user_name: getOperationFieldValue(row, 'asignado_rental') || '',
-                                      },
-                                    }).catch((err: unknown) => console.error('[en-camino-tracking] Error:', err));
-                                  }}
-                                >
-                                  <Navigation className={cn(
-                                    "h-3.5 w-3.5",
-                                    getOperationFieldValue(row, 'estado') === 'En camino' && "animate-pulse"
-                                  )} />
-                                </a>
+
+                                  {/* 3. Llegu\u00e9 — Confirmar llegada (visible si est\u00e1 En camino y no ha llegado) */}
+                                  {isEnCamino && !arrived && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleLlego(row); }}
+                                      disabled={isLlegoLoading}
+                                      className={cn(
+                                        "p-1 rounded-md transition-colors",
+                                        "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950",
+                                        isLlegoLoading && "opacity-50 cursor-wait"
+                                      )}
+                                      title="Confirmar llegada al destino"
+                                    >
+                                      <MapPinCheck className={cn("h-3.5 w-3.5", isLlegoLoading && "animate-pulse")} />
+                                    </button>
+                                  )}
+
+                                  {/* Indicador de llegada confirmada */}
+                                  {arrived && (
+                                    <TooltipProvider delayDuration={200}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="p-1 flex items-center gap-0.5">
+                                            <MapPinCheck className="h-3.5 w-3.5 text-emerald-500" />
+                                            <span className={cn(
+                                              "text-[10px] font-medium tabular-nums",
+                                              arrived.estimatedMinutes != null && arrived.realMinutes > arrived.estimatedMinutes + 5
+                                                ? 'text-red-600'
+                                                : arrived.estimatedMinutes != null && arrived.realMinutes > arrived.estimatedMinutes
+                                                  ? 'text-amber-600'
+                                                  : 'text-emerald-600'
+                                            )}>
+                                              {arrived.realMinutes}'
+                                            </span>
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                          <p>Tiempo real: {arrived.realMinutes} min</p>
+                                          {arrived.estimatedMinutes != null && <p>Estimado Maps: {arrived.estimatedMinutes} min</p>}
+                                          {arrived.estimatedMinutes != null && (
+                                            <p className={arrived.realMinutes - arrived.estimatedMinutes <= 0 ? 'text-emerald-600' : 'text-amber-600'}>
+                                              Diferencia: {arrived.realMinutes - arrived.estimatedMinutes > 0 ? '+' : ''}{arrived.realMinutes - arrived.estimatedMinutes} min
+                                            </p>
+                                          )}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
+                            );
+                          })()}
                           {col.type === 'text' && col.key !== 'direccion' && (
                             <div className={cn(
                               row.isCompleted && "line-through text-muted-foreground"
