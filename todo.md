@@ -638,3 +638,8 @@
 - [x] Auditoría: Revisar frontend LiveMap, ReservationsTable (Iniciar/Llegué), Horarios
 - [ ] Auditoría: Corregir todos los bugs encontrados
 - [ ] Rediseño: Página Mapa En Camino — aspecto más profesional
+- [ ] Feature: Añadir columnas current_lat, current_lng, location_updated_at, sharing_location a en_camino_tracking
+- [ ] Feature: Endpoint POST /api/en-camino-tracking/location para actualizar coordenadas GPS
+- [ ] Feature: Integrar Geolocation API en ReservationsTable al pulsar Iniciar (opt-in dialog)
+- [ ] Feature: Mostrar marcador de vehículo en tiempo real en LiveMap con posición GPS del rental
+- [x] Feature: Badge "En vivo" en sidebar del mapa y indicador en tabla de reservas

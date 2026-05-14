@@ -515,3 +515,104 @@ export async function handleEnCaminoHistory(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }
+
+/**
+ * POST /api/en-camino-tracking/location
+ * Update the current GPS location of a rental during an active En Camino operation.
+ * Body: { reservation_id, operation_type, lat, lng }
+ * Called every ~15 seconds by the rental's browser while sharing location.
+ */
+export async function handleEnCaminoLocation(req: Request, res: Response) {
+  try {
+    const { reservation_id, operation_type, lat, lng } = req.body as {
+      reservation_id?: string;
+      operation_type?: string;
+      lat?: number;
+      lng?: number;
+    };
+
+    if (!reservation_id || !operation_type) {
+      return res.status(400).json({ ok: false, error: "reservation_id and operation_type required" });
+    }
+
+    if (lat == null || lng == null || typeof lat !== 'number' || typeof lng !== 'number') {
+      return res.status(400).json({ ok: false, error: "lat and lng are required as numbers" });
+    }
+
+    // Validate coordinate ranges
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ ok: false, error: "Invalid coordinates" });
+    }
+
+    const sb = getServiceClient();
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .update({
+        current_lat: lat,
+        current_lng: lng,
+        location_updated_at: new Date().toISOString(),
+        sharing_location: true,
+      })
+      .eq("reservation_id", reservation_id)
+      .eq("operation_type", operation_type)
+      .is("llego_at", null) // Only update active (non-completed) operations
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      console.error("[en-camino-tracking/location] Update error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    if (!data) {
+      return res.status(404).json({ ok: false, error: "No active en_camino record found" });
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[en-camino-tracking/location] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
+/**
+ * POST /api/en-camino-tracking/location-stop
+ * Stop sharing location for an operation.
+ * Body: { reservation_id, operation_type }
+ */
+export async function handleEnCaminoLocationStop(req: Request, res: Response) {
+  try {
+    const { reservation_id, operation_type } = req.body as {
+      reservation_id?: string;
+      operation_type?: string;
+    };
+
+    if (!reservation_id || !operation_type) {
+      return res.status(400).json({ ok: false, error: "reservation_id and operation_type required" });
+    }
+
+    const sb = getServiceClient();
+
+    const { error } = await sb
+      .from("en_camino_tracking")
+      .update({
+        sharing_location: false,
+        current_lat: null,
+        current_lng: null,
+        location_updated_at: null,
+      })
+      .eq("reservation_id", reservation_id)
+      .eq("operation_type", operation_type);
+
+    if (error) {
+      console.error("[en-camino-tracking/location-stop] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[en-camino-tracking/location-stop] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}

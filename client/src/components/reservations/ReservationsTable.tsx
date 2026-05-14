@@ -3,7 +3,15 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play, Radio, MapPin } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -247,7 +255,69 @@ export function ReservationsTable() {
   // Track who started/arrived for each operation
   const [arrivalUsers, setArrivalUsers] = useState<Record<string, { startedBy: string | null; arrivedBy: string | null }>>({});
 
+  // Location sharing state
+  const [locationDialog, setLocationDialog] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
+  const [sharingLocation, setSharingLocation] = useState<Record<string, boolean>>({});
+  const locationWatchIds = useRef<Record<string, number>>({});
+
   // (arrival status loading moved below operationRows declaration)
+
+  // Start sharing GPS location for an operation
+  const startLocationSharing = useCallback((row: OperationRow) => {
+    const rowId = row.id;
+    const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+
+    if (!navigator.geolocation) {
+      toast.error('Tu navegador no soporta geolocalización');
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        apiInvoke('en-camino-tracking/location', {
+          body: {
+            reservation_id: row.reservationId,
+            operation_type: opType,
+            lat: latitude,
+            lng: longitude,
+          },
+        }).catch(err => console.warn('[location] Error sending:', err));
+      },
+      (error) => {
+        console.warn('[location] Geolocation error:', error.message);
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error('Permiso de ubicación denegado');
+          stopLocationSharing(rowId, row.reservationId, opType);
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+    );
+
+    locationWatchIds.current[rowId] = watchId;
+    setSharingLocation(prev => ({ ...prev, [rowId]: true }));
+    toast.success('Compartiendo ubicación en tiempo real');
+  }, []);
+
+  // Stop sharing GPS location
+  const stopLocationSharing = useCallback((rowId: string, reservationId: string, opType: string) => {
+    const watchId = locationWatchIds.current[rowId];
+    if (watchId != null) {
+      navigator.geolocation.clearWatch(watchId);
+      delete locationWatchIds.current[rowId];
+    }
+    setSharingLocation(prev => ({ ...prev, [rowId]: false }));
+    apiInvoke('en-camino-tracking/location-stop', {
+      body: { reservation_id: reservationId, operation_type: opType },
+    }).catch(err => console.warn('[location-stop] Error:', err));
+  }, []);
+
+  // Cleanup all watchers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(locationWatchIds.current).forEach(id => navigator.geolocation.clearWatch(id));
+    };
+  }, []);
 
   const handleIniciar = useCallback(async (row: OperationRow) => {
     const rowId = row.id;
@@ -266,7 +336,9 @@ export function ReservationsTable() {
           estimated_minutes: row.travelMinutes ?? null,
         },
       });
-      toast.success('Operaci\u00f3n marcada como En camino');
+      toast.success('Operación marcada como En camino');
+      // Show location sharing dialog
+      setLocationDialog({ open: true, row });
     } catch (err) {
       console.error('[iniciar] Error:', err);
       toast.error('Error al iniciar trayecto');
@@ -280,6 +352,10 @@ export function ReservationsTable() {
     setLlegoLoading(prev => ({ ...prev, [rowId]: true }));
     try {
       const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+      // Stop location sharing if active
+      if (locationWatchIds.current[rowId] != null) {
+        stopLocationSharing(rowId, row.reservationId, opType);
+      }
       const resp = await apiInvoke<{ ok: boolean; real_minutes: number; estimated_minutes: number | null }>('en-camino-tracking/llego', {
         body: {
           reservation_id: row.reservationId,
@@ -309,7 +385,7 @@ export function ReservationsTable() {
     } finally {
       setLlegoLoading(prev => ({ ...prev, [rowId]: false }));
     }
-  }, []);
+  }, [stopLocationSharing]);
 
   // Ref for the scroll container to enable arrow key navigation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1662,6 +1738,32 @@ export function ReservationsTable() {
                                   </button>
                                 )}
 
+                                {/* 2b. Location sharing indicator */}
+                                {isEnCamino && sharingLocation[row.id] && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+                                            stopLocationSharing(row.id, row.reservationId, opType);
+                                            toast.info('Ubicación dejada de compartir');
+                                          }}
+                                          className="p-1 rounded-md text-emerald-500 hover:text-red-500 transition-colors"
+                                          title="Compartiendo ubicación (clic para detener)"
+                                        >
+                                          <Radio className="h-3.5 w-3.5 animate-pulse" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs">
+                                        <p>Compartiendo ubicación en vivo</p>
+                                        <p className="text-muted-foreground">Clic para detener</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+
                                 {/* 3. Llegué — Confirmar llegada */}
                                 {isEnCamino && !arrived && (
                                   <button
@@ -1824,6 +1926,48 @@ export function ReservationsTable() {
         isRestoring={restoreReservation.isPending}
         archiveDays={reservationsArchiveDays}
       />
+
+      {/* Location Sharing Dialog */}
+      <Dialog open={locationDialog.open} onOpenChange={(open) => setLocationDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-emerald-500" />
+              Compartir ubicación
+            </DialogTitle>
+            <DialogDescription>
+              ¿Quieres compartir tu ubicación en tiempo real durante este trayecto? El manager podrá ver tu posición en el mapa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+            <Radio className="h-8 w-8 text-emerald-500 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium">Tracking GPS en vivo</p>
+              <p className="text-muted-foreground">Tu ubicación se actualizará cada 15 segundos. Se detendrá automáticamente al pulsar "Llegué".</p>
+            </div>
+          </div>
+          <DialogFooter className="flex-row gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setLocationDialog({ open: false, row: null })}
+            >
+              No, gracias
+            </Button>
+            <Button
+              onClick={() => {
+                if (locationDialog.row) {
+                  startLocationSharing(locationDialog.row);
+                }
+                setLocationDialog({ open: false, row: null });
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Radio className="h-4 w-4 mr-2" />
+              Sí, compartir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </SkeletonTransition>
   );

@@ -30,6 +30,11 @@ interface EnCaminoRecord {
   destination_address: string | null;
   assigned_user_name: string | null;
   created_at: string;
+  // Live location fields
+  sharing_location?: boolean;
+  current_lat?: number | null;
+  current_lng?: number | null;
+  location_updated_at?: string | null;
 }
 
 type GeocodeSource = 'alias' | 'nominatim' | 'google';
@@ -113,6 +118,30 @@ const createIcon = (color: string, pulse: boolean = false) => {
 const entregaIcon = createIcon('#2563eb', true); // blue-600
 const devolucionIcon = createIcon('#d97706', true); // amber-600
 const baseIcon = createIcon('#059669'); // emerald-600
+
+// Car icon for live location tracking
+const createCarIcon = (color: string) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+    <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="2" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.3))"/>
+    <g transform="translate(8,8)" fill="white">
+      <path d="M13.5 5.5l-1.2-3.6C12 1.1 11.2 0.5 10.3 0.5H5.7C4.8 0.5 4 1.1 3.7 1.9L2.5 5.5C1.6 5.8 1 6.6 1 7.5v4c0 0.6 0.4 1 1 1h0.5c0.3 0 0.5-0.2 0.5-0.5v-0.5h10v0.5c0 0.3 0.2 0.5 0.5 0.5H14c0.6 0 1-0.4 1-1v-4c0-0.9-0.6-1.7-1.5-2zM4.5 2.5c0.1-0.3 0.4-0.5 0.7-0.5h5.6c0.3 0 0.6 0.2 0.7 0.5l1 3h-9l1-3zM4 9.5c-0.6 0-1-0.4-1-1s0.4-1 1-1 1 0.4 1 1-0.4 1-1 1zm8 0c-0.6 0-1-0.4-1-1s0.4-1 1-1 1 0.4 1 1-0.4 1-1 1z"/>
+    </g>
+    <circle cx="16" cy="16" r="14" fill="none" stroke="${color}" stroke-width="1" opacity="0.4">
+      <animate attributeName="r" from="14" to="20" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.4" to="0" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: 'live-car-marker',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16],
+  });
+};
+
+const entregaCarIcon = createCarIcon('#2563eb');
+const devolucionCarIcon = createCarIcon('#d97706');
 
 // ── Geocode result with source tracking ──
 interface GeocodeResult {
@@ -521,6 +550,37 @@ export default function LiveMapPage() {
                   );
                 })}
 
+                {/* Live location car markers */}
+                {records.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
+                  <Marker
+                    key={`live-${rec.id}`}
+                    position={[rec.current_lat!, rec.current_lng!]}
+                    icon={rec.operation_type === 'entrega' ? entregaCarIcon : devolucionCarIcon}
+                  >
+                    <Popup>
+                      <div className="text-sm min-w-[200px]">
+                        <div className="flex items-center gap-1.5 font-semibold mb-2">
+                          <Radio className="h-3.5 w-3.5 text-emerald-500" />
+                          <span className="text-emerald-600">Ubicaci\u00f3n en vivo</span>
+                        </div>
+                        {rec.assigned_user_name && (
+                          <p className="text-xs flex items-center gap-1 mb-1">
+                            <User className="h-3 w-3 text-gray-400" /> {rec.assigned_user_name}
+                          </p>
+                        )}
+                        <p className="text-xs flex items-center gap-1 mb-1">
+                          <MapPin className="h-3 w-3 text-gray-400" /> Hacia: {rec.destination_address}
+                        </p>
+                        {rec.location_updated_at && (
+                          <p className="text-xs text-gray-500">
+                            Actualizado {formatRelativeTime(new Date(rec.location_updated_at))}
+                          </p>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+
                 {/* Destination markers */}
                 {geocodedRecords.map((rec) => (
                   <Marker
@@ -665,6 +725,21 @@ export default function LiveMapPage() {
                               </span>
                             )}
                           </div>
+
+                          {/* Live location badge */}
+                          {rec.sharing_location && rec.current_lat != null && (
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40 font-semibold">
+                                <Radio className="h-2.5 w-2.5 animate-pulse" />
+                                En vivo
+                              </span>
+                              {rec.location_updated_at && (
+                                <span className="text-[9px] text-muted-foreground">
+                                  {formatRelativeTime(new Date(rec.location_updated_at))}
+                                </span>
+                              )}
+                            </div>
+                          )}
 
                           {/* Geocode source badge */}
                           {geocoded && (

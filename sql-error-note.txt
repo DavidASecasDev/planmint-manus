@@ -1,0 +1,3 @@
+The SQL got corrupted when pasted into the editor. The error says: syntax error at or near "ADD" on LINE 2.
+The issue is that the comment and ALTER TABLE got concatenated on the same line.
+Need to re-enter the SQL cleanly, perhaps as a single statement without the comment.
