@@ -292,6 +292,81 @@ export async function handleDeleteTravelTimeOverride(req: Request, res: Response
   }
 }
 
+/**
+ * Normalize destination using the same logic as staffCapacityEndpoint.
+ * Ensures cache keys match between write and invalidation.
+ */
+function normalizeDestination(dest: string): string {
+  return dest
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[,.\-]+$/, "")
+    .trim();
+}
+
+/**
+ * POST /api/travel-time-cache/invalidate
+ * Invalidate cached travel times when a reservation's address changes.
+ * Body: { oldDestination?: string, newDestination?: string }
+ */
+export async function handleInvalidateTravelTimeCache(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(
+      req.headers.authorization
+    );
+    if (!orgId)
+      return res.status(400).json({ ok: false, error: "No organization" });
+
+    const { oldDestination, newDestination } = req.body;
+    if (!oldDestination && !newDestination) {
+      return res.status(400).json({ ok: false, error: "At least one destination required" });
+    }
+
+    const sb = getServiceClient();
+    let deletedCount = 0;
+
+    // Delete cache entries for old destination
+    if (oldDestination && oldDestination.trim()) {
+      const oldNormalized = normalizeDestination(oldDestination);
+      const { error, count } = await sb
+        .from("travel_time_cache")
+        .delete({ count: "exact" })
+        .eq("organization_id", orgId)
+        .eq("destination_normalized", oldNormalized);
+
+      if (error) {
+        console.error("[travel-time-cache/invalidate] Error deleting old:", error);
+      } else {
+        deletedCount += count || 0;
+      }
+    }
+
+    // Delete cache entries for new destination (in case previously cached with stale data)
+    if (newDestination && newDestination.trim()) {
+      const newNormalized = normalizeDestination(newDestination);
+      const { error, count } = await sb
+        .from("travel_time_cache")
+        .delete({ count: "exact" })
+        .eq("organization_id", orgId)
+        .eq("destination_normalized", newNormalized);
+
+      if (error) {
+        console.error("[travel-time-cache/invalidate] Error deleting new:", error);
+      } else {
+        deletedCount += count || 0;
+      }
+    }
+
+    return res.json({ ok: true, deletedCount });
+  } catch (err: any) {
+    if (err instanceof AuthError)
+      return res.status(401).json({ ok: false, error: err.message });
+    console.error("[travel-time-cache/invalidate]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
 // ─── Mock Response Helper ──────────────────────────────────────────────────
 
 function createMockResponse() {

@@ -14,11 +14,13 @@ import { ChipSelect } from './ChipSelect';
 import { AssigneeSelect } from './AssigneeSelect';
 import { EditableCell } from './EditableCell';
 import { AddressAutocompleteCell } from './AddressAutocompleteCell';
+import { apiInvoke } from '@/lib/apiClient';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
 import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
 import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
+import { useStaffCapacity } from '@/hooks/useStaffCapacity';
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
@@ -67,6 +69,7 @@ const COLUMNS: Column[] = [
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
   { key: 'lugar', label: 'Lugar', width: 'w-56', type: 'text', filterable: true },
   { key: 'direccion', label: 'Dirección', width: 'w-64', type: 'text', filterable: true },
+  { key: 'tiempo_desplazamiento', label: 'Trayecto', width: 'w-24', type: 'readonly', filterable: false },
   { key: 'cliente', label: 'Cliente', width: 'w-36', type: 'readonly', filterable: true },
   { key: 'modelo', label: 'Modelo', width: 'w-44', type: 'text', filterable: true },
   { key: 'auto', label: 'Auto', width: 'w-28', type: 'text', filterable: true },
@@ -94,6 +97,8 @@ interface OperationRow {
   lugar: string | null;
   direccion: string | null;
   isCompleted: boolean;
+  /** Travel time in minutes (one-way) from capacity calculation, null if not yet loaded */
+  travelMinutes: number | null;
 }
 
 type ColumnFilters = Record<string, string>;
@@ -140,6 +145,24 @@ export function ReservationsTable() {
   const setSortDir = (v: 'asc' | 'desc') => setUrlFilters(prev => ({ ...prev, sortDir: v }));
   const showCancelled = urlFilters.showCancelled;
   const setShowCancelled = (v: boolean) => setUrlFilters(prev => ({ ...prev, showCancelled: v }));
+
+  // Staff capacity data for enriching rows with travel time
+  const { data: capacityData } = useStaffCapacity(urlFilters.dateFrom || null);
+
+  // Build a lookup map: reservationId+type -> travelMinutesOneWay
+  const travelTimeLookup = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!capacityData?.hourSlots) return map;
+    for (const slot of capacityData.hourSlots) {
+      for (const op of slot.operations) {
+        const key = `${op.reservationId}_${op.type}`;
+        if (!map.has(key)) {
+          map.set(key, op.travelMinutesOneWay);
+        }
+      }
+    }
+    return map;
+  }, [capacityData]);
 
   // Derive columnFilters from URL params (cf_ prefix)
   const columnFilters = useMemo<ColumnFilters>(() => {
@@ -274,6 +297,7 @@ export function ReservationsTable() {
           lugar: r.lugar_entrega || r.lugar_devolucion,
           direccion: r.lugar_entrega_direccion || r.lugar_devolucion_direccion || null,
           isCompleted: r.transfer_completado,
+          travelMinutes: null,
         });
       } else {
         // Fila de Entrega
@@ -287,6 +311,7 @@ export function ReservationsTable() {
           lugar: r.lugar_entrega,
           direccion: r.lugar_entrega_direccion || null,
           isCompleted: r.entrega_completada,
+          travelMinutes: null,
         });
         
         // Fila de Devolución
@@ -300,12 +325,27 @@ export function ReservationsTable() {
           lugar: r.lugar_devolucion,
           direccion: r.lugar_devolucion_direccion || null,
           isCompleted: r.devolucion_completada,
+          travelMinutes: null,
         });
       }
     });
     
     return rows;
   }, [reservations]);
+
+  // Enrich operation rows with travel time from capacity data
+  const enrichedOperationRows = useMemo(() => {
+    if (travelTimeLookup.size === 0) return operationRows;
+    return operationRows.map(row => {
+      const typeKey = row.tipoOperacion === 'Devolución' ? 'Devolución' : row.tipoOperacion;
+      const lookupKey = `${row.reservationId}_${typeKey}`;
+      const travel = travelTimeLookup.get(lookupKey);
+      if (travel !== undefined && travel !== row.travelMinutes) {
+        return { ...row, travelMinutes: travel };
+      }
+      return row;
+    });
+  }, [operationRows, travelTimeLookup]);
 
   // Helper para obtener valor de campo según operación (para filtros)
   const getRowFieldValue = (row: OperationRow, key: string): string | null => {
@@ -351,7 +391,7 @@ export function ReservationsTable() {
   const getUniqueValues = useMemo(() => {
     return (key: string): string[] => {
       const values = new Set<string>();
-      operationRows.forEach(row => {
+      enrichedOperationRows.forEach(row => {
         const value = getRowFieldValue(row, key);
         if (value && value !== '—') {
           values.add(value);
@@ -359,10 +399,10 @@ export function ReservationsTable() {
       });
       return Array.from(values).sort();
     };
-  }, [operationRows]);
+  }, [enrichedOperationRows]);
 
   const filteredAndSorted = useMemo(() => {
-    let result = [...operationRows];
+    let result = [...enrichedOperationRows];
 
     // Filter cancelled reservations (hidden by default)
     if (!showCancelled) {
@@ -525,15 +565,15 @@ export function ReservationsTable() {
     });
 
     return result;
-  }, [operationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled]);
+  }, [enrichedOperationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled]);
 
   // Count cancelled reservations for info display
   const cancelledCount = useMemo(() => {
-    return operationRows.filter(row => {
+    return enrichedOperationRows.filter(row => {
       const estado = getRowFieldValue(row, 'estado');
       return estado?.toLowerCase() === 'cancelada';
     }).length;
-  }, [operationRows]);
+  }, [enrichedOperationRows]);
 
   const activeFiltersCount = Object.values(columnFilters).filter(Boolean).length + (dateRange?.from ? 1 : 0) + (confirmedDateRange?.from ? 1 : 0);
 
@@ -694,22 +734,30 @@ export function ReservationsTable() {
     // Para lugar, es específico por operación
     if (fieldKey === 'lugar') {
       const lugarField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega' : 'lugar_devolucion';
+      const oldLugar = row.lugar;
       handleUpdate(row.reservationId, { [lugarField]: value });
-      // Trigger capacity refresh after location change (delay to allow DB write)
-      setTimeout(() => {
+      // Invalidate travel time cache for old and new lugar, then refresh capacity
+      setTimeout(async () => {
+        await apiInvoke('travel-time-cache/invalidate', {
+          body: { oldDestination: oldLugar || undefined, newDestination: value || undefined },
+        });
         window.dispatchEvent(new Event('capacity-refresh-needed'));
-      }, 2000);
+      }, 1500);
       return;
     }
     
     // Para direccion, es específico por operación
     if (fieldKey === 'direccion') {
       const dirField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega_direccion' : 'lugar_devolucion_direccion';
+      const oldDireccion = row.direccion;
       handleUpdate(row.reservationId, { [dirField]: value });
-      // Trigger capacity refresh after address change (delay to allow DB write)
-      setTimeout(() => {
+      // Invalidate travel time cache for old and new address, then refresh capacity
+      setTimeout(async () => {
+        await apiInvoke('travel-time-cache/invalidate', {
+          body: { oldDestination: oldDireccion || undefined, newDestination: value || undefined },
+        });
         window.dispatchEvent(new Event('capacity-refresh-needed'));
-      }, 2000);
+      }, 1500);
       return;
     }
     
@@ -810,6 +858,10 @@ export function ReservationsTable() {
         return row.lugar || '—';
       case 'direccion':
         return row.direccion || '—';
+      case 'tiempo_desplazamiento':
+        if (row.travelMinutes === null) return '—';
+        if (row.travelMinutes === 0) return 'Base';
+        return `${row.travelMinutes} min`;
       case 'cliente':
         return getClientName(r);
       case 'external_reservation_id':
@@ -1269,7 +1321,7 @@ export function ReservationsTable() {
                               className="mx-auto"
                             />
                           )}
-                          {col.type === 'readonly' && col.key !== 'cliente' && (
+                          {col.type === 'readonly' && col.key !== 'cliente' && col.key !== 'tiempo_desplazamiento' && (
                             <span className={cn(
                               "text-xs px-1 truncate",
                               row.isCompleted && "line-through text-muted-foreground"
@@ -1277,6 +1329,23 @@ export function ReservationsTable() {
                               {getCellValue(row, col)}
                             </span>
                           )}
+                          {col.key === 'tiempo_desplazamiento' && (() => {
+                            const mins = row.travelMinutes;
+                            if (mins === null) return <span className="text-xs px-1 text-muted-foreground/50">—</span>;
+                            if (mins === 0) return (
+                              <span className="text-xs px-1 font-medium text-emerald-600 dark:text-emerald-400">Base</span>
+                            );
+                            const color = mins <= 15
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : mins <= 30
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-red-600 dark:text-red-400';
+                            return (
+                              <span className={cn("text-xs px-1 font-medium tabular-nums", color, row.isCompleted && "line-through opacity-60")}>
+                                {mins}\u2019
+                              </span>
+                            );
+                          })()}
                           {col.type === 'readonly' && col.key === 'cliente' && (() => {
                             const babySeats = getBabySeats(row.reservation);
                             const totalSeats = babySeats.reduce((sum, s) => sum + (s.cantidad ?? s.quantity ?? 1), 0);

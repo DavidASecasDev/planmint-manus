@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   useStaffCapacity,
   type HourSlot,
@@ -454,10 +455,18 @@ export function StaffCapacityAlert({ date, compact = false }: StaffCapacityAlert
               <div className="text-[10px] text-muted-foreground">ops pendientes</div>
             </div>
             {lastUpdated && (
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70" title={`Última actualización: ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}>
-                <RefreshCw className="h-3 w-3" />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refetch();
+                }}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground/70 hover:text-foreground transition-colors cursor-pointer"
+                title={`Última actualización: ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}. Clic para actualizar ahora.`}
+              >
+                <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
                 <span>{formatRelativeTime(lastUpdated)}</span>
-              </div>
+              </button>
             )}
             {expanded ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />

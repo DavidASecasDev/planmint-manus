@@ -112,6 +112,7 @@ import {
   handleListTravelTimeOverrides,
   handleUpsertTravelTimeOverride,
   handleDeleteTravelTimeOverride,
+  handleInvalidateTravelTimeCache,
 } from "../staffCapacityWeekEndpoint";
 import {
   handleGetUnassignedOperations,
@@ -253,6 +254,7 @@ async function startServer() {
   app.post("/api/travel-time-overrides/list", handleListTravelTimeOverrides);
   app.post("/api/travel-time-overrides/upsert", handleUpsertTravelTimeOverride);
   app.post("/api/travel-time-overrides/delete", handleDeleteTravelTimeOverride);
+  app.post("/api/travel-time-cache/invalidate", handleInvalidateTravelTimeCache);
   app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
   app.post("/api/assign-reinforcement", handleAssignReinforcement);
   app.post("/api/places-autocomplete", handlePlacesAutocomplete);

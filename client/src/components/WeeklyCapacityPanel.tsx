@@ -20,6 +20,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   useWeeklyCapacity,
   type DaySummary,
@@ -429,10 +430,18 @@ export function WeeklyCapacityPanel({
 
           <div className="ml-auto flex items-center gap-2">
             {lastUpdated && (
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70" title={`Última actualización: ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}>
-                <RefreshCw className="h-3 w-3" />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refetch();
+                }}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground/70 hover:text-foreground transition-colors cursor-pointer"
+                title={`Última actualización: ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}. Clic para actualizar ahora.`}
+              >
+                <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
                 {formatRelativeTime(lastUpdated)}
-              </span>
+              </button>
             )}
             {expanded ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />

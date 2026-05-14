@@ -596,3 +596,6 @@
 - [x] Feature: Autocompletado de direcciones con Google Places en el campo "Dirección" de reservas
 - [x] Feature: Indicador visual "Actualizado hace X min" en paneles de capacidad (diario y semanal)
 - [x] Auditoría coherencia tiempos de desplazamiento: tipo UpdateReservationData corregido, refresh inmediato al cambiar dirección/lugar
+- [x] Feature: Invalidar caché de tiempos de desplazamiento al cambiar dirección de reserva
+- [x] Feature: Botón "Actualizar ahora" en paneles de capacidad
+- [x] Feature: Mostrar tiempo de desplazamiento estimado en la fila de la reserva (columna "Trayecto" con colores: verde ≤15min, ámbar ≤30min, rojo >30min)
