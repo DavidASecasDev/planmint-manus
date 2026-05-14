@@ -70,7 +70,8 @@ const COLUMNS: Column[] = [
   { key: 'tipo_actividad', label: 'Tipo Actividad', width: 'w-24', type: 'chip', fieldName: 'tipo_actividad', filterable: true },
   { key: 'external_reservation_id', label: 'Reserva', width: 'w-20', type: 'readonly', filterable: true },
   { key: 'lugar', label: 'Lugar', width: 'w-56', type: 'text', filterable: true },
-  { key: 'direccion', label: 'Dirección', width: 'w-80', type: 'text', filterable: true },
+  { key: 'direccion', label: 'Dirección', width: 'w-64', type: 'text', filterable: true },
+  { key: 'acciones_ruta', label: '', width: 'w-20', type: 'actions', filterable: false },
   { key: 'tiempo_desplazamiento', label: 'Trayecto', width: 'w-24', type: 'readonly', filterable: false },
   { key: 'cliente', label: 'Cliente', width: 'w-36', type: 'readonly', filterable: true },
   { key: 'modelo', label: 'Modelo', width: 'w-44', type: 'text', filterable: true },
@@ -1423,7 +1424,7 @@ export function ReservationsTable() {
                           key={col.key}
                           className={cn(
                             "flex items-center px-1 py-1",
-                            col.key === 'direccion' ? 'overflow-visible' : 'overflow-hidden',
+                            'overflow-hidden',
                             col.width,
                             col.sticky && "sticky left-0 z-10",
                             col.sticky && row.dayColor
@@ -1581,105 +1582,105 @@ export function ReservationsTable() {
                               />
                             )
                           )}
-                          {col.type === 'text' && col.key === 'direccion' && (() => {
+                          {col.type === 'text' && col.key === 'direccion' && (
+                            <div className={cn(
+                              row.isCompleted && "line-through text-muted-foreground"
+                            )}>
+                              <AddressAutocompleteCell
+                                value={getOperationFieldValue(row, col.key)}
+                                onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                              />
+                            </div>
+                          )}
+                          {col.type === 'actions' && col.key === 'acciones_ruta' && (() => {
                             const currentEstado = getOperationFieldValue(row, 'estado');
                             const isEnCamino = currentEstado === 'En camino';
-                            const hasAddress = !!getOperationFieldValue(row, col.key);
+                            const hasAddress = !!getOperationFieldValue(row, 'direccion');
                             const arrived = llegoState[row.id];
                             const isLlegoLoading = llegoLoading[row.id];
                             const isIniciarLoading = iniciarLoading[row.id];
+                            const address = getOperationFieldValue(row, 'direccion') || '';
+
+                            if (!hasAddress || row.isCompleted) return null;
 
                             return (
-                            <div className={cn(
-                              "flex items-center gap-0.5",
-                              row.isCompleted && "line-through text-muted-foreground"
-                            )}>
-                              <div className="flex-1 min-w-0">
-                                <AddressAutocompleteCell
-                                  value={getOperationFieldValue(row, col.key)}
-                                  onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
-                                />
-                              </div>
-                              {hasAddress && !row.isCompleted && (
-                                <div className="flex items-center gap-0 shrink-0">
-                                  {/* 1. Navegaci\u00f3n — Abrir Google Maps (siempre visible) */}
-                                  <a
-                                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(getOperationFieldValue(row, col.key) || '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-1 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-                                    title="Abrir ruta en Google Maps"
-                                    onClick={(e) => e.stopPropagation()}
+                              <div className="flex items-center gap-0 justify-center">
+                                {/* 1. Navegación — Abrir Google Maps */}
+                                <a
+                                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                  title="Abrir ruta en Google Maps"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Navigation className="h-3.5 w-3.5" />
+                                </a>
+
+                                {/* 2. Iniciar — Marcar En camino */}
+                                {!isEnCamino && !arrived && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleIniciar(row); }}
+                                    disabled={isIniciarLoading}
+                                    className={cn(
+                                      "p-1 rounded-md transition-colors",
+                                      "text-sky-500 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950",
+                                      isIniciarLoading && "opacity-50 cursor-wait"
+                                    )}
+                                    title="Iniciar trayecto (marcar En camino)"
                                   >
-                                    <Navigation className="h-3.5 w-3.5" />
-                                  </a>
+                                    <Play className={cn("h-3.5 w-3.5", isIniciarLoading && "animate-pulse")} />
+                                  </button>
+                                )}
 
-                                  {/* 2. Iniciar — Marcar En camino (visible si NO est\u00e1 en camino y no ha llegado) */}
-                                  {!isEnCamino && !arrived && (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleIniciar(row); }}
-                                      disabled={isIniciarLoading}
-                                      className={cn(
-                                        "p-1 rounded-md transition-colors",
-                                        "text-sky-500 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950",
-                                        isIniciarLoading && "opacity-50 cursor-wait"
-                                      )}
-                                      title="Iniciar trayecto (marcar En camino)"
-                                    >
-                                      <Play className={cn("h-3.5 w-3.5", isIniciarLoading && "animate-pulse")} />
-                                    </button>
-                                  )}
+                                {/* 3. Llegué — Confirmar llegada */}
+                                {isEnCamino && !arrived && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleLlego(row); }}
+                                    disabled={isLlegoLoading}
+                                    className={cn(
+                                      "p-1 rounded-md transition-colors",
+                                      "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950",
+                                      isLlegoLoading && "opacity-50 cursor-wait"
+                                    )}
+                                    title="Confirmar llegada al destino"
+                                  >
+                                    <MapPinCheck className={cn("h-3.5 w-3.5", isLlegoLoading && "animate-pulse")} />
+                                  </button>
+                                )}
 
-                                  {/* 3. Llegu\u00e9 — Confirmar llegada (visible si est\u00e1 En camino y no ha llegado) */}
-                                  {isEnCamino && !arrived && (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleLlego(row); }}
-                                      disabled={isLlegoLoading}
-                                      className={cn(
-                                        "p-1 rounded-md transition-colors",
-                                        "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950",
-                                        isLlegoLoading && "opacity-50 cursor-wait"
-                                      )}
-                                      title="Confirmar llegada al destino"
-                                    >
-                                      <MapPinCheck className={cn("h-3.5 w-3.5", isLlegoLoading && "animate-pulse")} />
-                                    </button>
-                                  )}
-
-                                  {/* Indicador de llegada confirmada */}
-                                  {arrived && (
-                                    <TooltipProvider delayDuration={200}>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="p-1 flex items-center gap-0.5">
-                                            <MapPinCheck className="h-3.5 w-3.5 text-emerald-500" />
-                                            <span className={cn(
-                                              "text-[10px] font-medium tabular-nums",
-                                              arrived.estimatedMinutes != null && arrived.realMinutes > arrived.estimatedMinutes + 5
-                                                ? 'text-red-600'
-                                                : arrived.estimatedMinutes != null && arrived.realMinutes > arrived.estimatedMinutes
-                                                  ? 'text-amber-600'
-                                                  : 'text-emerald-600'
-                                            )}>
-                                              {arrived.realMinutes}'
-                                            </span>
+                                {/* Indicador de llegada confirmada */}
+                                {arrived && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="p-1 flex items-center gap-0.5">
+                                          <MapPinCheck className="h-3.5 w-3.5 text-emerald-500" />
+                                          <span className={cn(
+                                            "text-[10px] font-medium tabular-nums",
+                                            arrived.estimatedMinutes != null && arrived.realMinutes > arrived.estimatedMinutes + 5
+                                              ? 'text-red-600'
+                                              : arrived.estimatedMinutes != null && arrived.realMinutes > arrived.estimatedMinutes
+                                                ? 'text-amber-600'
+                                                : 'text-emerald-600'
+                                          )}>
+                                            {arrived.realMinutes}'
                                           </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="text-xs">
-                                          <p>Tiempo real: {arrived.realMinutes} min</p>
-                                          {arrived.estimatedMinutes != null && <p>Estimado Maps: {arrived.estimatedMinutes} min</p>}
-                                          {arrived.estimatedMinutes != null && (
-                                            <p className={arrived.realMinutes - arrived.estimatedMinutes <= 0 ? 'text-emerald-600' : 'text-amber-600'}>
-                                              Diferencia: {arrived.realMinutes - arrived.estimatedMinutes > 0 ? '+' : ''}{arrived.realMinutes - arrived.estimatedMinutes} min
-                                            </p>
-                                          )}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs">
+                                        <p>Tiempo real: {arrived.realMinutes} min</p>
+                                        {arrived.estimatedMinutes != null && <p>Estimado Maps: {arrived.estimatedMinutes} min</p>}
+                                        {arrived.estimatedMinutes != null && (
+                                          <p className={arrived.realMinutes - arrived.estimatedMinutes <= 0 ? 'text-emerald-600' : 'text-amber-600'}>
+                                            Diferencia: {arrived.realMinutes - arrived.estimatedMinutes > 0 ? '+' : ''}{arrived.realMinutes - arrived.estimatedMinutes} min
+                                          </p>
+                                        )}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
                             );
                           })()}
                           {col.type === 'text' && col.key !== 'direccion' && (

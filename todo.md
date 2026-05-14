@@ -612,3 +612,4 @@
 - [x] Bug: Mapa En Camino (/live-map) muestra error "Error al cargar esta sección" — causa: react-leaflet@5 requiere React 19, downgraded a v4.2.1 compatible con React 18
 - [x] Feature: Persistir estado "Llegué" en BD para que sobreviva a recargas de página
 - [x] Feature: Resumen diario de puntualidad (% de llegadas dentro del tiempo estimado)
+- [x] Fix: Mover iconos de acción (Navegación, Iniciar, Llegué) a columna propia "Acciones" para evitar superposición con Dirección y Cliente
