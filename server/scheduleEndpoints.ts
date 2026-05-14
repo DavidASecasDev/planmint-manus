@@ -225,39 +225,45 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
     if (profError) throw profError;
 
     // Get reservation counts for the date range (entregas + devoluciones)
+    // Bug fix #14: Use correct filter — fetch reservations where desde OR hasta falls within range
+    // Bug fix #13: Include confirmed datetime fields for accurate day assignment
     const { data: reservations, error: resError } = await sb
       .from("reservations")
-      .select("desde, hasta, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado")
+      .select("desde, hasta, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, confirmed_entrega_datetime, confirmed_devolucion_datetime")
       .eq("organization_id", orgId)
-      .or(`desde.gte.${start_date},hasta.gte.${start_date}`)
-      .or(`desde.lte.${end_date},hasta.lte.${end_date}`);
+      .or(`desde.gte.${start_date}.lte.${end_date}T23:59:59,hasta.gte.${start_date}.lte.${end_date}T23:59:59,confirmed_entrega_datetime.gte.${start_date}.lte.${end_date}T23:59:59,confirmed_devolucion_datetime.gte.${start_date}.lte.${end_date}T23:59:59`);
 
     if (resError) throw resError;
 
     // Count entregas and devoluciones per day
+    // Use confirmed datetime with fallback to original desde/hasta
     const dailyCounts: Record<string, { entregas: number; devoluciones: number; transfers: number }> = {};
     (reservations || []).forEach((r: any) => {
       // Skip cancelled
       if (r.estado === "Cancelada") return;
 
-      if (r.tipo_actividad === "Transfer" && r.desde) {
-        const day = r.desde.substring(0, 10);
+      // Determine effective dates using confirmed datetime with fallback
+      const entregaDate = r.confirmed_entrega_datetime || r.desde;
+      const devolucionDate = r.confirmed_devolucion_datetime || r.hasta;
+
+      if (r.tipo_actividad === "Transfer" && entregaDate) {
+        const day = entregaDate.substring(0, 10);
         if (day >= start_date && day <= end_date) {
           if (!dailyCounts[day]) dailyCounts[day] = { entregas: 0, devoluciones: 0, transfers: 0 };
           dailyCounts[day].transfers++;
         }
       } else {
         // Entrega
-        if (r.desde) {
-          const day = r.desde.substring(0, 10);
+        if (entregaDate) {
+          const day = entregaDate.substring(0, 10);
           if (day >= start_date && day <= end_date) {
             if (!dailyCounts[day]) dailyCounts[day] = { entregas: 0, devoluciones: 0, transfers: 0 };
             dailyCounts[day].entregas++;
           }
         }
         // Devolución
-        if (r.hasta) {
-          const day = r.hasta.substring(0, 10);
+        if (devolucionDate) {
+          const day = devolucionDate.substring(0, 10);
           if (day >= start_date && day <= end_date) {
             if (!dailyCounts[day]) dailyCounts[day] = { entregas: 0, devoluciones: 0, transfers: 0 };
             dailyCounts[day].devoluciones++;

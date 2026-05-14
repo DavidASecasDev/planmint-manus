@@ -48,6 +48,21 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
 
     const sb = getServiceClient();
 
+    // Bug fix: Prevent re-starting a completed operation (one that already has llego_at)
+    const { data: existing } = await sb
+      .from("en_camino_tracking")
+      .select("id, llego_at")
+      .eq("reservation_id", reservation_id)
+      .eq("operation_type", operation_type)
+      .maybeSingle();
+
+    if (existing?.llego_at) {
+      return res.status(409).json({
+        ok: false,
+        error: "Esta operación ya fue completada. No se puede volver a iniciar.",
+      });
+    }
+
     const { data, error } = await sb
       .from("en_camino_tracking")
       .upsert(
@@ -164,6 +179,29 @@ export async function handleEnCaminoLlego(req: Request, res: Response) {
 
     const sb = getServiceClient();
     const now = new Date().toISOString();
+
+    // Bug fix: Prevent registering arrival multiple times
+    const { data: existingRecord } = await sb
+      .from("en_camino_tracking")
+      .select("id, llego_at, en_camino_at")
+      .eq("reservation_id", reservation_id)
+      .eq("operation_type", operation_type)
+      .maybeSingle();
+
+    if (existingRecord?.llego_at) {
+      // Already arrived — return the existing data instead of overwriting
+      const realMinutes = Math.round(
+        (new Date(existingRecord.llego_at).getTime() - new Date(existingRecord.en_camino_at).getTime()) / 60000
+      );
+      return res.json({
+        ok: true,
+        real_minutes: realMinutes,
+        estimated_minutes: estimated_minutes ?? null,
+        en_camino_at: existingRecord.en_camino_at,
+        llego_at: existingRecord.llego_at,
+        already_arrived: true,
+      });
+    }
 
     // Update the record with arrival timestamp and who arrived
     const updatePayload: Record<string, unknown> = { llego_at: now };

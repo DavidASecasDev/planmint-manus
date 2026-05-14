@@ -8,14 +8,18 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Navigation, Clock, MapPin, User, Car, ArrowRight } from 'lucide-react';
+import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AppLayout } from '@/components/layout/AppLayout';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 // ── Types ──
 interface EnCaminoRecord {
@@ -44,37 +48,29 @@ const POLL_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_ZOOM = 11;
 
 // ── Location Aliases ──
-// Known locations that don't geocode well or need exact coordinates
 interface LocationAlias {
   coords: { lat: number; lng: number };
-  // OSRM routing target (nearest routable point on public road)
   routingTarget: { lat: number; lng: number };
-  // Manual last-mile waypoints from routing target to final destination
   lastMileWaypoints: [number, number][];
-  // Extra minutes to add to ETA for internal access (barriers, etc.)
   extraMinutes: number;
 }
 
 const LOCATION_ALIASES: Record<string, LocationAlias> = {
   'parking_g_aeropuerto': {
-    // Exact Parking G location (Transport Meeting Point)
     coords: { lat: 39.5505, lng: 2.7275 },
-    // Nearest routable point: roundabout on Carretera de l'Aeroport
     routingTarget: { lat: 39.5472, lng: 2.7252 },
-    // Manual waypoints: from roundabout, through access road with barriers, to Parking G
     lastMileWaypoints: [
-      [39.5472, 2.7252], // Roundabout exit on Carretera de l'Aeroport
-      [39.5478, 2.7258], // Start of internal access road
-      [39.5485, 2.7263], // Barrier point
-      [39.5492, 2.7268], // Past barriers, internal road
-      [39.5498, 2.7272], // Approaching Parking G
-      [39.5505, 2.7275], // Parking G - Transport Meeting Point
+      [39.5472, 2.7252],
+      [39.5478, 2.7258],
+      [39.5485, 2.7263],
+      [39.5492, 2.7268],
+      [39.5498, 2.7272],
+      [39.5505, 2.7275],
     ],
-    extraMinutes: 2, // Barriers + slow internal road
+    extraMinutes: 2,
   },
 };
 
-// Keywords that match each alias
 const ALIAS_MATCHERS: { keywords: string[]; aliasKey: string }[] = [
   {
     keywords: ['aeropuerto', 'aeropuerto de palma', 'pmi', 'parking g', 'aeropuerto palma de mallorca', '07611'],
@@ -82,7 +78,6 @@ const ALIAS_MATCHERS: { keywords: string[]; aliasKey: string }[] = [
   },
 ];
 
-// Check if an address matches a known alias
 function matchLocationAlias(address: string): LocationAlias | null {
   const normalized = address.toLowerCase().trim();
   for (const matcher of ALIAS_MATCHERS) {
@@ -95,23 +90,29 @@ function matchLocationAlias(address: string): LocationAlias | null {
   return null;
 }
 
-// ── Custom marker icons ──
+// ── Custom marker icons (professional SVG markers) ──
 const createIcon = (color: string, pulse: boolean = false) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32" height="32">
-    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="28" height="42">
+    <defs>
+      <filter id="shadow-${color.replace('#','')}" x="-20%" y="-10%" width="140%" height="130%">
+        <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.25"/>
+      </filter>
+    </defs>
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="${color}" filter="url(#shadow-${color.replace('#','')})"/>
+    <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
   </svg>`;
   return L.divIcon({
-    html: `<div class="${pulse ? 'animate-pulse' : ''}" style="display:flex;align-items:center;justify-content:center;">${svg}</div>`,
+    html: `<div class="${pulse ? 'animate-pulse' : ''}" style="display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${svg}</div>`,
     className: 'custom-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -42],
   });
 };
 
-const entregaIcon = createIcon('#3b82f6', true); // blue
-const devolucionIcon = createIcon('#f59e0b', true); // amber
-const baseIcon = createIcon('#10b981'); // green (base)
+const entregaIcon = createIcon('#2563eb', true); // blue-600
+const devolucionIcon = createIcon('#d97706', true); // amber-600
+const baseIcon = createIcon('#059669'); // emerald-600
 
 // ── Geocode result with source tracking ──
 interface GeocodeResult {
@@ -120,15 +121,13 @@ interface GeocodeResult {
   source: GeocodeSource;
 }
 
-// ── Geocode helper (uses aliases → Nominatim → Google Maps API fallback) ──
+// ── Geocode helper ──
 async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
-  // 1. Check aliases first (instant, no network)
   const alias = matchLocationAlias(address);
   if (alias) {
     return { ...alias.coords, source: 'alias' };
   }
   
-  // 2. Try Nominatim (free, no API key)
   try {
     const resp = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=es`
@@ -141,7 +140,6 @@ async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
     // Nominatim failed, continue to fallback
   }
 
-  // 3. Fallback: Google Maps Geocoding via server proxy
   try {
     const { data: geoData } = await apiInvoke<{ ok: boolean; result: { lat: number; lng: number; formattedAddress: string } | null }>(
       'geocode',
@@ -160,46 +158,41 @@ async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
 // ── Route result type ──
 interface RouteResult {
   positions: [number, number][];
-  durationMinutes: number;
   distanceKm: number;
+  durationMinutes: number;
 }
 
-// ── OSRM route helper (free, no API key, real road routes) ──
-// If the destination matches a location alias, routes to the routing target
-// and appends manual last-mile waypoints
+// ── OSRM route fetcher ──
 async function fetchRoute(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
   destinationAddress?: string
 ): Promise<RouteResult | null> {
   try {
-    // Check if destination has a known alias with last-mile waypoints
     const alias = destinationAddress ? matchLocationAlias(destinationAddress) : null;
-    const routeTo = alias ? alias.routingTarget : to;
+    const routingTarget = alias ? alias.routingTarget : to;
     
-    const resp = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${routeTo.lng},${routeTo.lat}?overview=full&geometries=geojson`
-    );
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${routingTarget.lng},${routingTarget.lat}?overview=full&geometries=geojson`;
+    const resp = await fetch(url);
     const data = await resp.json();
-    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-      const route = data.routes[0];
-      // GeoJSON coordinates are [lng, lat], Leaflet needs [lat, lng]
-      let positions: [number, number][] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-      let durationMinutes = Math.round(route.duration / 60);
-      const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
-      
-      // Append last-mile waypoints if alias exists
-      if (alias) {
-        positions = [...positions, ...alias.lastMileWaypoints];
-        // Enforce minimum 9 min total (7 min drive + 2 min barriers) based on Google Maps
-        // OSRM often underestimates airport routes
-        const minimumMinutes = 7 + alias.extraMinutes; // 7 + 2 = 9
-        durationMinutes = Math.max(durationMinutes + alias.extraMinutes, minimumMinutes);
-      }
-      
-      return { positions, durationMinutes, distanceKm };
+    
+    if (data.code !== 'Ok' || !data.routes?.[0]) return null;
+    
+    const route = data.routes[0];
+    let positions: [number, number][] = route.geometry.coordinates.map(
+      (c: [number, number]) => [c[1], c[0]] as [number, number]
+    );
+    
+    if (alias && alias.lastMileWaypoints.length > 0) {
+      positions = [...positions, ...alias.lastMileWaypoints];
     }
-    return null;
+    
+    const extraMinutes = alias?.extraMinutes || 0;
+    return {
+      positions,
+      distanceKm: +(route.distance / 1000).toFixed(1),
+      durationMinutes: Math.round(route.duration / 60) + extraMinutes,
+    };
   } catch {
     return null;
   }
@@ -211,11 +204,17 @@ function FitBounds({ markers }: { markers: GeocodedRecord[] }) {
   useEffect(() => {
     if (markers.length === 0) return;
     const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]));
-    // Also include base
     bounds.extend([AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]);
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
   }, [markers, map]);
   return null;
+}
+
+// ── Helper: time urgency color ──
+function getUrgencyColor(minutesAgo: number) {
+  if (minutesAgo > 45) return { text: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/40', border: 'border-red-200 dark:border-red-800' };
+  if (minutesAgo > 20) return { text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-200 dark:border-amber-800' };
+  return { text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-800' };
 }
 
 // ── Main Component ──
@@ -229,6 +228,7 @@ export default function LiveMapPage() {
   const geocodeCache = useRef<Record<string, GeocodeResult | null>>({});
   const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
   const routeCache = useRef<Record<string, RouteResult | null>>({});
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
 
   // Tick for relative time display
   useEffect(() => {
@@ -273,7 +273,6 @@ export default function LiveMapPage() {
         const addr = rec.destination_address;
         if (!addr) continue;
 
-        // Check cache
         if (geocodeCache.current[addr] !== undefined) {
           const cached = geocodeCache.current[addr];
           if (cached) {
@@ -282,6 +281,10 @@ export default function LiveMapPage() {
           continue;
         }
 
+        // Throttle: wait 1.1s between geocode calls to respect Nominatim rate limit (1 req/s)
+        if (results.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1100));
+        }
         const result = await geocodeAddress(addr);
         geocodeCache.current[addr] = result;
         if (result) {
@@ -329,228 +332,381 @@ export default function LiveMapPage() {
 
   const entregas = geocodedRecords.filter(r => r.operation_type === 'entrega');
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
+  const failedGeocode = records.filter(r => r.destination_address && !geocodedRecords.find(g => g.id === r.id));
 
   return (
     <AppLayout title="Mapa En Camino" fullWidth>
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-background">
-        <div className="flex items-center gap-3">
-          <MapPin className="h-5 w-5 text-emerald-500" />
-          <h1 className="text-lg font-semibold">Mapa En Camino</h1>
-          <Badge variant="outline" className="gap-1">
-            <Navigation className="h-3 w-3" />
-            {records.length} operaciones activas
-          </Badge>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Legend */}
-          <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-blue-500" /> Entregas ({entregas.length})
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-amber-500" /> Devoluciones ({devoluciones.length})
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-emerald-500" /> Base
-            </span>
+      <div className="h-full flex flex-col -m-4 md:-m-6 lg:-m-8">
+        {/* ── Compact Status Bar ── */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Radio className="h-4 w-4 text-emerald-500" />
+                {records.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+              </div>
+              <span className="text-sm font-semibold font-[Montserrat] tracking-tight">
+                En Directo
+              </span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-3 text-xs">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
+                      <span className="text-foreground">{entregas.length}</span>
+                      <span className="text-muted-foreground hidden sm:inline">entregas</span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Entregas en camino</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                      <span className="text-foreground">{devoluciones.length}</span>
+                      <span className="text-muted-foreground hidden sm:inline">devoluciones</span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Devoluciones en camino</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {failedGeocode.length > 0 && (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="font-medium">{failedGeocode.length}</span>
+                        <span className="hidden sm:inline">sin ubicar</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-medium mb-1">Direcciones no geocodificadas:</p>
+                      {failedGeocode.map(r => (
+                        <p key={r.id} className="text-xs">{r.destination_address}</p>
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
           </div>
-          {/* Last updated + refresh */}
           <button
             onClick={() => fetchRecords(true)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className={cn(
+              "flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all rounded-md px-2 py-1 hover:bg-muted",
+              refreshing && "text-foreground"
+            )}
             title="Actualizar ahora"
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
-            {lastUpdated ? formatRelativeTime(lastUpdated) : 'Cargando...'}
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            <span className="hidden sm:inline">
+              {lastUpdated ? formatRelativeTime(lastUpdated) : 'Cargando...'}
+            </span>
           </button>
         </div>
-      </div>
 
-      {/* Map + sidebar */}
-      <div className="flex-1 flex">
-        {/* Map */}
-        <div className="flex-1 relative">
-          {loading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
-              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <MapContainer
-              center={[PALMA_CENTER.lat, PALMA_CENTER.lng]}
-              zoom={DEFAULT_ZOOM}
-              className="h-full w-full"
-              style={{ minHeight: '400px' }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                subdomains="abcd"
-              />
-
-              {/* Base marker */}
-              <Marker position={[AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]} icon={baseIcon}>
-                <Popup>
-                  <div className="text-sm">
-                    <p className="font-semibold text-emerald-600">🏠 Base — Azul Cars</p>
-                    <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
-                    <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
-                  </div>
-                </Popup>
-              </Marker>
-
-              {/* Polylines from base to each destination (real road routes) */}
-              {geocodedRecords.map((rec) => {
-                const routeData = routes[rec.id];
-                if (!routeData) return null;
-                const color = rec.operation_type === 'entrega' ? '#2563eb' : '#d97706';
-                // Dashed line for Google Maps fallback routes
-                const isGoogleFallback = rec.geocodeSource === 'google';
-                return (
-                  <Polyline
-                    key={`line-${rec.id}`}
-                    positions={routeData.positions}
-                    pathOptions={{
-                      color,
-                      weight: 5,
-                      opacity: 0.85,
-                      lineCap: 'round',
-                      lineJoin: 'round',
-                      ...(isGoogleFallback ? { dashArray: '10, 8' } : {}),
-                    }}
-                  >
+        {/* ── Map + Sidebar ── */}
+        <div className="flex-1 flex min-h-0">
+          {/* Map Area */}
+          <div className="flex-1 relative">
+            {loading ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/30 gap-3">
+                <div className="h-10 w-10 rounded-full border-2 border-muted-foreground/20 border-t-emerald-500 animate-spin" />
+                <p className="text-sm text-muted-foreground">Cargando mapa...</p>
+              </div>
+            ) : records.length === 0 ? (
+              /* Empty state overlay on map */
+              <div className="relative h-full">
+                <MapContainer
+                  center={[PALMA_CENTER.lat, PALMA_CENTER.lng]}
+                  zoom={DEFAULT_ZOOM}
+                  className="h-full w-full"
+                  style={{ minHeight: '400px' }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    subdomains="abcd"
+                  />
+                  <Marker position={[AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]} icon={baseIcon}>
                     <Popup>
                       <div className="text-sm">
-                        <p className="font-semibold">
-                          {rec.operation_type === 'entrega' ? '🚗 Entrega' : '🔄 Devolución'}
-                        </p>
-                        <p className="text-xs mt-1">📍 {rec.destination_address}</p>
-                        <p className="text-xs mt-1 font-medium">⏱ ETA: {routeData.durationMinutes} min ({routeData.distanceKm} km)</p>
-                        <p className="text-[10px] mt-1" style={{ color: rec.geocodeSource === 'google' ? '#7c3aed' : rec.geocodeSource === 'alias' ? '#059669' : '#6b7280' }}>
-                          {rec.geocodeSource === 'google' ? '🌐 Ubicación vía Google Maps' : rec.geocodeSource === 'alias' ? '📌 Ubicación predefinida' : '🗺️ Ubicación vía Nominatim'}
-                        </p>
+                        <p className="font-semibold text-emerald-600">Base — Azul Cars</p>
+                        <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
+                        <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
                       </div>
                     </Popup>
-                  </Polyline>
-                );
-              })}
+                  </Marker>
+                </MapContainer>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl px-8 py-6 shadow-lg text-center max-w-sm pointer-events-auto">
+                    <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                      <Navigation className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">Sin operaciones activas</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No hay vehículos en camino en este momento. Las operaciones aparecerán aquí cuando se inicien desde Reservas.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <MapContainer
+                center={[PALMA_CENTER.lat, PALMA_CENTER.lng]}
+                zoom={DEFAULT_ZOOM}
+                className="h-full w-full"
+                style={{ minHeight: '400px' }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  subdomains="abcd"
+                />
 
-              {/* En camino markers */}
-              {geocodedRecords.map((rec) => (
-                <Marker
-                  key={rec.id}
-                  position={[rec.lat, rec.lng]}
-                  icon={rec.operation_type === 'entrega' ? entregaIcon : devolucionIcon}
-                >
+                {/* Base marker */}
+                <Marker position={[AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]} icon={baseIcon}>
                   <Popup>
-                    <div className="text-sm min-w-[200px]">
-                      <p className="font-semibold">
-                        {rec.operation_type === 'entrega' ? '🚗 Entrega' : '🔄 Devolución'}
-                      </p>
-                      {rec.assigned_user_name && (
-                        <p className="text-xs flex items-center gap-1 mt-1">
-                          <User className="h-3 w-3" /> {rec.assigned_user_name}
-                        </p>
-                      )}
-                      <p className="text-xs flex items-center gap-1 mt-1">
-                        <MapPin className="h-3 w-3" /> {rec.destination_address}
-                      </p>
-                      <p className="text-xs flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3" /> Salió {formatRelativeTime(new Date(rec.en_camino_at))}
-                      </p>
-                      <p className="text-[10px] mt-1" style={{ color: rec.geocodeSource === 'google' ? '#7c3aed' : rec.geocodeSource === 'alias' ? '#059669' : '#6b7280' }}>
-                        {rec.geocodeSource === 'google' ? '🌐 Ubicación vía Google Maps' : rec.geocodeSource === 'alias' ? '📌 Ubicación predefinida' : '🗺️ Ubicación vía Nominatim'}
-                      </p>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rec.destination_address || '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline mt-2 inline-flex items-center gap-1"
-                      >
-                        <Navigation className="h-3 w-3" /> Abrir en Google Maps
-                      </a>
+                    <div className="text-sm">
+                      <p className="font-semibold text-emerald-600">Base — Azul Cars</p>
+                      <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
+                      <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
                     </div>
                   </Popup>
                 </Marker>
-              ))}
 
-              {geocodedRecords.length > 0 && <FitBounds markers={geocodedRecords} />}
-            </MapContainer>
-          )}
-        </div>
-
-        {/* Sidebar - operation list */}
-        <div className="w-80 border-l bg-background overflow-y-auto hidden lg:block">
-          <div className="p-3 border-b">
-            <h2 className="text-sm font-semibold">Operaciones En Camino</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {records.length === 0 ? 'No hay operaciones en camino' : `${records.length} operaciones activas hoy`}
-            </p>
-          </div>
-          <div className="divide-y">
-            {records.map((rec) => {
-              const enCaminoAt = new Date(rec.en_camino_at);
-              const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
-              // Find the geocoded version to get the source
-              const geocoded = geocodedRecords.find(g => g.id === rec.id);
-              const source = geocoded?.geocodeSource;
-              return (
-                <div key={rec.id} className="p-3 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[10px] px-1.5 py-0",
-                        rec.operation_type === 'entrega'
-                          ? "border-blue-300 text-blue-700 bg-blue-50"
-                          : "border-amber-300 text-amber-700 bg-amber-50"
-                      )}
+                {/* Route polylines */}
+                {geocodedRecords.map((rec) => {
+                  const routeData = routes[rec.id];
+                  if (!routeData) return null;
+                  const color = rec.operation_type === 'entrega' ? '#2563eb' : '#d97706';
+                  const isGoogleFallback = rec.geocodeSource === 'google';
+                  return (
+                    <Polyline
+                      key={`line-${rec.id}`}
+                      positions={routeData.positions}
+                      pathOptions={{
+                        color,
+                        weight: 4,
+                        opacity: selectedRecordId === rec.id ? 1 : 0.7,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                        ...(isGoogleFallback ? { dashArray: '10, 8' } : {}),
+                      }}
                     >
-                      {rec.operation_type === 'entrega' ? 'Entrega' : 'Devolución'}
-                    </Badge>
-                    <span className={cn(
-                      "text-[10px] font-medium",
-                      minutesAgo > 45 ? "text-red-500" : minutesAgo > 20 ? "text-amber-500" : "text-emerald-500"
-                    )}>
-                      hace {minutesAgo} min
-                    </span>
-                    {source && (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[9px] px-1 py-0",
-                          source === 'google'
-                            ? "border-violet-300 text-violet-700 bg-violet-50"
-                            : source === 'alias'
-                            ? "border-emerald-300 text-emerald-700 bg-emerald-50"
-                            : "border-gray-300 text-gray-600 bg-gray-50"
+                      <Popup>
+                        <div className="text-sm min-w-[180px]">
+                          <div className="flex items-center gap-1.5 font-semibold mb-1.5">
+                            {rec.operation_type === 'entrega' ? (
+                              <><Truck className="h-3.5 w-3.5 text-blue-600" /> Entrega</>
+                            ) : (
+                              <><RotateCcw className="h-3.5 w-3.5 text-amber-600" /> Devolución</>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600">{rec.destination_address}</p>
+                          <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-700">
+                            <Clock className="h-3 w-3" />
+                            ETA: {routeData.durationMinutes} min ({routeData.distanceKm} km)
+                          </div>
+                        </div>
+                      </Popup>
+                    </Polyline>
+                  );
+                })}
+
+                {/* Destination markers */}
+                {geocodedRecords.map((rec) => (
+                  <Marker
+                    key={rec.id}
+                    position={[rec.lat, rec.lng]}
+                    icon={rec.operation_type === 'entrega' ? entregaIcon : devolucionIcon}
+                  >
+                    <Popup>
+                      <div className="text-sm min-w-[200px]">
+                        <div className="flex items-center gap-1.5 font-semibold mb-2">
+                          {rec.operation_type === 'entrega' ? (
+                            <><Truck className="h-3.5 w-3.5 text-blue-600" /> Entrega</>
+                          ) : (
+                            <><RotateCcw className="h-3.5 w-3.5 text-amber-600" /> Devolución</>
+                          )}
+                        </div>
+                        {rec.assigned_user_name && (
+                          <p className="text-xs flex items-center gap-1 mb-1">
+                            <User className="h-3 w-3 text-gray-400" /> {rec.assigned_user_name}
+                          </p>
                         )}
-                      >
-                        {source === 'google' ? '🌐 Google' : source === 'alias' ? '📌 Alias' : '🗺️ OSM'}
-                      </Badge>
-                    )}
+                        <p className="text-xs flex items-center gap-1 mb-1">
+                          <MapPin className="h-3 w-3 text-gray-400" /> {rec.destination_address}
+                        </p>
+                        <p className="text-xs flex items-center gap-1 mb-2">
+                          <Clock className="h-3 w-3 text-gray-400" /> Salió {formatRelativeTime(new Date(rec.en_camino_at))}
+                        </p>
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rec.destination_address || '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Abrir en Google Maps
+                        </a>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+
+                {geocodedRecords.length > 0 && <FitBounds markers={geocodedRecords} />}
+              </MapContainer>
+            )}
+          </div>
+
+          {/* ── Sidebar ── */}
+          <div className="w-[340px] border-l border-border bg-card flex flex-col hidden lg:flex">
+            {/* Sidebar header */}
+            <div className="px-4 py-3 border-b border-border">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold font-[Montserrat] tracking-tight">Operaciones</h2>
+                <Badge variant="outline" className="text-[10px] font-medium tabular-nums">
+                  {records.length} activas
+                </Badge>
+              </div>
+            </div>
+
+            {/* Operation cards */}
+            <div className="flex-1 overflow-y-auto">
+              {records.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                    <Navigation className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  {rec.assigned_user_name && (
-                    <p className="text-xs font-medium flex items-center gap-1">
-                      <User className="h-3 w-3 text-muted-foreground" />
-                      {rec.assigned_user_name}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <ArrowRight className="h-3 w-3" />
-                    {rec.destination_address || 'Sin dirección'}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Salió a las {format(enCaminoAt, 'HH:mm')}
+                  <p className="text-xs text-muted-foreground">
+                    No hay operaciones en camino
                   </p>
                 </div>
-              );
-            })}
+              ) : (
+                <div className="p-2 space-y-1.5">
+                  {records.map((rec) => {
+                    const enCaminoAt = new Date(rec.en_camino_at);
+                    const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
+                    const urgency = getUrgencyColor(minutesAgo);
+                    const geocoded = geocodedRecords.find(g => g.id === rec.id);
+                    const routeData = geocoded ? routes[geocoded.id] : null;
+                    const isEntrega = rec.operation_type === 'entrega';
+                    const isSelected = selectedRecordId === rec.id;
+
+                    return (
+                      <div
+                        key={rec.id}
+                        onClick={() => setSelectedRecordId(isSelected ? null : rec.id)}
+                        className={cn(
+                          "rounded-lg border transition-all cursor-pointer group",
+                          isSelected
+                            ? "border-primary/40 bg-primary/5 shadow-sm"
+                            : "border-border hover:border-border/80 hover:bg-muted/30"
+                        )}
+                      >
+                        {/* Card header */}
+                        <div className="px-3 py-2.5">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "h-6 w-6 rounded-md flex items-center justify-center",
+                                isEntrega ? "bg-blue-100 dark:bg-blue-950" : "bg-amber-100 dark:bg-amber-950"
+                              )}>
+                                {isEntrega ? (
+                                  <Truck className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                ) : (
+                                  <RotateCcw className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                                )}
+                              </div>
+                              <span className="text-xs font-semibold">
+                                {isEntrega ? 'Entrega' : 'Devolución'}
+                              </span>
+                            </div>
+                            <div className={cn(
+                              "flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                              urgency.bg, urgency.text, urgency.border, "border"
+                            )}>
+                              <Clock className="h-2.5 w-2.5" />
+                              {minutesAgo} min
+                            </div>
+                          </div>
+
+                          {/* User */}
+                          {rec.assigned_user_name && (
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="text-xs font-medium truncate">{rec.assigned_user_name}</span>
+                            </div>
+                          )}
+
+                          {/* Destination */}
+                          <div className="flex items-start gap-1.5">
+                            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                            <span className="text-xs text-muted-foreground leading-tight line-clamp-2">
+                              {rec.destination_address || 'Sin dirección'}
+                            </span>
+                          </div>
+
+                          {/* Route info + departure time */}
+                          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-border/50">
+                            <span className="text-[10px] text-muted-foreground">
+                              Salió a las {format(enCaminoAt, 'HH:mm')}
+                            </span>
+                            {routeData && (
+                              <span className="text-[10px] font-medium text-muted-foreground">
+                                ETA {routeData.durationMinutes}' / {routeData.distanceKm} km
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Geocode source badge */}
+                          {geocoded && (
+                            <div className="mt-1.5">
+                              <span className={cn(
+                                "inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border",
+                                geocoded.geocodeSource === 'alias'
+                                  ? "border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40"
+                                  : geocoded.geocodeSource === 'google'
+                                  ? "border-violet-200 text-violet-700 bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:bg-violet-950/40"
+                                  : "border-border text-muted-foreground bg-muted/50"
+                              )}>
+                                {geocoded.geocodeSource === 'alias' ? 'Ubicación predefinida' : geocoded.geocodeSource === 'google' ? 'Google Maps' : 'OpenStreetMap'}
+                              </span>
+                            </div>
+                          )}
+                          {!geocoded && rec.destination_address && (
+                            <div className="mt-1.5">
+                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-amber-200 text-amber-700 bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:bg-amber-950/40">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                No se pudo ubicar
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar footer — Base info */}
+            <div className="px-4 py-2.5 border-t border-border bg-muted/30">
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate">Base: Carrer del Canal de Sant Jordi, 29 — Palma</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </AppLayout>
   );
 }
