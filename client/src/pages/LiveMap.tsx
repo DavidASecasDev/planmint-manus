@@ -28,10 +28,13 @@ interface EnCaminoRecord {
   created_at: string;
 }
 
+type GeocodeSource = 'alias' | 'nominatim' | 'google';
+
 interface GeocodedRecord extends EnCaminoRecord {
   lat: number;
   lng: number;
   geocoded: boolean;
+  geocodeSource: GeocodeSource;
 }
 
 // ── Constants ──
@@ -110,12 +113,19 @@ const entregaIcon = createIcon('#3b82f6', true); // blue
 const devolucionIcon = createIcon('#f59e0b', true); // amber
 const baseIcon = createIcon('#10b981'); // green (base)
 
+// ── Geocode result with source tracking ──
+interface GeocodeResult {
+  lat: number;
+  lng: number;
+  source: GeocodeSource;
+}
+
 // ── Geocode helper (uses aliases → Nominatim → Google Maps API fallback) ──
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
   // 1. Check aliases first (instant, no network)
   const alias = matchLocationAlias(address);
   if (alias) {
-    return alias.coords;
+    return { ...alias.coords, source: 'alias' };
   }
   
   // 2. Try Nominatim (free, no API key)
@@ -125,7 +135,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
     );
     const data = await resp.json();
     if (data && data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), source: 'nominatim' };
     }
   } catch {
     // Nominatim failed, continue to fallback
@@ -138,7 +148,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
       { body: { address } }
     );
     if (geoData?.ok && geoData.result) {
-      return { lat: geoData.result.lat, lng: geoData.result.lng };
+      return { lat: geoData.result.lat, lng: geoData.result.lng, source: 'google' };
     }
   } catch {
     // Google Maps fallback also failed
@@ -216,7 +226,7 @@ export default function LiveMapPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
-  const geocodeCache = useRef<Record<string, { lat: number; lng: number } | null>>({});
+  const geocodeCache = useRef<Record<string, GeocodeResult | null>>({});
   const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
   const routeCache = useRef<Record<string, RouteResult | null>>({});
 
@@ -267,15 +277,15 @@ export default function LiveMapPage() {
         if (geocodeCache.current[addr] !== undefined) {
           const cached = geocodeCache.current[addr];
           if (cached) {
-            results.push({ ...rec, ...cached, geocoded: true });
+            results.push({ ...rec, lat: cached.lat, lng: cached.lng, geocoded: true, geocodeSource: cached.source });
           }
           continue;
         }
 
-        const coords = await geocodeAddress(addr);
-        geocodeCache.current[addr] = coords;
-        if (coords) {
-          results.push({ ...rec, ...coords, geocoded: true });
+        const result = await geocodeAddress(addr);
+        geocodeCache.current[addr] = result;
+        if (result) {
+          results.push({ ...rec, lat: result.lat, lng: result.lng, geocoded: true, geocodeSource: result.source });
         }
       }
       if (!cancelled) {
@@ -395,6 +405,8 @@ export default function LiveMapPage() {
                 const routeData = routes[rec.id];
                 if (!routeData) return null;
                 const color = rec.operation_type === 'entrega' ? '#2563eb' : '#d97706';
+                // Dashed line for Google Maps fallback routes
+                const isGoogleFallback = rec.geocodeSource === 'google';
                 return (
                   <Polyline
                     key={`line-${rec.id}`}
@@ -405,6 +417,7 @@ export default function LiveMapPage() {
                       opacity: 0.85,
                       lineCap: 'round',
                       lineJoin: 'round',
+                      ...(isGoogleFallback ? { dashArray: '10, 8' } : {}),
                     }}
                   >
                     <Popup>
@@ -414,6 +427,9 @@ export default function LiveMapPage() {
                         </p>
                         <p className="text-xs mt-1">📍 {rec.destination_address}</p>
                         <p className="text-xs mt-1 font-medium">⏱ ETA: {routeData.durationMinutes} min ({routeData.distanceKm} km)</p>
+                        <p className="text-[10px] mt-1" style={{ color: rec.geocodeSource === 'google' ? '#7c3aed' : rec.geocodeSource === 'alias' ? '#059669' : '#6b7280' }}>
+                          {rec.geocodeSource === 'google' ? '🌐 Ubicación vía Google Maps' : rec.geocodeSource === 'alias' ? '📌 Ubicación predefinida' : '🗺️ Ubicación vía Nominatim'}
+                        </p>
                       </div>
                     </Popup>
                   </Polyline>
@@ -442,6 +458,9 @@ export default function LiveMapPage() {
                       </p>
                       <p className="text-xs flex items-center gap-1 mt-1">
                         <Clock className="h-3 w-3" /> Salió {formatRelativeTime(new Date(rec.en_camino_at))}
+                      </p>
+                      <p className="text-[10px] mt-1" style={{ color: rec.geocodeSource === 'google' ? '#7c3aed' : rec.geocodeSource === 'alias' ? '#059669' : '#6b7280' }}>
+                        {rec.geocodeSource === 'google' ? '🌐 Ubicación vía Google Maps' : rec.geocodeSource === 'alias' ? '📌 Ubicación predefinida' : '🗺️ Ubicación vía Nominatim'}
                       </p>
                       <a
                         href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rec.destination_address || '')}`}
@@ -473,9 +492,12 @@ export default function LiveMapPage() {
             {records.map((rec) => {
               const enCaminoAt = new Date(rec.en_camino_at);
               const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
+              // Find the geocoded version to get the source
+              const geocoded = geocodedRecords.find(g => g.id === rec.id);
+              const source = geocoded?.geocodeSource;
               return (
                 <div key={rec.id} className="p-3 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Badge
                       variant="outline"
                       className={cn(
@@ -493,6 +515,21 @@ export default function LiveMapPage() {
                     )}>
                       hace {minutesAgo} min
                     </span>
+                    {source && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[9px] px-1 py-0",
+                          source === 'google'
+                            ? "border-violet-300 text-violet-700 bg-violet-50"
+                            : source === 'alias'
+                            ? "border-emerald-300 text-emerald-700 bg-emerald-50"
+                            : "border-gray-300 text-gray-600 bg-gray-50"
+                        )}
+                      >
+                        {source === 'google' ? '🌐 Google' : source === 'alias' ? '📌 Alias' : '🗺️ OSM'}
+                      </Badge>
+                    )}
                   </div>
                   {rec.assigned_user_name && (
                     <p className="text-xs font-medium flex items-center gap-1">
