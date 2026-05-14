@@ -108,7 +108,7 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
  */
 export async function handleEnCaminoList(req: Request, res: Response) {
   try {
-    const { date } = req.query as { date?: string };
+    const { date, include_completed } = req.query as { date?: string; include_completed?: string };
 
     const sb = getServiceClient();
 
@@ -122,6 +122,12 @@ export async function handleEnCaminoList(req: Request, res: Response) {
       const startOfDay = `${date}T00:00:00.000Z`;
       const endOfDay = `${date}T23:59:59.999Z`;
       query = query.gte("en_camino_at", startOfDay).lte("en_camino_at", endOfDay);
+    }
+
+    // By default, exclude completed operations (those with llego_at set)
+    // Only include them if explicitly requested (for reports/history)
+    if (include_completed !== 'true') {
+      query = query.is("llego_at", null);
     }
 
     const { data, error } = await query;
