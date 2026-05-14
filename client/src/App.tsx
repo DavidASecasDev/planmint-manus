@@ -99,6 +99,7 @@ const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 
 // Reservations
 const Reservations = lazy(() => import("./pages/Reservations"));
+const LiveMap = lazy(() => import("./pages/LiveMap"));
 
 // Garatech Module
 const GaratechDashboard = lazy(() => import("./pages/garatech/Dashboard"));
@@ -260,6 +261,14 @@ function MainAppRoutes() {
                   >
                     <Reservations />
                   </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/live-map" 
+              element={
+                <ProtectedRoute>
+                  <LiveMap />
                 </ProtectedRoute>
               } 
             />

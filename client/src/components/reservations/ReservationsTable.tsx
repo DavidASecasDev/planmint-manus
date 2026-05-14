@@ -1470,6 +1470,16 @@ export function ReservationsTable() {
                                     if (currentEstado !== 'En camino') {
                                       handleOperationFieldUpdate(row, 'estado', 'En camino');
                                     }
+                                    // Record timestamp in en_camino_tracking table
+                                    const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+                                    apiInvoke('en-camino-tracking', {
+                                      body: {
+                                        reservation_id: row.reservationId,
+                                        operation_type: opType,
+                                        destination_address: getOperationFieldValue(row, 'direccion') || getOperationFieldValue(row, 'lugar') || '',
+                                        assigned_user_name: getOperationFieldValue(row, 'asignado_rental') || '',
+                                      },
+                                    }).catch((err: unknown) => console.error('[en-camino-tracking] Error:', err));
                                   }}
                                 >
                                   <Navigation className={cn(

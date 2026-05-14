@@ -119,6 +119,7 @@ import {
   handleAssignReinforcement,
 } from "../reinforcementEndpoint";
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
+import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete } from "../enCaminoTrackingEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -258,6 +259,9 @@ async function startServer() {
   app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
   app.post("/api/assign-reinforcement", handleAssignReinforcement);
   app.post("/api/places-autocomplete", handlePlacesAutocomplete);
+  app.post("/api/en-camino-tracking", handleEnCaminoTrack);
+  app.get("/api/en-camino-tracking", handleEnCaminoList);
+  app.delete("/api/en-camino-tracking", handleEnCaminoDelete);
 
   // tRPC API
   app.use(

@@ -603,3 +603,6 @@
 - [x] Bug: Base location incorrecta — actualizada a Azul Cars (Carrer del Canal de Sant Jordi, 29, L3, 07610 Palma), eliminado aeropuerto de keywords base
 - [x] Feature: Botón de navegación Google Maps junto a la dirección en la tabla de reservas (abre ruta al destino)
 - [x] Feature: Estado "en camino" para operaciones — al pulsar botón de navegación, marca estado como "En camino" (sky-500), icono pulsa, visible para todo el equipo
+- [x] Feature: Registrar timestamp en tabla en_camino_tracking cuando se pulsa "En camino" — incluye reservation_id, operation_type, destination_address, assigned_user_name
+- [x] Feature: Notificación push al equipo cuando un rental marca operación como "En camino" — usa notifyOwner con detalles de reserva y cliente
+- [x] Feature: Vista de mapa en tiempo real (/live-map) con Leaflet + OpenStreetMap — muestra base Azul Cars, entregas (azul) y devoluciones (ámbar), sidebar con lista, polling cada 30s, geocodificación automática

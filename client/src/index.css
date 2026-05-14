@@ -346,3 +346,15 @@
     }
   }
 }
+
+/* ── Leaflet custom marker styles ── */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 8px !important;
+}
+.leaflet-popup-content {
+  margin: 10px 12px !important;
+}
