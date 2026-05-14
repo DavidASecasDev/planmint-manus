@@ -1456,11 +1456,26 @@ export function ReservationsTable() {
                                   href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(getOperationFieldValue(row, col.key) || '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="shrink-0 p-1 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-                                  title="Abrir en Google Maps"
-                                  onClick={(e) => e.stopPropagation()}
+                                  className={cn(
+                                    "shrink-0 p-1 rounded-md transition-colors",
+                                    getOperationFieldValue(row, 'estado') === 'En camino'
+                                      ? "text-blue-700 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300"
+                                      : "text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                  )}
+                                  title={getOperationFieldValue(row, 'estado') === 'En camino' ? 'En camino — Abrir en Google Maps' : 'Navegar y marcar En camino'}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Mark operation as 'En camino' if not already
+                                    const currentEstado = getOperationFieldValue(row, 'estado');
+                                    if (currentEstado !== 'En camino') {
+                                      handleOperationFieldUpdate(row, 'estado', 'En camino');
+                                    }
+                                  }}
                                 >
-                                  <Navigation className="h-3.5 w-3.5" />
+                                  <Navigation className={cn(
+                                    "h-3.5 w-3.5",
+                                    getOperationFieldValue(row, 'estado') === 'En camino' && "animate-pulse"
+                                  )} />
                                 </a>
                               )}
                             </div>

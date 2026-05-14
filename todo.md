@@ -602,3 +602,4 @@
 - [x] Bug: Columna Trayecto muestra '\u2019' en vez de formato legible — corregido a "X min"
 - [x] Bug: Base location incorrecta — actualizada a Azul Cars (Carrer del Canal de Sant Jordi, 29, L3, 07610 Palma), eliminado aeropuerto de keywords base
 - [x] Feature: Botón de navegación Google Maps junto a la dirección en la tabla de reservas (abre ruta al destino)
+- [x] Feature: Estado "en camino" para operaciones — al pulsar botón de navegación, marca estado como "En camino" (sky-500), icono pulsa, visible para todo el equipo
