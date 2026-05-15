@@ -25,6 +25,7 @@ import {
 interface EnCaminoRecord {
   id: string;
   reservation_id: string;
+  external_reservation_id?: string | null;
   operation_type: 'entrega' | 'devolucion';
   en_camino_at: string;
   destination_address: string | null;
@@ -570,6 +571,9 @@ export default function LiveMapPage() {
                               <><RotateCcw className="h-3.5 w-3.5 text-amber-600" /> Devolución</>
                             )}
                           </div>
+                          {rec.external_reservation_id && (
+                            <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
+                          )}
                           <p className="text-xs text-gray-600">{rec.destination_address}</p>
                           <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-700">
                             <Clock className="h-3 w-3" />
@@ -603,6 +607,9 @@ export default function LiveMapPage() {
                           <div className="flex items-center gap-1.5 font-semibold mb-1.5 text-emerald-600">
                             <Radio className="h-3.5 w-3.5" /> Ruta en vivo
                           </div>
+                          {rec.external_reservation_id && (
+                            <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
+                          )}
                           <p className="text-xs text-gray-600">{rec.destination_address}</p>
                           <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-700">
                             <Clock className="h-3 w-3" />
@@ -625,8 +632,11 @@ export default function LiveMapPage() {
                       <div className="text-sm min-w-[200px]">
                         <div className="flex items-center gap-1.5 font-semibold mb-2">
                           <Radio className="h-3.5 w-3.5 text-emerald-500" />
-                          <span className="text-emerald-600">Ubicaci\u00f3n en vivo</span>
+                          <span className="text-emerald-600">Ubicación en vivo</span>
                         </div>
+                        {rec.external_reservation_id && (
+                          <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
+                        )}
                         {rec.assigned_user_name && (
                           <p className="text-xs flex items-center gap-1 mb-1">
                             <User className="h-3 w-3 text-gray-400" /> {rec.assigned_user_name}
@@ -661,6 +671,9 @@ export default function LiveMapPage() {
                             <><RotateCcw className="h-3.5 w-3.5 text-amber-600" /> Devolución</>
                           )}
                         </div>
+                        {rec.external_reservation_id && (
+                          <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
+                        )}
                         {rec.assigned_user_name && (
                           <p className="text-xs flex items-center gap-1 mb-1">
                             <User className="h-3 w-3 text-gray-400" /> {rec.assigned_user_name}
@@ -753,6 +766,11 @@ export default function LiveMapPage() {
                                 {isEntrega ? 'Entrega' : 'Devolución'}
                               </span>
                             </div>
+                            {rec.external_reservation_id && (
+                              <span className="text-[10px] font-mono font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                Nº {rec.external_reservation_id}
+                              </span>
+                            )}
                             <div className={cn(
                               "flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
                               urgency.bg, urgency.text, urgency.border, "border"

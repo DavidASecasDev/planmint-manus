@@ -190,7 +190,23 @@ export async function handleEnCaminoList(req: Request, res: Response) {
       return res.status(500).json({ ok: false, error: error.message });
     }
 
-    return res.json({ ok: true, records: data || [] });
+    // Enrich records with external_reservation_id from reservations table
+    const records = data || [];
+    if (records.length > 0) {
+      const reservationIds = Array.from(new Set(records.map((r: any) => r.reservation_id).filter(Boolean)));
+      if (reservationIds.length > 0) {
+        const { data: reservations } = await sb
+          .from('reservations')
+          .select('id, external_reservation_id')
+          .in('id', reservationIds);
+        const resMap = new Map((reservations || []).map((r: any) => [r.id, r.external_reservation_id]));
+        for (const rec of records) {
+          (rec as any).external_reservation_id = resMap.get(rec.reservation_id) || null;
+        }
+      }
+    }
+
+    return res.json({ ok: true, records });
   } catch (err) {
     console.error("[en-camino-tracking] Error:", err);
     return res.status(500).json({ ok: false, error: String(err) });
