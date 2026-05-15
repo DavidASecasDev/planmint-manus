@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useRealtimeEnCamino, type EnCaminoRecord, type RealtimeStatus } from '@/hooks/useRealtimeEnCamino';
 import { useLocationTrail } from '@/hooks/useLocationTrail';
+import { AnimatedMarker } from '@/components/map/AnimatedMarker';
 
 // ── Types ──
 type GeocodeSource = 'alias' | 'nominatim' | 'google';
@@ -400,35 +401,58 @@ export default function LiveMapPage() {
   }, [geocodedRecords]);
 
   // Fetch live routes from rental's current position to destination
-  // Re-fetch when records change (location updates come via realtime)
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchLiveRoutes() {
-      const newLiveRoutes: Record<string, RouteResult> = {};
-      const liveRecords = geocodedRecords.filter(r => {
-        const original = records.find(o => o.id === r.id);
-        return original?.sharing_location && original?.current_lat != null && original?.current_lng != null;
-      });
-      for (const rec of liveRecords) {
-        if (cancelled) return;
-        const original = records.find(o => o.id === rec.id)!;
-        const route = await fetchRoute(
-          { lat: original.current_lat!, lng: original.current_lng! },
-          { lat: rec.lat, lng: rec.lng },
-          rec.destination_address || undefined
-        );
-        if (route) newLiveRoutes[rec.id] = route;
-      }
-      if (!cancelled) setLiveRoutes(newLiveRoutes);
+  // Throttled to every 30s to avoid blocking render with OSRM calls on each GPS update.
+  // The AnimatedMarker handles smooth visual movement independently.
+  const liveRouteTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const liveRouteFetchRef = useRef<() => void>(() => {});
+
+  // Keep the fetch function up-to-date with latest records/geocodedRecords
+  liveRouteFetchRef.current = async () => {
+    const liveRecords = geocodedRecords.filter(r => {
+      const original = records.find(o => o.id === r.id);
+      return original?.sharing_location && original?.current_lat != null && original?.current_lng != null;
+    });
+    if (liveRecords.length === 0) {
+      setLiveRoutes({});
+      return;
     }
+    const newLiveRoutes: Record<string, RouteResult> = {};
+    for (const rec of liveRecords) {
+      const original = records.find(o => o.id === rec.id)!;
+      const route = await fetchRoute(
+        { lat: original.current_lat!, lng: original.current_lng! },
+        { lat: rec.lat, lng: rec.lng },
+        rec.destination_address || undefined
+      );
+      if (route) newLiveRoutes[rec.id] = route;
+    }
+    setLiveRoutes(newLiveRoutes);
+  };
+
+  useEffect(() => {
     const liveCount = records.filter(r => r.sharing_location && r.current_lat != null).length;
     if (liveCount > 0 && geocodedRecords.length > 0) {
-      fetchLiveRoutes();
+      // Fetch once immediately, then every 30s
+      liveRouteFetchRef.current();
+      if (!liveRouteTimerRef.current) {
+        liveRouteTimerRef.current = setInterval(() => liveRouteFetchRef.current(), 30_000);
+      }
     } else {
       setLiveRoutes({});
+      if (liveRouteTimerRef.current) {
+        clearInterval(liveRouteTimerRef.current);
+        liveRouteTimerRef.current = null;
+      }
     }
-    return () => { cancelled = true; };
-  }, [records, geocodedRecords]);
+    return () => {
+      if (liveRouteTimerRef.current) {
+        clearInterval(liveRouteTimerRef.current);
+        liveRouteTimerRef.current = null;
+      }
+    };
+    // Only re-run when the number of live records changes, not on every GPS update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geocodedRecords.length, records.filter(r => r.sharing_location && r.current_lat != null).length]);
 
   const entregas = geocodedRecords.filter(r => r.operation_type === 'entrega');
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
@@ -740,12 +764,14 @@ export default function LiveMapPage() {
                   );
                 })}
 
-                {/* Live location car markers */}
+                {/* Live location car markers — animated for smooth movement */}
                 {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
-                  <Marker
+                  <AnimatedMarker
                     key={`live-${rec.id}`}
                     position={[rec.current_lat!, rec.current_lng!]}
                     icon={rec.operation_type === 'entrega' ? entregaCarIcon : devolucionCarIcon}
+                    animationDuration={2000}
+                    markerId={rec.id}
                   >
                     <Popup>
                       <div className="text-sm min-w-[200px]">
@@ -771,7 +797,7 @@ export default function LiveMapPage() {
                         )}
                       </div>
                     </Popup>
-                  </Marker>
+                  </AnimatedMarker>
                 ))}
 
                 {/* Destination markers */}

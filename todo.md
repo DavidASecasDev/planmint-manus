@@ -668,3 +668,4 @@
 - [x] Bug: Dashboard se queda en estado de carga (skeletons grises) obligando a recargar la página
 - [x] Bug: Horarios muestra "No hay equipos configurados" cuando debería cargar datos
 - [x] Bug: Problemas generales de carga en diferentes páginas que obligan a recargar
+- [x] Bug: El marcador del coche en LiveMap no se mueve en tiempo real cuando el rental está en camino (GPS no actualiza posición visualmente)
