@@ -654,3 +654,4 @@
 - [x] Bug: Fix Unicode encoding "Ubicaci\u00f3n" en popup del mapa en vivo
 - [ ] Bug: Traducir todos los textos en inglés del LiveMap al español
 - [ ] Feature: Añadir número de reserva en tarjetas del sidebar y popups del mapa
+- [x] Feature: Filtro por tipo en el mapa — toggles para mostrar/ocultar entregas o devoluciones independientemente

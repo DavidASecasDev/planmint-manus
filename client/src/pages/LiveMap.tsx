@@ -260,6 +260,8 @@ export default function LiveMapPage() {
   const routeCache = useRef<Record<string, RouteResult | null>>({});
   const [liveRoutes, setLiveRoutes] = useState<Record<string, RouteResult>>({});
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [showEntregas, setShowEntregas] = useState(true);
+  const [showDevoluciones, setShowDevoluciones] = useState(true);
 
   // Tick for relative time display
   useEffect(() => {
@@ -395,6 +397,18 @@ export default function LiveMapPage() {
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
   const failedGeocode = records.filter(r => r.destination_address && !geocodedRecords.find(g => g.id === r.id));
 
+  // Filtered records based on toggle state
+  const filteredGeocodedRecords = geocodedRecords.filter(r => {
+    if (r.operation_type === 'entrega' && !showEntregas) return false;
+    if (r.operation_type === 'devolucion' && !showDevoluciones) return false;
+    return true;
+  });
+  const filteredRecords = records.filter(r => {
+    if (r.operation_type === 'entrega' && !showEntregas) return false;
+    if (r.operation_type === 'devolucion' && !showDevoluciones) return false;
+    return true;
+  });
+
   return (
     <AppLayout title="Mapa En Camino" fullWidth>
       <div className="h-full flex flex-col -m-4 md:-m-6 lg:-m-8">
@@ -417,25 +431,47 @@ export default function LiveMapPage() {
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <span className="h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
-                      <span className="text-foreground">{entregas.length}</span>
-                      <span className="text-muted-foreground hidden sm:inline">entregas</span>
-                    </span>
+                    <button
+                      onClick={() => setShowEntregas(v => !v)}
+                      className={cn(
+                        "flex items-center gap-1.5 font-medium rounded-md px-2 py-1 transition-all border",
+                        showEntregas
+                          ? "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                          : "bg-muted/50 border-transparent text-muted-foreground line-through opacity-60 hover:opacity-80"
+                      )}
+                    >
+                      <span className={cn(
+                        "h-2.5 w-2.5 rounded-full transition-all",
+                        showEntregas ? "bg-blue-500 ring-2 ring-blue-500/20" : "bg-muted-foreground/40"
+                      )} />
+                      <span>{entregas.length}</span>
+                      <span className="hidden sm:inline">entregas</span>
+                    </button>
                   </TooltipTrigger>
-                  <TooltipContent>Entregas en camino</TooltipContent>
+                  <TooltipContent>{showEntregas ? 'Ocultar entregas' : 'Mostrar entregas'}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
-                      <span className="text-foreground">{devoluciones.length}</span>
-                      <span className="text-muted-foreground hidden sm:inline">devoluciones</span>
-                    </span>
+                    <button
+                      onClick={() => setShowDevoluciones(v => !v)}
+                      className={cn(
+                        "flex items-center gap-1.5 font-medium rounded-md px-2 py-1 transition-all border",
+                        showDevoluciones
+                          ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
+                          : "bg-muted/50 border-transparent text-muted-foreground line-through opacity-60 hover:opacity-80"
+                      )}
+                    >
+                      <span className={cn(
+                        "h-2.5 w-2.5 rounded-full transition-all",
+                        showDevoluciones ? "bg-amber-500 ring-2 ring-amber-500/20" : "bg-muted-foreground/40"
+                      )} />
+                      <span>{devoluciones.length}</span>
+                      <span className="hidden sm:inline">devoluciones</span>
+                    </button>
                   </TooltipTrigger>
-                  <TooltipContent>Devoluciones en camino</TooltipContent>
+                  <TooltipContent>{showDevoluciones ? 'Ocultar devoluciones' : 'Mostrar devoluciones'}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               {failedGeocode.length > 0 && (
@@ -483,7 +519,7 @@ export default function LiveMapPage() {
                 <div className="h-10 w-10 rounded-full border-2 border-muted-foreground/20 border-t-emerald-500 animate-spin" />
                 <p className="text-sm text-muted-foreground">Cargando mapa...</p>
               </div>
-            ) : records.length === 0 ? (
+            ) : filteredRecords.length === 0 ? (
               /* Empty state overlay on map */
               <div className="relative h-full">
                 <MapContainer
@@ -512,9 +548,14 @@ export default function LiveMapPage() {
                     <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                       <Navigation className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <p className="text-sm font-semibold text-foreground">Sin operaciones activas</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {records.length > 0 ? 'Operaciones ocultas por filtro' : 'Sin operaciones activas'}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      No hay vehículos en camino en este momento. Las operaciones aparecerán aquí cuando se inicien desde Reservas.
+                      {records.length > 0
+                        ? `Hay ${records.length} operación(es) activa(s) pero están ocultas por los filtros. Activa los toggles de entregas o devoluciones para verlas.`
+                        : 'No hay vehículos en camino en este momento. Las operaciones aparecerán aquí cuando se inicien desde Reservas.'
+                      }
                     </p>
                   </div>
                 </div>
@@ -544,7 +585,7 @@ export default function LiveMapPage() {
                 </Marker>
 
                 {/* Route polylines */}
-                {geocodedRecords.map((rec) => {
+                {filteredGeocodedRecords.map((rec) => {
                   const routeData = routes[rec.id];
                   if (!routeData) return null;
                   const color = rec.operation_type === 'entrega' ? '#2563eb' : '#d97706';
@@ -587,7 +628,7 @@ export default function LiveMapPage() {
 
                 {/* Live route polylines (from rental's current position to destination) */}
                 {Object.entries(liveRoutes).map(([recId, routeData]) => {
-                  const rec = geocodedRecords.find(r => r.id === recId);
+                  const rec = filteredGeocodedRecords.find(r => r.id === recId);
                   if (!rec) return null;
                   return (
                     <Polyline
@@ -622,7 +663,7 @@ export default function LiveMapPage() {
                 })}
 
                 {/* Live location car markers */}
-                {records.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
+                {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
                   <Marker
                     key={`live-${rec.id}`}
                     position={[rec.current_lat!, rec.current_lng!]}
@@ -656,7 +697,7 @@ export default function LiveMapPage() {
                 ))}
 
                 {/* Destination markers */}
-                {geocodedRecords.map((rec) => (
+                {filteredGeocodedRecords.map((rec) => (
                   <Marker
                     key={rec.id}
                     position={[rec.lat, rec.lng]}
@@ -698,7 +739,7 @@ export default function LiveMapPage() {
                   </Marker>
                 ))}
 
-                {geocodedRecords.length > 0 && <FitBounds markers={geocodedRecords} />}
+                {filteredGeocodedRecords.length > 0 && <FitBounds markers={filteredGeocodedRecords} />}
               </MapContainer>
             )}
           </div>
@@ -710,29 +751,32 @@ export default function LiveMapPage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold font-[Montserrat] tracking-tight">Operaciones</h2>
                 <Badge variant="outline" className="text-[10px] font-medium tabular-nums">
-                  {records.length} activas
+                  {filteredRecords.length} activas
                 </Badge>
               </div>
             </div>
 
             {/* Operation cards */}
             <div className="flex-1 overflow-y-auto">
-              {records.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full px-6 text-center">
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
                     <Navigation className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    No hay operaciones en camino
+                    {records.length > 0
+                      ? 'Operaciones ocultas por filtro'
+                      : 'No hay operaciones en camino'
+                    }
                   </p>
                 </div>
               ) : (
                 <div className="p-2 space-y-1.5">
-                  {records.map((rec) => {
+                  {filteredRecords.map((rec) => {
                     const enCaminoAt = new Date(rec.en_camino_at);
                     const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
                     const urgency = getUrgencyColor(minutesAgo);
-                    const geocoded = geocodedRecords.find(g => g.id === rec.id);
+                    const geocoded = filteredGeocodedRecords.find(g => g.id === rec.id);
                     const routeData = geocoded ? routes[geocoded.id] : null;
                     const isEntrega = rec.operation_type === 'entrega';
                     const isSelected = selectedRecordId === rec.id;
