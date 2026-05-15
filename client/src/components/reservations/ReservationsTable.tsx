@@ -264,10 +264,48 @@ export function ReservationsTable() {
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
   const [sharingLocation, setSharingLocation] = useState<Record<string, boolean>>({});
   const locationWatchIds = useRef<Record<string, number>>({});
+  const lastLocationSent = useRef<Record<string, number>>({});
+  const pendingLocationSend = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // (arrival status loading moved below operationRows declaration)
 
   // Start sharing GPS location for an operation
+  // Throttled location sender — sends at most once every 5 seconds per operation
+  const sendLocation = useCallback((rowId: string, reservationId: string, opType: string, lat: number, lng: number, accuracy?: number) => {
+    const MIN_INTERVAL_MS = 5_000; // 5 seconds between sends
+    const now = Date.now();
+    const lastSent = lastLocationSent.current[rowId] || 0;
+    const elapsed = now - lastSent;
+
+    const doSend = () => {
+      lastLocationSent.current[rowId] = Date.now();
+      apiInvoke('en-camino-tracking/location', {
+        body: {
+          reservation_id: reservationId,
+          operation_type: opType,
+          lat,
+          lng,
+          accuracy: accuracy ?? null,
+        },
+      }).catch(err => console.warn('[location] Error sending:', err));
+    };
+
+    if (elapsed >= MIN_INTERVAL_MS) {
+      // Enough time has passed, send immediately
+      if (pendingLocationSend.current[rowId]) {
+        clearTimeout(pendingLocationSend.current[rowId]);
+        delete pendingLocationSend.current[rowId];
+      }
+      doSend();
+    } else {
+      // Schedule send for when the interval elapses (debounce: always send latest position)
+      if (pendingLocationSend.current[rowId]) {
+        clearTimeout(pendingLocationSend.current[rowId]);
+      }
+      pendingLocationSend.current[rowId] = setTimeout(doSend, MIN_INTERVAL_MS - elapsed);
+    }
+  }, []);
+
   const startLocationSharing = useCallback((row: OperationRow) => {
     const rowId = row.id;
     const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
@@ -279,15 +317,8 @@ export function ReservationsTable() {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
-        apiInvoke('en-camino-tracking/location', {
-          body: {
-            reservation_id: row.reservationId,
-            operation_type: opType,
-            lat: latitude,
-            lng: longitude,
-          },
-        }).catch(err => console.warn('[location] Error sending:', err));
+        const { latitude, longitude, accuracy } = position.coords;
+        sendLocation(rowId, row.reservationId, opType, latitude, longitude, accuracy);
       },
       (error) => {
         console.warn('[location] Geolocation error:', error.message);
@@ -296,13 +327,13 @@ export function ReservationsTable() {
           stopLocationSharing(rowId, row.reservationId, opType);
         }
       },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
     );
 
     locationWatchIds.current[rowId] = watchId;
     setSharingLocation(prev => ({ ...prev, [rowId]: true }));
-    toast.success('Compartiendo ubicación en tiempo real');
-  }, []);
+    toast.success('Compartiendo ubicación en tiempo real (cada ~5s)');
+  }, [sendLocation]);
 
   // Stop sharing GPS location
   const stopLocationSharing = useCallback((rowId: string, reservationId: string, opType: string) => {
@@ -311,6 +342,12 @@ export function ReservationsTable() {
       navigator.geolocation.clearWatch(watchId);
       delete locationWatchIds.current[rowId];
     }
+    // Clear any pending throttled send
+    if (pendingLocationSend.current[rowId]) {
+      clearTimeout(pendingLocationSend.current[rowId]);
+      delete pendingLocationSend.current[rowId];
+    }
+    delete lastLocationSent.current[rowId];
     setSharingLocation(prev => ({ ...prev, [rowId]: false }));
     apiInvoke('en-camino-tracking/location-stop', {
       body: { reservation_id: reservationId, operation_type: opType },

@@ -656,3 +656,9 @@
 - [ ] Feature: Añadir número de reserva en tarjetas del sidebar y popups del mapa
 - [x] Feature: Filtro por tipo en el mapa — toggles para mostrar/ocultar entregas o devoluciones independientemente
 - [x] Bug: El diálogo de compartir ubicación no aparece al iniciar trayecto, solo el permiso nativo del navegador
+- [x] Optimización: Reemplazar polling de 30s en LiveMap por Supabase Realtime (push instantáneo)
+- [x] Optimización: Habilitar Supabase Realtime (Replication) para tablas en_camino_tracking y location_history
+- [x] Optimización: Reducir intervalo de envío GPS a 5s con throttle inteligente
+- [x] Feature: Indicador de conexión en tiempo real en LiveMap ("Conectado en tiempo real" / "Reconectando...")
+- [x] Optimización: Fallback polling cada 60s por si la conexión realtime se cae
+- [x] Optimización: Actualización instantánea de marcadores de coche en el mapa sin re-fetch completo

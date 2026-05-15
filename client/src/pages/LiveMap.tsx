@@ -1,7 +1,8 @@
 /**
- * Live Map Page — Shows "En camino" operations on a real-time map
+ * Live Map Page — Shows "En camino" operations with Supabase Realtime
  * Uses Leaflet with OpenStreetMap tiles (no API key needed)
- * Polls the en-camino-tracking endpoint every 30 seconds
+ * Receives instant push updates via Supabase Realtime (< 1 second latency)
+ * Falls back to polling every 60s if realtime connection drops
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -9,7 +10,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,24 +21,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useRealtimeEnCamino, type EnCaminoRecord, type RealtimeStatus } from '@/hooks/useRealtimeEnCamino';
 
 // ── Types ──
-interface EnCaminoRecord {
-  id: string;
-  reservation_id: string;
-  external_reservation_id?: string | null;
-  operation_type: 'entrega' | 'devolucion';
-  en_camino_at: string;
-  destination_address: string | null;
-  assigned_user_name: string | null;
-  created_at: string;
-  // Live location fields
-  sharing_location?: boolean;
-  current_lat?: number | null;
-  current_lng?: number | null;
-  location_updated_at?: string | null;
-}
-
 type GeocodeSource = 'alias' | 'nominatim' | 'google';
 
 interface GeocodedRecord extends EnCaminoRecord {
@@ -50,7 +36,6 @@ interface GeocodedRecord extends EnCaminoRecord {
 // ── Constants ──
 const AZUL_CARS_BASE = { lat: 39.5361, lng: 2.7339 }; // Polígono Son Oms
 const PALMA_CENTER = { lat: 39.5696, lng: 2.6502 };
-const POLL_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_ZOOM = 11;
 
 // ── Location Aliases ──
@@ -247,13 +232,64 @@ function getUrgencyColor(minutesAgo: number) {
   return { text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-800' };
 }
 
+// ── Connection Status Indicator ──
+function ConnectionIndicator({ status }: { status: RealtimeStatus }) {
+  const config = {
+    connected: {
+      icon: <Wifi className="h-3 w-3" />,
+      label: 'En tiempo real',
+      className: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+      dotClass: 'bg-emerald-500 animate-pulse',
+    },
+    connecting: {
+      icon: <Loader2 className="h-3 w-3 animate-spin" />,
+      label: 'Conectando...',
+      className: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+      dotClass: 'bg-amber-500',
+    },
+    disconnected: {
+      icon: <WifiOff className="h-3 w-3" />,
+      label: 'Sin conexión',
+      className: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800',
+      dotClass: 'bg-red-500',
+    },
+  }[status];
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn(
+            "flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border transition-all",
+            config.className
+          )}>
+            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", config.dotClass)} />
+            {config.icon}
+            <span className="hidden sm:inline">{config.label}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          {status === 'connected' && 'Conectado a Supabase Realtime. Las actualizaciones llegan al instante.'}
+          {status === 'connecting' && 'Estableciendo conexión en tiempo real...'}
+          {status === 'disconnected' && 'Conexión perdida. Actualizando cada 60 segundos como respaldo.'}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 // ── Main Component ──
 export default function LiveMapPage() {
-  const [records, setRecords] = useState<EnCaminoRecord[]>([]);
+  const {
+    records,
+    loading,
+    refreshing,
+    lastUpdated,
+    realtimeStatus,
+    fetchRecords,
+  } = useRealtimeEnCamino();
+
   const [geocodedRecords, setGeocodedRecords] = useState<GeocodedRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const geocodeCache = useRef<Record<string, GeocodeResult | null>>({});
   const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
@@ -269,32 +305,9 @@ export default function LiveMapPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch en-camino records
-  const fetchRecords = useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    try {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const resp = await apiInvoke<{ ok: boolean; records: EnCaminoRecord[] }>('en-camino-tracking', {
-        body: { _method: 'GET', date: today },
-      });
-      if (resp.data?.ok && resp.data.records) {
-        setRecords(resp.data.records);
-        setLastUpdated(new Date());
-      }
-    } catch (err) {
-      console.error('[live-map] Fetch error:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Initial fetch + polling
-  useEffect(() => {
-    fetchRecords();
-    const interval = setInterval(() => fetchRecords(), POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchRecords]);
+  const formatRelativeTime = (date: Date) => {
+    return formatDistanceToNow(date, { addSuffix: true, locale: es });
+  };
 
   // Geocode records when they change
   useEffect(() => {
@@ -332,10 +345,6 @@ export default function LiveMapPage() {
     return () => { cancelled = true; };
   }, [records]);
 
-  const formatRelativeTime = (date: Date) => {
-    return formatDistanceToNow(date, { addSuffix: true, locale: es });
-  };
-
   // Fetch real road routes when geocoded records change
   useEffect(() => {
     let cancelled = false;
@@ -364,6 +373,7 @@ export default function LiveMapPage() {
   }, [geocodedRecords]);
 
   // Fetch live routes from rental's current position to destination
+  // Re-fetch when records change (location updates come via realtime)
   useEffect(() => {
     let cancelled = false;
     async function fetchLiveRoutes() {
@@ -427,6 +437,9 @@ export default function LiveMapPage() {
               </span>
             </div>
             <div className="h-4 w-px bg-border" />
+            {/* Connection status indicator */}
+            <ConnectionIndicator status={realtimeStatus} />
+            <div className="h-4 w-px bg-border hidden sm:block" />
             <div className="flex items-center gap-3 text-xs">
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
@@ -554,7 +567,7 @@ export default function LiveMapPage() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {records.length > 0
                         ? `Hay ${records.length} operación(es) activa(s) pero están ocultas por los filtros. Activa los toggles de entregas o devoluciones para verlas.`
-                        : 'No hay vehículos en camino en este momento. Las operaciones aparecerán aquí cuando se inicien desde Reservas.'
+                        : 'No hay vehículos en camino en este momento. Las operaciones aparecerán aquí automáticamente cuando se inicien desde Reservas.'
                       }
                     </p>
                   </div>
