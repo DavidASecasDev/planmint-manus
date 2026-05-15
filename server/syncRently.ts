@@ -376,6 +376,9 @@ function mapBookingToReservation(
     confirmed_devolucion_datetime: booking.ToDate || null,
     lugar_entrega: deliveryPlace.Name || null,
     lugar_devolucion: returnPlace.Name || null,
+    // Mirror columns: always reflect the latest Rently values for comparison
+    rently_lugar_entrega: deliveryPlace.Name || null,
+    rently_lugar_devolucion: returnPlace.Name || null,
     precio: booking.CustomerPrice || null,
     origen_reserva: origin.Name || null,
     duracion: booking.TotalDays ? String(booking.TotalDays) : null,
@@ -423,6 +426,9 @@ function enrichReservationWithDetail(
     lugar_entrega_ciudad: deliveryPlace.City || null,
     lugar_devolucion_direccion: returnPlace.Address || null,
     lugar_devolucion_ciudad: returnPlace.City || null,
+    // Mirror columns: always reflect the latest Rently values for comparison
+    rently_lugar_entrega_direccion: deliveryPlace.Address || null,
+    rently_lugar_devolucion_direccion: returnPlace.Address || null,
     cliente_direccion: customer.Address || null,
     cliente_ciudad: customer.City || null,
     cliente_estado_provincia: customer.State || null,
@@ -1061,6 +1067,14 @@ export async function handleSyncRently(req: Request, res: Response) {
         // 3. Rently data for these fields is often incomplete or null
         // The initial values are set when the reservation is first inserted (upsert).
         // Subsequent syncs only update Rently-sourced metadata (status, pricing, etc.)
+        //
+        // However, we DO always update the rently_* mirror columns so the UI can
+        // show "edited manually" indicators and offer a "Restore from Rently" button.
+        updateData.rently_lugar_entrega = updateData.lugar_entrega ?? null;
+        updateData.rently_lugar_devolucion = updateData.lugar_devolucion ?? null;
+        updateData.rently_lugar_entrega_direccion = updateData.lugar_entrega_direccion ?? null;
+        updateData.rently_lugar_devolucion_direccion = updateData.lugar_devolucion_direccion ?? null;
+
         delete updateData.lugar_entrega;
         delete updateData.lugar_devolucion;
         delete updateData.lugar_entrega_direccion;

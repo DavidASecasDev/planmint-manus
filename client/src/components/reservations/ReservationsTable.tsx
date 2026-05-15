@@ -3,7 +3,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play, Radio, MapPin } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play, Radio, MapPin, RotateCcw, PenLine } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -109,6 +109,9 @@ interface OperationRow {
   confirmedDatetime: string | null;
   lugar: string | null;
   direccion: string | null;
+  /** Rently original values for detecting manual edits */
+  rentlyLugar: string | null;
+  rentlyDireccion: string | null;
   isCompleted: boolean;
   /** Travel time in minutes (one-way) from capacity calculation, null if not yet loaded */
   travelMinutes: number | null;
@@ -490,6 +493,8 @@ export function ReservationsTable() {
           confirmedDatetime: r.confirmed_entrega_datetime,
           lugar: r.lugar_entrega || r.lugar_devolucion,
           direccion: r.lugar_entrega_direccion || r.lugar_devolucion_direccion || null,
+          rentlyLugar: r.rently_lugar_entrega || r.rently_lugar_devolucion || null,
+          rentlyDireccion: r.rently_lugar_entrega_direccion || r.rently_lugar_devolucion_direccion || null,
           isCompleted: r.transfer_completado,
           travelMinutes: null,
         });
@@ -504,6 +509,8 @@ export function ReservationsTable() {
           confirmedDatetime: r.confirmed_entrega_datetime,
           lugar: r.lugar_entrega,
           direccion: r.lugar_entrega_direccion || null,
+          rentlyLugar: r.rently_lugar_entrega || null,
+          rentlyDireccion: r.rently_lugar_entrega_direccion || null,
           isCompleted: r.entrega_completada,
           travelMinutes: null,
         });
@@ -518,6 +525,8 @@ export function ReservationsTable() {
           confirmedDatetime: r.confirmed_devolucion_datetime,
           lugar: r.lugar_devolucion,
           direccion: r.lugar_devolucion_direccion || null,
+          rentlyLugar: r.rently_lugar_devolucion || null,
+          rentlyDireccion: r.rently_lugar_devolucion_direccion || null,
           isCompleted: r.devolucion_completada,
           travelMinutes: null,
         });
@@ -1728,16 +1737,48 @@ export function ReservationsTable() {
                               />
                             )
                           )}
-                          {col.type === 'text' && col.key === 'direccion' && (
-                            <div className={cn(
-                              row.isCompleted && "line-through text-muted-foreground"
-                            )}>
-                              <AddressAutocompleteCell
-                                value={getOperationFieldValue(row, col.key)}
-                                onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
-                              />
-                            </div>
-                          )}
+                          {col.type === 'text' && col.key === 'direccion' && (() => {
+                            const currentDir = getOperationFieldValue(row, col.key);
+                            const rentlyDir = row.rentlyDireccion;
+                            const isManuallyEdited = !!(currentDir && rentlyDir && currentDir.trim() !== rentlyDir.trim());
+                            return (
+                              <div className={cn(
+                                "flex items-center gap-1",
+                                row.isCompleted && "line-through text-muted-foreground"
+                              )}>
+                                <div className="flex-1 min-w-0">
+                                  <AddressAutocompleteCell
+                                    value={currentDir}
+                                    onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                                  />
+                                </div>
+                                {isManuallyEdited && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOperationFieldUpdate(row, col.key, rentlyDir);
+                                            toast.success('Direcci\u00f3n restaurada de Rently');
+                                          }}
+                                          className="shrink-0 p-0.5 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                                          title="Editado manualmente. Click para restaurar de Rently"
+                                        >
+                                          <PenLine className="h-3 w-3" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="text-xs font-medium">Editado manualmente</p>
+                                        <p className="text-xs text-muted-foreground">Original Rently: {rentlyDir}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Click para restaurar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {col.type === 'actions' && col.key === 'acciones_ruta' && (() => {
                             const currentEstado = getOperationFieldValue(row, 'estado');
                             const isEnCamino = currentEstado === 'En camino';
@@ -1869,16 +1910,49 @@ export function ReservationsTable() {
                               </div>
                             );
                           })()}
-                          {col.type === 'text' && col.key !== 'direccion' && (
-                            <div className={cn(
-                              row.isCompleted && "line-through text-muted-foreground"
-                            )}>
-                              <EditableCell
-                                value={getOperationFieldValue(row, col.key)}
-                                onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
-                              />
-                            </div>
-                          )}
+                          {col.type === 'text' && col.key !== 'direccion' && (() => {
+                            const cellValue = getOperationFieldValue(row, col.key);
+                            const isLugarField = col.key === 'lugar';
+                            const rentlyLugar = isLugarField ? row.rentlyLugar : null;
+                            const isLugarEdited = !!(isLugarField && cellValue && rentlyLugar && cellValue.trim() !== rentlyLugar.trim());
+                            return (
+                              <div className={cn(
+                                "flex items-center gap-1",
+                                row.isCompleted && "line-through text-muted-foreground"
+                              )}>
+                                <div className="flex-1 min-w-0">
+                                  <EditableCell
+                                    value={cellValue}
+                                    onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                                  />
+                                </div>
+                                {isLugarEdited && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOperationFieldUpdate(row, col.key, rentlyLugar);
+                                            toast.success('Lugar restaurado de Rently');
+                                          }}
+                                          className="shrink-0 p-0.5 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                                          title="Editado manualmente. Click para restaurar de Rently"
+                                        >
+                                          <PenLine className="h-3 w-3" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="text-xs font-medium">Editado manualmente</p>
+                                        <p className="text-xs text-muted-foreground">Original Rently: {rentlyLugar}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Click para restaurar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {col.type === 'assignee' && col.key === 'asignado_rental' && (() => {
                             const refDatetime = row.confirmedDatetime || row.fechaHora;
                             const refDate = refDatetime ? refDatetime.substring(0, 10) : null;

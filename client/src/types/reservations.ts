@@ -162,6 +162,12 @@ export interface Reservation {
   lugar_devolucion_direccion: string | null;
   lugar_devolucion_ciudad: string | null;
 
+  // Rently original values (mirror columns for detecting manual edits)
+  rently_lugar_entrega: string | null;
+  rently_lugar_devolucion: string | null;
+  rently_lugar_entrega_direccion: string | null;
+  rently_lugar_devolucion_direccion: string | null;
+
   // Cliente extendido
   cliente_direccion: string | null;
   cliente_ciudad: string | null;
