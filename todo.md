@@ -692,3 +692,5 @@
 - [x] Migrar hooks críticos: useOperationalDashboard, useBrokerRequests, useTransferRequests, useNotifications, useEquipment
 - [x] Migrar hooks de alta frecuencia: useSuperAdmin, useWorkshops, useTeams, useDamageReports, useRepairs, useMovements, useFleetVehicles
 - [x] Migrar 84 hooks de Supabase directo a supabaseQuery proxy — 83 migrados a proxy, 21 mantienen import supabase para realtime/storage/auth. TypeScript: 0 errores. Tests: 1148/1148 pass
+- [x] Fix Bug: /api/supabase-query devuelve 500 en producción — CAUSA: SUPABASE_SERVICE_ROLE_KEY inyectada por Manus era anon key, no service_role. FIX: configurada la key correcta del proyecto exayzwdudssyegxjiyrk
+- [x] Fix Bug: Proxy supabase-query aplica filtro organization_id a tablas sin esa columna — CAUSA: lista estática ORG_SCOPED_TABLES incluía tablas incorrectas. FIX: reemplazada por introspección dinámica via RPC get_tables_with_column + fallback verificado de 42 tablas

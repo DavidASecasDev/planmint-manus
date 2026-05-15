@@ -20,35 +20,65 @@ import {
   AuthError,
 } from "./supabaseAdmin";
 
-// Tables that are scoped by organization_id and should be auto-filtered
-const ORG_SCOPED_TABLES = new Set([
-  'accidents', 'accident_files', 'areas', 'audit_logs', 'automation_rules',
-  'billing_actions', 'broker_notifications', 'checklist_items',
-  'daily_tasks', 'damage_catalog', 'damage_reports',
-  'enterprise_policies', 'equipment_assignments', 'equipment_inventory',
-  'feedback', 'fleet_damages', 'fleet_inspections', 'fleet_vehicles',
-  'forms', 'form_submissions', 'garatech_reports', 'garatech_stats',
-  'integration_settings', 'kanban_columns',
-  'leads', 'milestones', 'movement_reports', 'movements',
-  'notification_preferences', 'notifications',
-  'operation_legs', 'provider_templates', 'provisioning_logs',
-  'referrals', 'reminders', 'reminder_notifications',
-  'repair_comments', 'repair_history', 'repair_invoices', 'repair_photos', 'repairs',
-  'report_exports', 'report_metrics', 'reservations',
-  'saml_connections', 'scim_provisioning', 'scim_tokens',
-  'security_settings', 'stale_transfer_alerts',
-  'tags', 'task_assignees', 'task_updates', 'tasks', 'teams', 'team_members',
-  'templates', 'time_tracking', 'timeline',
-  'transfer_brokers', 'transfer_documents', 'transfer_invoice_settings',
-  'transfer_item_vehicles', 'transfer_items', 'transfer_notes',
-  'transfer_providers', 'transfer_reports', 'transfer_requests',
-  'transfer_status_history',
-  'usage_tracking', 'user_sessions', 'user_templates',
-  'vehicle_audits', 'vehicle_locations', 'vehicle_prep_alerts', 'vehicle_reports',
-  'vehicles', 'workshops',
-]);
+// Dynamic schema cache: discovers which tables have organization_id at runtime.
+// This avoids hard-coding table names (which breaks when tables are added/removed
+// or don't have the expected column).
+let _orgScopedTablesCache: Set<string> | null = null;
+let _cacheLoadPromise: Promise<Set<string>> | null = null;
 
-// Tables that should NOT have org_id auto-injected (global/cross-org tables)
+async function getOrgScopedTables(): Promise<Set<string>> {
+  if (_orgScopedTablesCache) return _orgScopedTablesCache;
+  if (_cacheLoadPromise) return _cacheLoadPromise;
+
+  _cacheLoadPromise = (async () => {
+    try {
+      const serviceClient = getServiceClient();
+      // Query the Postgres information_schema to find all tables with organization_id
+      const { data, error } = await serviceClient
+        .rpc('get_tables_with_column', { col_name: 'organization_id' });
+
+      if (error || !data) {
+        // Fallback: use a conservative known-good list if RPC doesn't exist
+        console.warn('[supabaseProxy] Could not introspect schema, using fallback list:', error?.message);
+        return getFallbackOrgScopedTables();
+      }
+
+      const tables = new Set<string>(data.map((r: any) => r.table_name));
+      console.log(`[supabaseProxy] Discovered ${tables.size} org-scoped tables from schema`);
+      _orgScopedTablesCache = tables;
+      return tables;
+    } catch (err) {
+      console.warn('[supabaseProxy] Schema introspection failed, using fallback:', err);
+      return getFallbackOrgScopedTables();
+    } finally {
+      _cacheLoadPromise = null;
+    }
+  })();
+
+  return _cacheLoadPromise;
+}
+
+// Fallback list: only tables VERIFIED to have organization_id (from DB introspection on 2026-05-16)
+function getFallbackOrgScopedTables(): Set<string> {
+  const tables = new Set([
+    'accidents', 'accident_files', 'areas', 'audit_logs', 'automation_rules',
+    'damage_catalog', 'damage_reports', 'equipment_inventory',
+    'fleet_vehicles', 'forms', 'integration_settings', 'kanban_columns',
+    'notification_preferences', 'notifications', 'operation_legs',
+    'repair_comments', 'repair_history', 'repair_invoices', 'repair_photos', 'repairs',
+    'reservations', 'saml_connections', 'scim_tokens',
+    'tags', 'task_assignees', 'tasks', 'teams', 'team_members',
+    'transfer_brokers', 'transfer_documents', 'transfer_invoice_settings',
+    'transfer_item_vehicles', 'transfer_items',
+    'transfer_providers', 'transfer_requests', 'transfer_status_history',
+    'user_sessions', 'user_templates',
+    'vehicle_locations', 'vehicles', 'workshops',
+  ]);
+  _orgScopedTablesCache = tables;
+  return tables;
+}
+
+// Tables that should NEVER have org_id auto-injected (global/cross-org tables)
 const GLOBAL_TABLES = new Set([
   'profiles', 'organizations', 'super_admin_alerts', 'super_admin_feature_flags',
   'super_admin_outbound_notifications', 'broker_profiles',
@@ -206,6 +236,7 @@ export async function handleSupabaseQuery(req: Request, res: Response) {
     }
 
     const serviceClient = getServiceClient();
+    const orgScopedTables = await getOrgScopedTables();
     let query: any;
 
     switch (desc.operation) {
@@ -221,7 +252,7 @@ export async function handleSupabaseQuery(req: Request, res: Response) {
           return res.status(400).json({ data: null, error: "Missing 'data' for insert operation" });
         }
         // Auto-inject organization_id for org-scoped tables
-        if (ORG_SCOPED_TABLES.has(desc.table) && organizationId && !desc.skipOrgFilter) {
+        if (orgScopedTables.has(desc.table) && organizationId && !desc.skipOrgFilter) {
           if (Array.isArray(desc.data)) {
             desc.data = desc.data.map(row => ({ organization_id: organizationId, ...row }));
           } else {
@@ -266,7 +297,7 @@ export async function handleSupabaseQuery(req: Request, res: Response) {
 
     // Auto-inject organization_id filter for org-scoped tables on reads/updates/deletes
     if (
-      ORG_SCOPED_TABLES.has(desc.table) &&
+      orgScopedTables.has(desc.table) &&
       organizationId &&
       !desc.skipOrgFilter &&
       desc.operation !== 'insert'
