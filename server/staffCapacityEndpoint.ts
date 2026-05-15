@@ -643,7 +643,14 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
     }
 
     // ── 3. Compute person-minutes per operation ─────────────────────────────
+    // Only pending (non-completed) operations consume capacity.
+    // Completed operations are kept in the list for reference but with 0 demand.
     for (const op of operations) {
+      if (op.isCompleted) {
+        // Already done — no capacity needed
+        op.personMinutes = 0;
+        continue;
+      }
       if (op.isAtBase) {
         op.travelMinutesOneWay = 0;
         op.personMinutes = BASE_OPERATION_MINUTES;
@@ -779,8 +786,8 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       const slotStart = h * 60;
       const slotEnd = (h + 1) * 60;
 
-      // Operations in this hour
-      const slotOps = operations.filter((op) => op.hour === h);
+      // Operations in this hour (exclude completed — they no longer need capacity)
+      const slotOps = operations.filter((op) => op.hour === h && !op.isCompleted);
 
       // Staff available in this hour
       const rentals: string[] = [];
@@ -928,9 +935,19 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
     const totalAvailable = hourSlots.reduce((s, h) => s + h.availablePersonMinutes, 0);
     const overallUtil = totalAvailable > 0 ? totalNeeded / totalAvailable : (totalNeeded > 0 ? 1 : 0);
 
+    // Overall status uses the aggregated utilization across all hours,
+    // not the worst individual slot. This prevents confusing situations
+    // where a day shows 10% overall but "Déficit" because one slot is overloaded.
+    // The individual deficit/tight hours are still reported for drill-down.
     let overallStatus: "sufficient" | "tight" | "deficit" = "sufficient";
-    if (hourSlots.some((h) => h.status === "deficit")) overallStatus = "deficit";
-    else if (hourSlots.some((h) => h.status === "tight")) overallStatus = "tight";
+    const overallUtilPct = Math.round(overallUtil * 100);
+    if (overallUtilPct > THRESHOLD_DEFICIT * 100) overallStatus = "deficit";
+    else if (overallUtilPct > THRESHOLD_TIGHT * 100) overallStatus = "tight";
+    // However, if there are deficit hours, at minimum mark as "tight"
+    // to signal that some slots need attention even if overall is low.
+    if (overallStatus === "sufficient" && hourSlots.some((h) => h.status === "deficit")) {
+      overallStatus = "tight";
+    }
 
     const deficitHours = hourSlots.filter((h) => h.status === "deficit").map((h) => h.hour);
     const tightHours = hourSlots.filter((h) => h.status === "tight").map((h) => h.hour);
