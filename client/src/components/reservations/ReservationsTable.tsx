@@ -258,6 +258,7 @@ export function ReservationsTable() {
 
   // Confirmation dialog before starting En Camino
   const [confirmIniciar, setConfirmIniciar] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
+  const [confirmLlego, setConfirmLlego] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
 
   // Location sharing state
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
@@ -1771,7 +1772,7 @@ export function ReservationsTable() {
                                 {/* 3. Llegué — Confirmar llegada */}
                                 {isEnCamino && !arrived && (
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); handleLlego(row); }}
+                                    onClick={(e) => { e.stopPropagation(); setConfirmLlego({ open: true, row }); }}
                                     disabled={isLlegoLoading}
                                     className={cn(
                                       "p-1 rounded-md transition-colors",
@@ -1946,6 +1947,25 @@ export function ReservationsTable() {
           if (confirmIniciar.row) {
             handleIniciar(confirmIniciar.row);
             setConfirmIniciar({ open: false, row: null });
+          }
+        }}
+      />
+
+      {/* Confirm Llegué Dialog */}
+      <ConfirmDialog
+        open={confirmLlego.open}
+        onOpenChange={(open) => { if (!open) setConfirmLlego({ open: false, row: null }); }}
+        title="Confirmar llegada"
+        description={confirmLlego.row
+          ? `¿Has llegado al destino de la ${confirmLlego.row.tipoOperacion.toLowerCase()} para la reserva Nº ${getOperationFieldValue(confirmLlego.row, 'external_reservation_id') || confirmLlego.row.reservationId.slice(0, 8)}? Se registrará el tiempo real de trayecto.`
+          : ''}
+        confirmLabel="Sí, llegué"
+        cancelLabel="Cancelar"
+        loading={confirmLlego.row ? !!llegoLoading[confirmLlego.row.id] : false}
+        onConfirm={() => {
+          if (confirmLlego.row) {
+            handleLlego(confirmLlego.row);
+            setConfirmLlego({ open: false, row: null });
           }
         }}
       />

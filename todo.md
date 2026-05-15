@@ -650,3 +650,4 @@
 - [x] Reset: Limpiar todos los registros de en_camino_tracking y location_history
 - [x] Reset: Restaurar estado_entrega/estado_devolucion de reservas afectadas por trayectos erróneos
 - [x] Feature: Diálogo de confirmación antes de iniciar trayecto mostrando número de reserva
+- [x] Feature: Diálogo de confirmación antes de pulsar Llegué mostrando número de reserva
