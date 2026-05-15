@@ -289,7 +289,6 @@ export default function LiveMapPage() {
     fetchRecords,
   } = useRealtimeEnCamino();
 
-  const [geocodedRecords, setGeocodedRecords] = useState<GeocodedRecord[]>([]);
   const [tick, setTick] = useState(0);
   const geocodeCache = useRef<Record<string, GeocodeResult | null>>({});
   const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
@@ -298,6 +297,8 @@ export default function LiveMapPage() {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [showEntregas, setShowEntregas] = useState(true);
   const [showDevoluciones, setShowDevoluciones] = useState(true);
+  // Track which addresses are currently being geocoded to avoid duplicate requests
+  const geocodingInProgress = useRef<Set<string>>(new Set());
 
   // Tick for relative time display
   useEffect(() => {
@@ -309,41 +310,63 @@ export default function LiveMapPage() {
     return formatDistanceToNow(date, { addSuffix: true, locale: es });
   };
 
-  // Geocode records when they change
+  // Geocode only NEW addresses that aren't in cache yet.
+  // This runs when records change but does NOT replace the geocoded records list;
+  // it only populates the cache. The actual geocodedRecords are computed via useMemo below.
   useEffect(() => {
     let cancelled = false;
-    async function geocodeAll() {
-      const results: GeocodedRecord[] = [];
+    async function geocodeNewAddresses() {
+      const uncachedAddresses: string[] = [];
       for (const rec of records) {
-        if (cancelled) return;
         const addr = rec.destination_address;
         if (!addr) continue;
+        if (geocodeCache.current[addr] !== undefined) continue;
+        if (geocodingInProgress.current.has(addr)) continue;
+        if (!uncachedAddresses.includes(addr)) uncachedAddresses.push(addr);
+      }
 
-        if (geocodeCache.current[addr] !== undefined) {
-          const cached = geocodeCache.current[addr];
-          if (cached) {
-            results.push({ ...rec, lat: cached.lat, lng: cached.lng, geocoded: true, geocodeSource: cached.source });
-          }
-          continue;
-        }
+      if (uncachedAddresses.length === 0) return;
+
+      for (const addr of uncachedAddresses) {
+        if (cancelled) return;
+        geocodingInProgress.current.add(addr);
 
         // Throttle: wait 1.1s between geocode calls to respect Nominatim rate limit (1 req/s)
-        if (results.length > 0) {
+        if (uncachedAddresses.indexOf(addr) > 0) {
           await new Promise(resolve => setTimeout(resolve, 1100));
         }
+        if (cancelled) return;
+
         const result = await geocodeAddress(addr);
         geocodeCache.current[addr] = result;
-        if (result) {
-          results.push({ ...rec, lat: result.lat, lng: result.lng, geocoded: true, geocodeSource: result.source });
-        }
+        geocodingInProgress.current.delete(addr);
       }
+
+      // Force a re-render so the useMemo picks up the new cache entries
       if (!cancelled) {
-        setGeocodedRecords(results);
+        setTick(t => t + 1);
       }
     }
-    geocodeAll();
+    geocodeNewAddresses();
     return () => { cancelled = true; };
   }, [records]);
+
+  // Compute geocoded records from records + cache (instant, no async)
+  // This is the key fix: GPS updates change `records` but geocodeCache is stable,
+  // so geocodedRecords update instantly without waiting for geocoding API calls.
+  const geocodedRecords = useMemo(() => {
+    const results: GeocodedRecord[] = [];
+    for (const rec of records) {
+      const addr = rec.destination_address;
+      if (!addr) continue;
+      const cached = geocodeCache.current[addr];
+      if (cached) {
+        results.push({ ...rec, lat: cached.lat, lng: cached.lng, geocoded: true, geocodeSource: cached.source });
+      }
+    }
+    return results;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, tick]);
 
   // Fetch real road routes when geocoded records change
   useEffect(() => {

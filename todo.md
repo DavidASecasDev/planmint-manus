@@ -662,3 +662,4 @@
 - [x] Feature: Indicador de conexión en tiempo real en LiveMap ("Conectado en tiempo real" / "Reconectando...")
 - [x] Optimización: Fallback polling cada 60s por si la conexión realtime se cae
 - [x] Optimización: Actualización instantánea de marcadores de coche en el mapa sin re-fetch completo
+- [x] Bug: Las operaciones 'En Camino' desaparecen del mapa al cabo de un rato (reportado por Mikaela)
