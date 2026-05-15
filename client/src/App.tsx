@@ -17,6 +17,7 @@ import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 import { ModuleRoute } from "@/components/modules/ModuleRoute";
 import { BrokerProtectedRoute } from "@/components/broker/BrokerProtectedRoute";
 import { ErrorBoundary, RouteErrorBoundary } from "@/components/ErrorBoundary";
+import { useVisibilityRecovery } from "@/hooks/useVisibilityRecovery";
 
 // PWA Components
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -177,12 +178,16 @@ function PageLoader() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+      retry: (failureCount, error) => {
+        // Don't retry auth errors — redirect is already in progress
+        if (error instanceof Error && (error.name === 'AuthExpiredError' || error.message.includes('401'))) return false;
+        return failureCount < 2; // Up to 2 retries (3 total attempts)
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
       staleTime: 60_000, // 60s stale time — reduces re-fetches on navigation
       gcTime: 5 * 60_000, // Keep unused data in cache for 5 minutes
-      refetchOnWindowFocus: false, // Avoid unnecessary refetches
-      refetchOnReconnect: false, // Disabled: OfflineBanner handles reconnect invalidation with duration guard
+      refetchOnWindowFocus: false, // Avoid unnecessary refetches on every tab switch
+      refetchOnReconnect: true, // CRITICAL: Refetch stale queries when connection is restored
     },
     mutations: {
       retry: 1,
@@ -192,6 +197,19 @@ const queryClient = new QueryClient({
 
 // Componente wrapper para rutas principales (con AuthProvider)
 function MainAppRoutes() {
+  return (
+    <QueryRecovery />
+  );
+}
+
+/**
+ * Inner component that has access to QueryClientProvider context.
+ * Activates visibility recovery and renders the full app tree.
+ */
+function QueryRecovery() {
+  // Invalidate stale queries when user returns after 5+ min of inactivity
+  useVisibilityRecovery(5 * 60 * 1000);
+
   return (
     <AuthProvider>
       <ThemeProvider>

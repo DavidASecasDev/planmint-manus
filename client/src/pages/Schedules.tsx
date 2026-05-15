@@ -151,8 +151,8 @@ function formatHours(h: number): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function Schedules() {
-  const { profile } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { profile, sessionReady } = useAuth();
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
   const queryClient = useQueryClient();
   const orgId = profile?.organization_id;
 
@@ -195,7 +195,7 @@ export default function Schedules() {
       });
       return res.data?.data || [];
     },
-    enabled: !!orgId,
+    enabled: !!orgId && sessionReady,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -281,7 +281,7 @@ export default function Schedules() {
         dayStats,
       };
     },
-    enabled: !!orgId,
+    enabled: !!orgId && sessionReady,
     staleTime: 30 * 1000,
   });
 
@@ -564,7 +564,7 @@ export default function Schedules() {
     );
   }
 
-  const isLoading = templatesLoading || scheduleLoading;
+  const isLoading = templatesLoading || scheduleLoading || permissionsLoading;
 
   return (
     <AppLayout title="Horarios" fullWidth>

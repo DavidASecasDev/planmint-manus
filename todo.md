@@ -665,3 +665,6 @@
 - [x] Bug: Las operaciones 'En Camino' desaparecen del mapa al cabo de un rato (reportado por Mikaela)
 - [x] Feature: Panel de estadísticas de trayectos — Dashboard con métricas de puntualidad por rental
 - [x] Feature: Historial de ruta en vivo — Polyline verde mostrando recorrido real del rental en el mapa
+- [x] Bug: Dashboard se queda en estado de carga (skeletons grises) obligando a recargar la página
+- [x] Bug: Horarios muestra "No hay equipos configurados" cuando debería cargar datos
+- [x] Bug: Problemas generales de carga en diferentes páginas que obligan a recargar
