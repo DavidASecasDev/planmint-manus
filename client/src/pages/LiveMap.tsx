@@ -215,11 +215,13 @@ async function fetchRoute(
   }
 }
 
-// ── Map auto-fit component ──
+// ── Map auto-fit component (runs only once on initial load) ──
 function FitBounds({ markers }: { markers: GeocodedRecord[] }) {
   const map = useMap();
+  const hasFit = useRef(false);
   useEffect(() => {
-    if (markers.length === 0) return;
+    if (markers.length === 0 || hasFit.current) return;
+    hasFit.current = true;
     const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]));
     bounds.extend([AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]);
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
@@ -765,40 +767,30 @@ export default function LiveMapPage() {
                 })}
 
                 {/* Live location car markers — animated for smooth movement */}
-                {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
-                  <AnimatedMarker
-                    key={`live-${rec.id}`}
-                    position={[rec.current_lat!, rec.current_lng!]}
-                    icon={rec.operation_type === 'entrega' ? entregaCarIcon : devolucionCarIcon}
-                    animationDuration={2000}
-                    markerId={rec.id}
-                  >
-                    <Popup>
-                      <div className="text-sm min-w-[200px]">
-                        <div className="flex items-center gap-1.5 font-semibold mb-2">
-                          <Radio className="h-3.5 w-3.5 text-emerald-500" />
-                          <span className="text-emerald-600">Ubicación en vivo</span>
-                        </div>
-                        {rec.external_reservation_id && (
-                          <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
-                        )}
-                        {rec.assigned_user_name && (
-                          <p className="text-xs flex items-center gap-1 mb-1">
-                            <User className="h-3 w-3 text-gray-400" /> {rec.assigned_user_name}
-                          </p>
-                        )}
-                        <p className="text-xs flex items-center gap-1 mb-1">
-                          <MapPin className="h-3 w-3 text-gray-400" /> Hacia: {rec.destination_address}
-                        </p>
-                        {rec.location_updated_at && (
-                          <p className="text-xs text-gray-500">
-                            Actualizado {formatRelativeTime(new Date(rec.location_updated_at))}
-                          </p>
-                        )}
+                {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => {
+                  const popupHtml = `
+                    <div style="font-size:0.875rem;min-width:200px">
+                      <div style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:8px">
+                        <span style="color:#10b981">●</span>
+                        <span style="color:#059669">Ubicación en vivo</span>
                       </div>
-                    </Popup>
-                  </AnimatedMarker>
-                ))}
+                      ${rec.external_reservation_id ? `<p style="font-size:0.75rem;font-weight:600;margin-bottom:4px">Reserva Nº ${rec.external_reservation_id}</p>` : ''}
+                      ${rec.assigned_user_name ? `<p style="font-size:0.75rem;margin-bottom:4px">👤 ${rec.assigned_user_name}</p>` : ''}
+                      <p style="font-size:0.75rem;margin-bottom:4px">📍 Hacia: ${rec.destination_address || 'Sin destino'}</p>
+                      ${rec.location_updated_at ? `<p style="font-size:0.75rem;color:#6b7280">Actualizado ${formatRelativeTime(new Date(rec.location_updated_at))}</p>` : ''}
+                    </div>
+                  `;
+                  return (
+                    <AnimatedMarker
+                      key={`live-${rec.id}`}
+                      position={[rec.current_lat!, rec.current_lng!]}
+                      icon={rec.operation_type === 'entrega' ? entregaCarIcon : devolucionCarIcon}
+                      animationDuration={2000}
+                      markerId={rec.id}
+                      popupContent={popupHtml}
+                    />
+                  );
+                })}
 
                 {/* Destination markers */}
                 {filteredGeocodedRecords.map((rec) => (

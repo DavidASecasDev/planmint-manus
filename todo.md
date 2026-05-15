@@ -670,3 +670,5 @@
 - [x] Bug: Problemas generales de carga en diferentes páginas que obligan a recargar
 - [x] Bug: El marcador del coche en LiveMap no se mueve en tiempo real cuando el rental está en camino (GPS no actualiza posición visualmente)
 - [x] Bug: Horarios muestra 'No hay equipos configurados' a pesar de tener 4 equipos (Directiva, Mostrador, Preparación, Rentals) y permisos de Owner
+- [x] Bug: El mapa se recentra automáticamente cuando hay actualizaciones, quitando el control de la vista al usuario (fix: FitBounds ahora solo se ejecuta una vez en la carga inicial con hasFit ref)
+- [x] Bug: El marcador del coche (AnimatedMarker) no se mueve en tiempo real cuando el rental está en camino (fix: reescrito AnimatedMarker para crear marcador Leaflet imperativo via L.marker + useMap, evitando problemas de ref timing con react-leaflet createLayerComponent)

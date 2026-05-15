@@ -35,9 +35,31 @@ describe('AnimatedMarker component', () => {
     expect(content).toContain('1 - Math.pow(1 - progress, 3)');
   });
 
-  it('calls setLatLng on the marker ref for direct position updates', () => {
+  it('calls setLatLng on the marker for direct position updates', () => {
     const content = fs.readFileSync(filePath, 'utf-8');
     expect(content).toContain('setLatLng');
+  });
+
+  it('creates marker imperatively via L.marker (bypasses react-leaflet Marker)', () => {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('L.marker');
+    expect(content).toContain('.addTo(map)');
+  });
+
+  it('uses useMap() to access the Leaflet map instance', () => {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('useMap()');
+  });
+
+  it('removes marker from map on unmount', () => {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('map.removeLayer(marker)');
+  });
+
+  it('supports popupContent prop for HTML popups', () => {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('popupContent');
+    expect(content).toContain('bindPopup');
   });
 
   it('accepts animationDuration prop', () => {
@@ -48,6 +70,33 @@ describe('AnimatedMarker component', () => {
   it('cancels ongoing animation when position changes', () => {
     const content = fs.readFileSync(filePath, 'utf-8');
     expect(content).toContain('cancelAnimationFrame');
+  });
+
+  it('tracks target position to avoid re-animating to same location', () => {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('targetPosRef');
+  });
+});
+
+describe('LiveMap FitBounds only runs once on initial load', () => {
+  const filePath = path.join(ROOT, 'pages/LiveMap.tsx');
+  let content: string;
+
+  beforeAll(() => {
+    content = fs.readFileSync(filePath, 'utf-8');
+  });
+
+  it('uses a hasFit ref to prevent re-running fitBounds', () => {
+    expect(content).toContain('hasFit');
+    expect(content).toContain('hasFit.current = true');
+  });
+
+  it('skips fitBounds if hasFit.current is true', () => {
+    expect(content).toContain('hasFit.current) return');
+  });
+
+  it('only fits bounds once (runs only on initial load comment)', () => {
+    expect(content).toContain('runs only once on initial load');
   });
 });
 
