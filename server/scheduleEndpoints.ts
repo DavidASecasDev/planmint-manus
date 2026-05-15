@@ -231,7 +231,7 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
       .from("reservations")
       .select("desde, hasta, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, confirmed_entrega_datetime, confirmed_devolucion_datetime")
       .eq("organization_id", orgId)
-      .or(`desde.gte.${start_date}.lte.${end_date}T23:59:59,hasta.gte.${start_date}.lte.${end_date}T23:59:59,confirmed_entrega_datetime.gte.${start_date}.lte.${end_date}T23:59:59,confirmed_devolucion_datetime.gte.${start_date}.lte.${end_date}T23:59:59`);
+      .or(`and(desde.gte.${start_date},desde.lte.${end_date}T23:59:59),and(hasta.gte.${start_date},hasta.lte.${end_date}T23:59:59),and(confirmed_entrega_datetime.gte.${start_date},confirmed_entrega_datetime.lte.${end_date}T23:59:59),and(confirmed_devolucion_datetime.gte.${start_date},confirmed_devolucion_datetime.lte.${end_date}T23:59:59)`);
 
     if (resError) throw resError;
 
@@ -283,8 +283,8 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
     });
   } catch (err: any) {
     if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
-    console.error("[get-weekly-schedule]", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    console.error("[get-weekly-schedule] Error:", err?.message || err, "| Code:", err?.code, "| Details:", err?.details);
+    return res.status(500).json({ ok: false, error: err.message || "Internal server error" });
   }
 }
 

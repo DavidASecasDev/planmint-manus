@@ -681,3 +681,4 @@
 - [x] Auditoría completa: revisar módulos del frontend (páginas, componentes, hooks)
 - [x] Auditoría completa: verificar flujos principales en el navegador
 - [x] Auditoría completa: corregir bugs encontrados — 12 empty catch blocks corregidos, non-null assertions eliminadas, Tailwind warning corregido
+- [x] Bug PERSISTENTE: Horarios muestra 'No hay equipos configurados' — CAUSA: filtro .or() en consulta de reservaciones usaba sintaxis PostgREST incorrecta (desde.gte.X.lte.Y encadenado en vez de and(desde.gte.X,desde.lte.Y)). FIX: reescrito con sintaxis and() anidada correcta + logging mejorado
