@@ -564,7 +564,7 @@ export default function Schedules() {
     );
   }
 
-  const isLoading = templatesLoading || scheduleLoading || permissionsLoading;
+  const isLoading = templatesLoading || scheduleLoading || permissionsLoading || !orgId || !sessionReady;
 
   return (
     <AppLayout title="Horarios" fullWidth>

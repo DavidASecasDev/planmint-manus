@@ -669,3 +669,4 @@
 - [x] Bug: Horarios muestra "No hay equipos configurados" cuando debería cargar datos
 - [x] Bug: Problemas generales de carga en diferentes páginas que obligan a recargar
 - [x] Bug: El marcador del coche en LiveMap no se mueve en tiempo real cuando el rental está en camino (GPS no actualiza posición visualmente)
+- [x] Bug: Horarios muestra 'No hay equipos configurados' a pesar de tener 4 equipos (Directiva, Mostrador, Preparación, Rentals) y permisos de Owner
