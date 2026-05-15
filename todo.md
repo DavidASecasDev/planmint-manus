@@ -647,3 +647,6 @@
 - [x] Feature: Notificación push al equipo cuando rental marca "En camino"
 - [x] Feature: Historial de posiciones intermedias para replay de trayectos completados
 - [ ] Feature: Vista de replay de trayecto en el mapa (operaciones completadas)
+- [x] Reset: Limpiar todos los registros de en_camino_tracking y location_history
+- [x] Reset: Restaurar estado_entrega/estado_devolucion de reservas afectadas por trayectos erróneos
+- [x] Feature: Diálogo de confirmación antes de iniciar trayecto mostrando número de reserva

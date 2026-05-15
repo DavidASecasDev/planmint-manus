@@ -36,6 +36,7 @@ import { useReservations } from '@/hooks/useReservations';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
@@ -254,6 +255,9 @@ export function ReservationsTable() {
   const [iniciarLoading, setIniciarLoading] = useState<Record<string, boolean>>({});
   // Track who started/arrived for each operation
   const [arrivalUsers, setArrivalUsers] = useState<Record<string, { startedBy: string | null; arrivedBy: string | null }>>({});
+
+  // Confirmation dialog before starting En Camino
+  const [confirmIniciar, setConfirmIniciar] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
 
   // Location sharing state
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
@@ -1725,7 +1729,7 @@ export function ReservationsTable() {
                                 {/* 2. Iniciar — Marcar En camino (only if not already en camino, not arrived, and not completada) */}
                                 {!isEnCamino && !isCompletada && !arrived && (
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); handleIniciar(row); }}
+                                    onClick={(e) => { e.stopPropagation(); setConfirmIniciar({ open: true, row }); }}
                                     disabled={isIniciarLoading}
                                     className={cn(
                                       "p-1 rounded-md transition-colors",
@@ -1925,6 +1929,25 @@ export function ReservationsTable() {
         onRestore={(id) => restoreReservation.mutate(id)}
         isRestoring={restoreReservation.isPending}
         archiveDays={reservationsArchiveDays}
+      />
+
+      {/* Confirm Start En Camino Dialog */}
+      <ConfirmDialog
+        open={confirmIniciar.open}
+        onOpenChange={(open) => { if (!open) setConfirmIniciar({ open: false, row: null }); }}
+        title="Iniciar trayecto"
+        description={confirmIniciar.row
+          ? `¿Quieres iniciar el trayecto de ${confirmIniciar.row.tipoOperacion.toLowerCase()} para la reserva Nº ${getOperationFieldValue(confirmIniciar.row, 'external_reservation_id') || confirmIniciar.row.reservationId.slice(0, 8)}? Se marcará como "En camino".`
+          : ''}
+        confirmLabel="Sí, iniciar"
+        cancelLabel="Cancelar"
+        loading={confirmIniciar.row ? !!iniciarLoading[confirmIniciar.row.id] : false}
+        onConfirm={() => {
+          if (confirmIniciar.row) {
+            handleIniciar(confirmIniciar.row);
+            setConfirmIniciar({ open: false, row: null });
+          }
+        }}
       />
 
       {/* Location Sharing Dialog */}
