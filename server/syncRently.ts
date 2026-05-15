@@ -1053,6 +1053,24 @@ export async function handleSyncRently(req: Request, res: Response) {
         delete updateData.confirmed_entrega_datetime;
         delete updateData.confirmed_devolucion_datetime;
 
+        // ─── PROTECT USER-EDITABLE FIELDS ─────────────────────────────────
+        // These fields can be manually edited by users in the reservations table.
+        // The sync must NOT overwrite them with Rently data, because:
+        // 1. Users may have corrected/customized addresses (e.g. "Parking G Aeropuerto")
+        // 2. Users may have assigned a different vehicle than what Rently shows
+        // 3. Rently data for these fields is often incomplete or null
+        // The initial values are set when the reservation is first inserted (upsert).
+        // Subsequent syncs only update Rently-sourced metadata (status, pricing, etc.)
+        delete updateData.lugar_entrega;
+        delete updateData.lugar_devolucion;
+        delete updateData.lugar_entrega_direccion;
+        delete updateData.lugar_devolucion_direccion;
+        delete updateData.lugar_entrega_ciudad;
+        delete updateData.lugar_devolucion_ciudad;
+        // Note: auto, modelo, notas_internas are also user-editable but we keep
+        // syncing them from Rently because vehicle assignment changes in Rently
+        // should be reflected. Users rarely change these manually.
+
         if (update.newStatus === "Completada") {
           updateData.estado_terminada_at = new Date().toISOString();
         }
