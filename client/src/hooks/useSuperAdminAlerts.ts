@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useSuperAdmin } from './useSuperAdmin';
 import { toast } from 'sonner';
 import { getPlanMonthlyPrice } from '@/lib/billing';
@@ -25,7 +25,7 @@ export function useSuperAdminAlerts() {
   const alertsQuery = useQuery({
     queryKey: ['super-admin-alerts'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('super_admin_alerts')
         .select(`
           *,
@@ -43,7 +43,7 @@ export function useSuperAdminAlerts() {
   const unreadAlertsQuery = useQuery({
     queryKey: ['super-admin-alerts-unread'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('super_admin_alerts')
         .select(`
           *,
@@ -61,7 +61,7 @@ export function useSuperAdminAlerts() {
   const paymentAlertsQuery = useQuery({
     queryKey: ['super-admin-payment-alerts'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('super_admin_alerts')
         .select(`
           *,
@@ -80,7 +80,7 @@ export function useSuperAdminAlerts() {
   const unreadFeedbackQuery = useQuery({
     queryKey: ['super-admin-feedback-unread-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { count, error } = await supabaseQuery
         .from('user_feedback')
         .select('*', { count: 'exact', head: true })
         .is('read_at', null);
@@ -93,7 +93,7 @@ export function useSuperAdminAlerts() {
 
   const markAsRead = useMutation({
     mutationFn: async (alertId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('super_admin_alerts')
         .update({ read_at: new Date().toISOString() })
         .eq('id', alertId);
@@ -107,7 +107,7 @@ export function useSuperAdminAlerts() {
 
   const markAsResolved = useMutation({
     mutationFn: async (alertId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('super_admin_alerts')
         .update({ 
           resolved_at: new Date().toISOString(),
@@ -126,7 +126,7 @@ export function useSuperAdminAlerts() {
 
   const deleteAlert = useMutation({
     mutationFn: async (alertId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('super_admin_alerts')
         .delete()
         .eq('id', alertId);
@@ -161,7 +161,7 @@ export function usePaymentStats() {
     queryKey: ['payment-stats'],
     queryFn: async () => {
       // Get subscriptions with past_due status
-      const { data: pastDueSubs, error: subError } = await supabase
+      const { data: pastDueSubs, error: subError } = await supabaseQuery
         .from('subscriptions')
         .select(`
           id,
@@ -176,13 +176,13 @@ export function usePaymentStats() {
       if (subError) throw subError;
 
       // Calculate MRR at risk (display estimate)
-      const mrrAtRisk = (pastDueSubs || []).reduce((total, sub: any) => {
+      const mrrAtRisk = (pastDueSubs || []).reduce((total: any, sub: any) => {
         const seats = sub.seats_included || 1;
         return total + getPlanMonthlyPrice(sub.plan) * seats;
       }, 0);
 
       // Get unresolved payment alerts count
-      const { count: activeAlerts } = await supabase
+      const { count: activeAlerts } = await supabaseQuery
         .from('super_admin_alerts')
         .select('*', { count: 'exact', head: true })
         .eq('alert_type', 'payment_failed')

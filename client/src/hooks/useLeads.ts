@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { toast } from 'sonner';
 
 export const useLeads = () => {
@@ -15,7 +15,7 @@ export const useLeads = () => {
     }) => {
       // Insert directly into leads table instead of broken RPC
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseQuery
           .from('leads')
           .upsert({ email, source, referral_code: referralCode || null }, { onConflict: 'email' })
           .select()

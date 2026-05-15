@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportFilters } from '@/types/reports';
 import { subDays, startOfDay, endOfDay, format, differenceInMinutes } from 'date-fns';
@@ -68,7 +68,7 @@ export function useMovementReports(filters: ReportFilters) {
       if (!organization?.id) return null;
       const { start, end } = getDateRange(filters);
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('vehicle_movements')
         .select('id, movement_type, status, started_at, ended_at, driver_id, profiles!vehicle_movements_driver_id_fkey(name)')
         .eq('organization_id', organization.id)

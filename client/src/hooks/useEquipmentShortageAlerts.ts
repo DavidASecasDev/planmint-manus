@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEAT_TIPOS, EQUIPMENT_TIPO_SHORT_LABELS } from '@/types/equipment';
 import type { RentlyExtra } from '@/types/reservations';
@@ -95,7 +95,7 @@ export function useEquipmentShortageAlerts() {
     const today = new Date().toISOString().split('T')[0];
 
     // Get reservations active today
-    const { data: reservations, error: resError } = await (supabase as any)
+    const { data: reservations, error: resError } = await (supabaseQuery as any)
       .from('reservations')
       .select('id, extras_contratados')
       .eq('organization_id', orgId)
@@ -135,7 +135,7 @@ export function useEquipmentShortageAlerts() {
     }
 
     if (reservationIds.length > 0) {
-      const { data: assignments } = await (supabase as any)
+      const { data: assignments } = await (supabaseQuery as any)
         .from('equipment_assignments')
         .select('equipment_id')
         .in('reservation_id', Array.from(new Set(reservationIds)))
@@ -143,7 +143,7 @@ export function useEquipmentShortageAlerts() {
 
       if (assignments && assignments.length > 0) {
         const equipIds = assignments.map((a: any) => a.equipment_id);
-        const { data: equipItems } = await (supabase as any)
+        const { data: equipItems } = await (supabaseQuery as any)
           .from('equipment_inventory')
           .select('id, tipo')
           .in('id', equipIds);
@@ -159,7 +159,7 @@ export function useEquipmentShortageAlerts() {
     }
 
     // Get available stock
-    const { data: stockData, error: stockError } = await (supabase as any)
+    const { data: stockData, error: stockError } = await (supabaseQuery as any)
       .from('equipment_inventory')
       .select('tipo, estado')
       .eq('organization_id', orgId)
@@ -204,7 +204,7 @@ export function useEquipmentShortageAlerts() {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - DEDUP_WINDOW_HOURS);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('notifications')
       .select('id')
       .eq('user_id', userId)
@@ -233,7 +233,7 @@ export function useEquipmentShortageAlerts() {
     const title = `⚠️ Stock insuficiente de sillitas para hoy`;
     const body = `La demanda de sillitas para hoy supera el stock disponible. ${details}. Revisa el módulo de Equipamiento para gestionar las asignaciones.`;
 
-    const { error } = await supabase
+    const { error } = await supabaseQuery
       .from('notifications')
       .insert({
         organization_id: orgId,

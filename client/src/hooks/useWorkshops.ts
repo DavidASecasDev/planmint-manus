@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -19,7 +19,7 @@ export function useWorkshops() {
     queryKey: ['workshops', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('workshops')
         .select('*')
         .eq('organization_id', orgId)
@@ -35,7 +35,7 @@ export function useWorkshops() {
   const createWorkshop = useMutation({
     mutationFn: async (data: WorkshopFormData) => {
       if (!orgId) throw new Error('No organization');
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('workshops')
         .insert({ ...data, organization_id: orgId })
         .select()
@@ -52,7 +52,7 @@ export function useWorkshops() {
 
   const updateWorkshop = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<WorkshopFormData> }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('workshops')
         .update(data)
         .eq('id', id);
@@ -67,7 +67,7 @@ export function useWorkshops() {
 
   const deleteWorkshop = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('workshops').delete().eq('id', id);
+      const { error } = await supabaseQuery.from('workshops').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -79,7 +79,7 @@ export function useWorkshops() {
 
   const updateRating = useMutation({
     mutationFn: async ({ id, rating }: { id: string; rating: number }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('workshops')
         .update({ rating })
         .eq('id', id);

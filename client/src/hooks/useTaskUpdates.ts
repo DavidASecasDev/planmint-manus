@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { TaskUpdate } from '@/types/tasks';
@@ -25,7 +25,7 @@ export function useTaskUpdates(taskId: string | null) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('task_updates')
         .select('*, profiles:user_id(id, name)')
         .eq('task_id', taskId)
@@ -68,7 +68,7 @@ export function useTaskUpdates(taskId: string | null) {
     }
 
     try {
-      const { error } = await supabase.from('task_updates').insert({
+      const { error } = await supabaseQuery.from('task_updates').insert({
         task_id: data.task_id,
         user_id: user.id,
         text: data.text || null,
@@ -90,7 +90,7 @@ export function useTaskUpdates(taskId: string | null) {
 
   const deleteUpdate = async (updateId: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_updates')
         .delete()
         .eq('id', updateId);

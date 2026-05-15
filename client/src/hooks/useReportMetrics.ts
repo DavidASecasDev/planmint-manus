@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   ReportFilters, 
@@ -51,7 +51,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
     queryFn: async (): Promise<TaskMetrics> => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      let query = supabase
+      let query = supabaseQuery
         .from('tasks')
         .select('id, status, due_date, created_at, is_archived')
         .eq('organization_id', profile.organization_id)
@@ -77,13 +77,13 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
       if (error) throw error;
 
       // Filter by date range for created
-      const tasksInRange = (tasks || []).filter(t => {
+      const tasksInRange = (tasks || []).filter((t: any) => {
         const created = new Date(t.created_at);
         return created >= start && created <= end;
       });
 
       // Get completed tasks in range
-      const { data: completedTasks } = await supabase
+      const { data: completedTasks } = await supabaseQuery
         .from('tasks')
         .select('id')
         .eq('organization_id', profile.organization_id)
@@ -94,16 +94,16 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
 
       const now = new Date();
       const allTasks = tasks || [];
-      const openTasks = allTasks.filter(t => t.status !== 'completed');
-      const overdueTasks = openTasks.filter(t => t.due_date && new Date(t.due_date) < now);
+      const openTasks = allTasks.filter((t: any) => t.status !== 'completed');
+      const overdueTasks = openTasks.filter((t: any) => t.due_date && new Date(t.due_date) < now);
 
       return {
         tasksCreated: tasksInRange.length,
         tasksCompleted: completedTasks?.length || 0,
         tasksDeleted: 0, // Would need audit logs to track
         tasksOpen: openTasks.length,
-        tasksInProgress: allTasks.filter(t => t.status === 'in_progress').length,
-        tasksBlocked: allTasks.filter(t => t.status === 'blocked').length,
+        tasksInProgress: allTasks.filter((t: any) => t.status === 'in_progress').length,
+        tasksBlocked: allTasks.filter((t: any) => t.status === 'blocked').length,
         tasksOverdue: overdueTasks.length,
         overdueRate: openTasks.length > 0 ? (overdueTasks.length / openTasks.length) * 100 : 0,
       };
@@ -117,7 +117,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
     queryFn: async (): Promise<FlowMetrics> => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      let query = supabase
+      let query = supabaseQuery
         .from('tasks')
         .select('id, created_at, started_at, completed_at, status')
         .eq('organization_id', profile.organization_id)
@@ -132,26 +132,26 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
       const { data: completedTasks, error } = await query;
       if (error) throw error;
 
-      const tasksInRange = (completedTasks || []).filter(t => {
+      const tasksInRange = (completedTasks || []).filter((t: any) => {
         const completed = new Date(t.completed_at!);
         return completed >= start && completed <= end;
       });
 
       // Calculate cycle time (started_at to completed_at)
-      const cycleTimeTasks = tasksInRange.filter(t => t.started_at && t.completed_at);
-      const cycleTimes = cycleTimeTasks.map(t => 
+      const cycleTimeTasks = tasksInRange.filter((t: any) => t.started_at && t.completed_at);
+      const cycleTimes = cycleTimeTasks.map((t: any) => 
         differenceInDays(new Date(t.completed_at!), new Date(t.started_at!))
       );
       const avgCycleTime = cycleTimes.length > 0 
-        ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length 
+        ? cycleTimes.reduce((a: any, b: any) => a + b, 0) / cycleTimes.length 
         : null;
 
       // Calculate lead time (created_at to completed_at)
       const leadTimes = tasksInRange
-        .filter(t => t.completed_at)
-        .map(t => differenceInDays(new Date(t.completed_at!), new Date(t.created_at)));
+        .filter((t: any) => t.completed_at)
+        .map((t: any) => differenceInDays(new Date(t.completed_at!), new Date(t.created_at)));
       const avgLeadTime = leadTimes.length > 0 
-        ? leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length 
+        ? leadTimes.reduce((a: any, b: any) => a + b, 0) / leadTimes.length 
         : null;
 
       return {
@@ -169,7 +169,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
     queryFn: async (): Promise<GoalMetrics> => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      let query = supabase
+      let query = supabaseQuery
         .from('tasks')
         .select('id, status, type, goal_target_value, updated_at')
         .eq('organization_id', profile.organization_id)
@@ -184,24 +184,24 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
       if (error) throw error;
 
       const allGoals = goals || [];
-      const completedGoals = allGoals.filter(g => g.status === 'completed');
-      const inProgressGoals = allGoals.filter(g => g.status === 'in_progress');
+      const completedGoals = allGoals.filter((g: any) => g.status === 'completed');
+      const inProgressGoals = allGoals.filter((g: any) => g.status === 'in_progress');
       
       // Goals at risk: no update in 7+ days and not completed
       const sevenDaysAgo = subDays(new Date(), 7);
-      const atRiskGoals = allGoals.filter(g => 
+      const atRiskGoals = allGoals.filter((g: any) => 
         g.status !== 'completed' && 
         new Date(g.updated_at) < sevenDaysAgo
       );
 
       // Calculate average progress for numeric goals
-      const numericGoals = allGoals.filter(g => g.type === 'goal_numeric' && g.goal_target_value);
+      const numericGoals = allGoals.filter((g: any) => g.type === 'goal_numeric' && g.goal_target_value);
       let goalProgressAvg = 0;
       
       if (numericGoals.length > 0) {
         // This would need task_updates to calculate actual progress
         // For now, estimate based on status
-        const progressValues: number[] = numericGoals.map(g => {
+        const progressValues: number[] = numericGoals.map((g: any) => {
           if (g.status === 'completed') return 100;
           if (g.status === 'in_progress') return 50;
           return 0;
@@ -226,7 +226,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
     queryFn: async (): Promise<UsageMetrics> => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      const { data: events, error } = await supabase
+      const { data: events, error } = await supabaseQuery
         .from('usage_events')
         .select('event_type')
         .eq('organization_id', profile.organization_id)
@@ -235,7 +235,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
 
       if (error) throw error;
 
-      const eventCounts = (events || []).reduce((acc, e) => {
+      const eventCounts = (events || []).reduce((acc: any, e: any) => {
         acc[e.event_type] = (acc[e.event_type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
@@ -257,7 +257,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
     queryFn: async (): Promise<CompletionTrend[]> => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      const { data: tasks, error } = await supabase
+      const { data: tasks, error } = await supabaseQuery
         .from('tasks')
         .select('id, created_at, completed_at, status')
         .eq('organization_id', profile.organization_id)
@@ -270,7 +270,7 @@ export function useReportMetrics(filters: ReportFilters, scope: 'org' | 'persona
       // Group by date
       const dateMap = new Map<string, { completed: number; created: number }>();
       
-      (tasks || []).forEach(task => {
+      (tasks || []).forEach((task: any) => {
         const createdDate = format(new Date(task.created_at), 'yyyy-MM-dd');
         if (!dateMap.has(createdDate)) {
           dateMap.set(createdDate, { completed: 0, created: 0 });
@@ -338,7 +338,7 @@ export function useAreaReports(filters: ReportFilters) {
       if (!profile?.organization_id) throw new Error('No organization');
 
       // Fetch areas
-      const { data: areas, error: areasError } = await supabase
+      const { data: areas, error: areasError } = await supabaseQuery
         .from('areas')
         .select('id, name, color, icon')
         .eq('organization_id', profile.organization_id)
@@ -347,54 +347,54 @@ export function useAreaReports(filters: ReportFilters) {
       if (areasError) throw areasError;
 
       // Fetch task-area relationships with task data
-      const { data: taskAreas, error: taskAreasError } = await supabase
+      const { data: taskAreas, error: taskAreasError } = await supabaseQuery
         .from('task_areas')
         .select(`
           area_id,
           task:tasks(id, status, due_date, completed_at, started_at, created_at, is_archived)
         `)
-        .in('area_id', (areas || []).map(a => a.id));
+        .in('area_id', (areas || []).map((a: any) => a.id));
 
       if (taskAreasError) throw taskAreasError;
 
       // Fetch task-tag relationships for top tags
-      const { data: taskTags } = await supabase
+      const { data: taskTags } = await supabaseQuery
         .from('task_tags')
         .select('task_id, tag:tags(id, name)');
 
       const now = new Date();
 
-      return (areas || []).map(area => {
+      return (areas || []).map((area: any) => {
         const areaTasks = (taskAreas || [])
-          .filter(ta => ta.area_id === area.id && ta.task && !ta.task.is_archived)
-          .map(ta => ta.task!);
+          .filter((ta: any) => ta.area_id === area.id && ta.task && !ta.task.is_archived)
+          .map((ta: any) => ta.task!);
 
-        const openTasks = areaTasks.filter(t => t.status !== 'completed');
-        const completedTasks = areaTasks.filter(t => 
+        const openTasks = areaTasks.filter((t: any) => t.status !== 'completed');
+        const completedTasks = areaTasks.filter((t: any) => 
           t.status === 'completed' && 
           t.completed_at && 
           new Date(t.completed_at) >= start && 
           new Date(t.completed_at) <= end
         );
-        const overdueTasks = openTasks.filter(t => t.due_date && new Date(t.due_date) < now);
-        const blockedTasks = areaTasks.filter(t => t.status === 'blocked');
+        const overdueTasks = openTasks.filter((t: any) => t.due_date && new Date(t.due_date) < now);
+        const blockedTasks = areaTasks.filter((t: any) => t.status === 'blocked');
 
         // Calculate cycle time
-        const cycleTimeTasks = completedTasks.filter(t => t.started_at && t.completed_at);
-        const cycleTimes = cycleTimeTasks.map(t => 
+        const cycleTimeTasks = completedTasks.filter((t: any) => t.started_at && t.completed_at);
+        const cycleTimes = cycleTimeTasks.map((t: any) => 
           differenceInDays(new Date(t.completed_at!), new Date(t.started_at!))
         );
         const avgCycleTime = cycleTimes.length > 0 
-          ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length 
+          ? cycleTimes.reduce((a: any, b: any) => a + b, 0) / cycleTimes.length 
           : null;
 
         // Get top tags for this area's tasks
-        const areaTaskIds = areaTasks.map(t => t.id);
+        const areaTaskIds = areaTasks.map((t: any) => t.id);
         const tagCounts = new Map<string, { tagId: string; tagName: string; count: number }>();
         
         (taskTags || [])
-          .filter(tt => areaTaskIds.includes(tt.task_id) && tt.tag)
-          .forEach(tt => {
+          .filter((tt: any) => areaTaskIds.includes(tt.task_id) && tt.tag)
+          .forEach((tt: any) => {
             const key = tt.tag!.id;
             if (!tagCounts.has(key)) {
               tagCounts.set(key, { tagId: tt.tag!.id, tagName: tt.tag!.name, count: 0 });
@@ -434,7 +434,7 @@ export function useTeamReports(filters: ReportFilters) {
       if (!profile?.organization_id) throw new Error('No organization');
 
       // Fetch team members
-      const { data: members, error: membersError } = await supabase
+      const { data: members, error: membersError } = await supabaseQuery
         .from('profiles')
         .select('id, name')
         .eq('organization_id', profile.organization_id);
@@ -442,7 +442,7 @@ export function useTeamReports(filters: ReportFilters) {
       if (membersError) throw membersError;
 
       // Fetch all tasks
-      const { data: tasks, error: tasksError } = await supabase
+      const { data: tasks, error: tasksError } = await supabaseQuery
         .from('tasks')
         .select('id, status, due_date, assigned_to, completed_at, started_at, is_archived')
         .eq('organization_id', profile.organization_id)
@@ -452,24 +452,24 @@ export function useTeamReports(filters: ReportFilters) {
 
       const now = new Date();
 
-      return (members || []).map(member => {
-        const userTasks = (tasks || []).filter(t => t.assigned_to === member.id);
-        const openTasks = userTasks.filter(t => t.status !== 'completed');
-        const completedTasks = userTasks.filter(t => 
+      return (members || []).map((member: any) => {
+        const userTasks = (tasks || []).filter((t: any) => t.assigned_to === member.id);
+        const openTasks = userTasks.filter((t: any) => t.status !== 'completed');
+        const completedTasks = userTasks.filter((t: any) => 
           t.status === 'completed' && 
           t.completed_at && 
           new Date(t.completed_at) >= start && 
           new Date(t.completed_at) <= end
         );
-        const overdueTasks = openTasks.filter(t => t.due_date && new Date(t.due_date) < now);
+        const overdueTasks = openTasks.filter((t: any) => t.due_date && new Date(t.due_date) < now);
 
         // Calculate cycle time
-        const cycleTimeTasks = completedTasks.filter(t => t.started_at && t.completed_at);
-        const cycleTimes = cycleTimeTasks.map(t => 
+        const cycleTimeTasks = completedTasks.filter((t: any) => t.started_at && t.completed_at);
+        const cycleTimes = cycleTimeTasks.map((t: any) => 
           differenceInDays(new Date(t.completed_at!), new Date(t.started_at!))
         );
         const avgCycleTime = cycleTimes.length > 0 
-          ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length 
+          ? cycleTimes.reduce((a: any, b: any) => a + b, 0) / cycleTimes.length 
           : null;
 
         return {

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportFilters } from '@/types/reports';
 import { subDays, startOfDay, endOfDay, format } from 'date-fns';
@@ -85,7 +85,7 @@ export function useTransferReports(filters: ReportFilters) {
       if (!organization?.id) return null;
       const { start, end } = getDateRange(filters);
 
-      let q = supabase
+      let q = supabaseQuery
         .from('transfer_requests')
         .select('id, status, broker_id, broker_name, client_total, provider_cost, internal_margin, pricing_mode, created_at')
         .eq('organization_id', organization.id)

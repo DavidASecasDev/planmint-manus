@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -21,7 +21,7 @@ export function useDamageCatalog() {
     queryFn: async () => {
       if (!orgId) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('damage_catalog')
         .select('*')
         .eq('organization_id', orgId)
@@ -37,13 +37,13 @@ export function useDamageCatalog() {
   const checkExistingItems = async (names: string[]): Promise<Set<string>> => {
     if (!orgId || names.length === 0) return new Set();
     
-    const { data } = await supabase
+    const { data } = await supabaseQuery
       .from('damage_catalog')
       .select('name_es')
       .eq('organization_id', orgId)
       .in('name_es', names);
     
-    return new Set(data?.map(d => d.name_es.toLowerCase()) || []);
+    return new Set(data?.map((d: any) => d.name_es.toLowerCase()) || []);
   };
 
   // Create catalog item
@@ -51,7 +51,7 @@ export function useDamageCatalog() {
     mutationFn: async (formData: DamageCatalogFormData) => {
       if (!orgId) throw new Error('No organization');
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('damage_catalog')
         .insert({
           organization_id: orgId,
@@ -75,7 +75,7 @@ export function useDamageCatalog() {
   // Update catalog item
   const updateItem = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<DamageCatalogFormData> }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('damage_catalog')
         .update(data)
         .eq('id', id);
@@ -94,7 +94,7 @@ export function useDamageCatalog() {
   // Delete catalog item
   const deleteItem = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('damage_catalog')
         .delete()
         .eq('id', id);
@@ -129,7 +129,7 @@ export function useDamageCatalog() {
         position: idx + 1,
       }));
       
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('damage_catalog')
         .upsert(toInsert, { 
           onConflict: 'organization_id,name_es',

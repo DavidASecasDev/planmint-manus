@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useSuperAdmin() {
@@ -11,7 +11,7 @@ export function useSuperAdmin() {
       if (!user?.id) return false;
       // RPC is_super_admin not available in Express backend - check via Supabase direct query
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseQuery
           .from('super_admins')
           .select('user_id')
           .eq('user_id', user.id)
@@ -38,26 +38,26 @@ export function usePlatformStats() {
     queryKey: ['platform-stats'],
     queryFn: async () => {
       // Get total organizations
-      const { count: totalOrgs } = await supabase
+      const { count: totalOrgs } = await supabaseQuery
         .from('organizations')
         .select('*', { count: 'exact', head: true });
 
       // Get total users
-      const { count: totalUsers } = await supabase
+      const { count: totalUsers } = await supabaseQuery
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
       // Get subscriptions breakdown
-      const { data: subscriptions } = await supabase
+      const { data: subscriptions } = await supabaseQuery
         .from('subscriptions')
         .select('plan, status');
 
-      const planCounts = subscriptions?.reduce((acc, sub) => {
+      const planCounts = subscriptions?.reduce((acc: any, sub: any) => {
         acc[sub.plan] = (acc[sub.plan] || 0) + 1;
         return acc;
       }, {} as Record<string, number>) || {};
 
-      const statusCounts = subscriptions?.reduce((acc, sub) => {
+      const statusCounts = subscriptions?.reduce((acc: any, sub: any) => {
         acc[sub.status] = (acc[sub.status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>) || {};
@@ -66,13 +66,13 @@ export function usePlatformStats() {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const { count: recentOrgs } = await supabase
+      const { count: recentOrgs } = await supabaseQuery
         .from('organizations')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Get feedback count
-      const { count: totalFeedback } = await supabase
+      const { count: totalFeedback } = await supabaseQuery
         .from('user_feedback')
         .select('*', { count: 'exact', head: true });
 
@@ -95,7 +95,7 @@ export function usePlatformOrganizations() {
   return useQuery({
     queryKey: ['platform-organizations'],
     queryFn: async () => {
-      const { data: orgs, error } = await supabase
+      const { data: orgs, error } = await supabaseQuery
         .from('organizations')
         .select(`
           id,
@@ -117,8 +117,8 @@ export function usePlatformOrganizations() {
 
       // Get member counts for each org
       const orgsWithCounts = await Promise.all(
-        (orgs || []).map(async (org) => {
-          const { count } = await supabase
+        (orgs || []).map(async (org: any) => {
+          const { count } = await supabaseQuery
             .from('organization_members')
             .select('*', { count: 'exact', head: true })
             .eq('organization_id', org.id);
@@ -143,7 +143,7 @@ export function usePlatformFeedback() {
   return useQuery({
     queryKey: ['platform-feedback'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('user_feedback')
         .select(`
           id,
@@ -174,7 +174,7 @@ export function usePlatformUsers() {
   return useQuery({
     queryKey: ['platform-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('organization_members')
         .select(`
           id,
@@ -190,7 +190,7 @@ export function usePlatformUsers() {
 
       if (error) throw error;
 
-      return (data || []).map((member) => ({
+      return (data || []).map((member: any) => ({
         member_id: member.id,
         user_id: member.user_id,
         name: member.profiles?.name,
@@ -213,7 +213,7 @@ export function useOrganizationDetails(orgId: string | undefined) {
     queryFn: async () => {
       if (!orgId) return null;
 
-      const { data: org, error } = await supabase
+      const { data: org, error } = await supabaseQuery
         .from('organizations')
         .select(`
           id,
@@ -236,7 +236,7 @@ export function useOrganizationDetails(orgId: string | undefined) {
       if (error) throw error;
 
       // Get members
-      const { data: members } = await supabase
+      const { data: members } = await supabaseQuery
         .from('organization_members')
         .select(`
           id,
@@ -249,7 +249,7 @@ export function useOrganizationDetails(orgId: string | undefined) {
         .eq('organization_id', orgId);
 
       // Get feedback
-      const { data: feedback } = await supabase
+      const { data: feedback } = await supabaseQuery
         .from('user_feedback')
         .select('*')
         .eq('organization_id', orgId)
@@ -257,19 +257,19 @@ export function useOrganizationDetails(orgId: string | undefined) {
         .limit(20);
 
       // Get task count
-      const { count: taskCount } = await supabase
+      const { count: taskCount } = await supabaseQuery
         .from('tasks')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', orgId);
 
       // Get area count
-      const { count: areaCount } = await supabase
+      const { count: areaCount } = await supabaseQuery
         .from('areas')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', orgId);
 
       // Get organization modules
-      const { data: modulesData } = await supabase
+      const { data: modulesData } = await supabaseQuery
         .from('organization_modules')
         .select('module_key, enabled')
         .eq('organization_id', orgId);

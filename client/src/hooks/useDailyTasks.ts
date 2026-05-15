@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from '@/hooks/use-toast';
@@ -62,7 +62,7 @@ export function useDailyTasks(selectedDate?: Date) {
       if (!orgId) return [];
 
       const [templatesRes, completionsRes] = await Promise.all([
-        supabase
+        supabaseQuery
           .from('daily_task_templates')
           .select(`
             *,
@@ -71,7 +71,7 @@ export function useDailyTasks(selectedDate?: Date) {
           .eq('organization_id', orgId)
           .eq('is_active', true)
           .order('created_at', { ascending: true }),
-        supabase
+        supabaseQuery
           .from('daily_task_completions')
           .select(`
             *,
@@ -87,17 +87,17 @@ export function useDailyTasks(selectedDate?: Date) {
       const completions = completionsRes.data || [];
 
       return (templatesRes.data || [])
-        .filter((template) => {
+        .filter((template: any) => {
           if (!template.weekdays || template.weekdays.length === 0) return true;
           return template.weekdays.includes(dayOfWeek);
         })
-        .filter((template) => {
+        .filter((template: any) => {
           if (canManage) return true;
           return !template.assigned_to || template.assigned_to === userId;
         })
-        .map((template) => ({
+        .map((template: any) => ({
           ...template,
-          todayCompletion: completions.find((c) => c.template_id === template.id) || null,
+          todayCompletion: completions.find((c: any) => c.template_id === template.id) || null,
         }));
     },
     enabled: !!orgId,
@@ -108,7 +108,7 @@ export function useDailyTasks(selectedDate?: Date) {
     mutationFn: async ({ templateId, notes }: { templateId: string; notes?: string }) => {
       if (!profile?.id || !orgId) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('daily_task_completions')
         .insert({
           organization_id: orgId,
@@ -136,7 +136,7 @@ export function useDailyTasks(selectedDate?: Date) {
   // Uncomplete a daily task
   const uncompleteMutation = useMutation({
     mutationFn: async (completionId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('daily_task_completions')
         .delete()
         .eq('id', completionId);
@@ -161,7 +161,7 @@ export function useDailyTasks(selectedDate?: Date) {
     mutationFn: async ({ title, description, weekdays, assigned_to }: { title: string; description?: string; weekdays?: number[] | null; assigned_to?: string | null }) => {
       if (!profile?.id || !orgId) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('daily_task_templates')
         .insert({
           organization_id: orgId,
@@ -191,7 +191,7 @@ export function useDailyTasks(selectedDate?: Date) {
   // Delete (deactivate) template
   const deleteTemplateMutation = useMutation({
     mutationFn: async (templateId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('daily_task_templates')
         .update({ is_active: false })
         .eq('id', templateId);
@@ -215,7 +215,7 @@ export function useDailyTasks(selectedDate?: Date) {
   // Update template
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, title, description, weekdays, assigned_to }: { id: string; title: string; description?: string; weekdays?: number[] | null; assigned_to?: string | null }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('daily_task_templates')
         .update({
           title,
@@ -248,7 +248,7 @@ export function useDailyTasks(selectedDate?: Date) {
       queryFn: async () => {
         if (!orgId) return [];
 
-        let query = supabase
+        let query = supabaseQuery
           .from('daily_task_completions')
           .select(`
             *,

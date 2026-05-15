@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ export function useTags() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('tags')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -51,7 +51,7 @@ export function useTags() {
     }
 
     try {
-      const { data: newTag, error } = await supabase
+      const { data: newTag, error } = await supabaseQuery
         .from('tags')
         .insert({
           organization_id: profile.organization_id,
@@ -63,7 +63,7 @@ export function useTags() {
         .single();
 
       if (error) {
-        if (error.code === '23505') {
+        if ((error as any).code === '23505') {
           toast.error('Ya existe una etiqueta con ese nombre en tu organización');
           return null;
         }
@@ -82,13 +82,13 @@ export function useTags() {
 
   const updateTag = async (id: string, data: UpdateTagData): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('tags')
         .update(data)
         .eq('id', id);
 
       if (error) {
-        if (error.code === '23505') {
+        if ((error as any).code === '23505') {
           toast.error('Ya existe una etiqueta con ese nombre en tu organización');
           return false;
         }
@@ -111,7 +111,7 @@ export function useTags() {
 
   const deleteTag = async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('tags')
         .delete()
         .eq('id', id);

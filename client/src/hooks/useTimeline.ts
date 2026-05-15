@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
@@ -23,7 +24,7 @@ async function createMentionNotifications(
   text: string
 ) {
   // Get task title
-  const { data: task } = await supabase
+  const { data: task } = await supabaseQuery
     .from('tasks')
     .select('title')
     .eq('id', taskId)
@@ -33,7 +34,7 @@ async function createMentionNotifications(
     // Don't notify yourself
     if (userId === currentUserId) continue;
 
-    await supabase.from('notifications').insert({
+    await supabaseQuery.from('notifications').insert({
       organization_id: organizationId,
       user_id: userId,
       type: 'mention',
@@ -71,7 +72,7 @@ async function uploadImages(
     }
 
     // Insert record into task_update_images
-    const { data: imageRecord, error: insertError } = await supabase
+    const { data: imageRecord, error: insertError } = await supabaseQuery
       .from('task_update_images')
       .insert({
         update_id: updateId,
@@ -108,7 +109,7 @@ export function useTimeline(taskId: string | null) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('task_updates')
         .select(`
           *,
@@ -159,7 +160,7 @@ export function useTimeline(taskId: string | null) {
 
     try {
       // Insert the update
-      const { data: newUpdate, error: updateError } = await supabase
+      const { data: newUpdate, error: updateError } = await supabaseQuery
         .from('task_updates')
         .insert({
           task_id: data.task_id,
@@ -188,7 +189,7 @@ export function useTimeline(taskId: string | null) {
           mentioned_user_id: userId,
         }));
 
-        const { error: mentionError } = await supabase
+        const { error: mentionError } = await supabaseQuery
           .from('task_update_mentions')
           .insert(mentionInserts);
 
@@ -222,13 +223,13 @@ export function useTimeline(taskId: string | null) {
 
     try {
       // First, get the images to delete from storage
-      const { data: images } = await supabase
+      const { data: images } = await supabaseQuery
         .from('task_update_images')
         .select('storage_path')
         .eq('update_id', updateId);
 
       // Delete the update (this will cascade delete task_update_images records)
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_updates')
         .delete()
         .eq('id', updateId);
@@ -237,7 +238,7 @@ export function useTimeline(taskId: string | null) {
 
       // Delete the actual files from storage
       if (images && images.length > 0) {
-        const paths = images.map(img => img.storage_path);
+        const paths = images.map((img: any) => img.storage_path);
         await supabase.storage.from('task-update-images').remove(paths);
       }
 

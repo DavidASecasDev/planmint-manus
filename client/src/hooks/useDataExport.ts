@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -33,7 +33,7 @@ export function useDataExport() {
     setIsExporting(true);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('tasks')
         .select(`
           id,
@@ -62,7 +62,7 @@ export function useDataExport() {
         'Meta valor', 'Meta unidad', 'Asignado a', 'Creada por'
       ];
 
-      const rows = data.map((task) => [
+      const rows = data.map((task: any) => [
         task.id,
         task.title,
         task.description || '',
@@ -80,7 +80,7 @@ export function useDataExport() {
       ]);
 
       const csvContent = [headers, ...rows]
-        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .map((row) => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
       downloadCSV(csvContent, `tasks_${new Date().toISOString().split('T')[0]}.csv`);
@@ -97,7 +97,7 @@ export function useDataExport() {
     setIsExporting(true);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('areas')
         .select('id, name, description, color, icon, is_archived, created_at')
         .eq('organization_id', profile.organization_id)
@@ -106,7 +106,7 @@ export function useDataExport() {
       if (error) throw error;
 
       const headers = ['ID', 'Nombre', 'Descripción', 'Color', 'Icono', 'Archivada', 'Creada'];
-      const rows = data.map((area) => [
+      const rows = data.map((area: any) => [
         area.id,
         area.name,
         area.description || '',
@@ -117,7 +117,7 @@ export function useDataExport() {
       ]);
 
       const csvContent = [headers, ...rows]
-        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .map((row) => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
       downloadCSV(csvContent, `areas_${new Date().toISOString().split('T')[0]}.csv`);
@@ -134,7 +134,7 @@ export function useDataExport() {
     setIsExporting(true);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('tags')
         .select('id, name, color, icon, created_at')
         .eq('organization_id', profile.organization_id)
@@ -143,7 +143,7 @@ export function useDataExport() {
       if (error) throw error;
 
       const headers = ['ID', 'Nombre', 'Color', 'Icono', 'Creada'];
-      const rows = data.map((tag) => [
+      const rows = data.map((tag: any) => [
         tag.id,
         tag.name,
         tag.color,
@@ -152,7 +152,7 @@ export function useDataExport() {
       ]);
 
       const csvContent = [headers, ...rows]
-        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .map((row) => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
       downloadCSV(csvContent, `tags_${new Date().toISOString().split('T')[0]}.csv`);
@@ -169,7 +169,7 @@ export function useDataExport() {
     setIsExporting(true);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('automation_rules')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -178,7 +178,7 @@ export function useDataExport() {
       if (error) throw error;
 
       // Sanitize - remove user IDs from actions
-      const sanitizedData = data.map((rule) => ({
+      const sanitizedData = data.map((rule: any) => ({
         name: rule.name,
         trigger_type: rule.trigger_type,
         is_active: rule.is_active,

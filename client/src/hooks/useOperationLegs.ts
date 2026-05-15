@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { OperationLeg, CreateOperationLegData, UpdateOperationLegData, LegStatus } from '@/types/operations';
@@ -14,7 +14,7 @@ export function useOperationLegs(taskId?: string) {
     queryFn: async () => {
       if (!taskId) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('operation_legs')
         .select(`
           *,
@@ -33,7 +33,7 @@ export function useOperationLegs(taskId?: string) {
     mutationFn: async (legData: CreateOperationLegData) => {
       if (!organizationId) throw new Error('No organization');
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('operation_legs')
         .insert({
           organization_id: organizationId,
@@ -56,7 +56,7 @@ export function useOperationLegs(taskId?: string) {
 
   const updateLeg = useMutation({
     mutationFn: async ({ legId, data }: { legId: string; data: UpdateOperationLegData }) => {
-      const { data: updatedLeg, error } = await supabase
+      const { data: updatedLeg, error } = await supabaseQuery
         .from('operation_legs')
         .update(data)
         .eq('id', legId)
@@ -77,7 +77,7 @@ export function useOperationLegs(taskId?: string) {
 
   const deleteLeg = useMutation({
     mutationFn: async (legId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('operation_legs')
         .delete()
         .eq('id', legId);

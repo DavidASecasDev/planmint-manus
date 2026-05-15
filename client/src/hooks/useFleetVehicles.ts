@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { FleetVehicle } from '@/types/fleet';
@@ -12,7 +12,7 @@ export function useFleetVehicles() {
   const { data: vehicles = [], isLoading, error } = useQuery({
     queryKey: ['fleet-vehicles', orgId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicles')
         .select('*')
         .eq('organization_id', orgId!)
@@ -25,7 +25,7 @@ export function useFleetVehicles() {
 
   const createVehicle = useMutation({
     mutationFn: async (vehicle: Omit<FleetVehicle, 'id' | 'created_at' | 'updated_at' | 'organization_id'>) => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicles')
         .insert({ ...vehicle, organization_id: orgId! } as any)
         .select()
@@ -42,7 +42,7 @@ export function useFleetVehicles() {
 
   const updateVehicle = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FleetVehicle> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicles')
         .update(updates as any)
         .eq('id', id)
@@ -60,7 +60,7 @@ export function useFleetVehicles() {
 
   const deleteVehicle = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('fleet_vehicles').delete().eq('id', id);
+      const { error } = await supabaseQuery.from('fleet_vehicles').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -73,7 +73,7 @@ export function useFleetVehicles() {
   const importVehicles = useMutation({
     mutationFn: async (vehicles: Array<{ matricula: string; modelo?: string; categoria?: string; proveedor?: string; numero_contrato?: string; fecha_inicio_contrato?: string; fecha_fin_contrato?: string; numero_bastidor?: string; marca?: string; color?: string; combustible?: string; hibrido?: boolean; motor?: string; cv?: number }>) => {
       const rows = vehicles.map(v => ({ ...v, matricula: v.matricula.trim().toUpperCase(), organization_id: orgId! }));
-      const { error } = await supabase.from('fleet_vehicles').insert(rows as any);
+      const { error } = await supabaseQuery.from('fleet_vehicles').insert(rows as any);
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
@@ -90,7 +90,7 @@ export function useFleetVehicle(id: string | undefined) {
   return useQuery({
     queryKey: ['fleet-vehicle', id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicles')
         .select('*')
         .eq('id', id!)

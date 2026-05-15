@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useAuditLogs } from '@/hooks/useAuditLogs';
 import { FeatureFlag } from '@/types/featureFlags';
@@ -14,7 +14,7 @@ export function useSuperAdminFeatureFlags() {
   const { data: globalFlags = [], isLoading } = useQuery({
     queryKey: ['super-admin-feature-flags'],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await (supabaseQuery
         .from('feature_flags' as any)
         .select('*')
         .is('organization_id', null)
@@ -33,7 +33,7 @@ export function useSuperAdminFeatureFlags() {
       queryFn: async () => {
         if (!organizationId) return [];
         
-        const { data, error } = await (supabase
+        const { data, error } = await (supabaseQuery
           .from('feature_flags' as any)
           .select('*')
           .eq('organization_id', organizationId)
@@ -49,7 +49,7 @@ export function useSuperAdminFeatureFlags() {
   // Toggle global flag with audit logging
   const toggleGlobalFlag = useMutation({
     mutationFn: async ({ flagId, enabled }: { flagId: string; enabled: boolean }) => {
-      const { error } = await (supabase
+      const { error } = await (supabaseQuery
         .from('feature_flags' as any)
         .update({ enabled, updated_at: new Date().toISOString() })
         .eq('id', flagId) as any);
@@ -92,7 +92,7 @@ export function useSuperAdminFeatureFlags() {
       flagId: string; 
       updates: Partial<Pick<FeatureFlag, 'plan' | 'rollout_percentage' | 'enabled'>> 
     }) => {
-      const { error } = await (supabase
+      const { error } = await (supabaseQuery
         .from('feature_flags' as any)
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', flagId) as any);
@@ -141,7 +141,7 @@ export function useSuperAdminFeatureFlags() {
       description: string | null;
       enabled: boolean;
     }) => {
-      const { data, error } = await (supabase
+      const { data, error } = await (supabaseQuery
         .from('feature_flags' as any)
         .insert({
           organization_id: organizationId,
@@ -185,7 +185,7 @@ export function useSuperAdminFeatureFlags() {
   // Delete org-specific override with audit logging
   const deleteOrgOverride = useMutation({
     mutationFn: async ({ flagId, organizationId, flagKey }: { flagId: string; organizationId: string; flagKey?: string }) => {
-      const { error } = await (supabase
+      const { error } = await (supabaseQuery
         .from('feature_flags' as any)
         .delete()
         .eq('id', flagId) as any);

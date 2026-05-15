@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface SearchResult {
@@ -47,7 +47,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
 
     try {
       // Search tasks
-      const { data: tasks } = await supabase
+      const { data: tasks } = await supabaseQuery
         .from('tasks')
         .select('id, title, description, status, priority, type, assigned_to')
         .eq('organization_id', profile.organization_id)
@@ -56,7 +56,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
         .limit(5);
 
       if (tasks) {
-        tasks.forEach(task => {
+        tasks.forEach((task: any) => {
           allResults.push({
             id: task.id,
             type: 'task',
@@ -72,7 +72,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search areas
-      const { data: areas } = await supabase
+      const { data: areas } = await supabaseQuery
         .from('areas')
         .select('id, name, description, color, icon')
         .eq('organization_id', profile.organization_id)
@@ -81,7 +81,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
         .limit(5);
 
       if (areas) {
-        areas.forEach(area => {
+        areas.forEach((area: any) => {
           allResults.push({
             id: area.id,
             type: 'area',
@@ -96,7 +96,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search tags
-      const { data: tags } = await supabase
+      const { data: tags } = await supabaseQuery
         .from('tags')
         .select('id, name, color, icon')
         .eq('organization_id', profile.organization_id)
@@ -104,7 +104,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
         .limit(5);
 
       if (tags) {
-        tags.forEach(tag => {
+        tags.forEach((tag: any) => {
           allResults.push({
             id: tag.id,
             type: 'tag',
@@ -118,7 +118,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search subtasks - need to join with tasks to filter by organization
-      const { data: subtasks } = await supabase
+      const { data: subtasks } = await supabaseQuery
         .from('task_subtasks')
         .select(`
           id, 
@@ -146,7 +146,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search milestones
-      const { data: milestones } = await supabase
+      const { data: milestones } = await supabaseQuery
         .from('task_milestones')
         .select(`
           id, 
@@ -179,7 +179,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search updates
-      const { data: updates } = await supabase
+      const { data: updates } = await supabaseQuery
         .from('task_updates')
         .select(`
           id, 
@@ -214,7 +214,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search repairs (Garatech)
-      const { data: repairs } = await supabase
+      const { data: repairs } = await supabaseQuery
         .from('repairs')
         .select('id, repair_number, description, status, repair_type, vehicle:vehicles(matricula, modelo), workshop:workshops(name)')
         .eq('organization_id', profile.organization_id)
@@ -239,7 +239,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search workshops (Garatech)
-      const { data: workshops } = await supabase
+      const { data: workshops } = await supabaseQuery
         .from('workshops')
         .select('id, name, city, phone')
         .eq('organization_id', profile.organization_id)
@@ -258,7 +258,7 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
       }
 
       // Search accidents (Garatech)
-      const { data: accidents } = await supabase
+      const { data: accidents } = await supabaseQuery
         .from('accidents')
         .select('id, accident_number, description, severity, status, vehicle:vehicles(matricula)')
         .eq('organization_id', profile.organization_id)

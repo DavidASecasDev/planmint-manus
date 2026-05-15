@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 
 export type OutboundNotificationStatus = 'pending' | 'sent' | 'failed' | 'skipped';
 export type OutboundNotificationChannel = 'push' | 'email' | 'slack' | 'whatsapp';
@@ -34,7 +34,7 @@ export function useSuperAdminOutboundNotifications(filters: OutboundNotification
   return useQuery({
     queryKey: ['super-admin', 'outbound-notifications', { status, channel, search, limit }],
     queryFn: async (): Promise<SuperAdminOutboundNotificationRow[]> => {
-      let query = supabase
+      let query = supabaseQuery
         .from('outbound_notifications')
         .select(
           `

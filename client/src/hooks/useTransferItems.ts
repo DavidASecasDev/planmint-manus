@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { syncRequestTotals } from '@/utils/syncRequestTotals';
@@ -14,7 +14,7 @@ export function useTransferItems(requestId: string | undefined) {
       if (!profile?.organization_id || !requestId) throw new Error('Missing data');
 
       // Validate that the request still exists before creating item
-      const { data: currentRequest, error: checkError } = await supabase
+      const { data: currentRequest, error: checkError } = await supabaseQuery
         .from('transfer_requests')
         .select('id')
         .eq('id', requestId)
@@ -25,7 +25,7 @@ export function useTransferItems(requestId: string | undefined) {
         throw new Error('La solicitud de transfer ya no existe o no tienes acceso');
       }
 
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('transfer_items')
         .insert({
           request_id: requestId,
@@ -77,7 +77,7 @@ export function useTransferItems(requestId: string | undefined) {
   const updateItem = useMutation({
     mutationFn: async ({ id, ...data }: Partial<TransferItem> & { id: string }) => {
       // Verify the item belongs to this request before updating
-      const { data: existingItem, error: checkError } = await supabase
+      const { data: existingItem, error: checkError } = await supabaseQuery
         .from('transfer_items')
         .select('id, request_id')
         .eq('id', id)
@@ -92,7 +92,7 @@ export function useTransferItems(requestId: string | undefined) {
         throw new Error('El item no pertenece a esta solicitud');
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_items')
         .update(data)
         .eq('id', id);
@@ -137,7 +137,7 @@ export function useTransferItems(requestId: string | undefined) {
 
   const updateItemStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TransferItemStatus }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_items')
         .update({ status })
         .eq('id', id);
@@ -156,7 +156,7 @@ export function useTransferItems(requestId: string | undefined) {
 
   const deleteItem = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_items')
         .delete()
         .eq('id', id);
@@ -180,7 +180,7 @@ export function useTransferItems(requestId: string | undefined) {
       if (!profile?.organization_id || !requestId) throw new Error('Missing data');
 
       // Validate that the request exists before creating items
-      const { data: currentRequest, error: checkError } = await supabase
+      const { data: currentRequest, error: checkError } = await supabaseQuery
         .from('transfer_requests')
         .select('id')
         .eq('id', requestId)
@@ -206,7 +206,7 @@ export function useTransferItems(requestId: string | undefined) {
         price_manually_set: false,
       }));
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_items')
         .insert(items);
 

@@ -1,7 +1,7 @@
 // Phase 29: User-Generated Templates Hook
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
@@ -36,7 +36,7 @@ export const useUserTemplates = () => {
   const { data: communityTemplates, isLoading: loadingCommunity } = useQuery({
     queryKey: ['user-templates', 'community'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('user_templates')
         .select('*, profiles!user_templates_created_by_fkey(name)')
         .eq('visibility', 'public')
@@ -44,7 +44,7 @@ export const useUserTemplates = () => {
         .order('installs_count', { ascending: false });
       
       if (error) throw error;
-      return (data || []).map(t => ({
+      return (data || []).map((t: any) => ({
         ...t,
         config_json: t.config_json as unknown as UserTemplateConfig,
         creator_name: (t.profiles as any)?.name || 'Anónimo',
@@ -58,14 +58,14 @@ export const useUserTemplates = () => {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('user_templates')
         .select('*')
         .eq('organization_id', profile.organization_id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return (data || []).map(t => ({
+      return (data || []).map((t: any) => ({
         ...t,
         config_json: t.config_json as unknown as UserTemplateConfig,
       })) as UserTemplate[];
@@ -79,13 +79,13 @@ export const useUserTemplates = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('template_favorites')
         .select('template_id')
         .eq('user_id', user.id);
       
       if (error) throw error;
-      return (data || []).map(f => f.template_id);
+      return (data || []).map((f: any) => f.template_id);
     },
     enabled: !!user?.id,
   });
@@ -96,14 +96,14 @@ export const useUserTemplates = () => {
     queryFn: async () => {
       if (!favoriteIds?.length) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('user_templates')
         .select('*, profiles!user_templates_created_by_fkey(name)')
         .in('id', favoriteIds)
         .eq('status', 'active');
       
       if (error) throw error;
-      return (data || []).map(t => ({
+      return (data || []).map((t: any) => ({
         ...t,
         config_json: t.config_json as unknown as UserTemplateConfig,
         creator_name: (t.profiles as any)?.name || 'Anónimo',
@@ -114,7 +114,7 @@ export const useUserTemplates = () => {
 
   // Fetch template by slug
   const fetchUserTemplateBySlug = useCallback(async (slug: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('user_templates')
       .select('*, profiles!user_templates_created_by_fkey(name), organizations(name)')
       .eq('slug', slug)
@@ -133,7 +133,7 @@ export const useUserTemplates = () => {
 
   // Fetch template by share_code
   const fetchTemplateByShareCode = useCallback(async (shareCode: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('user_templates')
       .select('*, profiles!user_templates_created_by_fkey(name), organizations(name)')
       .eq('share_code', shareCode)
@@ -152,14 +152,14 @@ export const useUserTemplates = () => {
 
   // Fetch ratings for a template
   const fetchTemplateRatings = useCallback(async (templateId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('template_ratings')
       .select('*, profiles!template_ratings_user_id_fkey(name)')
       .eq('template_id', templateId)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return (data || []).map(r => ({
+    return (data || []).map((r: any) => ({
       ...r,
       user_name: (r.profiles as any)?.name || 'Anónimo',
     })) as TemplateRating[];
@@ -169,7 +169,7 @@ export const useUserTemplates = () => {
   const fetchMyRating = useCallback(async (templateId: string) => {
     if (!user?.id) return null;
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('template_ratings')
       .select('*')
       .eq('template_id', templateId)
@@ -202,7 +202,7 @@ export const useUserTemplates = () => {
         throw new Error('Solo el plan Team puede publicar plantillas públicas');
       }
 
-      const { data: newTemplate, error } = await supabase
+      const { data: newTemplate, error } = await supabaseQuery
         .from('user_templates')
         .insert({
           organization_id: profile.organization_id,
@@ -245,7 +245,7 @@ export const useUserTemplates = () => {
         updateData.config_json = data.config_json as unknown as Json;
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('user_templates')
         .update(updateData)
         .eq('id', id);
@@ -264,7 +264,7 @@ export const useUserTemplates = () => {
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('user_templates')
         .delete()
         .eq('id', id);
@@ -288,14 +288,14 @@ export const useUserTemplates = () => {
       const isFavorite = favoriteIds?.includes(templateId);
 
       if (isFavorite) {
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('template_favorites')
           .delete()
           .eq('template_id', templateId)
           .eq('user_id', user.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('template_favorites')
           .insert({ template_id: templateId, user_id: user.id });
         if (error) throw error;
@@ -314,7 +314,7 @@ export const useUserTemplates = () => {
       if (!canRateTemplates) throw new Error('Plan Free no permite valorar plantillas');
 
       // Upsert rating
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('template_ratings')
         .upsert({
           template_id: templateId,
@@ -341,7 +341,7 @@ export const useUserTemplates = () => {
     mutationFn: async ({ templateId, reason, details }: { templateId: string; reason: string; details?: string }) => {
       if (!user?.id) throw new Error('No user');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('template_reports')
         .insert({
           template_id: templateId,
@@ -367,7 +367,7 @@ export const useUserTemplates = () => {
         throw new Error('No organization or user');
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('template_installs')
         .insert({
           template_id: templateId,
@@ -398,13 +398,13 @@ export const useUserTemplates = () => {
 
     // Export areas
     if (options.areas) {
-      const { data: areas } = await supabase
+      const { data: areas } = await supabaseQuery
         .from('areas')
         .select('name, icon, color')
         .eq('organization_id', profile.organization_id)
         .eq('is_archived', false);
       
-      config.areas = (areas || []).map(a => ({
+      config.areas = (areas || []).map((a: any) => ({
         name: a.name,
         icon: a.icon || 'folder',
         color: a.color || '#4F46E5',
@@ -413,12 +413,12 @@ export const useUserTemplates = () => {
 
     // Export tags
     if (options.tags) {
-      const { data: tags } = await supabase
+      const { data: tags } = await supabaseQuery
         .from('tags')
         .select('name, icon, color')
         .eq('organization_id', profile.organization_id);
       
-      config.tags = (tags || []).map(t => ({
+      config.tags = (tags || []).map((t: any) => ({
         name: t.name,
         icon: t.icon || 'tag',
         color: t.color || '#6366f1',
@@ -427,13 +427,13 @@ export const useUserTemplates = () => {
 
     // Export kanban columns
     if (options.kanban_columns) {
-      const { data: columns } = await supabase
+      const { data: columns } = await supabaseQuery
         .from('kanban_columns')
         .select('label, status, color')
         .eq('organization_id', profile.organization_id)
         .order('sort_order');
       
-      config.kanban_columns = (columns || []).map(c => ({
+      config.kanban_columns = (columns || []).map((c: any) => ({
         label: c.label,
         status: c.status,
         color: c.color,
@@ -442,7 +442,7 @@ export const useUserTemplates = () => {
 
     // Export tasks (sanitized)
     if (options.tasks) {
-      const { data: tasks } = await supabase
+      const { data: tasks } = await supabaseQuery
         .from('tasks')
         .select(`
           title, type, status, priority, goal_target_value, goal_unit,
@@ -455,7 +455,7 @@ export const useUserTemplates = () => {
         .eq('is_archived', false)
         .limit(50);
       
-      config.tasks = (tasks || []).map((t, index) => ({
+      config.tasks = (tasks || []).map((t: any, index: any) => ({
         // Sanitize title - replace with generic if too specific
         title: sanitizeTitle(t.title, index),
         type: t.type as 'simple' | 'goal_numeric' | 'goal_milestones',
@@ -476,14 +476,14 @@ export const useUserTemplates = () => {
 
     // Export automations (sanitized - no user IDs)
     if (options.automations) {
-      const { data: rules } = await supabase
+      const { data: rules } = await supabaseQuery
         .from('automation_rules')
         .select('name, trigger_type, conditions_json, actions_json, throttle_minutes')
         .eq('organization_id', profile.organization_id)
         .eq('is_active', true)
         .limit(20);
       
-      config.automations = (rules || []).map(r => ({
+      config.automations = (rules || []).map((r: any) => ({
         name: r.name,
         trigger_type: r.trigger_type,
         conditions: sanitizeAutomationConditions(r.conditions_json as any),

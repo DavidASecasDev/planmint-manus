@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { KanbanColumn, DEFAULT_KANBAN_COLUMNS } from '@/types/kanban';
@@ -23,7 +23,7 @@ export function useKanbanColumns() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('kanban_columns')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -52,7 +52,7 @@ export function useKanbanColumns() {
         organization_id: organizationId,
       }));
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('kanban_columns')
         .insert(columnsToInsert)
         .select();
@@ -75,7 +75,7 @@ export function useKanbanColumns() {
     updates: Partial<Pick<KanbanColumn, 'label' | 'color' | 'is_visible' | 'sort_order'>>
   ): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('kanban_columns')
         .update(updates)
         .eq('id', id);
@@ -102,7 +102,7 @@ export function useKanbanColumns() {
       }));
 
       for (const update of updates) {
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('kanban_columns')
           .update({ sort_order: update.sort_order })
           .eq('id', update.id);

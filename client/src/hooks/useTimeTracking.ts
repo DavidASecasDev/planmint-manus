@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { 
@@ -32,7 +32,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
     queryFn: async (): Promise<TimeEntryWithRelations[]> => {
       if (!profile?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('time_entries')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -70,21 +70,21 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
       // Fetch tasks
       let tasksMap: Record<string, { id: string; title: string }> = {};
       if (taskIds.length > 0) {
-        const { data: tasks } = await supabase
+        const { data: tasks } = await supabaseQuery
           .from('tasks')
           .select('id, title')
           .in('id', taskIds as string[]);
-        tasksMap = Object.fromEntries((tasks || []).map(t => [t.id, t]));
+        tasksMap = Object.fromEntries((tasks || []).map((t: any) => [t.id, t]));
       }
 
       // Fetch users
       let usersMap: Record<string, { id: string; name: string | null }> = {};
       if (userIds.length > 0) {
-        const { data: users } = await supabase
+        const { data: users } = await supabaseQuery
           .from('profiles')
           .select('id, name')
           .in('id', userIds);
-        usersMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+        usersMap = Object.fromEntries((users || []).map((u: any) => [u.id, u]));
       }
 
       // Combine data
@@ -102,7 +102,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
     const checkActiveTimer = async () => {
       if (!profile?.id) return;
 
-      const { data } = await supabase
+      const { data } = await supabaseQuery
         .from('time_entries')
         .select('id, start_time')
         .eq('user_id', profile.id)
@@ -144,7 +144,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
       }
 
       // Stop any running timer first
-      await supabase
+      await supabaseQuery
         .from('time_entries')
         .update({ 
           is_running: false,
@@ -154,7 +154,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
         .eq('user_id', profile.id)
         .eq('is_running', true);
 
-      const { data: entry, error } = await supabase
+      const { data: entry, error } = await supabaseQuery
         .from('time_entries')
         .insert({
           organization_id: profile.organization_id,
@@ -197,7 +197,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
 
       const durationMinutes = Math.max(1, Math.floor(timerState.elapsed / 60));
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('time_entries')
         .update({
           is_running: false,
@@ -234,7 +234,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
         throw new Error('No organization');
       }
 
-      const { data: entry, error } = await supabase
+      const { data: entry, error } = await supabaseQuery
         .from('time_entries')
         .insert({
           organization_id: profile.organization_id,
@@ -269,7 +269,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
     mutationFn: async (data: UpdateTimeEntryData) => {
       const { id, ...updateData } = data;
 
-      const { data: entry, error } = await supabase
+      const { data: entry, error } = await supabaseQuery
         .from('time_entries')
         .update(updateData)
         .eq('id', id)
@@ -292,7 +292,7 @@ export function useTimeTracking(filters?: TimeTrackingFilters) {
   // Delete entry mutation
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('time_entries')
         .delete()
         .eq('id', id);

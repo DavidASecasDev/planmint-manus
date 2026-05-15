@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, waitForSession } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type {
@@ -19,8 +19,7 @@ export function useEquipmentInventory() {
   const { data: items = [], isLoading, error } = useQuery({
     queryKey: ['equipment-inventory', orgId],
     queryFn: async () => {
-      await waitForSession();
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .select('*')
         .eq('organization_id', orgId!)
@@ -36,7 +35,7 @@ export function useEquipmentInventory() {
       item: Pick<EquipmentItem, 'tipo' | 'nombre' | 'codigo'> &
         Partial<Pick<EquipmentItem, 'notas' | 'fecha_compra' | 'fecha_ultima_revision'>>
     ) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .insert({ ...item, organization_id: orgId!, estado: 'disponible' })
         .select()
@@ -53,7 +52,7 @@ export function useEquipmentInventory() {
 
   const updateItem = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<EquipmentItem> & { id: string }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .update(updates)
         .eq('id', id)
@@ -71,7 +70,7 @@ export function useEquipmentInventory() {
 
   const deleteItem = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .delete()
         .eq('id', id);
@@ -98,7 +97,7 @@ export function useEquipmentInventory() {
       conditionOut?: string;
     }) => {
       // Update equipment status
-      const { error: updateErr } = await (supabase as any)
+      const { error: updateErr } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .update({
           estado: 'asignada',
@@ -109,7 +108,7 @@ export function useEquipmentInventory() {
       if (updateErr) throw updateErr;
 
       // Create assignment record
-      const { error: assignErr } = await (supabase as any)
+      const { error: assignErr } = await (supabaseQuery as any)
         .from('equipment_assignments')
         .insert({
           equipment_id: equipmentId,
@@ -140,7 +139,7 @@ export function useEquipmentInventory() {
       notes?: string;
     }) => {
       // Find the active assignment
-      const { data: activeAssignment, error: findErr } = await (supabase as any)
+      const { data: activeAssignment, error: findErr } = await (supabaseQuery as any)
         .from('equipment_assignments')
         .select('id')
         .eq('equipment_id', equipmentId)
@@ -151,7 +150,7 @@ export function useEquipmentInventory() {
       if (findErr) throw findErr;
 
       // Close the assignment
-      const { error: closeErr } = await (supabase as any)
+      const { error: closeErr } = await (supabaseQuery as any)
         .from('equipment_assignments')
         .update({
           returned_at: new Date().toISOString(),
@@ -164,7 +163,7 @@ export function useEquipmentInventory() {
 
       // Set equipment back to available (or maintenance if damaged)
       const newEstado = conditionIn === 'dañado' || conditionIn === 'reparar' ? 'mantenimiento' : 'disponible';
-      const { error: updateErr } = await (supabase as any)
+      const { error: updateErr } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .update({
           estado: newEstado,
@@ -191,7 +190,7 @@ export function useEquipmentInventory() {
         updates.reservation_id = null;
         updates.vehicle_matricula = null;
       }
-      const { error } = await (supabase as any)
+      const { error } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .update(updates)
         .eq('id', id);
@@ -238,7 +237,7 @@ export function useEquipmentAssignments(equipmentId?: string) {
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['equipment-assignments', equipmentId],
     queryFn: async () => {
-      let query = (supabase as any)
+      let query = (supabaseQuery as any)
         .from('equipment_assignments')
         .select('*')
         .order('assigned_at', { ascending: false });
@@ -261,7 +260,7 @@ export function useReservationEquipment(reservationId?: string) {
   const { data: equipment = [], isLoading } = useQuery({
     queryKey: ['equipment-inventory', 'reservation', reservationId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabaseQuery as any)
         .from('equipment_inventory')
         .select('*')
         .eq('reservation_id', reservationId!);

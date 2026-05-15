@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { SAMLConnection, SAMLConnectionInput } from '@/types/enterprise';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ export function useSAMLConnections() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('saml_connections')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -34,7 +34,7 @@ export function useSAMLConnections() {
       const sp_entity_id = `${baseUrl}/saml/metadata/${profile.organization_id}`;
       const acs_url = `${baseUrl}/saml/acs/${profile.organization_id}`;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('saml_connections')
         .insert({
           organization_id: profile.organization_id,
@@ -60,7 +60,7 @@ export function useSAMLConnections() {
 
   const updateConnection = useMutation({
     mutationFn: async ({ id, ...input }: Partial<SAMLConnection> & { id: string }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('saml_connections')
         .update(input)
         .eq('id', id);
@@ -78,7 +78,7 @@ export function useSAMLConnections() {
 
   const deleteConnection = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('saml_connections')
         .delete()
         .eq('id', id);
@@ -97,7 +97,7 @@ export function useSAMLConnections() {
   const testConnection = useMutation({
     mutationFn: async (id: string) => {
       // Mark as tested (actual SAML test would need IdP)
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('saml_connections')
         .update({ last_tested_at: new Date().toISOString() })
         .eq('id', id);
@@ -115,7 +115,7 @@ export function useSAMLConnections() {
 
   const activateConnection = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('saml_connections')
         .update({ is_active: active })
         .eq('id', id);

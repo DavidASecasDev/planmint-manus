@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { FleetVehicleDamage } from '@/types/fleet';
@@ -12,7 +12,7 @@ export function useFleetDamages(fleetVehicleId: string | undefined) {
   const { data: damages = [], isLoading, error } = useQuery({
     queryKey: ['fleet-damages', fleetVehicleId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicle_damages')
         .select('*')
         .eq('fleet_vehicle_id', fleetVehicleId!)
@@ -25,7 +25,7 @@ export function useFleetDamages(fleetVehicleId: string | undefined) {
 
   const createDamage = useMutation({
     mutationFn: async (damage: Omit<FleetVehicleDamage, 'id' | 'created_at' | 'resolved_at'>) => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicle_damages')
         .insert(damage as any)
         .select()
@@ -42,7 +42,7 @@ export function useFleetDamages(fleetVehicleId: string | undefined) {
 
   const updateDamage = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FleetVehicleDamage> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('fleet_vehicle_damages')
         .update(updates as any)
         .eq('id', id)
@@ -60,7 +60,7 @@ export function useFleetDamages(fleetVehicleId: string | undefined) {
 
   const deleteDamage = useMutation({
     mutationFn: async (id: string) => {
-      const { error, count } = await supabase
+      const { error, count } = await supabaseQuery
         .from('fleet_vehicle_damages')
         .delete({ count: 'exact' })
         .eq('id', id);

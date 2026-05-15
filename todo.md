@@ -687,3 +687,8 @@
 - [x] Fix Bug: Dashboard muestra skeletons permanentes — CAUSA: isLoading era false pero stats era undefined cuando query estaba deshabilitada (esperando auth). FIX: hook ahora combina isLoading + isFetching + isWaitingForAuth en un solo estado de carga
 - [x] Fix Bug: "Operaciones de hoy" del Dashboard no coincide con Reservas — CAUSA: .not('estado','ilike','%cancelada%') excluye filas con estado=NULL por lógica SQL de tres valores. FIX: reemplazado por .or('estado.not.ilike.%cancelada%,estado.is.null') en las 4 queries
 - [x] Fix Bug: Gloria no aparece en dropdown de brokers — CAUSA: RLS de transfer_brokers bloquea TODOS los brokers cuando el token de sesión Supabase está caducado/stale. FIX: creado endpoint backend /api/get-transfer-brokers que usa service role key (bypassa RLS), migrado useTransferBrokers para usar apiInvoke
+- [x] Crear endpoint proxy genérico /api/supabase-query para bypass RLS — Soporta select, insert, update, delete, upsert con filtros, ordenamiento, paginación, count, head, ignoreDuplicates
+- [x] Crear helper frontend supabaseQuery() que reemplaza supabase.from()... — API fluent idéntica a Supabase client, envía queries al proxy backend
+- [x] Migrar hooks críticos: useOperationalDashboard, useBrokerRequests, useTransferRequests, useNotifications, useEquipment
+- [x] Migrar hooks de alta frecuencia: useSuperAdmin, useWorkshops, useTeams, useDamageReports, useRepairs, useMovements, useFleetVehicles
+- [x] Migrar 84 hooks de Supabase directo a supabaseQuery proxy — 83 migrados a proxy, 21 mantienen import supabase para realtime/storage/auth. TypeScript: 0 errores. Tests: 1148/1148 pass

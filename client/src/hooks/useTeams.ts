@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -47,7 +47,7 @@ export function useTeams() {
       if (!organizationId) return [];
 
       // First get teams
-      const { data: teamsData, error: teamsError } = await supabase
+      const { data: teamsData, error: teamsError } = await supabaseQuery
         .from('teams')
         .select('*')
         .eq('organization_id', organizationId)
@@ -59,7 +59,7 @@ export function useTeams() {
       }
 
       // Get member counts
-      const { data: memberCounts, error: countError } = await supabase
+      const { data: memberCounts, error: countError } = await supabaseQuery
         .from('team_members')
         .select('team_id')
         .eq('organization_id', organizationId);
@@ -70,11 +70,11 @@ export function useTeams() {
 
       // Count members per team
       const counts: Record<string, number> = {};
-      memberCounts?.forEach(m => {
+      memberCounts?.forEach((m: any) => {
         counts[m.team_id] = (counts[m.team_id] || 0) + 1;
       });
 
-      return (teamsData || []).map(team => ({
+      return (teamsData || []).map((team: any) => ({
         ...team,
         member_count: counts[team.id] || 0,
       }));
@@ -87,7 +87,7 @@ export function useTeams() {
       if (!organizationId) throw new Error('No organization');
       if (!canManageTeams) throw new Error('No tienes permiso para crear equipos');
 
-      const { data: team, error } = await supabase
+      const { data: team, error } = await supabaseQuery
         .from('teams')
         .insert({
           organization_id: organizationId,
@@ -116,7 +116,7 @@ export function useTeams() {
     mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; color?: string; icon?: string }) => {
       if (!canManageTeams) throw new Error('No tienes permiso para editar equipos');
       
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('teams')
         .update(data)
         .eq('id', id);
@@ -136,7 +136,7 @@ export function useTeams() {
     mutationFn: async (teamId: string) => {
       if (!canManageTeams) throw new Error('No tienes permiso para eliminar equipos');
       
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('teams')
         .delete()
         .eq('id', teamId);
@@ -175,7 +175,7 @@ export function useTeam(teamId: string | undefined) {
     queryFn: async (): Promise<TeamWithMembers | null> => {
       if (!teamId || !organizationId) return null;
 
-      const { data: teamData, error: teamError } = await supabase
+      const { data: teamData, error: teamError } = await supabaseQuery
         .from('teams')
         .select('*')
         .eq('id', teamId)
@@ -191,7 +191,7 @@ export function useTeam(teamId: string | undefined) {
         return null;
       }
 
-      const { data: membersData, error: membersError } = await supabase
+      const { data: membersData, error: membersError } = await supabaseQuery
         .from('team_members')
         .select(`
           *,
@@ -203,7 +203,7 @@ export function useTeam(teamId: string | undefined) {
         console.error('Error fetching team members:', membersError);
       }
 
-      const members = (membersData || []).map(m => ({
+      const members = (membersData || []).map((m: any) => ({
         ...m,
         profile: Array.isArray(m.profile) ? m.profile[0] : m.profile,
       }));
@@ -229,7 +229,7 @@ export function useTeamMembers(teamId: string | undefined) {
     queryFn: async (): Promise<TeamMember[]> => {
       if (!teamId || !organizationId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('team_members')
         .select(`
           *,
@@ -242,7 +242,7 @@ export function useTeamMembers(teamId: string | undefined) {
         return [];
       }
 
-      return (data || []).map(m => ({
+      return (data || []).map((m: any) => ({
         ...m,
         profile: Array.isArray(m.profile) ? m.profile[0] : m.profile,
       }));
@@ -254,7 +254,7 @@ export function useTeamMembers(teamId: string | undefined) {
     mutationFn: async (userId: string) => {
       if (!teamId || !organizationId) throw new Error('Missing team or organization');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('team_members')
         .insert({
           organization_id: organizationId,
@@ -276,7 +276,7 @@ export function useTeamMembers(teamId: string | undefined) {
 
   const removeMember = useMutation({
     mutationFn: async (membershipId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('team_members')
         .delete()
         .eq('id', membershipId);

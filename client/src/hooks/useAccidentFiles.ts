@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
@@ -13,7 +14,7 @@ export function useAccidentFiles(accidentId: string) {
   const filesQuery = useQuery({
     queryKey: ['accident-files', accidentId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('accident_files')
         .select(`
           *,
@@ -54,7 +55,7 @@ export function useAccidentFiles(accidentId: string) {
 
       if (uploadError) throw uploadError;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('accident_files')
         .insert({
           accident_id: accidentId,
@@ -82,7 +83,7 @@ export function useAccidentFiles(accidentId: string) {
   const deleteFile = useMutation({
     mutationFn: async (fileRecord: AccidentFile) => {
       await supabase.storage.from('repair-files').remove([fileRecord.storage_path]);
-      const { error } = await supabase.from('accident_files').delete().eq('id', fileRecord.id);
+      const { error } = await supabaseQuery.from('accident_files').delete().eq('id', fileRecord.id);
       if (error) throw error;
     },
     onSuccess: () => {

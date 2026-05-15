@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuditLog, AUDIT_ACTIONS } from '@/types/enterprise';
 import { toast } from 'sonner';
@@ -22,7 +22,7 @@ export function useAuditLogs(filters: AuditLogFilters = {}) {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('audit_logs')
         .select(`
           *,
@@ -74,7 +74,7 @@ export function useAuditLogs(filters: AuditLogFilters = {}) {
     }) => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      const { error } = await supabase.from('audit_logs').insert({
+      const { error } = await supabaseQuery.from('audit_logs').insert({
         organization_id: profile.organization_id,
         actor_user_id: profile.id,
         actor_role: profile.role,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationPreferences } from '@/types/external-notifications';
 
@@ -30,7 +30,7 @@ export function useNotificationPreferences() {
     if (!profile?.id || !profile?.organization_id) return;
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('notification_preferences')
         .select('*')
         .eq('user_id', profile.id)
@@ -45,7 +45,7 @@ export function useNotificationPreferences() {
         });
       } else {
         // Create default preferences
-        const { data: newData, error: insertError } = await supabase
+        const { data: newData, error: insertError } = await supabaseQuery
           .from('notification_preferences')
           .insert({
             user_id: profile.id,
@@ -75,7 +75,7 @@ export function useNotificationPreferences() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notification_preferences')
         .update(updates)
         .eq('id', preferences.id);

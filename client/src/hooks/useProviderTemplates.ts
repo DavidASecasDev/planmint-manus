@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import type { ProviderParsingTemplate, ProviderTemplateFormData } from '@/types/providerTemplates';
@@ -13,7 +13,7 @@ export function useProviderTemplates() {
     queryKey: ['provider-parsing-templates', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('provider_parsing_templates')
         .select('*')
         .eq('organization_id', orgId)
@@ -28,7 +28,7 @@ export function useProviderTemplates() {
   const createTemplate = useMutation({
     mutationFn: async (input: ProviderTemplateFormData) => {
       if (!orgId || !profile?.id) throw new Error('No auth');
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('provider_parsing_templates')
         .insert({
           organization_id: orgId,
@@ -70,7 +70,7 @@ export function useProviderTemplates() {
       if (input.default_currency !== undefined) updateData.default_currency = input.default_currency;
       if (input.is_active !== undefined) updateData.is_active = input.is_active;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('provider_parsing_templates')
         .update(updateData)
         .eq('id', id)
@@ -90,7 +90,7 @@ export function useProviderTemplates() {
 
   const deleteTemplate = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('provider_parsing_templates')
         .delete()
         .eq('id', id);
@@ -107,7 +107,7 @@ export function useProviderTemplates() {
 
   const toggleActive = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('provider_parsing_templates')
         .update({ is_active, updated_at: new Date().toISOString() })
         .eq('id', id);

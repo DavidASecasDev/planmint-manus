@@ -36,7 +36,7 @@ export function DailyTaskHistory() {
   const isToday = format(currentDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   // Group by date
-  const grouped = (history || []).reduce((acc, item) => {
+  const grouped = (history || []).reduce((acc: any, item: any) => {
     const date = item.completion_date;
     if (!acc[date]) acc[date] = [];
     acc[date].push(item);

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -19,7 +19,7 @@ export function useAccidents() {
     queryKey: ['accidents', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('accidents')
         .select(`
           *,
@@ -30,7 +30,7 @@ export function useAccidents() {
         .eq('organization_id', orgId)
         .order('accident_date', { ascending: false });
       if (error) throw error;
-      return data.map(a => ({
+      return data.map((a: any) => ({
         ...a,
         vehicle: a.vehicle ? { matricula: (a.vehicle as any).matricula, modelo: (a.vehicle as any).modelo } : null,
         linked_repair: a.linked_repair && typeof a.linked_repair === 'object' && 'id' in a.linked_repair
@@ -48,7 +48,7 @@ export function useAccidents() {
     mutationFn: async (data: AccidentFormData) => {
       if (!orgId || !profile?.id) throw new Error('No organization');
       const { linked_repair_id, ...rest } = data;
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('accidents')
         .insert({ 
           ...rest, 
@@ -76,7 +76,7 @@ export function useAccidents() {
       if ('linked_repair_id' in updateData) {
         updateData.linked_repair_id = updateData.linked_repair_id || null;
       }
-      const { error } = await supabase.from('accidents').update(updateData).eq('id', id);
+      const { error } = await supabaseQuery.from('accidents').update(updateData).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -88,7 +88,7 @@ export function useAccidents() {
 
   const deleteAccident = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('accidents').delete().eq('id', id);
+      const { error } = await supabaseQuery.from('accidents').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

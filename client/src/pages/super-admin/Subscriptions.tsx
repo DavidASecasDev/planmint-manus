@@ -198,7 +198,7 @@ export default function Subscriptions() {
                       {plan.toUpperCase()}
                     </Badge>
                     <div>
-                      <p className="text-2xl font-bold">{count}</p>
+                      <p className="text-2xl font-bold">{String(count)}</p>
                       <p className="text-xs text-muted-foreground">organizaciones</p>
                     </div>
                   </div>

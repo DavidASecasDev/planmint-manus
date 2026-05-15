@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem, PricingMode } from '@/types/transfers';
@@ -13,7 +13,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
     queryFn: async (): Promise<TransferRequest[]> => {
       if (!profile?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('transfer_requests')
         .select(`
           *,
@@ -43,7 +43,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
       }
 
       // Process data to add computed fields
-      const processed = (data || []).map(request => {
+      const processed = (data || []).map((request: any) => {
         const items = request.items || [];
         const dates = items.map((i: { transfer_date: string | null }) => i.transfer_date).filter(Boolean).sort();
         const total_amount = items.reduce((sum: number, i: { price_with_commission: number | null }) => 
@@ -87,7 +87,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
     mutationFn: async (data: Partial<TransferRequest>) => {
       if (!profile?.organization_id) throw new Error('No organization');
 
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('transfer_requests')
         .insert([{
           organization_id: profile.organization_id,
@@ -118,7 +118,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
 
   const updateRequest = useMutation({
     mutationFn: async ({ id, ...data }: Partial<TransferRequest> & { id: string }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_requests')
         .update(data)
         .eq('id', id);
@@ -136,7 +136,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TransferRequestStatus }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_requests')
         .update({ status })
         .eq('id', id);
@@ -155,7 +155,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
 
   const deleteRequest = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_requests')
         .delete()
         .eq('id', id);
@@ -193,7 +193,7 @@ export function useTransferRequest(id: string | undefined) {
     queryFn: async (): Promise<TransferRequest | null> => {
       if (!id) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_requests')
         .select(`
           *,

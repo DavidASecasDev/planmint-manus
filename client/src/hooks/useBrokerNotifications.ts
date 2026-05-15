@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import type { NotificationWithDetails, NotificationType, NotificationEntityType } from '@/types/notifications';
 
@@ -25,7 +26,7 @@ export function useBrokerNotifications() {
     queryFn: async (): Promise<NotificationWithDetails[]> => {
       if (!userId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
@@ -52,7 +53,7 @@ export function useBrokerNotifications() {
     queryFn: async (): Promise<number> => {
       if (!userId) return 0;
 
-      const { count, error } = await supabase
+      const { count, error } = await supabaseQuery
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -73,7 +74,7 @@ export function useBrokerNotifications() {
   // Mark as read
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
@@ -86,7 +87,7 @@ export function useBrokerNotifications() {
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       if (!userId) return;
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId)
@@ -128,7 +129,7 @@ export function useBrokerNotifications() {
 
     const interval = setInterval(async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseQuery
           .from('notifications')
           .select('id')
           .eq('user_id', userId)

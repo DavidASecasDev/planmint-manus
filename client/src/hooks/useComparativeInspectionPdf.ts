@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { registerPdfFonts, PDF_FONT } from '@/lib/fonts/fontLoader';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { PHOTO_CATEGORIES, PHOTO_CATEGORY_GROUPS, DAMAGE_ZONES } from '@/types/fleet';
 import type {
   FleetVehicleInspection,

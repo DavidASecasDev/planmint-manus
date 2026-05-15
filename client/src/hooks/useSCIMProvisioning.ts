@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { SCIMIdentity, SCIMGroup, SCIMGroupMembership, SCIMGroupMapping } from '@/types/enterprise';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ export function useSCIMProvisioning() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('scim_identities')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -32,7 +32,7 @@ export function useSCIMProvisioning() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('scim_groups')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -50,7 +50,7 @@ export function useSCIMProvisioning() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('scim_group_memberships')
         .select('*')
         .eq('organization_id', profile.organization_id);
@@ -67,7 +67,7 @@ export function useSCIMProvisioning() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('scim_group_mappings')
         .select('*')
         .eq('organization_id', profile.organization_id);
@@ -91,7 +91,7 @@ export function useSCIMProvisioning() {
       const existing = mappings.find(m => m.scim_group_id === input.scim_group_id);
 
       if (existing) {
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('scim_group_mappings')
           .update({
             map_to_type: input.map_to_type,
@@ -102,7 +102,7 @@ export function useSCIMProvisioning() {
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('scim_group_mappings')
           .insert({
             organization_id: profile.organization_id,
@@ -127,7 +127,7 @@ export function useSCIMProvisioning() {
   // Delete Group Mapping
   const deleteMapping = useMutation({
     mutationFn: async (scimGroupId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('scim_group_mappings')
         .delete()
         .eq('scim_group_id', scimGroupId);
@@ -146,7 +146,7 @@ export function useSCIMProvisioning() {
   // Deactivate SCIM User
   const deactivateUser = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('scim_identities')
         .update({ is_active: false })
         .eq('user_id', userId)

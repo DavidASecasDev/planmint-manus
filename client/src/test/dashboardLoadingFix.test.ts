@@ -1,12 +1,14 @@
 /**
  * Regression tests for dashboard loading fix.
  *
- * Problem: Dashboard stayed in skeleton state for ~40 seconds because several
- * hooks/components fired Supabase queries before the session was ready, causing
- * 401 errors and React Query retries with exponential backoff.
+ * Original problem: Dashboard stayed in skeleton state for ~40 seconds because
+ * hooks fired Supabase queries before the session was ready, causing 401 errors
+ * and React Query retries with exponential backoff.
  *
- * Fix: Added `sessionReady` gate and `waitForSession()` to all hooks that
- * query Supabase directly, so queries only fire after the token is valid.
+ * Fix v1: Added `sessionReady` gate and `waitForSession()` to hooks.
+ * Fix v2 (current): Migrated hooks to use backend proxy with service role key,
+ * eliminating RLS/session dependency for data queries. Hooks that still use
+ * Supabase directly (realtime, storage, auth) retain waitForSession.
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -18,13 +20,12 @@ function readSource(relativePath: string): string {
   return fs.readFileSync(fullPath, 'utf-8');
 }
 
-describe('Dashboard Loading Fix - Session Gating', () => {
+describe('Dashboard Loading Fix - Proxy Migration', () => {
   describe('useEquipmentInventory (useEquipment.ts)', () => {
     const source = readSource('hooks/useEquipment.ts');
 
-    it('should import waitForSession from supabase client', () => {
-      expect(source).toContain('waitForSession');
-      expect(source).toMatch(/import\s+\{[^}]*waitForSession[^}]*\}\s+from\s+['"]@\/integrations\/supabase\/client['"]/);
+    it('should use supabaseQuery proxy instead of direct supabase client for data queries', () => {
+      expect(source).toContain('supabaseQuery');
     });
 
     it('should destructure sessionReady from useAuth', () => {
@@ -36,19 +37,25 @@ describe('Dashboard Loading Fix - Session Gating', () => {
       expect(source).toMatch(/enabled:\s*!!orgId\s*&&\s*sessionReady/);
     });
 
-    it('should call waitForSession inside queryFn', () => {
-      // The queryFn should await waitForSession before querying Supabase
-      const queryFnMatch = source.match(/queryFn:\s*async\s*\(\)\s*=>\s*\{([\s\S]*?)enabled:/);
-      expect(queryFnMatch).toBeTruthy();
-      expect(queryFnMatch![1]).toContain('await waitForSession()');
+    it('should NOT need waitForSession since proxy uses service role key', () => {
+      // The proxy endpoint uses the service role key which bypasses RLS,
+      // so waitForSession is no longer needed for data queries
+      // (it may still be present if the hook also uses supabase.storage or realtime)
+      const hasDirectSupabaseFrom = source.match(/\bsupabase\.from\(/);
+      if (!hasDirectSupabaseFrom) {
+        // If no direct supabase.from() calls, waitForSession is unnecessary
+        expect(source).not.toContain('await waitForSession()');
+      }
     });
   });
 
   describe('EquipmentStockWidget', () => {
     const source = readSource('components/dashboard/EquipmentStockWidget.tsx');
 
-    it('should import waitForSession from supabase client', () => {
-      expect(source).toContain('waitForSession');
+    it('should import supabaseQuery or waitForSession', () => {
+      const usesProxy = source.includes('supabaseQuery');
+      const usesWaitForSession = source.includes('waitForSession');
+      expect(usesProxy || usesWaitForSession).toBe(true);
     });
 
     it('should destructure sessionReady from useAuth', () => {
@@ -57,10 +64,6 @@ describe('Dashboard Loading Fix - Session Gating', () => {
 
     it('should gate equipment-today-demand query on sessionReady', () => {
       expect(source).toMatch(/enabled:\s*!!profile\?\.organization_id\s*&&\s*sessionReady/);
-    });
-
-    it('should call waitForSession inside demand queryFn', () => {
-      expect(source).toContain('await waitForSession()');
     });
 
     it('should handle inventory errors gracefully instead of infinite skeleton', () => {
@@ -72,9 +75,8 @@ describe('Dashboard Loading Fix - Session Gating', () => {
   describe('useNotifications', () => {
     const source = readSource('hooks/useNotifications.ts');
 
-    it('should import waitForSession from supabase client', () => {
-      expect(source).toContain('waitForSession');
-      expect(source).toMatch(/import\s+\{[^}]*waitForSession[^}]*\}\s+from\s+['"]@\/integrations\/supabase\/client['"]/);
+    it('should use supabaseQuery proxy for data queries', () => {
+      expect(source).toContain('supabaseQuery');
     });
 
     it('should destructure sessionReady from useAuth', () => {
@@ -87,24 +89,13 @@ describe('Dashboard Loading Fix - Session Gating', () => {
       expect(matches).toBeTruthy();
       expect(matches!.length).toBeGreaterThanOrEqual(2);
     });
-
-    it('should call waitForSession inside notifications queryFn', () => {
-      // Count occurrences of waitForSession in queryFn contexts
-      const waitCalls = source.match(/await waitForSession\(\)/g);
-      expect(waitCalls).toBeTruthy();
-      expect(waitCalls!.length).toBeGreaterThanOrEqual(2);
-    });
   });
 
   describe('useReminderNotifications', () => {
     const source = readSource('hooks/useReminderNotifications.ts');
 
-    it('should import waitForSession from supabase client', () => {
-      expect(source).toContain('waitForSession');
-    });
-
-    it('should call waitForSession before querying reminders', () => {
-      expect(source).toContain('await waitForSession()');
+    it('should use supabaseQuery proxy for data queries', () => {
+      expect(source).toContain('supabaseQuery');
     });
   });
 
@@ -112,8 +103,6 @@ describe('Dashboard Loading Fix - Session Gating', () => {
     const source = readSource('hooks/useOperationalDashboard.ts');
 
     it('should NOT have redundant waitForSession inside queryFn (sessionReady already gates)', () => {
-      // The query is already gated by `enabled: !!orgId && sessionReady`
-      // so waitForSession inside queryFn is redundant and adds latency
       expect(source).not.toContain('await waitForSession()');
     });
 

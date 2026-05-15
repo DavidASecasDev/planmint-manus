@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { compressImage } from '@/lib/imageCompression';
@@ -43,7 +44,7 @@ export function useMovements(filters?: {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('vehicle_movements')
         .select('*, driver:profiles!vehicle_movements_driver_id_fkey(id, name)')
         .eq('organization_id', profile.organization_id)
@@ -79,7 +80,7 @@ export function useMovements(filters?: {
     }) => {
       if (!profile?.organization_id || !profile?.id) throw new Error('No auth');
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('vehicle_movements')
         .insert({
           organization_id: profile.organization_id,
@@ -116,7 +117,7 @@ export function useMovements(filters?: {
       end_lat?: number;
       end_lng?: number;
     }) => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('vehicle_movements')
         .update({
           end_photo_url: input.end_photo_url,
@@ -144,7 +145,7 @@ export function useMovements(filters?: {
 
   const cancelMovement = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('vehicle_movements')
         .update({ status: 'cancelado' as MovementStatus })
         .eq('id', id);
@@ -158,7 +159,7 @@ export function useMovements(filters?: {
 
   const deleteMovement = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('vehicle_movements')
         .delete()
         .eq('id', id);
@@ -185,7 +186,7 @@ export function useMovements(filters?: {
       receipt_url?: string | null;
     }) => {
       const { id, ...updates } = input;
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('vehicle_movements')
         .update(updates)
         .eq('id', id)

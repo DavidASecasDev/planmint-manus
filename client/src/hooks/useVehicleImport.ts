@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { VehicleImportRow, ParsedVehicleImport } from '@/lib/vehicleImportTemplate';
@@ -24,7 +24,7 @@ export function useVehicleImport() {
       return new Map();
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('vehicles')
       .select('id, matricula')
       .eq('organization_id', profile.organization_id)
@@ -33,7 +33,7 @@ export function useVehicleImport() {
     if (error) throw error;
 
     const existingMap = new Map<string, string>();
-    data?.forEach(v => existingMap.set(v.matricula.toUpperCase(), v.id));
+    data?.forEach((v: any) => existingMap.set(v.matricula.toUpperCase(), v.id));
     return existingMap;
   };
 
@@ -46,7 +46,7 @@ export function useVehicleImport() {
     const uniqueNames = Array.from(new Set(locationNames.filter(Boolean)));
     if (uniqueNames.length === 0) return new Map();
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('vehicle_locations')
       .select('id, name')
       .eq('organization_id', profile.organization_id);
@@ -54,7 +54,7 @@ export function useVehicleImport() {
     if (error) throw error;
 
     const locationMap = new Map<string, string>();
-    data?.forEach(loc => {
+    data?.forEach((loc: any) => {
       locationMap.set(loc.name.toLowerCase(), loc.id);
     });
     return locationMap;
@@ -141,7 +141,7 @@ export function useVehicleImport() {
       }));
 
       // Upsert vehicles (update on conflict with matricula)
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('vehicles')
         .upsert(vehiclesData, {
           onConflict: 'organization_id,matricula',

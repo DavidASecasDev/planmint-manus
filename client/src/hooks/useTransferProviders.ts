@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -20,7 +20,7 @@ export function useTransferProviders() {
     queryFn: async () => {
       if (!organization?.id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_providers')
         .select('*')
         .eq('organization_id', organization.id)
@@ -38,7 +38,7 @@ export function useTransferProviders() {
     queryFn: async () => {
       if (!organization?.id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_providers')
         .select('*')
         .eq('organization_id', organization.id)
@@ -54,7 +54,7 @@ export function useTransferProviders() {
     mutationFn: async (name: string) => {
       if (!organization?.id) throw new Error('No organization');
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_providers')
         .insert({ organization_id: organization.id, name })
         .select()
@@ -78,7 +78,7 @@ export function useTransferProviders() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_providers')
         .update({ name })
         .eq('id', id);
@@ -100,7 +100,7 @@ export function useTransferProviders() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_providers')
         .delete()
         .eq('id', id);
@@ -118,7 +118,7 @@ export function useTransferProviders() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_providers')
         .update({ is_active })
         .eq('id', id);

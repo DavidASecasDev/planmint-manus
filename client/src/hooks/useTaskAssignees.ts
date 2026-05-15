@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -31,7 +31,7 @@ export function useTaskAssignees(taskId?: string) {
     queryFn: async (): Promise<TaskAssignee[]> => {
       if (!taskId || !organizationId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('task_assignees')
         .select(`
           *,
@@ -45,7 +45,7 @@ export function useTaskAssignees(taskId?: string) {
         return [];
       }
 
-      return (data || []).map(a => ({
+      return (data || []).map((a: any) => ({
         ...a,
         user: Array.isArray(a.user) ? a.user[0] : a.user,
         team: Array.isArray(a.team) ? a.team[0] : a.team,
@@ -59,7 +59,7 @@ export function useTaskAssignees(taskId?: string) {
       if (!targetTaskId || !organizationId) throw new Error('Missing task or organization');
 
       // Delete existing assignees
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseQuery
         .from('task_assignees')
         .delete()
         .eq('task_id', targetTaskId);
@@ -83,7 +83,7 @@ export function useTaskAssignees(taskId?: string) {
       ];
 
       if (inserts.length > 0) {
-        const { error: insertError } = await supabase
+        const { error: insertError } = await supabaseQuery
           .from('task_assignees')
           .insert(inserts);
 
@@ -103,7 +103,7 @@ export function useTaskAssignees(taskId?: string) {
     mutationFn: async (userId: string) => {
       if (!taskId || !organizationId) throw new Error('Missing task or organization');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_assignees')
         .insert({
           task_id: taskId,
@@ -126,7 +126,7 @@ export function useTaskAssignees(taskId?: string) {
     mutationFn: async (teamId: string) => {
       if (!taskId || !organizationId) throw new Error('Missing task or organization');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_assignees')
         .insert({
           task_id: taskId,
@@ -147,7 +147,7 @@ export function useTaskAssignees(taskId?: string) {
 
   const removeAssignee = useMutation({
     mutationFn: async (assigneeId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_assignees')
         .delete()
         .eq('id', assigneeId);

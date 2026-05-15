@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { toast } from 'sonner';
 import type { TransferRequestNote } from '@/types/transferNotes';
 
@@ -18,7 +19,7 @@ export function useTransferNotes(requestId: string | undefined) {
     queryFn: async () => {
       if (!requestId) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('transfer_request_notes')
         .select('*')
         .eq('request_id', requestId)
@@ -44,7 +45,7 @@ export function useTransferNotes(requestId: string | undefined) {
     }) => {
       if (!requestId) throw new Error('No request ID');
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('transfer_request_notes')
         .insert({
           request_id: requestId,
@@ -81,7 +82,7 @@ export function useTransferNotes(requestId: string | undefined) {
 
   const deleteNote = useMutation({
     mutationFn: async (noteId: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabaseQuery
         .from('transfer_request_notes')
         .delete()
         .eq('id', noteId);
@@ -140,7 +141,7 @@ async function dispatchNoteNotifications({
   const recipientUserIds = new Set<string>();
 
   // Get broker user_ids
-  const { data: brokers } = await supabase
+  const { data: brokers } = await supabaseQuery
     .from('transfer_brokers')
     .select('id, user_id')
     .eq('organization_id', organizationId)
@@ -155,7 +156,7 @@ async function dispatchNoteNotifications({
   }
 
   // Get admin/owner user_ids
-  const { data: admins } = await supabase
+  const { data: admins } = await supabaseQuery
     .from('profiles')
     .select('id')
     .eq('organization_id', organizationId)
@@ -189,5 +190,5 @@ async function dispatchNoteNotifications({
     is_read: false,
   }));
 
-  await supabase.from('notifications').insert(notifications);
+  await supabaseQuery.from('notifications').insert(notifications);
 }

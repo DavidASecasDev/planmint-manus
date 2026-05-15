@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
@@ -140,7 +141,7 @@ export function useRealtimeNotifications() {
 
     const interval = setInterval(async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseQuery
           .from('notifications')
           .select('id, title, body, type, entity_type, entity_id, created_at')
           .eq('user_id', user.id)

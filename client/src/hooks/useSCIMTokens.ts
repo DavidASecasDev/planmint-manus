@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { SCIMToken } from '@/types/enterprise';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ export function useSCIMTokens() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('scim_tokens')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -48,7 +48,7 @@ export function useSCIMTokens() {
       const plainToken = generateToken();
       const tokenHash = await hashToken(plainToken);
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('scim_tokens')
         .insert({
           organization_id: profile.organization_id,
@@ -75,7 +75,7 @@ export function useSCIMTokens() {
 
   const revokeToken = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('scim_tokens')
         .update({ is_active: false })
         .eq('id', id);
@@ -93,7 +93,7 @@ export function useSCIMTokens() {
 
   const deleteToken = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('scim_tokens')
         .delete()
         .eq('id', id);

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { EnterpriseStatus } from '@/types/enterprise';
 
@@ -14,29 +14,29 @@ export function useEnterpriseStatus() {
       }
 
       // Fetch SAML connections
-      const { data: samlConnections } = await supabase
+      const { data: samlConnections } = await supabaseQuery
         .from('saml_connections')
         .select('*')
         .eq('organization_id', profile.organization_id);
 
       // Fetch SCIM tokens
-      const { data: scimTokens } = await supabase
+      const { data: scimTokens } = await supabaseQuery
         .from('scim_tokens')
         .select('*')
         .eq('organization_id', profile.organization_id);
 
       // Fetch policies
-      const { data: policies } = await supabase
+      const { data: policies } = await supabaseQuery
         .from('org_security_settings')
         .select('*')
         .eq('organization_id', profile.organization_id)
         .maybeSingle();
 
-      const activeConnection = samlConnections?.find(c => c.is_active);
-      const activeTokens = scimTokens?.filter(t => t.is_active) || [];
+      const activeConnection = samlConnections?.find((c: any) => c.is_active);
+      const activeTokens = scimTokens?.filter((t: any) => t.is_active) || [];
       const lastUsedToken = activeTokens
-        .filter(t => t.last_used_at)
-        .sort((a, b) => new Date(b.last_used_at!).getTime() - new Date(a.last_used_at!).getTime())[0];
+        .filter((t: any) => t.last_used_at)
+        .sort((a: any, b: any) => new Date(b.last_used_at!).getTime() - new Date(a.last_used_at!).getTime())[0];
 
       return {
         saml: {

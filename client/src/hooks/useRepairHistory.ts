@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import type { RepairHistory } from '@/types/garatech';
 
 export function useRepairHistory(repairId: string) {
   const historyQuery = useQuery({
     queryKey: ['repair-history', repairId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_history')
         .select(`
           *,

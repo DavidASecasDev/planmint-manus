@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
@@ -92,9 +93,9 @@ export function useDeleteInspection() {
 
   return useMutation({
     mutationFn: async ({ inspectionId, vehicleId }: { inspectionId: string; vehicleId: string }) => {
-      await supabase.from('fleet_inspection_damages').delete().eq('inspection_id', inspectionId);
-      await supabase.from('fleet_inspection_photos').delete().eq('inspection_id', inspectionId);
-      const { error } = await supabase.from('fleet_vehicle_inspections').delete().eq('id', inspectionId);
+      await supabaseQuery.from('fleet_inspection_damages').delete().eq('inspection_id', inspectionId);
+      await supabaseQuery.from('fleet_inspection_photos').delete().eq('inspection_id', inspectionId);
+      const { error } = await supabaseQuery.from('fleet_vehicle_inspections').delete().eq('id', inspectionId);
       if (error) throw error;
       return { vehicleId };
     },
@@ -154,7 +155,7 @@ export function useCreateInspection() {
           inspection_id: insp.id,
           organization_id: orgId!,
         }));
-        const { data: dmgData, error: dmgErr } = await supabase.from('fleet_inspection_damages').insert(damageRows as any).select();
+        const { data: dmgData, error: dmgErr } = await supabaseQuery.from('fleet_inspection_damages').insert(damageRows as any).select();
         if (dmgErr) throw dmgErr;
         insertedDamages = dmgData || [];
       }
@@ -170,7 +171,7 @@ export function useCreateInspection() {
           const path = `${orgId}/fleet/${inspection.fleet_vehicle_id}/${inspection.inspection_type}/${Date.now()}_${file.name}`;
           const { error: upErr } = await supabase.storage.from('repair-files').upload(path, file);
           if (upErr) throw upErr;
-          const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
+          const { error: photoErr } = await supabaseQuery.from('fleet_inspection_photos').insert({
             inspection_id: insp.id,
             organization_id: orgId!,
             storage_path: path,
@@ -191,7 +192,7 @@ export function useCreateInspection() {
         const { error: upErr } = await supabase.storage.from('repair-files').upload(path, pfFile);
         if (upErr) throw upErr;
 
-        const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
+        const { error: photoErr } = await supabaseQuery.from('fleet_inspection_photos').insert({
           inspection_id: insp.id,
           organization_id: orgId!,
           storage_path: path,
@@ -239,7 +240,7 @@ export function useAddInspectionPhoto() {
       const { error: upErr } = await supabase.storage.from('repair-files').upload(path, compressedFile);
       if (upErr) throw upErr;
 
-      const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
+      const { error: photoErr } = await supabaseQuery.from('fleet_inspection_photos').insert({
         inspection_id: inspectionId,
         organization_id: orgId!,
         storage_path: path,
@@ -334,7 +335,7 @@ export function useAddMultipleInspectionPhotos() {
         const { error: upErr } = await supabase.storage.from('repair-files').upload(path, compressedFile);
         if (upErr) throw upErr;
 
-        const { error: photoErr } = await supabase.from('fleet_inspection_photos').insert({
+        const { error: photoErr } = await supabaseQuery.from('fleet_inspection_photos').insert({
           inspection_id: inspectionId,
           organization_id: orgId!,
           storage_path: path,
@@ -373,7 +374,7 @@ export function useDeleteInspectionPhoto() {
       vehicleId: string;
     }) => {
       await supabase.storage.from('repair-files').remove([storagePath]);
-      const { error } = await supabase.from('fleet_inspection_photos').delete().eq('id', photoId);
+      const { error } = await supabaseQuery.from('fleet_inspection_photos').delete().eq('id', photoId);
       if (error) throw error;
       return { inspectionId, vehicleId };
     },

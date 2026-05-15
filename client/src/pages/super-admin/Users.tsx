@@ -51,7 +51,7 @@ export default function UsersPage() {
   const [changeRoleData, setChangeRoleData] = useState<{ id: string; name: string; role: string } | null>(null);
   const [addToOrgData, setAddToOrgData] = useState<{ userId: string; name: string } | null>(null);
 
-  const filteredUsers = users?.filter((user) => {
+  const filteredUsers = users?.filter((user: any) => {
     const matchesSearch = 
       user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.organization_name?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -177,7 +177,7 @@ export default function UsersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => (
+                    {filteredUsers.map((user: any) => (
                       <TableRow key={user.member_id} className="hover:bg-muted/30">
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">

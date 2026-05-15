@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 
@@ -87,7 +87,7 @@ export function useVehiclePrepAlerts() {
     const thresholdDate = new Date(now.getTime() + ALERT_THRESHOLD_HOURS * 60 * 60 * 1000);
 
     // 1. Get all vehicles in dirty/incomplete status
-    const { data: dirtyVehicles, error: vehicleError } = await supabase
+    const { data: dirtyVehicles, error: vehicleError } = await supabaseQuery
       .from('vehicles')
       .select('id, matricula, modelo, status')
       .in('status', ['sucio', 'incompleto'])
@@ -100,8 +100,8 @@ export function useVehiclePrepAlerts() {
 
     // 2. Get upcoming reservations within the threshold window
     // Note: reservations table uses 'auto' (matricula) to link to vehicles, not vehicle_id
-    const matriculas = dirtyVehicles.map(v => v.matricula);
-    const { data: reservations, error: resError } = await supabase
+    const matriculas = dirtyVehicles.map((v: any) => v.matricula);
+    const { data: reservations, error: resError } = await supabaseQuery
       .from('reservations')
       .select('id, auto, desde, cliente_nombre')
       .in('auto', matriculas)
@@ -116,7 +116,7 @@ export function useVehiclePrepAlerts() {
 
     // 3. Match vehicles with their imminent reservations by matricula
     const results: UnpreparedVehicle[] = [];
-    const vehicleByMatricula = new Map(dirtyVehicles.map(v => [v.matricula, v]));
+    const vehicleByMatricula: Map<string, any> = new Map(dirtyVehicles.map((v: any) => [v.matricula, v]));
 
     for (const res of reservations) {
       const vehicle = vehicleByMatricula.get(res.auto ?? '');
@@ -153,7 +153,7 @@ export function useVehiclePrepAlerts() {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - DEDUP_WINDOW_HOURS);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('notifications')
       .select('entity_id')
       .eq('user_id', userId)
@@ -163,12 +163,12 @@ export function useVehiclePrepAlerts() {
       .gte('created_at', cutoff.toISOString());
 
     if (error) {
-      log.error('Error checking recent prep alerts:', error.message || error.code || JSON.stringify(error));
+      log.error('Error checking recent prep alerts:', error.message || (error as any).code || JSON.stringify(error));
       // On error, return ALL vehicle IDs as "already alerted" to prevent spam
       return new Set(vehicleIds);
     }
 
-    return new Set((data || []).map(n => n.entity_id));
+    return new Set((data || []).map((n: any) => n.entity_id));
   }, []);
 
   /**
@@ -187,7 +187,7 @@ export function useVehiclePrepAlerts() {
     const title = `${statusLabel}: ${vehicle.matricula} — Reserva en ${timeLabel}`;
     const body = `El vehículo ${vehicle.matricula} (${vehicle.modelo || 'N/A'}) está en estado "${vehicle.status}" y tiene una reserva para ${vehicle.clienteNombre} en ${timeLabel}. Requiere preparación urgente.`;
 
-    const { error } = await supabase
+    const { error } = await supabaseQuery
       .from('notifications')
       .insert({
         organization_id: orgId,
@@ -201,7 +201,7 @@ export function useVehiclePrepAlerts() {
       });
 
     if (error) {
-      log.error(`Error creating prep alert for ${vehicle.matricula}: ${error.message || error.code || JSON.stringify(error)}`);
+      log.error(`Error creating prep alert for ${vehicle.matricula}: ${error.message || (error as any).code || JSON.stringify(error)}`);
       return false;
     }
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface VehiclePrepItem {
@@ -140,7 +140,7 @@ export function useOperationalDashboard() {
         upcomingReservationsDetailResult,
       ] = await Promise.all([
         // All non-archived vehicles with their status
-        supabase
+        supabaseQuery
           .from('vehicles')
           .select('status')
           .eq('organization_id', orgId)
@@ -148,7 +148,7 @@ export function useOperationalDashboard() {
         // Active reservations (not cancelled, not terminated, not archived)
         // Use .or() to handle NULL estado correctly (SQL three-valued logic:
         // NOT (NULL LIKE '%x%') = NULL = excluded, so we must include is.null)
-        supabase
+        supabaseQuery
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
@@ -158,7 +158,7 @@ export function useOperationalDashboard() {
         // Today's reservations: fetch all non-cancelled, non-archived reservations
         // where desde OR hasta falls on today. We use an OR filter to get both
         // check-ins and check-outs in a single query, then expand client-side.
-        supabase
+        supabaseQuery
           .from('reservations')
           .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, extras_contratados, tipo_actividad, entrega_completada, devolucion_completada, transfer_completado')
           .eq('organization_id', orgId)
@@ -168,7 +168,7 @@ export function useOperationalDashboard() {
           .order('desde', { ascending: true })
           .limit(100),
         // Upcoming reservations (next 7 days)
-        supabase
+        supabaseQuery
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
@@ -178,31 +178,31 @@ export function useOperationalDashboard() {
           .or('estado.not.ilike.%cancelada%,estado.is.null')
           .or('estado.not.ilike.%terminada%,estado.is.null'),
         // Active movements
-        supabase
+        supabaseQuery
           .from('vehicle_movements')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
           .eq('status', 'en_curso'),
         // Active repairs
-        supabase
+        supabaseQuery
           .from('repairs')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
           .in('status', ['pending', 'in_progress', 'waiting_parts']),
         // Fleet vehicles count
-        supabase
+        supabaseQuery
           .from('fleet_vehicles')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId),
         // Contracts expiring in next 30 days
-        supabase
+        supabaseQuery
           .from('fleet_vehicles')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
           .lte('fecha_fin_contrato', new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
           .gte('fecha_fin_contrato', todayStr),
         // Pending tasks with urgent priority only
-        supabase
+        supabaseQuery
           .from('tasks')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
@@ -211,7 +211,7 @@ export function useOperationalDashboard() {
           .in('status', ['pending', 'in_progress'])
           .eq('priority', 'urgent'),
         // All pending tasks
-        supabase
+        supabaseQuery
           .from('tasks')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
@@ -219,14 +219,14 @@ export function useOperationalDashboard() {
           .is('deleted_at', null)
           .in('status', ['pending', 'in_progress']),
         // All vehicles needing preparation (sucio or incompleto)
-        supabase
+        supabaseQuery
           .from('vehicles')
           .select('id, matricula, modelo, status')
           .eq('organization_id', orgId)
           .eq('is_archived', false)
           .in('status', ['sucio', 'incompleto']),
         // Upcoming reservations with vehicle info (next 7 days) for cross-referencing
-        supabase
+        supabaseQuery
           .from('reservations')
           .select('auto, desde, cliente_nombre, cliente_apellido, estado')
           .eq('organization_id', orgId)
@@ -267,7 +267,7 @@ export function useOperationalDashboard() {
         en_servicio: 0,
         alquilado: 0,
       };
-      vehicles.forEach(v => {
+      vehicles.forEach((v: any) => {
         const status = v.status as keyof typeof vehiclesByStatus;
         if (status in vehiclesByStatus) {
           vehiclesByStatus[status]++;

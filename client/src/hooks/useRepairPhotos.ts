@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
@@ -13,7 +14,7 @@ export function useRepairPhotos(repairId: string) {
   const photosQuery = useQuery({
     queryKey: ['repair-photos', repairId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_photos')
         .select(`
           *,
@@ -52,7 +53,7 @@ export function useRepairPhotos(repairId: string) {
       if (uploadError) throw uploadError;
 
       // Create database record
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_photos')
         .insert({
           repair_id: repairId,
@@ -69,7 +70,7 @@ export function useRepairPhotos(repairId: string) {
       if (error) throw error;
 
       // Add history entry
-      await supabase.from('repair_history').insert({
+      await supabaseQuery.from('repair_history').insert({
         repair_id: repairId,
         organization_id: orgId,
         user_id: profile.id,
@@ -103,7 +104,7 @@ export function useRepairPhotos(repairId: string) {
       if (deleteStorageError) console.error('Storage delete error:', deleteStorageError);
 
       // Delete database record
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('repair_photos')
         .delete()
         .eq('id', photo.id);
@@ -111,7 +112,7 @@ export function useRepairPhotos(repairId: string) {
       if (error) throw error;
 
       // Add history entry
-      await supabase.from('repair_history').insert({
+      await supabaseQuery.from('repair_history').insert({
         repair_id: repairId,
         organization_id: orgId,
         user_id: profile.id,

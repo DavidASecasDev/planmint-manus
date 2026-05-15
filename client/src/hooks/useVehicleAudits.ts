@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { compressImage } from '@/lib/imageCompression';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -26,7 +27,7 @@ export function useVehicleAudits(vehicleId?: string) {
     queryFn: async () => {
       if (!orgId || !vehicleId) return null;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_quality_audits')
         .select('*, auditor_profile:profiles!vehicle_quality_audits_auditor_id_fkey(name)')
         .eq('organization_id', orgId)
@@ -47,7 +48,7 @@ export function useVehicleAudits(vehicleId?: string) {
     queryFn: async () => {
       if (!orgId || !vehicleId) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_quality_audits')
         .select('*, auditor_profile:profiles!vehicle_quality_audits_auditor_id_fkey(name)')
         .eq('organization_id', orgId)
@@ -68,7 +69,7 @@ export function useVehicleAudits(vehicleId?: string) {
       if (!orgId) return 0;
 
       // Get vehicles in 'limpio' status
-      const { data: cleanVehicles, error: vError } = await supabase
+      const { data: cleanVehicles, error: vError } = await supabaseQuery
         .from('vehicles')
         .select('id')
         .eq('organization_id', orgId)
@@ -78,10 +79,10 @@ export function useVehicleAudits(vehicleId?: string) {
       if (vError) throw vError;
       if (!cleanVehicles || cleanVehicles.length === 0) return 0;
 
-      const vehicleIds = cleanVehicles.map(v => v.id);
+      const vehicleIds = cleanVehicles.map((v: any) => v.id);
 
       // Get the latest audit for each of these vehicles
-      const { data: audits, error: aError } = await (supabase as any)
+      const { data: audits, error: aError } = await supabaseQuery
         .from('vehicle_quality_audits')
         .select('vehicle_id, status, created_at')
         .eq('organization_id', orgId)
@@ -123,7 +124,7 @@ export function useVehicleAudits(vehicleId?: string) {
         initialResults[item.key] = { key: item.key, result: 'not_checked' };
       }
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_quality_audits')
         .insert({
           organization_id: orgId,
@@ -161,7 +162,7 @@ export function useVehicleAudits(vehicleId?: string) {
     }) => {
       const score = calculateAuditScore(checklistResults);
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_quality_audits')
         .update({
           checklist_results: checklistResults,
@@ -190,7 +191,7 @@ export function useVehicleAudits(vehicleId?: string) {
       const auditId = latestAuditQuery.data?.id;
       if (!orgId || !auditId) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_audit_photos')
         .select('*')
         .eq('organization_id', orgId)
@@ -237,7 +238,7 @@ export function useVehicleAudits(vehicleId?: string) {
         .getPublicUrl(path);
 
       // Insert record in vehicle_audit_photos table
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_audit_photos')
         .insert({
           audit_id: auditId,
@@ -272,7 +273,7 @@ export function useVehicleAudits(vehicleId?: string) {
       }
 
       // Delete from database
-      const { error } = await (supabase as any)
+      const { error } = await supabaseQuery
         .from('vehicle_audit_photos')
         .delete()
         .eq('id', photoId);
@@ -290,7 +291,7 @@ export function useVehicleAudits(vehicleId?: string) {
   // ── Update photo caption ──
   const updatePhotoCaptionMutation = useMutation({
     mutationFn: async ({ photoId, caption }: { photoId: string; caption: string }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_audit_photos')
         .update({ caption: caption || null })
         .eq('id', photoId)
@@ -325,7 +326,7 @@ export function useVehicleAudits(vehicleId?: string) {
     }) => {
       const score = calculateAuditScore(checklistResults);
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_quality_audits')
         .update({
           status,
@@ -422,7 +423,7 @@ export function useVehicleAuditStatuses() {
       if (!orgId) return new Map<string, { status: string; score: number | null }>();
 
       // Get the latest audit for each vehicle in the org
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabaseQuery
         .from('vehicle_quality_audits')
         .select('vehicle_id, status, overall_score, created_at')
         .eq('organization_id', orgId)

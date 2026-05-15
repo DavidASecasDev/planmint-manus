@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrgSecuritySettings } from '@/types/enterprise';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ export function useSecuritySettings() {
     queryFn: async () => {
       if (!profile?.organization_id) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('org_security_settings')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -31,7 +31,7 @@ export function useSecuritySettings() {
 
       if (settings?.id) {
         // Update existing
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('org_security_settings')
           .update(updates)
           .eq('id', settings.id);
@@ -39,7 +39,7 @@ export function useSecuritySettings() {
         if (error) throw error;
       } else {
         // Insert new
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('org_security_settings')
           .insert({
             organization_id: profile.organization_id,

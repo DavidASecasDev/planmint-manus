@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
@@ -38,7 +38,7 @@ export const useAutomationRules = () => {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('automation_rules')
         .select('*')
         .eq('organization_id', organizationId)
@@ -47,7 +47,7 @@ export const useAutomationRules = () => {
       if (error) throw error;
       
       // Cast the data to handle jsonb fields
-      const typedRules: AutomationRule[] = (data || []).map(rule => ({
+      const typedRules: AutomationRule[] = (data || []).map((rule: any) => ({
         ...rule,
         conditions_json: rule.conditions_json as unknown as ConditionsJson,
         actions_json: rule.actions_json as unknown as ActionsJson,
@@ -75,7 +75,7 @@ export const useAutomationRules = () => {
 
     setRunsLoading(true);
     try {
-      let query = supabase
+      let query = supabaseQuery
         .from('automation_runs')
         .select('*')
         .eq('organization_id', organizationId)
@@ -129,7 +129,7 @@ export const useAutomationRules = () => {
         is_active: data.is_active ?? true,
       };
 
-      const { data: newRule, error } = await supabase
+      const { data: newRule, error } = await supabaseQuery
         .from('automation_rules')
         .insert(insertData as any)
         .select()
@@ -180,7 +180,7 @@ export const useAutomationRules = () => {
       if (data.throttle_minutes !== undefined) updateData.throttle_minutes = data.throttle_minutes;
       if (data.is_active !== undefined) updateData.is_active = data.is_active;
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('automation_rules')
         .update(updateData)
         .eq('id', id);
@@ -221,7 +221,7 @@ export const useAutomationRules = () => {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('automation_rules')
         .delete()
         .eq('id', id);

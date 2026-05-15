@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import type { TransferStatusHistoryEntry } from '@/types/transferStatusHistory';
 
 export function useTransferStatusHistory(requestId: string | undefined) {
@@ -10,7 +10,7 @@ export function useTransferStatusHistory(requestId: string | undefined) {
     queryFn: async () => {
       if (!requestId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_status_history')
         .select('*')
         .eq('request_id', requestId)
@@ -33,7 +33,7 @@ export function useTransferStatusHistory(requestId: string | undefined) {
       changed_by_name?: string;
       note?: string;
     }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_status_history')
         .insert({
           request_id: entry.request_id,

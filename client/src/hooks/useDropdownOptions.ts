@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { DropdownOption, DropdownFieldName } from '@/types/reservations';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ export function useDropdownOptions(fieldName?: DropdownFieldName) {
     queryFn: async () => {
       if (!organizationId) return [];
       
-      let query = supabase
+      let query = supabaseQuery
         .from('dropdown_options')
         .select('*')
         .eq('organization_id', organizationId)
@@ -47,7 +47,7 @@ export function useDropdownOptions(fieldName?: DropdownFieldName) {
         .filter(o => o.field_name === field_name)
         .reduce((max, o) => Math.max(max, o.sort_order), 0);
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('dropdown_options')
         .insert({
           organization_id: organizationId,

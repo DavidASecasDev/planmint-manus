@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -19,7 +19,7 @@ export function useRepairs() {
     queryKey: ['repairs', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repairs')
         .select(`
           *,
@@ -30,7 +30,7 @@ export function useRepairs() {
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data.map(r => ({
+      return data.map((r: any) => ({
         ...r,
         vehicle: r.vehicle ? { matricula: r.vehicle.matricula, modelo: r.vehicle.modelo } : null,
       })) as Repair[];
@@ -41,7 +41,7 @@ export function useRepairs() {
   const createRepair = useMutation({
     mutationFn: async (data: RepairFormData) => {
       if (!orgId || !profile?.id) throw new Error('No organization');
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('repairs')
         .insert({ 
           ...data, 
@@ -70,7 +70,7 @@ export function useRepairs() {
       if (data.status === 'finalizado' && !updates.completed_at) {
         updates.completed_at = new Date().toISOString();
       }
-      const { error } = await supabase.from('repairs').update(updates).eq('id', id);
+      const { error } = await supabaseQuery.from('repairs').update(updates).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -82,7 +82,7 @@ export function useRepairs() {
 
   const deleteRepair = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('repairs').delete().eq('id', id);
+      const { error } = await supabaseQuery.from('repairs').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

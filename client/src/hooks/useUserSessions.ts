@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserSession } from '@/types/enterprise';
 import { toast } from 'sonner';
@@ -15,7 +15,7 @@ export function useUserSessions() {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('user_sessions')
         .select('*')
         .eq('user_id', user.id)
@@ -32,7 +32,7 @@ export function useUserSessions() {
     mutationFn: async () => {
       if (!user?.id || !profile?.organization_id) throw new Error('No user');
 
-      const { error } = await supabase.from('user_sessions').insert({
+      const { error } = await supabaseQuery.from('user_sessions').insert({
         user_id: user.id,
         organization_id: profile.organization_id,
         user_agent: navigator.userAgent,
@@ -48,7 +48,7 @@ export function useUserSessions() {
 
   const revokeSession = useMutation({
     mutationFn: async (sessionId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('user_sessions')
         .update({ is_active: false })
         .eq('id', sessionId);
@@ -68,7 +68,7 @@ export function useUserSessions() {
     mutationFn: async (exceptCurrent?: string) => {
       if (!user?.id) throw new Error('No user');
 
-      let query = supabase
+      let query = supabaseQuery
         .from('user_sessions')
         .update({ is_active: false })
         .eq('user_id', user.id)
@@ -92,7 +92,7 @@ export function useUserSessions() {
 
   const updateLastSeen = useMutation({
     mutationFn: async (sessionId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('user_sessions')
         .update({ last_seen_at: new Date().toISOString() })
         .eq('id', sessionId);

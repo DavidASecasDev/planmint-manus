@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   SyncQueueItem,
@@ -78,25 +78,25 @@ export const useSyncEngine = () => {
       
       switch (entity_type) {
         case 'task':
-          result = await supabase.from('tasks').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('tasks').insert(resolvedPayload as any).select().single();
           break;
         case 'area':
-          result = await supabase.from('areas').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('areas').insert(resolvedPayload as any).select().single();
           break;
         case 'tag':
-          result = await supabase.from('tags').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('tags').insert(resolvedPayload as any).select().single();
           break;
         case 'subtask':
-          result = await supabase.from('task_subtasks').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('task_subtasks').insert(resolvedPayload as any).select().single();
           break;
         case 'milestone':
-          result = await supabase.from('task_milestones').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('task_milestones').insert(resolvedPayload as any).select().single();
           break;
         case 'update':
-          result = await supabase.from('task_updates').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('task_updates').insert(resolvedPayload as any).select().single();
           break;
         case 'reminder':
-          result = await supabase.from('reminders').insert(resolvedPayload as any).select().single();
+          result = await supabaseQuery.from('reminders').insert(resolvedPayload as any).select().single();
           break;
         default:
           return { success: false, error: `Unknown entity type: ${entity_type}` };
@@ -141,19 +141,19 @@ export const useSyncEngine = () => {
       let serverResult;
       switch (entity_type) {
         case 'task':
-          serverResult = await supabase.from('tasks').select('*').eq('id', realEntityId).maybeSingle();
+          serverResult = await supabaseQuery.from('tasks').select('*').eq('id', realEntityId).maybeSingle();
           break;
         case 'area':
-          serverResult = await supabase.from('areas').select('*').eq('id', realEntityId).maybeSingle();
+          serverResult = await supabaseQuery.from('areas').select('*').eq('id', realEntityId).maybeSingle();
           break;
         case 'tag':
-          serverResult = await supabase.from('tags').select('*').eq('id', realEntityId).maybeSingle();
+          serverResult = await supabaseQuery.from('tags').select('*').eq('id', realEntityId).maybeSingle();
           break;
         case 'subtask':
-          serverResult = await supabase.from('task_subtasks').select('*').eq('id', realEntityId).maybeSingle();
+          serverResult = await supabaseQuery.from('task_subtasks').select('*').eq('id', realEntityId).maybeSingle();
           break;
         case 'milestone':
-          serverResult = await supabase.from('task_milestones').select('*').eq('id', realEntityId).maybeSingle();
+          serverResult = await supabaseQuery.from('task_milestones').select('*').eq('id', realEntityId).maybeSingle();
           break;
         default:
           return { success: false, error: `Update not supported for type: ${entity_type}` };
@@ -197,19 +197,19 @@ export const useSyncEngine = () => {
       let updateResult;
       switch (entity_type) {
         case 'task':
-          updateResult = await supabase.from('tasks').update(payload as any).eq('id', realEntityId);
+          updateResult = await supabaseQuery.from('tasks').update(payload as any).eq('id', realEntityId);
           break;
         case 'area':
-          updateResult = await supabase.from('areas').update(payload as any).eq('id', realEntityId);
+          updateResult = await supabaseQuery.from('areas').update(payload as any).eq('id', realEntityId);
           break;
         case 'tag':
-          updateResult = await supabase.from('tags').update(payload as any).eq('id', realEntityId);
+          updateResult = await supabaseQuery.from('tags').update(payload as any).eq('id', realEntityId);
           break;
         case 'subtask':
-          updateResult = await supabase.from('task_subtasks').update(payload as any).eq('id', realEntityId);
+          updateResult = await supabaseQuery.from('task_subtasks').update(payload as any).eq('id', realEntityId);
           break;
         case 'milestone':
-          updateResult = await supabase.from('task_milestones').update(payload as any).eq('id', realEntityId);
+          updateResult = await supabaseQuery.from('task_milestones').update(payload as any).eq('id', realEntityId);
           break;
       }
 
@@ -243,22 +243,22 @@ export const useSyncEngine = () => {
       let result;
       switch (entity_type) {
         case 'task':
-          result = await supabase.from('tasks').delete().eq('id', realEntityId);
+          result = await supabaseQuery.from('tasks').delete().eq('id', realEntityId);
           break;
         case 'area':
-          result = await supabase.from('areas').delete().eq('id', realEntityId);
+          result = await supabaseQuery.from('areas').delete().eq('id', realEntityId);
           break;
         case 'tag':
-          result = await supabase.from('tags').delete().eq('id', realEntityId);
+          result = await supabaseQuery.from('tags').delete().eq('id', realEntityId);
           break;
         case 'subtask':
-          result = await supabase.from('task_subtasks').delete().eq('id', realEntityId);
+          result = await supabaseQuery.from('task_subtasks').delete().eq('id', realEntityId);
           break;
         case 'milestone':
-          result = await supabase.from('task_milestones').delete().eq('id', realEntityId);
+          result = await supabaseQuery.from('task_milestones').delete().eq('id', realEntityId);
           break;
         case 'reminder':
-          result = await supabase.from('reminders').delete().eq('id', realEntityId);
+          result = await supabaseQuery.from('reminders').delete().eq('id', realEntityId);
           break;
         default:
           return { success: false, error: `Delete not supported for type: ${entity_type}` };
@@ -389,10 +389,10 @@ export const useSyncEngine = () => {
         let result;
         switch (conflict.entityType) {
           case 'task':
-            result = await supabase.from('tasks').update(conflict.localData).eq('id', conflict.entityId);
+            result = await supabaseQuery.from('tasks').update(conflict.localData).eq('id', conflict.entityId);
             break;
           case 'area':
-            result = await supabase.from('areas').update(conflict.localData).eq('id', conflict.entityId);
+            result = await supabaseQuery.from('areas').update(conflict.localData).eq('id', conflict.entityId);
             break;
           // Add other types as needed
         }

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { UsageStats, DailyStats } from '@/types/analytics';
 import { subDays, format } from 'date-fns';
@@ -29,60 +29,60 @@ export const useAnalytics = () => {
         limitReachedResult,
         upgradeClicksResult,
       ] = await Promise.all([
-        supabase
+        supabaseQuery
           .from('tasks')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'task_created')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'task_completed')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('profiles')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'kanban_viewed')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'calendar_viewed')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'task_list_viewed')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'global_search_used')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('reminders')
           .select('id', { count: 'exact', head: true }),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
           .eq('event_type', 'limit_reached')
           .gte('created_at', weekAgo),
-        supabase
+        supabaseQuery
           .from('usage_events')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', profile.organization_id)
@@ -122,14 +122,14 @@ export const useAnalytics = () => {
         const endOfDay = `${dateStr}T23:59:59.999Z`;
 
         const [createdResult, completedResult] = await Promise.all([
-          supabase
+          supabaseQuery
             .from('usage_events')
             .select('id', { count: 'exact', head: true })
             .eq('organization_id', profile.organization_id)
             .eq('event_type', 'task_created')
             .gte('created_at', startOfDay)
             .lte('created_at', endOfDay),
-          supabase
+          supabaseQuery
             .from('usage_events')
             .select('id', { count: 'exact', head: true })
             .eq('organization_id', profile.organization_id)

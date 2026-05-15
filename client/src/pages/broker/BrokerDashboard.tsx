@@ -158,7 +158,7 @@ export default function BrokerDashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los brokers</SelectItem>
-            {brokers.map((b) => (
+            {brokers.map((b: any) => (
               <SelectItem key={b.id} value={b.id}>
                 {b.name} {b.id === broker?.id && '(tú)'}
               </SelectItem>

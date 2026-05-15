@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -42,7 +42,7 @@ export function useDeletedTasks() {
 
     setLoading(true);
     try {
-      let query = supabase
+      let query = supabaseQuery
         .from('tasks')
         .select('id, organization_id, title, description, type, status, priority, created_by, created_at, deleted_at, deleted_by')
         .eq('organization_id', profile.organization_id)
@@ -64,21 +64,21 @@ export function useDeletedTasks() {
       }
 
       // Fetch deleter profiles
-      const deleterIds = Array.from(new Set(tasksData.map(t => t.deleted_by).filter((id): id is string => !!id)));
+      const deleterIds = Array.from(new Set(tasksData.map((t: any) => t.deleted_by).filter((id: any): id is string => !!id)));
       
       let profilesMap = new Map<string, { id: string; name: string | null }>();
       
       if (deleterIds.length > 0) {
-        const { data: profilesData } = await supabase
+        const { data: profilesData } = await supabaseQuery
           .from('profiles')
           .select('id, name')
           .in('id', deleterIds);
         
-        profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+        profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]) || []);
       }
 
       const now = new Date();
-      const tasksWithMetadata: DeletedTask[] = tasksData.map(task => {
+      const tasksWithMetadata: DeletedTask[] = tasksData.map((task: any) => {
         const deletedDate = new Date(task.deleted_at!);
         const daysSinceDeleted = differenceInDays(now, deletedDate);
         const daysUntilPermanentDelete = Math.max(0, 30 - daysSinceDeleted);
@@ -107,7 +107,7 @@ export function useDeletedTasks() {
 
   const restoreTask = async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('tasks')
         .update({
           deleted_at: null,
@@ -129,7 +129,7 @@ export function useDeletedTasks() {
 
   const permanentlyDeleteTask = async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('tasks')
         .delete()
         .eq('id', id);
@@ -150,7 +150,7 @@ export function useDeletedTasks() {
     if (!profile?.organization_id) return false;
 
     try {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('tasks')
         .delete()
         .eq('organization_id', profile.organization_id)

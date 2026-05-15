@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { RepairComment } from '@/types/garatech';
@@ -12,7 +12,7 @@ export function useRepairComments(repairId: string) {
   const commentsQuery = useQuery({
     queryKey: ['repair-comments', repairId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_comments')
         .select(`
           *,
@@ -31,7 +31,7 @@ export function useRepairComments(repairId: string) {
     mutationFn: async (text: string) => {
       if (!orgId || !profile?.id) throw new Error('No organization');
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_comments')
         .insert({
           repair_id: repairId,
@@ -45,7 +45,7 @@ export function useRepairComments(repairId: string) {
       if (error) throw error;
 
       // Add history entry
-      await supabase.from('repair_history').insert({
+      await supabaseQuery.from('repair_history').insert({
         repair_id: repairId,
         organization_id: orgId,
         user_id: profile.id,
@@ -68,7 +68,7 @@ export function useRepairComments(repairId: string) {
 
   const deleteComment = useMutation({
     mutationFn: async (commentId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('repair_comments')
         .delete()
         .eq('id', commentId);

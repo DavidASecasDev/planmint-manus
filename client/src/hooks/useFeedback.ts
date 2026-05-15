@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { UserFeedback } from '@/types/analytics';
@@ -15,7 +15,7 @@ export const useFeedback = () => {
     queryFn: async (): Promise<UserFeedback[]> => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('user_feedback')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -41,7 +41,7 @@ export const useFeedback = () => {
         throw new Error('Not authenticated');
       }
 
-      const { error } = await supabase.from('user_feedback').insert({
+      const { error } = await supabaseQuery.from('user_feedback').insert({
         organization_id: profile.organization_id,
         user_id: user.id,
         feedback_type: feedbackType,

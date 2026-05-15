@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { startOfMonth, format, subMonths, differenceInDays } from 'date-fns';
 import type { RepairStatus, Repair } from '@/types/garatech';
@@ -61,13 +61,13 @@ export function useGaratechStats() {
         damageReportsWithCollectionRes,
       ] = await Promise.all([
         // All repairs for status counts and urgent detection
-        supabase
+        supabaseQuery
           .from('repairs')
           .select('id, status, description, created_at, cost_final, scheduled_date, repair_type, repair_number, vehicle:vehicles(id, matricula, modelo), workshop:workshops(id, name)')
           .eq('organization_id', orgId)
           .order('created_at', { ascending: false }),
         // Accidents this month
-        supabase
+        supabaseQuery
           .from('accidents')
           .select('id, description, accident_date, vehicle:vehicles(matricula)')
           .eq('organization_id', orgId)
@@ -75,20 +75,20 @@ export function useGaratechStats() {
           .order('accident_date', { ascending: false })
           .limit(5),
         // Active workshops count
-        supabase
+        supabaseQuery
           .from('workshops')
           .select('id', { count: 'exact' })
           .eq('organization_id', orgId)
           .eq('is_active', true),
         // Damage reports (recent 5 for activity)
-        supabase
+        supabaseQuery
           .from('damage_reports')
           .select('id, report_number, created_at, vehicle:vehicles(matricula)')
           .eq('organization_id', orgId)
           .order('created_at', { ascending: false })
           .limit(5),
         // Completed repairs for cost and duration calculations (last 6 months)
-        supabase
+        supabaseQuery
           .from('repairs')
           .select('id, cost_final, created_at, scheduled_date')
           .eq('organization_id', orgId)
@@ -96,7 +96,7 @@ export function useGaratechStats() {
           .gte('created_at', sixMonthsAgo)
           .order('created_at', { ascending: false }),
         // Damage reports with collection data (for balance calculations)
-        supabase
+        supabaseQuery
           .from('damage_reports')
           .select('id, amount_collected, collected_at, total_amount, status, created_at')
           .eq('organization_id', orgId)
@@ -109,24 +109,24 @@ export function useGaratechStats() {
 
       // Count repairs by status
       const repairsByStatus = { ...defaultRepairsByStatus };
-      allRepairs.forEach(r => {
+      allRepairs.forEach((r: any) => {
         if (repairsByStatus[r.status as RepairStatus] !== undefined) {
           repairsByStatus[r.status as RepairStatus]++;
         }
       });
 
       // Active repairs (not finalized)
-      const activeRepairs = allRepairs.filter(r => r.status !== 'finalizado');
+      const activeRepairs = allRepairs.filter((r: any) => r.status !== 'finalizado');
 
       // Total cost this month (expenses)
       const expensesThisMonth = completedRepairs
-        .filter(r => r.created_at && r.created_at >= monthStart)
-        .reduce((sum, r) => sum + (r.cost_final || 0), 0);
+        .filter((r: any) => r.created_at && r.created_at >= monthStart)
+        .reduce((sum: any, r: any) => sum + (r.cost_final || 0), 0);
 
       // Total income this month (from damage reports collections)
       const incomeThisMonth = damageReportsWithCollection
-        .filter(r => r.collected_at && r.collected_at >= monthStart && r.amount_collected)
-        .reduce((sum, r) => sum + (r.amount_collected || 0), 0);
+        .filter((r: any) => r.collected_at && r.collected_at >= monthStart && r.amount_collected)
+        .reduce((sum: any, r: any) => sum + (r.amount_collected || 0), 0);
 
       // Balance this month
       const balanceThisMonth = incomeThisMonth - expensesThisMonth;
@@ -136,14 +136,14 @@ export function useGaratechStats() {
 
       // Urgent repairs: >3 days in pendiente_aprobacion or >5 days in esperando_piezas
       const now = new Date();
-      const urgentRepairs = activeRepairs.filter(r => {
+      const urgentRepairs = activeRepairs.filter((r: any) => {
         const createdAt = new Date(r.created_at!);
         const daysInStatus = differenceInDays(now, createdAt);
         
         if (r.status === 'pendiente_aprobacion' && daysInStatus > 3) return true;
         if (r.status === 'esperando_piezas' && daysInStatus > 5) return true;
         return false;
-      }).slice(0, 5).map(r => ({
+      }).slice(0, 5).map((r: any) => ({
         ...r,
         organization_id: orgId,
         updated_at: r.created_at!,
@@ -160,13 +160,13 @@ export function useGaratechStats() {
         
         // Monthly expenses from repairs
         const monthExpenses = completedRepairs
-          .filter(r => r.created_at && r.created_at.startsWith(monthKey))
-          .reduce((sum, r) => sum + (r.cost_final || 0), 0);
+          .filter((r: any) => r.created_at && r.created_at.startsWith(monthKey))
+          .reduce((sum: any, r: any) => sum + (r.cost_final || 0), 0);
         
         // Monthly income from damage report collections
         const monthIncome = damageReportsWithCollection
-          .filter(r => r.collected_at && r.collected_at.startsWith(monthKey) && r.amount_collected)
-          .reduce((sum, r) => sum + (r.amount_collected || 0), 0);
+          .filter((r: any) => r.collected_at && r.collected_at.startsWith(monthKey) && r.amount_collected)
+          .reduce((sum: any, r: any) => sum + (r.amount_collected || 0), 0);
         
         monthlyExpenses.push({ month: monthLabel, total: monthExpenses });
         monthlyBalance.push({ 
@@ -197,7 +197,7 @@ export function useGaratechStats() {
       // Build activity feed
       const activity: ActivityItem[] = [];
 
-      activeRepairs.slice(0, 5).forEach(r => {
+      activeRepairs.slice(0, 5).forEach((r: any) => {
         activity.push({
           id: `repair-${r.id}`,
           type: 'repair',
@@ -208,7 +208,7 @@ export function useGaratechStats() {
         });
       });
 
-      accidentsRes.data?.forEach(a => {
+      accidentsRes.data?.forEach((a: any) => {
         activity.push({
           id: `accident-${a.id}`,
           type: 'accident',
@@ -219,7 +219,7 @@ export function useGaratechStats() {
         });
       });
 
-      reportsRes.data?.forEach(r => {
+      reportsRes.data?.forEach((r: any) => {
         activity.push({
           id: `report-${r.id}`,
           type: 'report',

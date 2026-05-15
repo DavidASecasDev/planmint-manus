@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventType, EntityType } from '@/types/analytics';
 
@@ -15,7 +15,7 @@ export const useUsageTracking = () => {
       if (!user?.id || !profile?.organization_id) return;
 
       try {
-        await supabase.from('usage_events').insert({
+        await supabaseQuery.from('usage_events').insert({
           organization_id: profile.organization_id,
           user_id: user.id,
           event_type: eventType,

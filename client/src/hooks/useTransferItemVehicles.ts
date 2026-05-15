@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { TransferItemVehicle } from '@/types/transfers';
@@ -14,7 +14,7 @@ export function useTransferItemVehicles(transferItemId: string | undefined) {
     queryKey,
     queryFn: async () => {
       if (!transferItemId || !profile?.organization_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_item_vehicles')
         .select('*')
         .eq('transfer_item_id', transferItemId)
@@ -29,7 +29,7 @@ export function useTransferItemVehicles(transferItemId: string | undefined) {
   const addVehicle = useMutation({
     mutationFn: async (data: Partial<TransferItemVehicle>) => {
       if (!profile?.organization_id || !transferItemId) throw new Error('Missing data');
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('transfer_item_vehicles')
         .insert({
           transfer_item_id: transferItemId,
@@ -75,7 +75,7 @@ export function useTransferItemVehicles(transferItemId: string | undefined) {
 
   const updateVehicle = useMutation({
     mutationFn: async ({ id, ...data }: Partial<TransferItemVehicle> & { id: string }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_item_vehicles')
         .update(data)
         .eq('id', id);
@@ -101,7 +101,7 @@ export function useTransferItemVehicles(transferItemId: string | undefined) {
 
   const deleteVehicle = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_item_vehicles')
         .delete()
         .eq('id', id);

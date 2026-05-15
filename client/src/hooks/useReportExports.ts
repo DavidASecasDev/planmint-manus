@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportFilters, DashboardKPIs } from '@/types/reports';
 import { toast } from 'sonner';
@@ -52,7 +52,7 @@ export function useReportExports() {
     try {
       const { start, end } = getDateRange(filters);
 
-      let query = supabase
+      let query = supabaseQuery
         .from('tasks')
         .select(`
           id,
@@ -89,7 +89,7 @@ export function useReportExports() {
       if (error) throw error;
 
       // Calculate cycle time for each task
-      const csvData = (tasks || []).map(task => {
+      const csvData = (tasks || []).map((task: any) => {
         const areas = task.task_areas?.map((ta: any) => ta.area?.name).filter(Boolean).join(', ') || '';
         const tags = task.task_tags?.map((tt: any) => tt.tag?.name).filter(Boolean).join(', ') || '';
         
@@ -119,7 +119,7 @@ export function useReportExports() {
       });
 
       const headers = ['ID', 'Título', 'Estado', 'Prioridad', 'Tipo', 'Fecha límite', 'Áreas', 'Etiquetas', 'Asignado a', 'Creado', 'Iniciado', 'Completado', 'Tiempo de ciclo'];
-      const rows = csvData.map(row => [
+      const rows = csvData.map((row: any) => [
         row.id,
         `"${row.title.replace(/"/g, '""')}"`,
         row.status,

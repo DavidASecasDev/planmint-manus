@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { Reminder, ReminderWithTask, RecurrenceType } from '@/types/reminders';
 import { toast } from 'sonner';
@@ -32,7 +32,7 @@ export function useReminders(taskId?: string) {
     queryFn: async (): Promise<Reminder[]> => {
       if (!taskId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('reminders')
         .select('*')
         .eq('task_id', taskId)
@@ -53,7 +53,7 @@ export function useReminders(taskId?: string) {
     mutationFn: async (data: CreateReminderData): Promise<Reminder> => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       
-      const { data: newReminder, error } = await supabase
+      const { data: newReminder, error } = await supabaseQuery
         .from('reminders')
         .insert({
           task_id: data.task_id,
@@ -88,7 +88,7 @@ export function useReminders(taskId?: string) {
       if (data.recurrence_interval !== undefined) updateData.recurrence_interval = data.recurrence_interval;
       if (data.is_active !== undefined) updateData.is_active = data.is_active;
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('reminders')
         .update(updateData)
         .eq('id', id);
@@ -108,7 +108,7 @@ export function useReminders(taskId?: string) {
   // Delete reminder mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('reminders')
         .delete()
         .eq('id', id);
@@ -181,7 +181,7 @@ export function useAllReminders() {
     queryFn: async (): Promise<ReminderWithTask[]> => {
       if (!profile?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('reminders')
         .select(`
           *,

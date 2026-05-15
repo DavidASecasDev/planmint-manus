@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { supabase, waitForSession } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from './useNotifications';
 import { addDays, addWeeks, addMonths } from 'date-fns';
@@ -13,11 +13,10 @@ export function useReminderNotifications() {
     if (!user || !profile?.organization_id) return;
 
     try {
-      await waitForSession();
       const now = new Date();
 
       // Get active reminders that are due
-      const { data: reminders, error } = await supabase
+      const { data: reminders, error } = await supabaseQuery
         .from('reminders')
         .select(`
           id,
@@ -88,13 +87,13 @@ export function useReminderNotifications() {
               continue;
           }
 
-          await supabase
+          await supabaseQuery
             .from('reminders')
             .update({ remind_at: newRemindAt.toISOString() })
             .eq('id', reminder.id);
         } else {
           // Deactivate one-time reminders
-          await supabase
+          await supabaseQuery
             .from('reminders')
             .update({ is_active: false })
             .eq('id', reminder.id);

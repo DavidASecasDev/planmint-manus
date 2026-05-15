@@ -18,7 +18,7 @@
  * Targets: owner, admin, manager roles (checked on the current user).
  */
 import { useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 
@@ -90,7 +90,7 @@ export function useStaleTransferAlerts() {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - STALE_THRESHOLD_HOURS);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('transfer_requests')
       .select('id, request_number, broker_name, client_name, created_at, updated_at, status')
       .eq('organization_id', orgId)
@@ -106,7 +106,7 @@ export function useStaleTransferAlerts() {
     if (!data || data.length === 0) return [];
 
     const now = new Date();
-    return data.map(tr => ({
+    return data.map((tr: any) => ({
       id: tr.id,
       request_number: tr.request_number,
       broker_name: tr.broker_name,
@@ -131,7 +131,7 @@ export function useStaleTransferAlerts() {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - DEDUP_WINDOW_HOURS);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('notifications')
       .select('entity_id')
       .eq('user_id', userId)
@@ -141,13 +141,13 @@ export function useStaleTransferAlerts() {
       .gte('created_at', cutoff.toISOString());
 
     if (error) {
-      log.error('Error checking recent alerts:', error.message || error.code || JSON.stringify(error));
+      log.error('Error checking recent alerts:', error.message || (error as any).code || JSON.stringify(error));
       // On error, return ALL transfer IDs as "already alerted" to prevent duplicates
       // This is the SAFE fallback - better to miss an alert than spam the user
       return new Set(transferIds);
     }
 
-    return new Set((data || []).map(n => n.entity_id));
+    return new Set((data || []).map((n: any) => n.entity_id));
   }, []);
 
   /**
@@ -182,12 +182,12 @@ export function useStaleTransferAlerts() {
       };
     });
 
-    const { error } = await supabase
+    const { error } = await supabaseQuery
       .from('notifications')
       .insert(notifications);
 
     if (error) {
-      log.error(`Error creating stale alerts: ${error.message || error.code || JSON.stringify(error)}`);
+      log.error(`Error creating stale alerts: ${error.message || (error as any).code || JSON.stringify(error)}`);
       return 0;
     }
 

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { Referral } from '@/types/growth';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ export const useReferrals = () => {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('referrals')
         .select('*')
         .eq('referrer_user_id', user.id)
@@ -32,7 +32,7 @@ export const useReferrals = () => {
       // Generate code client-side instead of broken RPC
       const code = `REF-${user.id.substring(0, 4).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('referrals')
         .insert({
           referrer_user_id: user.id,
@@ -58,13 +58,13 @@ export const useReferrals = () => {
     try {
       // Increment click count directly instead of broken RPC
       // The referrals table has a clicks column we can increment
-      const { data: ref } = await supabase
+      const { data: ref } = await supabaseQuery
         .from('referrals')
         .select('clicks')
         .eq('code', code)
         .maybeSingle();
       if (ref) {
-        await supabase
+        await supabaseQuery
           .from('referrals')
           .update({ clicks: (ref.clicks || 0) + 1 })
           .eq('code', code);

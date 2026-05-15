@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportFilters } from '@/types/reports';
 import { subDays, startOfDay, endOfDay, format, differenceInDays } from 'date-fns';
@@ -61,7 +61,7 @@ export function useGaratechReports(filters: ReportFilters) {
       if (!organization?.id) return null;
       const { start, end } = getDateRange(filters);
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repairs')
         .select('id, status, cost_estimate, cost_final, started_at, completed_at, created_at, workshop_id, workshops(name)')
         .eq('organization_id', organization.id)
@@ -80,7 +80,7 @@ export function useGaratechReports(filters: ReportFilters) {
       if (!organization?.id) return null;
       const { start, end } = getDateRange(filters);
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('accidents')
         .select('id')
         .eq('organization_id', organization.id)

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProvisioningLog, ProvisioningLogFilters } from '@/types/enterprise';
 
@@ -11,7 +11,7 @@ export function useProvisioningLogs(filters: ProvisioningLogFilters = {}) {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('provisioning_logs')
         .select('*')
         .eq('organization_id', profile.organization_id)

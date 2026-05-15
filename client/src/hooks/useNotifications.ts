@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, waitForSession } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification, NotificationWithDetails, NotificationType, NotificationEntityType } from '@/types/notifications';
 import { createLogger } from '@/lib/logger';
@@ -27,9 +27,7 @@ export function useNotifications() {
     queryKey: ['notifications', organizationId],
     queryFn: async (): Promise<NotificationWithDetails[]> => {
       if (!organizationId) return [];
-      await waitForSession();
-
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false })
@@ -48,7 +46,7 @@ export function useNotifications() {
       const taskUpdateIds: string[] = [];
       const reminderIds: string[] = [];
 
-      data.forEach((notification) => {
+      data.forEach((notification: any) => {
         if (notification.entity_type === 'task_update') {
           taskUpdateIds.push(notification.entity_id);
         } else if (notification.entity_type === 'reminder') {
@@ -59,13 +57,13 @@ export function useNotifications() {
       // Batch queries: max 2 queries instead of N
       const [taskUpdatesResult, remindersResult] = await Promise.all([
         taskUpdateIds.length > 0
-          ? supabase
+          ? supabaseQuery
               .from('task_updates')
               .select('id, task_id')
               .in('id', taskUpdateIds)
           : Promise.resolve({ data: [] as { id: string; task_id: string }[], error: null }),
         reminderIds.length > 0
-          ? supabase
+          ? supabaseQuery
               .from('reminders')
               .select('id, task_id')
               .in('id', reminderIds)
@@ -75,20 +73,20 @@ export function useNotifications() {
       // Create lookup maps for O(1) access
       const taskUpdateMap = new Map<string, string>();
       if (taskUpdatesResult.data) {
-        taskUpdatesResult.data.forEach((tu) => {
+        taskUpdatesResult.data.forEach((tu: any) => {
           if (tu.task_id) taskUpdateMap.set(tu.id, tu.task_id);
         });
       }
 
       const reminderMap = new Map<string, string>();
       if (remindersResult.data) {
-        remindersResult.data.forEach((r) => {
+        remindersResult.data.forEach((r: any) => {
           if (r.task_id) reminderMap.set(r.id, r.task_id);
         });
       }
 
       // Enrich notifications using lookup maps (O(n) total, not O(n²))
-      const enrichedNotifications: NotificationWithDetails[] = data.map((notification) => {
+      const enrichedNotifications: NotificationWithDetails[] = data.map((notification: any) => {
         let task_id: string | undefined;
         let transfer_request_id: string | undefined;
 
@@ -121,9 +119,7 @@ export function useNotifications() {
     queryKey: ['notifications-unread-count', organizationId],
     queryFn: async (): Promise<number> => {
       if (!organizationId) return 0;
-      await waitForSession();
-
-      const { count, error } = await supabase
+      const { count, error } = await supabaseQuery
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('is_read', false);
@@ -142,7 +138,7 @@ export function useNotifications() {
     mutationFn: async (data: CreateNotificationData): Promise<void> => {
       if (!organizationId) throw new Error('No organization');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notifications')
         .insert({
           organization_id: organizationId,
@@ -168,7 +164,7 @@ export function useNotifications() {
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
@@ -187,7 +183,7 @@ export function useNotifications() {
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
     mutationFn: async (): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notifications')
         .update({ is_read: true })
         .eq('is_read', false);
@@ -206,7 +202,7 @@ export function useNotifications() {
   // Delete notification mutation
   const deleteMutation = useMutation({
     mutationFn: async (notificationId: string): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('notifications')
         .delete()
         .eq('id', notificationId);
@@ -271,7 +267,7 @@ export function useNotifications() {
       const cutoffDate = new Date();
       cutoffDate.setHours(cutoffDate.getHours() - hoursAgo);
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('notifications')
         .select('id')
         .eq('type', type)

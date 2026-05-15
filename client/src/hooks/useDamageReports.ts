@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -19,7 +19,7 @@ export function useDamageReports() {
     queryKey: ['damage-reports', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('damage_reports')
         .select(`
           *,
@@ -30,7 +30,7 @@ export function useDamageReports() {
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data.map(r => ({
+      return data.map((r: any) => ({
         ...r,
         vehicle: r.vehicle ? { matricula: r.vehicle.matricula, modelo: r.vehicle.modelo } : null,
         status: r.status || 'borrador',
@@ -47,7 +47,7 @@ export function useDamageReports() {
   const createReport = useMutation({
     mutationFn: async (data: DamageReportFormData) => {
       if (!orgId || !profile?.id) throw new Error('No organization');
-      const { data: result, error } = await supabase
+      const { data: result, error } = await supabaseQuery
         .from('damage_reports')
         .insert({ 
           ...data, 
@@ -70,7 +70,7 @@ export function useDamageReports() {
 
   const updateReport = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<DamageReportFormData> }) => {
-      const { error } = await supabase.from('damage_reports').update(data).eq('id', id);
+      const { error } = await supabaseQuery.from('damage_reports').update(data).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -83,7 +83,7 @@ export function useDamageReports() {
 
   const deleteReport = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('damage_reports').delete().eq('id', id);
+      const { error } = await supabaseQuery.from('damage_reports').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -97,7 +97,7 @@ export function useDamageReports() {
   const addReportItem = useMutation({
     mutationFn: async ({ reportId, item }: { reportId: string; item: DamageReportItemFormData }) => {
       const totalPrice = item.unit_price * item.quantity;
-      const { error } = await supabase.from('damage_report_items').insert({
+      const { error } = await supabaseQuery.from('damage_report_items').insert({
         report_id: reportId,
         ...item,
         total_price: totalPrice,
@@ -114,7 +114,7 @@ export function useDamageReports() {
 
   const removeReportItem = useMutation({
     mutationFn: async (itemId: string) => {
-      const { error } = await supabase.from('damage_report_items').delete().eq('id', itemId);
+      const { error } = await supabaseQuery.from('damage_report_items').delete().eq('id', itemId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -127,7 +127,7 @@ export function useDamageReports() {
 
   const finalizeReport = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('damage_reports')
         .update({ status: 'finalizado' })
         .eq('id', id);
@@ -143,7 +143,7 @@ export function useDamageReports() {
 
   const collectPayment = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CollectPaymentFormData }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('damage_reports')
         .update({
           amount_collected: data.amount_collected,

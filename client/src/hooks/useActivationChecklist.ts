@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ChecklistItem {
@@ -20,7 +20,7 @@ export const useActivationChecklist = () => {
       }
 
       // Check which events the user has completed
-      const { data: events, error } = await supabase
+      const { data: events, error } = await supabaseQuery
         .from('usage_events')
         .select('event_type')
         .eq('user_id', user.id)
@@ -34,7 +34,7 @@ export const useActivationChecklist = () => {
 
       if (error) throw error;
 
-      const completedEvents = new Set(events?.map(e => e.event_type) || []);
+      const completedEvents = new Set(events?.map((e: any) => e.event_type) || []);
 
       const items: ChecklistItem[] = [
         {

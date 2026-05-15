@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface VehicleSelectOption {
@@ -25,7 +25,7 @@ export function useAllVehiclesForSelect() {
     queryFn: async (): Promise<VehicleSelectOption[]> => {
       if (!orgId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('vehicles')
         .select('id, matricula, modelo, is_archived')
         .eq('organization_id', orgId)
@@ -33,7 +33,7 @@ export function useAllVehiclesForSelect() {
         .order('matricula', { ascending: true });
 
       if (error) throw error;
-      return (data || []).map(v => ({
+      return (data || []).map((v: any) => ({
         ...v,
         is_archived: v.is_archived ?? false,
       }));

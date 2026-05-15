@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -32,7 +32,7 @@ export function useForms() {
     queryFn: async (): Promise<Form[]> => {
       if (!profile?.organization_id) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('forms')
         .select('*')
         .eq('organization_id', profile.organization_id)
@@ -55,7 +55,7 @@ export function useForms() {
         throw new Error('No organization');
       }
 
-      const { data: form, error } = await supabase
+      const { data: form, error } = await supabaseQuery
         .from('forms')
         .insert({
           ...data,
@@ -81,7 +81,7 @@ export function useForms() {
   // Update form mutation
   const updateFormMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CreateFormData> & { id: string }) => {
-      const { data: form, error } = await supabase
+      const { data: form, error } = await supabaseQuery
         .from('forms')
         .update(data)
         .eq('id', id)
@@ -104,7 +104,7 @@ export function useForms() {
   // Delete form mutation
   const deleteFormMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('forms')
         .delete()
         .eq('id', id);
@@ -143,7 +143,7 @@ export function useForm(formId: string | null) {
     queryFn: async (): Promise<FormWithFields | null> => {
       if (!formId) return null;
 
-      const { data: formData, error: formError } = await supabase
+      const { data: formData, error: formError } = await supabaseQuery
         .from('forms')
         .select('*')
         .eq('id', formId)
@@ -154,7 +154,7 @@ export function useForm(formId: string | null) {
         throw formError;
       }
 
-      const { data: fieldsData, error: fieldsError } = await supabase
+      const { data: fieldsData, error: fieldsError } = await supabaseQuery
         .from('form_fields')
         .select('*')
         .eq('form_id', formId)
@@ -190,7 +190,7 @@ export function useFormFields(formId: string | null) {
         options: data.options ? JSON.parse(JSON.stringify(data.options)) : null,
       };
 
-      const { data: field, error } = await supabase
+      const { data: field, error } = await supabaseQuery
         .from('form_fields')
         .insert(dbData)
         .select()
@@ -217,7 +217,7 @@ export function useFormFields(formId: string | null) {
         dbData.options = data.options ? JSON.parse(JSON.stringify(data.options)) : null;
       }
 
-      const { data: field, error } = await supabase
+      const { data: field, error } = await supabaseQuery
         .from('form_fields')
         .update(dbData)
         .eq('id', id)
@@ -239,7 +239,7 @@ export function useFormFields(formId: string | null) {
   // Delete field mutation
   const deleteFieldMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('form_fields')
         .delete()
         .eq('id', id);
@@ -260,7 +260,7 @@ export function useFormFields(formId: string | null) {
   const reorderFieldsMutation = useMutation({
     mutationFn: async (fields: { id: string; position: number }[]) => {
       const updates = fields.map(({ id, position }) =>
-        supabase
+        supabaseQuery
           .from('form_fields')
           .update({ position })
           .eq('id', id)
@@ -297,7 +297,7 @@ export function useFormResponses(formId: string | null) {
     queryFn: async (): Promise<FormResponseWithRelations[]> => {
       if (!formId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('form_responses')
         .select('*')
         .eq('form_id', formId)
@@ -316,7 +316,7 @@ export function useFormResponses(formId: string | null) {
   // Update response status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('form_responses')
         .update({ 
           status,
@@ -355,7 +355,7 @@ export function usePublicFormSubmit() {
   const submitMutation = useMutation({
     mutationFn: async (data: SubmitFormData) => {
       // First get the form to get organization_id
-      const { data: form, error: formError } = await supabase
+      const { data: form, error: formError } = await supabaseQuery
         .from('forms')
         .select('id, organization_id, create_task_on_submit, default_area_id, default_assignee_id, default_task_type, default_task_priority')
         .eq('id', data.form_id)
@@ -368,7 +368,7 @@ export function usePublicFormSubmit() {
       }
 
       // Insert response - cast for Supabase JSON compatibility
-      const { data: response, error: responseError } = await supabase
+      const { data: response, error: responseError } = await supabaseQuery
         .from('form_responses')
         .insert([{
           form_id: data.form_id,

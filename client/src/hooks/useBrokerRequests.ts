@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import { toast } from 'sonner';
 import type { TransferRequest, TransferRequestStatus, TransferItem } from '@/types/transfers';
@@ -52,7 +52,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     queryFn: async (): Promise<TransferRequest[]> => {
       if (!broker?.organization_id) return [];
 
-      let query = supabase
+      let query = supabaseQuery
         .from('transfer_requests')
         .select(`
           *,
@@ -79,7 +79,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       }
 
       // Process data to add computed fields
-      const processed = (data || []).map(request => {
+      const processed = (data || []).map((request: any) => {
         const items = request.items || [];
         const dates = items.map((i: { transfer_date: string | null }) => i.transfer_date).filter(Boolean).sort();
         const total_amount = items.reduce((sum: number, i: { price_with_commission: number | null }) => 
@@ -110,7 +110,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     queryFn: async () => {
       if (!broker?.organization_id) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_brokers')
         .select('id, name')
         .eq('organization_id', broker.organization_id)
@@ -130,7 +130,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       }
 
       // Create the request
-      const { data: requestResult, error: requestError } = await supabase
+      const { data: requestResult, error: requestError } = await supabaseQuery
         .from('transfer_requests')
         .insert([{
           organization_id: broker.organization_id,
@@ -174,7 +174,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           driver_pending: true,
         }));
 
-        const { error: itemsError } = await supabase
+        const { error: itemsError } = await supabaseQuery
           .from('transfer_items')
           .insert(itemsToInsert);
 
@@ -182,7 +182,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       }
 
       // Log initial status in history
-      await supabase.from('transfer_status_history').insert({
+      await supabaseQuery.from('transfer_status_history').insert({
         request_id: requestResult.id,
         organization_id: broker.organization_id,
         previous_status: null,
@@ -211,7 +211,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       }
 
       // Update the request
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseQuery
         .from('transfer_requests')
         .update({
           client_name: data.client_name,
@@ -223,7 +223,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       if (updateError) throw updateError;
 
       // Delete existing items
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseQuery
         .from('transfer_items')
         .delete()
         .eq('request_id', data.id);
@@ -257,7 +257,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           driver_pending: true,
         }));
 
-        const { error: itemsError } = await supabase
+        const { error: itemsError } = await supabaseQuery
           .from('transfer_items')
           .insert(itemsToInsert);
 
@@ -280,7 +280,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     mutationFn: async ({ id, status }: { id: string; status: 'confirmado' | 'en_gestion' }) => {
       if (!broker?.organization_id) throw new Error('No broker session');
 
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('transfer_requests')
         .update({ status })
         .eq('id', id)
@@ -338,7 +338,7 @@ export function useBrokerRequestDetail(id: string | undefined) {
       if (!id) return null;
 
       // SECURITY: Always filter by organization_id to prevent cross-org access
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('transfer_requests')
         .select(`
           *,

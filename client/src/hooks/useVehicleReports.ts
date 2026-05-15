@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportFilters, VehicleCleaningUserStats, VehicleCleaningReport } from '@/types/reports';
 import { CLEANING_TASKS } from '@/types/vehicles';
@@ -97,7 +97,7 @@ export function useVehicleCleaningReports(filters: ReportFilters, locationId?: s
       const start = filters.startDate ? startOfDay(filters.startDate) : startOfDay(subDays(end, days));
 
       // Fetch completed cleaning tasks with vehicles info
-      const { data: tasks, error: tasksError } = await supabase
+      const { data: tasks, error: tasksError } = await supabaseQuery
         .from('vehicle_cleaning_tasks')
         .select(`
           id,
@@ -129,7 +129,7 @@ export function useVehicleCleaningReports(filters: ReportFilters, locationId?: s
       }
 
       // Fetch team members
-      const { data: members } = await supabase
+      const { data: members } = await supabaseQuery
         .from('profiles')
         .select('id, name')
         .eq('organization_id', profile.organization_id);
@@ -171,7 +171,7 @@ export function useVehicleCleaningReports(filters: ReportFilters, locationId?: s
         if (!task.completed_by) return;
 
         if (!userStatsMap.has(task.completed_by)) {
-          const member = members?.find((m) => m.id === task.completed_by);
+          const member = members?.find((m: any) => m.id === task.completed_by);
           const userTimeData = timeByUser.get(task.completed_by);
           
           userStatsMap.set(task.completed_by, {

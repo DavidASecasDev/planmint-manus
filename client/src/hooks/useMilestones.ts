@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { Milestone, CreateMilestoneData, UpdateMilestoneData, MilestoneStatus } from '@/types/milestones';
 import { toast } from 'sonner';
 
@@ -11,7 +11,7 @@ export function useMilestones(taskId: string | undefined) {
     queryFn: async () => {
       if (!taskId) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('task_milestones')
         .select('*')
         .eq('task_id', taskId)
@@ -44,7 +44,7 @@ export function useMilestones(taskId: string | undefined) {
       const siblings = milestones.filter(m => m.parent_milestone_id === (data.parent_milestone_id || null));
       const maxSortOrder = siblings.length > 0 ? Math.max(...siblings.map(s => s.sort_order)) : -1;
       
-      const { data: milestone, error } = await supabase
+      const { data: milestone, error } = await supabaseQuery
         .from('task_milestones')
         .insert({
           task_id: data.task_id,
@@ -75,7 +75,7 @@ export function useMilestones(taskId: string | undefined) {
 
   const updateMilestone = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateMilestoneData }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_milestones')
         .update(data)
         .eq('id', id);
@@ -93,7 +93,7 @@ export function useMilestones(taskId: string | undefined) {
 
   const updateMilestoneStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: MilestoneStatus }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_milestones')
         .update({ status })
         .eq('id', id);
@@ -111,7 +111,7 @@ export function useMilestones(taskId: string | undefined) {
 
   const deleteMilestone = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('task_milestones')
         .delete()
         .eq('id', id);
@@ -132,7 +132,7 @@ export function useMilestones(taskId: string | undefined) {
     mutationFn: async (updates: { id: string; sort_order: number; parent_milestone_id: string | null }[]) => {
       // Update each milestone's sort_order
       for (const update of updates) {
-        const { error } = await supabase
+        const { error } = await supabaseQuery
           .from('task_milestones')
           .update({ 
             sort_order: update.sort_order,

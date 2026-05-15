@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
@@ -17,7 +18,7 @@ export function useRepairInvoices(repairId: string) {
   const invoicesQuery = useQuery({
     queryKey: ['repair-invoices', repairId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_invoices')
         .select(`
           *,
@@ -59,7 +60,7 @@ export function useRepairInvoices(repairId: string) {
       if (uploadError) throw uploadError;
 
       // Create database record with processing status
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_invoices')
         .insert({
           repair_id: repairId,
@@ -76,7 +77,7 @@ export function useRepairInvoices(repairId: string) {
       if (error) throw error;
 
       // Add history entry
-      await supabase.from('repair_history').insert({
+      await supabaseQuery.from('repair_history').insert({
         repair_id: repairId,
         organization_id: orgId,
         user_id: profile.id,
@@ -117,7 +118,7 @@ export function useRepairInvoices(repairId: string) {
       invoiceId: string; 
       data: RepairInvoiceFormData;
     }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('repair_invoices')
         .update(data)
         .eq('id', invoiceId);
@@ -148,7 +149,7 @@ export function useRepairInvoices(repairId: string) {
       }
 
       // Delete database record (cascade will delete items)
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('repair_invoices')
         .delete()
         .eq('id', invoice.id);
@@ -156,7 +157,7 @@ export function useRepairInvoices(repairId: string) {
       if (error) throw error;
 
       // Add history entry
-      await supabase.from('repair_history').insert({
+      await supabaseQuery.from('repair_history').insert({
         repair_id: repairId,
         organization_id: orgId,
         user_id: profile.id,
@@ -186,7 +187,7 @@ export function useRepairInvoices(repairId: string) {
     }) => {
       const totalPrice = item.quantity * item.unit_price;
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseQuery
         .from('repair_invoice_items')
         .insert({
           invoice_id: invoiceId,
@@ -218,7 +219,7 @@ export function useRepairInvoices(repairId: string) {
 
   const deleteInvoiceItem = useMutation({
     mutationFn: async ({ itemId, invoiceId }: { itemId: string; invoiceId: string }) => {
-      const { error } = await supabase
+      const { error } = await supabaseQuery
         .from('repair_invoice_items')
         .delete()
         .eq('id', itemId);
@@ -240,16 +241,16 @@ export function useRepairInvoices(repairId: string) {
 
   const recalculateInvoiceTotals = async (invoiceId: string) => {
     // Get all items for this invoice
-    const { data: items } = await supabase
+    const { data: items } = await supabaseQuery
       .from('repair_invoice_items')
       .select('total_price')
       .eq('invoice_id', invoiceId);
 
-    const subtotal = items?.reduce((sum, item) => sum + Number(item.total_price), 0) ?? 0;
+    const subtotal = items?.reduce((sum: any, item: any) => sum + Number(item.total_price), 0) ?? 0;
     const taxAmount = subtotal * 0.21; // 21% IVA
     const total = subtotal + taxAmount;
 
-    await supabase
+    await supabaseQuery
       .from('repair_invoices')
       .update({
         subtotal_amount: subtotal,
@@ -263,14 +264,14 @@ export function useRepairInvoices(repairId: string) {
   };
 
   const updateRepairCostFinal = async () => {
-    const { data: invoices } = await supabase
+    const { data: invoices } = await supabaseQuery
       .from('repair_invoices')
       .select('total_amount')
       .eq('repair_id', repairId);
 
-    const totalCost = invoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) ?? 0;
+    const totalCost = invoices?.reduce((sum: any, inv: any) => sum + Number(inv.total_amount), 0) ?? 0;
 
-    await supabase
+    await supabaseQuery
       .from('repairs')
       .update({ cost_final: totalCost })
       .eq('id', repairId);

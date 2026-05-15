@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -28,7 +28,7 @@ export function useAreaAccess(areaId?: string) {
 
     setLoading(true);
     setAccessRules([]);
-    const { data, error } = await supabase
+    const { data, error } = await supabaseQuery
       .from('area_access_rules')
       .select('*')
       .eq('area_id', areaId)
@@ -46,14 +46,14 @@ export function useAreaAccess(areaId?: string) {
     if (!profile?.organization_id) return;
 
     // Fetch users in organization
-    const { data: users } = await supabase
+    const { data: users } = await supabaseQuery
       .from('profiles')
       .select('id, name')
       .eq('organization_id', profile.organization_id);
 
     if (users) {
       setAvailableUsers(
-        users.map((u) => ({
+        users.map((u: any) => ({
           id: u.id,
           type: 'user' as const,
           name: u.name || 'Usuario sin nombre',
@@ -105,7 +105,7 @@ export function useAreaAccess(areaId?: string) {
       return false;
     }
 
-    const { error } = await supabase.from('area_access_rules').insert({
+    const { error } = await supabaseQuery.from('area_access_rules').insert({
       organization_id: profile.organization_id,
       area_id: areaId,
       subject_type: subjectType,
@@ -130,7 +130,7 @@ export function useAreaAccess(areaId?: string) {
   const removeAccessRule = async (ruleId: string): Promise<boolean> => {
     if (!isAdmin) return false;
 
-    const { error } = await supabase
+    const { error } = await supabaseQuery
       .from('area_access_rules')
       .delete()
       .eq('id', ruleId);
@@ -156,7 +156,7 @@ export function useAreaAccess(areaId?: string) {
     if (!profile?.organization_id || !isAdmin) return false;
 
     // Delete existing rules for this area
-    await supabase
+    await supabaseQuery
       .from('area_access_rules')
       .delete()
       .eq('area_id', newAreaId)
@@ -164,7 +164,7 @@ export function useAreaAccess(areaId?: string) {
 
     // Insert new rules
     if (subjects.length > 0) {
-      const { error } = await supabase.from('area_access_rules').insert(
+      const { error } = await supabaseQuery.from('area_access_rules').insert(
         subjects.map((s) => ({
           organization_id: profile.organization_id!,
           area_id: newAreaId,
