@@ -655,3 +655,4 @@
 - [ ] Bug: Traducir todos los textos en inglés del LiveMap al español
 - [ ] Feature: Añadir número de reserva en tarjetas del sidebar y popups del mapa
 - [x] Feature: Filtro por tipo en el mapa — toggles para mostrar/ocultar entregas o devoluciones independientemente
+- [x] Bug: El diálogo de compartir ubicación no aparece al iniciar trayecto, solo el permiso nativo del navegador

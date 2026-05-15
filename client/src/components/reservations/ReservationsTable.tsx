@@ -1943,10 +1943,13 @@ export function ReservationsTable() {
         confirmLabel="Sí, iniciar"
         cancelLabel="Cancelar"
         loading={confirmIniciar.row ? !!iniciarLoading[confirmIniciar.row.id] : false}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (confirmIniciar.row) {
-            handleIniciar(confirmIniciar.row);
+            const row = confirmIniciar.row;
             setConfirmIniciar({ open: false, row: null });
+            // Small delay to let AlertDialog unmount before opening the next dialog
+            await new Promise(r => setTimeout(r, 300));
+            await handleIniciar(row);
           }
         }}
       />
