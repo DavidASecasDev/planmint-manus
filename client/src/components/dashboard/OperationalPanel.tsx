@@ -193,7 +193,7 @@ export function OperationalPanel() {
   }
 
   return (
-    <SkeletonTransition isLoading={isLoading || !stats} skeleton={dashboardSkeleton}>
+    <SkeletonTransition isLoading={isLoading} skeleton={dashboardSkeleton}>
     {stats && <div className="space-y-5 sm:space-y-6">
       {/* ─── Fleet Status Bar ─── */}
       <Card className="border-border/50 shadow-sm">

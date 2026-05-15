@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 
 export interface TransferBroker {
@@ -78,40 +79,22 @@ export function useTransferBrokers() {
     };
   }, [organization?.id, queryClient]);
 
-  const { data: brokers = [], isLoading } = useQuery({
+  // Fetch brokers via backend endpoint (bypasses RLS — fixes Bug 3)
+  const { data: brokerData, isLoading } = useQuery({
     queryKey: ['transfer-brokers', organization?.id],
     queryFn: async () => {
-      if (!organization?.id) return [];
-
-      const { data, error } = await supabase
-        .from('transfer_brokers')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      return data as TransferBroker[];
+      const result = await apiInvoke<{ brokers: TransferBroker[]; allBrokers: TransferBroker[] }>('get-transfer-brokers');
+      if (result.error) {
+        console.error('[useTransferBrokers] Backend error:', result.error);
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
     enabled: !!organization?.id,
   });
 
-  const { data: allBrokers = [], isLoading: isLoadingAll } = useQuery({
-    queryKey: ['transfer-brokers-all', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return [];
-
-      const { data, error } = await supabase
-        .from('transfer_brokers')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .order('name');
-
-      if (error) throw error;
-      return data as TransferBroker[];
-    },
-    enabled: !!organization?.id,
-  });
+  const brokers = brokerData?.brokers ?? [];
+  const allBrokers = brokerData?.allBrokers ?? [];
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateBrokerData) => {
@@ -267,7 +250,7 @@ export function useTransferBrokers() {
     brokers,
     allBrokers,
     isLoading,
-    isLoadingAll,
+    isLoadingAll: isLoading,
     createBroker: createMutation.mutateAsync,
     updateBroker: updateMutation.mutate,
     updateBrokerFull: updateFullMutation.mutateAsync,

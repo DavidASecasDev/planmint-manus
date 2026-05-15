@@ -49,6 +49,7 @@ import {
   handleRejectBrokerRegistration,
 } from "../brokerRegistrationEndpoints";
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
+import { handleGetTransferBrokers } from "../brokerListEndpoint";
 import { handleValidateBrokerInvite } from "../validateBrokerInvite";
 import { handlePublicOperations } from "../publicOperationsEndpoint";
 import {
@@ -197,6 +198,7 @@ async function startServer() {
   app.post("/api/request-broker-access", handleRequestBrokerAccess); // Public (no auth)
   app.post("/api/approve-broker-registration", handleApproveBrokerRegistration);
   app.post("/api/reject-broker-registration", handleRejectBrokerRegistration);
+  app.post("/api/get-transfer-brokers", handleGetTransferBrokers);
 
   // ─── Org data endpoints (bypass RLS for non-owner users) ──────────────────
   app.post("/api/get-org-modules", handleGetOrgModules);

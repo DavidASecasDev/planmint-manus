@@ -115,7 +115,7 @@ export function useOperationalDashboard() {
   const { profile, sessionReady } = useAuth();
   const orgId = profile?.organization_id;
 
-  const { data: stats, isLoading, error, refetch } = useQuery({
+  const { data: stats, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['operational-dashboard', orgId],
     queryFn: async (): Promise<OperationalStats> => {
       if (!orgId) throw new Error('No org');
@@ -146,13 +146,15 @@ export function useOperationalDashboard() {
           .eq('organization_id', orgId)
           .eq('is_archived', false),
         // Active reservations (not cancelled, not terminated, not archived)
+        // Use .or() to handle NULL estado correctly (SQL three-valued logic:
+        // NOT (NULL LIKE '%x%') = NULL = excluded, so we must include is.null)
         supabase
           .from('reservations')
           .select('id', { count: 'exact', head: true })
           .eq('organization_id', orgId)
           .is('archived_at', null)
-          .not('estado', 'ilike', '%cancelada%')
-          .not('estado', 'ilike', '%terminada%'),
+          .or('estado.not.ilike.%cancelada%,estado.is.null')
+          .or('estado.not.ilike.%terminada%,estado.is.null'),
         // Today's reservations: fetch all non-cancelled, non-archived reservations
         // where desde OR hasta falls on today. We use an OR filter to get both
         // check-ins and check-outs in a single query, then expand client-side.
@@ -161,7 +163,7 @@ export function useOperationalDashboard() {
           .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, extras_contratados, tipo_actividad, entrega_completada, devolucion_completada, transfer_completado')
           .eq('organization_id', orgId)
           .is('archived_at', null)
-          .not('estado', 'ilike', '%cancelada%')
+          .or('estado.not.ilike.%cancelada%,estado.is.null')
           .or(`and(desde.gte.${todayStr}T00:00:00,desde.lte.${todayStr}T23:59:59),and(hasta.gte.${todayStr}T00:00:00,hasta.lte.${todayStr}T23:59:59)`)
           .order('desde', { ascending: true })
           .limit(100),
@@ -173,8 +175,8 @@ export function useOperationalDashboard() {
           .is('archived_at', null)
           .gte('desde', `${todayStr}T00:00:00`)
           .lte('desde', `${in7days}T23:59:59`)
-          .not('estado', 'ilike', '%cancelada%')
-          .not('estado', 'ilike', '%terminada%'),
+          .or('estado.not.ilike.%cancelada%,estado.is.null')
+          .or('estado.not.ilike.%terminada%,estado.is.null'),
         // Active movements
         supabase
           .from('vehicle_movements')
@@ -231,8 +233,8 @@ export function useOperationalDashboard() {
           .is('archived_at', null)
           .gte('desde', today.toISOString())
           .lte('desde', `${in7days}T23:59:59`)
-          .not('estado', 'ilike', '%cancelada%')
-          .not('estado', 'ilike', '%terminada%')
+          .or('estado.not.ilike.%cancelada%,estado.is.null')
+          .or('estado.not.ilike.%terminada%,estado.is.null')
           .order('desde', { ascending: true }),
       ]);
 
@@ -498,9 +500,16 @@ export function useOperationalDashboard() {
     retryDelay: 1000,
   });
 
+  // When the query is disabled (orgId or sessionReady not ready), React Query v5
+  // returns isPending=true but isFetching=false, so isLoading=false.
+  // We must treat "waiting for auth" the same as "loading" to avoid
+  // the SkeletonTransition getting stuck on !stats forever.
+  const isWaitingForAuth = !orgId || !sessionReady;
+  const isActuallyLoading = isLoading || isFetching || isWaitingForAuth;
+
   return {
     stats: stats || null,
-    isLoading,
+    isLoading: isActuallyLoading,
     error,
     refetch,
   };
