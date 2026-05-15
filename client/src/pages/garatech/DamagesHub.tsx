@@ -538,14 +538,20 @@ function DamageReportsTab() {
   const handleFinalizeRequest = (report: DamageReport) => setFinalizeTarget(report);
   const handleFinalizeConfirm = useCallback(async () => {
     if (!finalizeTarget) return;
-    try { await finalizeReport.mutateAsync(finalizeTarget.id); } catch (error) {}
+    try { await finalizeReport.mutateAsync(finalizeTarget.id); } catch (error) {
+      toast.error('Error al finalizar el parte');
+      console.error('[DamagesHub] Finalize failed:', error);
+    }
     setFinalizeTarget(null);
   }, [finalizeTarget, finalizeReport]);
 
   const handleDeleteRequest = (report: DamageReport) => setDeleteTarget(report);
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
-    try { await deleteReport.mutateAsync(deleteTarget.id); } catch (error) {}
+    try { await deleteReport.mutateAsync(deleteTarget.id); } catch (error) {
+      toast.error('Error al eliminar el parte');
+      console.error('[DamagesHub] Delete failed:', error);
+    }
     setDeleteTarget(null);
   }, [deleteTarget, deleteReport]);
 

@@ -278,7 +278,9 @@ export default function ServiceRequestDetailPage() {
       });
       const json = await res.json();
       if (!json.error) setStatusHistory(json.data || []);
-    } catch {} finally {
+    } catch (err) {
+      console.error('[ServiceRequestDetail] Error fetching history:', err);
+    } finally {
       setHistoryLoading(false);
     }
   }, [session?.access_token, requestId]);
@@ -292,7 +294,9 @@ export default function ServiceRequestDetailPage() {
       });
       const json = await res.json();
       if (!json.error) setAvailableVehicles(json.data || []);
-    } catch {}
+    } catch (err) {
+      console.error('[ServiceRequestDetail] Error fetching vehicles:', err);
+    }
   }, [session?.access_token, isAzulCars]);
 
   useEffect(() => { fetchDetail(); fetchHistory(); }, [fetchDetail, fetchHistory]);

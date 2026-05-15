@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,7 +126,10 @@ export function AccidentFormDialog({ open, onOpenChange, accident }: AccidentFor
         await createAccident.mutateAsync(form);
       }
       onOpenChange(false);
-    } catch {}
+    } catch (error) {
+      toast.error('Error al guardar el parte de accidente');
+      console.error('[AccidentFormDialog] Save failed:', error);
+    }
   };
 
   const set = (patch: Partial<AccidentFormData>) => setForm(prev => ({ ...prev, ...patch }));

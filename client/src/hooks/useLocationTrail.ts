@@ -46,7 +46,7 @@ export function useLocationTrail(records: TrailRecord[]) {
       if (resp.data?.ok && resp.data.positions) {
         setTrails(prev => ({
           ...prev,
-          [rec.id]: resp.data!.positions,
+          [rec.id]: resp.data?.positions ?? [],
         }));
       }
     } catch (err) {

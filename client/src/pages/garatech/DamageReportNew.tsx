@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,7 +100,10 @@ export default function DamageReportNew() {
     try {
       const result = await createReport.mutateAsync(form);
       navigate(`/garatech/reports/${result.id}`);
-    } catch (error) {}
+    } catch (error) {
+      toast.error('Error al crear el parte de daños');
+      console.error('[DamageReportNew] Create failed:', error);
+    }
   };
 
   return (

@@ -189,7 +189,7 @@ export function ImportReservations() {
       // Obtener IDs para verificar duplicados
       const externalIds = mappedRows
         .filter(r => r.data)
-        .map(r => r.data!.external_reservation_id);
+        .map(r => r.data?.external_reservation_id ?? '');
       
       const existingIds = await checkDuplicates(externalIds);
       

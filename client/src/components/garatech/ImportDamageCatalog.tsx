@@ -34,7 +34,7 @@ export function ImportDamageCatalog({ onComplete, onCancel }: ImportDamageCatalo
       // Get names for duplicate check
       const names = parsed
         .filter(r => r.data?.name_es)
-        .map(r => r.data!.name_es!);
+        .map(r => r.data?.name_es ?? '');
       
       // Check existing
       const existing = await checkExistingItems(names);

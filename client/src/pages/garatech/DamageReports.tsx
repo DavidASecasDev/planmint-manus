@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, MoreHorizontal, Eye, CheckCircle, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
@@ -28,14 +29,20 @@ export default function GaratechDamageReports() {
   const handleFinalizeRequest = (report: DamageReport) => setFinalizeTarget(report);
   const handleFinalizeConfirm = useCallback(async () => {
     if (!finalizeTarget) return;
-    try { await finalizeReport.mutateAsync(finalizeTarget.id); } catch (error) {}
+    try { await finalizeReport.mutateAsync(finalizeTarget.id); } catch (error) {
+      toast.error('Error al finalizar el parte');
+      console.error('[DamageReports] Finalize failed:', error);
+    }
     setFinalizeTarget(null);
   }, [finalizeTarget, finalizeReport]);
 
   const handleDeleteRequest = (report: DamageReport) => setDeleteTarget(report);
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
-    try { await deleteReport.mutateAsync(deleteTarget.id); } catch (error) {}
+    try { await deleteReport.mutateAsync(deleteTarget.id); } catch (error) {
+      toast.error('Error al eliminar el parte');
+      console.error('[DamageReports] Delete failed:', error);
+    }
     setDeleteTarget(null);
   }, [deleteTarget, deleteReport]);
 

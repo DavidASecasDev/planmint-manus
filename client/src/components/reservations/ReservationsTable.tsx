@@ -412,7 +412,7 @@ export function ReservationsTable() {
       if (resp.data?.ok) {
         setLlegoState(prev => ({
           ...prev,
-          [rowId]: { realMinutes: resp.data!.real_minutes, estimatedMinutes: resp.data!.estimated_minutes },
+          [rowId]: { realMinutes: resp.data?.real_minutes ?? 0, estimatedMinutes: resp.data?.estimated_minutes ?? null },
         }));
         // Update the reservation estado to 'Completada' so it persists across refreshes
         const estadoField = row.tipoOperacion === 'Entrega' ? 'estado_entrega' : 'estado_devolucion';

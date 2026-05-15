@@ -54,7 +54,10 @@ export default function WorkshopNew() {
     try {
       const result = await createWorkshop.mutateAsync(form);
       navigate(`/garatech/workshops/${result.id}`);
-    } catch (error) {}
+    } catch (error) {
+      toast.error('Error al crear el taller');
+      console.error('[WorkshopNew] Create failed:', error);
+    }
   };
 
   return (

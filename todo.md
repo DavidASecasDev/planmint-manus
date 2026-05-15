@@ -675,3 +675,9 @@
 - [x] Bug GRAVE: Las direcciones escritas por Mikaela se borran al cabo de un rato — CAUSA: sync Rently sobreescribía todos los campos incluyendo direcciones editadas manualmente. FIX: se eliminan lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, lugar_entrega_ciudad, lugar_devolucion_ciudad del updateData en statusUpdates, protegiendo las ediciones manuales
 - [x] Indicador visual de "editado manualmente" — Icono PenLine ámbar aparece junto a lugar/dirección cuando difiere del valor original de Rently. Tooltip muestra el valor original.
 - [x] Botón "Restaurar de Rently" — Click en el icono ámbar restaura el valor original de Rently con toast de confirmación. Usa columnas mirror rently_lugar_* que se actualizan en cada sync.
+- [x] Auditoría completa: revisar logs de errores del servidor y browser
+- [x] Auditoría completa: verificar TypeScript sin errores (0 errores)
+- [x] Auditoría completa: revisar módulos del servidor (endpoints, sync, routers)
+- [x] Auditoría completa: revisar módulos del frontend (páginas, componentes, hooks)
+- [x] Auditoría completa: verificar flujos principales en el navegador
+- [x] Auditoría completa: corregir bugs encontrados — 12 empty catch blocks corregidos, non-null assertions eliminadas, Tailwind warning corregido
