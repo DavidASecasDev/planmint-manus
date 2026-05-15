@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RouteReplaySheet } from '@/components/reports/RouteReplaySheet';
+import { TravelStatsDashboard } from '@/components/reports/TravelStatsDashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -344,6 +345,9 @@ export default function ReportsTravel() {
             </CardContent>
           </Card>
         )}
+
+        {/* ── Stats Dashboard ── */}
+        <TravelStatsDashboard />
 
         {/* Loading state */}
         {loading && (

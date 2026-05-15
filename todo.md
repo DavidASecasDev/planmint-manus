@@ -663,3 +663,5 @@
 - [x] Optimización: Fallback polling cada 60s por si la conexión realtime se cae
 - [x] Optimización: Actualización instantánea de marcadores de coche en el mapa sin re-fetch completo
 - [x] Bug: Las operaciones 'En Camino' desaparecen del mapa al cabo de un rato (reportado por Mikaela)
+- [x] Feature: Panel de estadísticas de trayectos — Dashboard con métricas de puntualidad por rental
+- [x] Feature: Historial de ruta en vivo — Polyline verde mostrando recorrido real del rental en el mapa

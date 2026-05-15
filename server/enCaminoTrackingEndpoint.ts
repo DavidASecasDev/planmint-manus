@@ -734,3 +734,198 @@ export async function handleEnCaminoLocationStop(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }
+
+/**
+ * POST /api/en-camino-tracking/stats
+ * Get punctuality statistics over a date range for the dashboard.
+ * Body: { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }
+ * Returns per-user stats, daily trend, and global KPIs.
+ */
+export async function handleEnCaminoStats(req: Request, res: Response) {
+  try {
+    const { from, to } = req.body as { from?: string; to?: string };
+    const today = new Date().toISOString().split('T')[0];
+    const dateFrom = from || today;
+    const dateTo = to || today;
+
+    const sb = getServiceClient();
+    const startOfRange = `${dateFrom}T00:00:00.000Z`;
+    const endOfRange = `${dateTo}T23:59:59.999Z`;
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("id, reservation_id, operation_type, en_camino_at, llego_at, estimated_minutes, destination_address, assigned_user_name, llego_user_name")
+      .gte("en_camino_at", startOfRange)
+      .lte("en_camino_at", endOfRange)
+      .order("en_camino_at", { ascending: true });
+
+    if (error) {
+      console.error("[en-camino-tracking/stats] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    const rows = data || [];
+
+    // ── Per-user stats ──
+    const userMap: Record<string, {
+      trips: number;
+      completed: number;
+      totalReal: number;
+      totalEstimated: number;
+      onTime: number;
+      late: number;
+      veryLate: number;
+      diffs: number[];
+    }> = {};
+
+    // ── Daily trend ──
+    const dailyMap: Record<string, {
+      date: string;
+      total: number;
+      completed: number;
+      onTime: number;
+      late: number;
+      avgReal: number;
+      avgEstimated: number;
+      totalReal: number;
+      totalEstimated: number;
+      withEstimate: number;
+    }> = {};
+
+    // ── Global KPIs ──
+    let totalTrips = 0;
+    let totalCompleted = 0;
+    let totalOnTime = 0;
+    let totalLate = 0;
+    let totalVeryLate = 0;
+    let totalRealMinutes = 0;
+    let totalEstimatedMinutes = 0;
+    let tripsWithEstimate = 0;
+    let totalEntregas = 0;
+    let totalDevoluciones = 0;
+
+    for (const row of rows) {
+      totalTrips++;
+      const userName = row.assigned_user_name || 'Sin asignar';
+      const day = row.en_camino_at ? row.en_camino_at.split('T')[0] : dateFrom;
+
+      // Initialize user
+      if (!userMap[userName]) {
+        userMap[userName] = { trips: 0, completed: 0, totalReal: 0, totalEstimated: 0, onTime: 0, late: 0, veryLate: 0, diffs: [] };
+      }
+      userMap[userName].trips++;
+
+      // Initialize day
+      if (!dailyMap[day]) {
+        dailyMap[day] = { date: day, total: 0, completed: 0, onTime: 0, late: 0, avgReal: 0, avgEstimated: 0, totalReal: 0, totalEstimated: 0, withEstimate: 0 };
+      }
+      dailyMap[day].total++;
+
+      // Operation type
+      if (row.operation_type === 'entrega') totalEntregas++;
+      else totalDevoluciones++;
+
+      // Completed trips
+      if (row.llego_at && row.en_camino_at) {
+        const realMinutes = Math.round(
+          (new Date(row.llego_at).getTime() - new Date(row.en_camino_at).getTime()) / 60000
+        );
+        totalCompleted++;
+        userMap[userName].completed++;
+        dailyMap[day].completed++;
+
+        if (row.estimated_minutes != null && row.estimated_minutes > 0) {
+          const diff = realMinutes - row.estimated_minutes;
+          tripsWithEstimate++;
+          totalRealMinutes += realMinutes;
+          totalEstimatedMinutes += row.estimated_minutes;
+          userMap[userName].totalReal += realMinutes;
+          userMap[userName].totalEstimated += row.estimated_minutes;
+          userMap[userName].diffs.push(diff);
+          dailyMap[day].totalReal += realMinutes;
+          dailyMap[day].totalEstimated += row.estimated_minutes;
+          dailyMap[day].withEstimate++;
+
+          if (diff <= 5) {
+            totalOnTime++;
+            userMap[userName].onTime++;
+            dailyMap[day].onTime++;
+          } else if (diff <= 15) {
+            totalLate++;
+            userMap[userName].late++;
+            dailyMap[day].late++;
+          } else {
+            totalVeryLate++;
+            userMap[userName].veryLate++;
+            dailyMap[day].late++;
+          }
+        }
+      }
+    }
+
+    // Build user summary
+    const userSummary = Object.entries(userMap)
+      .map(([name, stats]) => {
+        const completedWithEstimate = stats.onTime + stats.late + stats.veryLate;
+        return {
+          name,
+          trips: stats.trips,
+          completed: stats.completed,
+          on_time: stats.onTime,
+          late: stats.late,
+          very_late: stats.veryLate,
+          on_time_percent: completedWithEstimate > 0 ? Math.round((stats.onTime / completedWithEstimate) * 100) : 0,
+          avg_real_minutes: completedWithEstimate > 0 ? Math.round(stats.totalReal / completedWithEstimate) : 0,
+          avg_estimated_minutes: completedWithEstimate > 0 ? Math.round(stats.totalEstimated / completedWithEstimate) : 0,
+          avg_diff_minutes: stats.diffs.length > 0 ? Math.round(stats.diffs.reduce((a, b) => a + b, 0) / stats.diffs.length) : 0,
+          best_diff: stats.diffs.length > 0 ? Math.min(...stats.diffs) : 0,
+          worst_diff: stats.diffs.length > 0 ? Math.max(...stats.diffs) : 0,
+        };
+      })
+      .sort((a, b) => b.trips - a.trips);
+
+    // Build daily trend
+    const dailyTrend = Object.values(dailyMap)
+      .map(d => ({
+        date: d.date,
+        total: d.total,
+        completed: d.completed,
+        on_time: d.onTime,
+        late: d.late,
+        on_time_percent: d.withEstimate > 0 ? Math.round((d.onTime / d.withEstimate) * 100) : 0,
+        avg_real: d.withEstimate > 0 ? Math.round(d.totalReal / d.withEstimate) : 0,
+        avg_estimated: d.withEstimate > 0 ? Math.round(d.totalEstimated / d.withEstimate) : 0,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Global KPIs
+    const globalOnTimePercent = tripsWithEstimate > 0 ? Math.round((totalOnTime / tripsWithEstimate) * 100) : 0;
+    const globalAvgReal = tripsWithEstimate > 0 ? Math.round(totalRealMinutes / tripsWithEstimate) : 0;
+    const globalAvgEstimated = tripsWithEstimate > 0 ? Math.round(totalEstimatedMinutes / tripsWithEstimate) : 0;
+    const globalAvgDiff = tripsWithEstimate > 0 ? Math.round((totalRealMinutes - totalEstimatedMinutes) / tripsWithEstimate) : 0;
+
+    return res.json({
+      ok: true,
+      range: { from: dateFrom, to: dateTo },
+      kpis: {
+        total_trips: totalTrips,
+        completed: totalCompleted,
+        with_estimate: tripsWithEstimate,
+        on_time: totalOnTime,
+        late: totalLate,
+        very_late: totalVeryLate,
+        on_time_percent: globalOnTimePercent,
+        avg_real_minutes: globalAvgReal,
+        avg_estimated_minutes: globalAvgEstimated,
+        avg_diff_minutes: globalAvgDiff,
+        entregas: totalEntregas,
+        devoluciones: totalDevoluciones,
+      },
+      user_summary: userSummary,
+      daily_trend: dailyTrend,
+    });
+  } catch (err) {
+    console.error("[en-camino-tracking/stats] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}

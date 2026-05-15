@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useRealtimeEnCamino, type EnCaminoRecord, type RealtimeStatus } from '@/hooks/useRealtimeEnCamino';
+import { useLocationTrail } from '@/hooks/useLocationTrail';
 
 // ── Types ──
 type GeocodeSource = 'alias' | 'nominatim' | 'google';
@@ -288,6 +289,9 @@ export default function LiveMapPage() {
     realtimeStatus,
     fetchRecords,
   } = useRealtimeEnCamino();
+
+  // GPS trail for live route history polylines
+  const { trails } = useLocationTrail(records);
 
   const [tick, setTick] = useState(0);
   const geocodeCache = useRef<Record<string, GeocodeResult | null>>({});
@@ -698,6 +702,44 @@ export default function LiveMapPage() {
                   );
                 })}
 
+                {/* GPS trail polylines — real route history */}
+                {filteredRecords.filter(r => r.sharing_location && trails[r.id] && trails[r.id].length > 1).map((rec) => {
+                  const trailPositions = trails[rec.id].map(p => [p.lat, p.lng] as [number, number]);
+                  return (
+                    <Polyline
+                      key={`trail-${rec.id}`}
+                      positions={trailPositions}
+                      pathOptions={{
+                        color: '#10b981',
+                        weight: 4,
+                        opacity: 0.85,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                      }}
+                    >
+                      <Popup>
+                        <div className="text-sm min-w-[180px]">
+                          <div className="flex items-center gap-1.5 font-semibold mb-1.5 text-emerald-600">
+                            <Navigation className="h-3.5 w-3.5" /> Recorrido real
+                          </div>
+                          {rec.external_reservation_id && (
+                            <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
+                          )}
+                          <p className="text-xs text-gray-600">
+                            {trails[rec.id].length} posiciones registradas
+                          </p>
+                          {trails[rec.id].length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Desde {format(new Date(trails[rec.id][0].time), 'HH:mm:ss')}
+                              {trails[rec.id].length > 1 && ` hasta ${format(new Date(trails[rec.id][trails[rec.id].length - 1].time), 'HH:mm:ss')}`}
+                            </p>
+                          )}
+                        </div>
+                      </Popup>
+                    </Polyline>
+                  );
+                })}
+
                 {/* Live location car markers */}
                 {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => (
                   <Marker
@@ -905,11 +947,17 @@ export default function LiveMapPage() {
 
                           {/* Live location badge */}
                           {rec.sharing_location && rec.current_lat != null && (
-                            <div className="mt-1.5 flex items-center gap-1.5">
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                               <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40 font-semibold">
                                 <Radio className="h-2.5 w-2.5 animate-pulse" />
                                 En vivo
                               </span>
+                              {trails[rec.id] && trails[rec.id].length > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40 font-medium">
+                                  <Navigation className="h-2.5 w-2.5" />
+                                  {trails[rec.id].length} pts
+                                </span>
+                              )}
                               {rec.location_updated_at && (
                                 <span className="text-[9px] text-muted-foreground">
                                   {formatRelativeTime(new Date(rec.location_updated_at))}

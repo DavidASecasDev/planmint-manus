@@ -120,7 +120,7 @@ import {
 } from "../reinforcementEndpoint";
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
-import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory } from "../enCaminoTrackingEndpoint";
+import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -269,6 +269,7 @@ async function startServer() {
   app.post("/api/en-camino-tracking/location", handleEnCaminoLocation);
   app.post("/api/en-camino-tracking/location-stop", handleEnCaminoLocationStop);
   app.post("/api/en-camino-tracking/location-history", handleEnCaminoLocationHistory);
+  app.post("/api/en-camino-tracking/stats", handleEnCaminoStats);
   app.get("/api/en-camino-tracking", handleEnCaminoList);
   app.delete("/api/en-camino-tracking", handleEnCaminoDelete);
 
