@@ -86,8 +86,15 @@ class SupabaseQueryBuilder<T = any> implements PromiseLike<QueryResult<T>> {
   // ─── Operation methods ───────────────────────────────────────────────
 
   select(columns?: string, options?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean }): this {
-    this.desc.operation = 'select';
-    if (columns) this.desc.select = columns;
+    // Only set operation to 'select' if we're not chaining after insert/update/upsert.
+    // In Supabase, .select() after .insert()/.update()/.upsert() means "return these columns"
+    // but does NOT change the operation type.
+    const isWriteOp = ['insert', 'update', 'upsert'].includes(this.desc.operation);
+    if (!isWriteOp) {
+      this.desc.operation = 'select';
+    }
+    // Always store the select columns (defaults to '*' when called without args)
+    this.desc.select = columns || '*';
     if (options?.count) this.desc.count = options.count;
     if (options?.head) this.desc.head = options.head;
     return this;

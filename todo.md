@@ -703,3 +703,4 @@
 - [x] TRANSFER MODULE REDESIGN: Tests y verificación completa — 30 tests transferPricing (incluyendo nuevas funciones), 0 errores TypeScript
 - [x] Bug: Gestión de Brokers muestra "No hay brokers registrados" — Fix: doble envoltorio en apiInvoke, result.data contenía { data: { brokers }, error } en vez de { brokers } directamente
 - [x] Verificar wizard de nueva solicitud en portal de brokers funciona correctamente — 4 pasos verificados visualmente en dev server
+- [x] Bug: Error "Cannot coerce the result to a single JSON object" al guardar movimientos (paso Confirmar) — Fix: supabaseQuery.select() sobrescribía operation de 'insert' a 'select' cuando se encadenaba .insert().select().single()
