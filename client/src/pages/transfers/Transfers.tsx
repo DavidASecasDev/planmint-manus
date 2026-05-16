@@ -32,9 +32,10 @@ export default function Transfers() {
     pricingMode: 'all',
     dateFrom: '',
     dateTo: '',
+    showArchived: false,
   });
 
-  const { requests, isLoading, deleteRequest } = useTransferRequests(filters);
+  const { requests, isLoading, deleteRequest, archiveRequest, unarchiveRequest } = useTransferRequests(filters);
   const { brokers: allBrokerRecords } = useTransferBrokers();
 
   // Get broker names from the full transfer_brokers table (not just from existing requests)
@@ -195,7 +196,10 @@ export default function Transfers() {
                     request={request}
                     onClick={() => navigate(`/transfers/${request.id}`)}
                     onDelete={deleteRequest}
+                    onArchive={archiveRequest}
+                    onUnarchive={unarchiveRequest}
                     canDelete={canDelete}
+                    canManage={canManage}
                   />
                 ))}
               </div>

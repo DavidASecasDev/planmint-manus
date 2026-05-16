@@ -711,3 +711,7 @@
 - [x] Campo "Servicio asociado" en wizard paso 1 cuando se selecciona Cliente Isle Of Mallorca (Villa, Charter, Yate, Otro)
 - [x] Panel de administración de tarifas en sección Transfers (CRUD: zona, vehículo, precio base, precio con comisión)
 - [x] Conectar wizard con tarifas dinámicas de la BD en vez de precios hardcodeados — 41 tests pasando
+- [x] Añadir columna archived_at a transfer_requests en Supabase
+- [x] Botón "Archivar" en transfers cancelados (en listado y detalle)
+- [x] Filtro para mostrar/ocultar transfers archivados en el listado principal
+- [x] Excluir transfers archivados del listado por defecto — 1184 tests pasando

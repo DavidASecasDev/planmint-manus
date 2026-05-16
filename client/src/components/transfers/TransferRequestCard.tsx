@@ -15,7 +15,7 @@ import {
 import { TransferStatusBadge } from './TransferStatusBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert, Clock, Briefcase } from 'lucide-react';
+import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert, Clock, Briefcase, Archive, ArchiveRestore } from 'lucide-react';
 import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
 import { getMarginPercent, getMarginAlertLevel } from '@/utils/marginAlerts';
 import { useMarginThresholds } from '@/hooks/useMarginThresholds';
@@ -25,10 +25,13 @@ interface TransferRequestCardProps {
   request: TransferRequest;
   onClick: () => void;
   onDelete?: (id: string) => void;
+  onArchive?: (id: string) => void;
+  onUnarchive?: (id: string) => void;
   canDelete?: boolean;
+  canManage?: boolean;
 }
 
-export function TransferRequestCard({ request, onClick, onDelete, canDelete }: TransferRequestCardProps) {
+export function TransferRequestCard({ request, onClick, onDelete, onArchive, onUnarchive, canDelete, canManage }: TransferRequestCardProps) {
   const formattedDate = request.first_transfer_date
     ? format(new Date(request.first_transfer_date), "d MMM yyyy", { locale: es })
     : 'Sin fecha';
@@ -46,11 +49,14 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
   const marginPercent = getMarginPercent(providerCost, clientTotal);
   const marginLevel = providerCost > 0 ? getMarginAlertLevel(marginPercent, { danger: thresholds.danger, warning: thresholds.warning }) : 'ok';
 
+  const isArchived = !!request.archived_at;
+  const isCancelled = request.status === 'cancelado';
+
   return (
     <Card 
       className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors border ${
         marginLevel === 'danger' ? 'border-red-300/50' : ''
-      }`}
+      } ${isArchived ? 'opacity-60' : ''}`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-4">
@@ -89,6 +95,12 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
                 {SERVICE_TYPE_META[request.service_type]?.label || request.service_type}
               </Badge>
             )}
+            {isArchived && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-gray-300 text-gray-500 bg-gray-50">
+                <Archive className="h-3 w-3 mr-0.5" />
+                Archivado
+              </Badge>
+            )}
           </div>
           
           <h3 className="font-semibold text-lg truncate">
@@ -114,6 +126,35 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
         </div>
         
         <div className="flex items-start gap-2 shrink-0">
+          {/* Archive/Unarchive button for cancelled requests */}
+          {canManage && isCancelled && !isArchived && onArchive && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-amber-600"
+              title="Archivar"
+              onClick={(e) => {
+                e.stopPropagation();
+                onArchive(request.id);
+              }}
+            >
+              <Archive className="h-4 w-4" />
+            </Button>
+          )}
+          {canManage && isArchived && onUnarchive && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+              title="Desarchivar"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnarchive(request.id);
+              }}
+            >
+              <ArchiveRestore className="h-4 w-4" />
+            </Button>
+          )}
           {canDelete && onDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>

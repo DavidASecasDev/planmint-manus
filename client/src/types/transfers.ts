@@ -34,6 +34,7 @@ export interface TransferRequest {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  archived_at: string | null;
   // Pricing mode
   pricing_mode: PricingMode;
   // Financial fields
@@ -191,6 +192,7 @@ export interface TransferFilters {
   pricingMode: PricingMode | 'all';
   dateFrom: string;
   dateTo: string;
+  showArchived: boolean;
 }
 
 // Status metadata for UI

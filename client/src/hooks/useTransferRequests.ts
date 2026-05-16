@@ -35,6 +35,11 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
         query = query.or(`broker_name.ilike.%${filters.search}%,client_name.ilike.%${filters.search}%,request_number.ilike.%${filters.search}%`);
       }
 
+      // Filter archived: by default hide archived, show only when toggle is on
+      if (!filters?.showArchived) {
+        query = query.is('archived_at', null);
+      }
+
       const { data, error } = await query;
 
       if (error) {
@@ -153,6 +158,42 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
     },
   });
 
+  const archiveRequest = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabaseQuery
+        .from('transfer_requests')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      toast.success('Solicitud archivada');
+    },
+    onError: (error: Error) => {
+      toast.error(`Error al archivar: ${error.message}`);
+    },
+  });
+
+  const unarchiveRequest = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabaseQuery
+        .from('transfer_requests')
+        .update({ archived_at: null })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      toast.success('Solicitud desarchivada');
+    },
+    onError: (error: Error) => {
+      toast.error(`Error al desarchivar: ${error.message}`);
+    },
+  });
+
   const deleteRequest = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabaseQuery
@@ -179,6 +220,8 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
     createRequest: createRequest.mutateAsync,
     updateRequest: updateRequest.mutate,
     updateStatus: updateStatus.mutate,
+    archiveRequest: archiveRequest.mutate,
+    unarchiveRequest: unarchiveRequest.mutate,
     deleteRequest: deleteRequest.mutate,
     isCreating: createRequest.isPending,
     isUpdating: updateRequest.isPending,

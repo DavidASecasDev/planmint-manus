@@ -1,7 +1,9 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X, MapPin, FileText, CalendarDays } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Search, X, MapPin, FileText, CalendarDays, Archive } from 'lucide-react';
 import type { TransferRequestStatus, TransferFilters, PricingMode } from '@/types/transfers';
 
 interface TransferFiltersProps {
@@ -32,7 +34,8 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
     || (filters.status && filters.status !== 'all') 
     || (filters.pricingMode && filters.pricingMode !== 'all')
     || filters.dateFrom
-    || filters.dateTo;
+    || filters.dateTo
+    || filters.showArchived;
 
   const handleClear = () => {
     onFiltersChange({
@@ -42,6 +45,7 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
       pricingMode: 'all',
       dateFrom: '',
       dateTo: '',
+      showArchived: false,
     });
   };
 
@@ -134,6 +138,18 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
           className="w-[160px]"
           placeholder="Hasta"
         />
+
+        <div className="flex items-center gap-2 ml-auto">
+          <Archive className="h-4 w-4 text-muted-foreground" />
+          <Label htmlFor="show-archived" className="text-sm text-muted-foreground cursor-pointer whitespace-nowrap">
+            Mostrar archivados
+          </Label>
+          <Switch
+            id="show-archived"
+            checked={filters.showArchived}
+            onCheckedChange={(checked) => onFiltersChange({ ...filters, showArchived: checked })}
+          />
+        </div>
 
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={handleClear} className="gap-1.5">
