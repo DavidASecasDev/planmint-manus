@@ -27,6 +27,7 @@ export interface TransferRequest {
   client_type: ClientType;
   service_type: ServiceType;
   client_reference: string | null;
+  associated_service: string | null;
   is_external_provider: boolean;
   external_provider_name: string | null;
   notes: string | null;

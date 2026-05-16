@@ -140,6 +140,7 @@ const FleetEquipment = lazy(() => import("./pages/fleet/FleetEquipment"));
 const Transfers = lazy(() => import("./pages/transfers/Transfers"));
 const TransferDetail = lazy(() => import("./pages/transfers/TransferDetail"));
 const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement"));
+const TransferPricing = lazy(() => import("./pages/transfers/TransferPricing"));
 
 // Service Requests (cross-org)
 const ServiceRequests = lazy(() => import("./pages/ServiceRequests"));
@@ -978,6 +979,16 @@ function QueryRecovery() {
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="transfers" moduleName="Transfers">
                     <BrokerManagement />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/transfers/tarifas" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
+                    <TransferPricing />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

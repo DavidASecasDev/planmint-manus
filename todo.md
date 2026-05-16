@@ -706,3 +706,8 @@
 - [x] Bug: Error "Cannot coerce the result to a single JSON object" al guardar movimientos (paso Confirmar) — Fix: supabaseQuery.select() sobrescribía operation de 'insert' a 'select' cuando se encadenaba .insert().select().single()
 - [x] Mejorar descripciones tipo de cliente en wizard: "Cliente directo" = no tiene nada contratado; "Cliente Isle Of Mallorca" = tiene villa/charter
 - [x] Bloquear opción "Pack por horas" para clientes Isle Of Mallorca (solo punto a punto permitido)
+- [x] Crear tabla transfer_pricing en Supabase para tarifas configurables por zona/vehículo/tipo_cliente
+- [x] Añadir columna associated_service a transfer_requests para trazabilidad del servicio contratado
+- [x] Campo "Servicio asociado" en wizard paso 1 cuando se selecciona Cliente Isle Of Mallorca (Villa, Charter, Yate, Otro)
+- [x] Panel de administración de tarifas en sección Transfers (CRUD: zona, vehículo, precio base, precio con comisión)
+- [x] Conectar wizard con tarifas dinámicas de la BD en vez de precios hardcodeados — 41 tests pasando

@@ -8,11 +8,15 @@ import {
   getEstimatedPointToPoint,
   getEstimatedPack,
   getPackBasePrice,
+  getEstimatedPointToPointDynamic,
+  getEstimatedPackDynamic,
+  lookupDynamicPrice,
   ZONE_PRICES,
   PACK_PRICES,
   TRANSFER_ZONES,
   VEHICLE_TYPES,
   PACK_DURATIONS,
+  type DynamicPricingRow,
 } from './transferPricing';
 
 describe('getBasePrice', () => {
@@ -175,6 +179,106 @@ describe('PACK_DURATIONS', () => {
     expect(keys).toContain('4h');
     expect(keys).toContain('8h');
     expect(keys).toContain('12h');
+  });
+});
+
+// ── Dynamic pricing tests ──────────────────────────────────────────
+
+const mockPricingRows: DynamicPricingRow[] = [
+  {
+    id: '1',
+    zone_key: 'palma',
+    zone_label: 'Palma',
+    vehicle_type: 'v_class',
+    base_price: 100,
+    commission_price: 150,
+    service_type: 'point_to_point',
+    pack_duration: null,
+    is_active: true,
+  },
+  {
+    id: '2',
+    zone_key: 'palma',
+    zone_label: 'Palma',
+    vehicle_type: 'v_class',
+    base_price: 400,
+    commission_price: 600,
+    service_type: 'pack',
+    pack_duration: '4h',
+    is_active: true,
+  },
+  {
+    id: '3',
+    zone_key: 'alcudia',
+    zone_label: 'Alcudia',
+    vehicle_type: 'sprinter',
+    base_price: 350,
+    commission_price: 525,
+    service_type: 'point_to_point',
+    pack_duration: null,
+    is_active: false, // inactive
+  },
+];
+
+describe('lookupDynamicPrice', () => {
+  it('finds active pricing row for point_to_point', () => {
+    const result = lookupDynamicPrice(mockPricingRows, 'palma', 'v_class', 'point_to_point');
+    expect(result).toEqual({ base: 100, commission: 150 });
+  });
+
+  it('finds active pricing row for pack with duration', () => {
+    const result = lookupDynamicPrice(mockPricingRows, 'palma', 'v_class', 'pack', '4h');
+    expect(result).toEqual({ base: 400, commission: 600 });
+  });
+
+  it('returns null for inactive rows', () => {
+    const result = lookupDynamicPrice(mockPricingRows, 'alcudia', 'sprinter', 'point_to_point');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when no match found', () => {
+    const result = lookupDynamicPrice(mockPricingRows, 'soller', 'v_class', 'point_to_point');
+    expect(result).toBeNull();
+  });
+});
+
+describe('getEstimatedPointToPointDynamic', () => {
+  it('uses dynamic price when available (external_client gets commission)', () => {
+    const price = getEstimatedPointToPointDynamic(mockPricingRows, 'palma', 'v_class', 'external_client');
+    expect(price).toBe(150); // commission_price from DB
+  });
+
+  it('uses dynamic price when available (broker_client gets base)', () => {
+    const price = getEstimatedPointToPointDynamic(mockPricingRows, 'palma', 'v_class', 'broker_client');
+    expect(price).toBe(100); // base_price from DB
+  });
+
+  it('falls back to hardcoded when no dynamic match', () => {
+    const price = getEstimatedPointToPointDynamic(mockPricingRows, 'soller', 'v_class', 'broker_client');
+    // Should fall back to hardcoded ZONE_PRICES
+    expect(price).toBe(ZONE_PRICES['soller']['v_class']);
+  });
+
+  it('falls back to hardcoded for inactive rows', () => {
+    const price = getEstimatedPointToPointDynamic(mockPricingRows, 'alcudia', 'sprinter', 'broker_client');
+    expect(price).toBe(ZONE_PRICES['alcudia']['sprinter']);
+  });
+});
+
+describe('getEstimatedPackDynamic', () => {
+  it('uses dynamic price for pack (external_client)', () => {
+    const price = getEstimatedPackDynamic(mockPricingRows, 'palma', 'v_class', '4h', 'external_client');
+    expect(price).toBe(600); // commission_price from DB
+  });
+
+  it('uses dynamic price for pack (broker_client)', () => {
+    const price = getEstimatedPackDynamic(mockPricingRows, 'palma', 'v_class', '4h', 'broker_client');
+    expect(price).toBe(400); // base_price from DB
+  });
+
+  it('falls back to hardcoded when no dynamic match', () => {
+    const price = getEstimatedPackDynamic(mockPricingRows, 'soller', 'v_class', '4h', 'broker_client');
+    expect(price).toBe(PACK_PRICES['v_class']['4h']);
   });
 });
 

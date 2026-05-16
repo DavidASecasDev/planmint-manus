@@ -5,7 +5,7 @@
  * Step 3: Transfer details (items)
  * Step 4: Review & submit
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBrokerRequests, type CreateBrokerRequestData } from '@/hooks/useBrokerRequests';
 import { useBrokerTheme } from '@/contexts/BrokerThemeContext';
@@ -24,11 +24,13 @@ import {
   VEHICLE_TYPES,
   TRANSFER_ZONES,
   PACK_DURATIONS,
-  getEstimatedPointToPoint,
-  getEstimatedPack,
+  getEstimatedPointToPointDynamic,
+  getEstimatedPackDynamic,
   getVehicleInfo,
   getZoneLabel,
+  type DynamicPricingRow,
 } from '@/lib/transferPricing';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import type { ClientType, ServiceType, PackDuration } from '@/types/transfers';
 import {
   ArrowLeft,
@@ -61,6 +63,7 @@ export default function BrokerNewRequest() {
 
   // Step 1: Client type
   const [clientType, setClientType] = useState<ClientType | null>(null);
+  const [associatedService, setAssociatedService] = useState('');
 
   // Step 2: Service type + vehicle
   const [serviceType, setServiceType] = useState<ServiceType | null>(null);
@@ -75,22 +78,34 @@ export default function BrokerNewRequest() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<TransferItemFormData[]>([createEmptyItem()]);
 
-  // Estimated price calculation
+  // Load dynamic pricing from DB
+  const [pricingRows, setPricingRows] = useState<DynamicPricingRow[]>([]);
+  useEffect(() => {
+    supabaseQuery
+      .from('transfer_pricing')
+      .select('*')
+      .eq('is_active', true)
+      .then(({ data }) => {
+        if (data) setPricingRows(data as DynamicPricingRow[]);
+      });
+  }, []);
+
+  // Estimated price calculation (dynamic first, then fallback to hardcoded)
   const estimatedPrice = useMemo(() => {
     if (!clientType || !serviceType) return null;
     if (serviceType === 'point_to_point' && selectedZone) {
-      return getEstimatedPointToPoint(selectedZone, vehicleType, clientType);
+      return getEstimatedPointToPointDynamic(pricingRows, selectedZone, vehicleType, clientType);
     }
     if (serviceType === 'pack') {
-      return getEstimatedPack(vehicleType, packDuration, clientType);
+      return getEstimatedPackDynamic(pricingRows, selectedZone, vehicleType, packDuration, clientType);
     }
     return null;
-  }, [clientType, serviceType, vehicleType, selectedZone, packDuration]);
+  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows]);
 
   // Navigation helpers
   const canGoNext = () => {
     switch (step) {
-      case 1: return clientType !== null;
+      case 1: return clientType !== null && (clientType !== 'broker_client' || associatedService !== '');
       case 2: return serviceType !== null;
       case 3: return clientName.trim().length > 0 && items.length > 0;
       case 4: return true;
@@ -137,6 +152,7 @@ export default function BrokerNewRequest() {
       client_type: clientType,
       service_type: serviceType,
       client_reference: clientReference.trim() || undefined,
+      associated_service: clientType === 'broker_client' ? associatedService : undefined,
       notes: notes.trim() || undefined,
       items: serializeItems(items).map(item => ({
         ...item,
@@ -281,6 +297,39 @@ export default function BrokerNewRequest() {
               </p>
             </button>
           </div>
+
+          {/* Associated service (only for Isle Of Mallorca clients) */}
+          {clientType === 'broker_client' && (
+            <div className="mt-6 rounded-lg p-5 bg-card border border-blue-500/20 space-y-3">
+              <h3
+                className="text-blue-600"
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '11px',
+                  letterSpacing: '1.5px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Servicio asociado
+              </h3>
+              <p className="text-xs text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                ¿Qué servicio tiene contratado este cliente con Isle Of Mallorca?
+              </p>
+              <Select value={associatedService} onValueChange={setAssociatedService}>
+                <SelectTrigger className="bg-background border-input text-foreground">
+                  <SelectValue placeholder="Seleccionar servicio..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="villa">Villa</SelectItem>
+                  <SelectItem value="charter">Charter</SelectItem>
+                  <SelectItem value="yate">Yate</SelectItem>
+                  <SelectItem value="experiencia">Experiencia</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 
@@ -644,6 +693,12 @@ export default function BrokerNewRequest() {
                   <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Cliente</span>
                   <span className="text-foreground font-medium">{clientName}</span>
                 </div>
+                {associatedService && clientType === 'broker_client' && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Servicio asociado</span>
+                    <span className="text-foreground font-medium capitalize">{associatedService}</span>
+                  </div>
+                )}
                 {clientReference && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Referencia</span>

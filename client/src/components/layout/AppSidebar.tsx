@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -60,6 +60,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/transfers': 'transfers',
   '/transfers/new': 'transfers',
   '/transfers/brokers': 'transfers',
+  '/transfers/tarifas': 'transfers',
   '/transfers/forms': 'transfers',
   '/movements': 'movements',
   '/fleet': 'fleet',
@@ -84,6 +85,7 @@ const transfersSubItems = [
   { title: 'Solicitudes', url: '/transfers', icon: Ship },
   { title: 'Nueva Solicitud', url: '/transfers/new', icon: Plus, permission: 'transfers.create' as const },
   { title: 'Gestión Brokers', url: '/transfers/brokers', icon: Users, permission: 'transfers.manage_brokers' as const },
+  { title: 'Tarifas', url: '/transfers/tarifas', icon: DollarSign, permission: 'transfers.manage' as const },
   { title: 'Formularios', url: '/transfers/forms', icon: FileText },
 ];
 

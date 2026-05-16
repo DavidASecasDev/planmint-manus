@@ -188,3 +188,76 @@ export function getEstimatedPack(
 export function getPackBasePrice(vehicleType: string, packDuration: string): number | null {
   return PACK_PRICES[vehicleType]?.[packDuration] ?? null;
 }
+
+// ── Dynamic pricing from DB ────────────────────────────────────────
+
+export interface DynamicPricingRow {
+  id: string;
+  zone_key: string;
+  zone_label: string;
+  vehicle_type: string | null;
+  base_price: number;
+  commission_price: number;
+  service_type: string;
+  pack_duration: string | null;
+  is_active: boolean;
+}
+
+/**
+ * Look up a dynamic price from the pricing rows loaded from the DB.
+ * Returns { base, commission } or null if not found.
+ */
+export function lookupDynamicPrice(
+  pricingRows: DynamicPricingRow[],
+  zone: string,
+  vehicleType: string,
+  serviceType: 'point_to_point' | 'pack',
+  packDuration?: string,
+): { base: number; commission: number } | null {
+  const match = pricingRows.find(row =>
+    row.is_active &&
+    row.zone_key === zone &&
+    row.vehicle_type === vehicleType &&
+    row.service_type === serviceType &&
+    (serviceType === 'pack' ? row.pack_duration === packDuration : true)
+  );
+  if (!match) return null;
+  return { base: match.base_price, commission: match.commission_price };
+}
+
+/**
+ * Get estimated price using dynamic pricing first, then fallback to hardcoded.
+ * For point_to_point transfers.
+ */
+export function getEstimatedPointToPointDynamic(
+  pricingRows: DynamicPricingRow[],
+  zone: string,
+  vehicleType: string,
+  clientType: 'external_client' | 'broker_client',
+): number | null {
+  const dynamic = lookupDynamicPrice(pricingRows, zone, vehicleType, 'point_to_point');
+  if (dynamic) {
+    return clientType === 'external_client' ? dynamic.commission : dynamic.base;
+  }
+  // Fallback to hardcoded
+  return getEstimatedPointToPoint(zone, vehicleType, clientType);
+}
+
+/**
+ * Get estimated price using dynamic pricing first, then fallback to hardcoded.
+ * For pack transfers.
+ */
+export function getEstimatedPackDynamic(
+  pricingRows: DynamicPricingRow[],
+  zone: string,
+  vehicleType: string,
+  packDuration: string,
+  clientType: 'external_client' | 'broker_client',
+): number | null {
+  const dynamic = lookupDynamicPrice(pricingRows, zone, vehicleType, 'pack', packDuration);
+  if (dynamic) {
+    return clientType === 'external_client' ? dynamic.commission : dynamic.base;
+  }
+  // Fallback to hardcoded
+  return getEstimatedPack(vehicleType, packDuration, clientType);
+}

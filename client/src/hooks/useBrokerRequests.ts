@@ -37,6 +37,7 @@ export interface CreateBrokerRequestData {
   client_type?: string;
   service_type?: string;
   client_reference?: string;
+  associated_service?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
@@ -148,6 +149,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           client_type: data.client_type || 'external_client',
           service_type: data.service_type || 'point_to_point',
           client_reference: data.client_reference || null,
+          associated_service: data.associated_service || null,
           notes: data.notes || null,
           status: 'pendiente',
           is_external_provider: false,
