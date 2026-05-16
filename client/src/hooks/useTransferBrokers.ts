@@ -83,12 +83,15 @@ export function useTransferBrokers() {
   const { data: brokerData, isLoading } = useQuery({
     queryKey: ['transfer-brokers', organization?.id],
     queryFn: async () => {
-      const result = await apiInvoke<{ brokers: TransferBroker[]; allBrokers: TransferBroker[] }>('get-transfer-brokers');
+      const result = await apiInvoke<{ data: { brokers: TransferBroker[]; allBrokers: TransferBroker[] }; error: string | null }>('get-transfer-brokers');
       if (result.error) {
         console.error('[useTransferBrokers] Backend error:', result.error);
         throw new Error(result.error.message);
       }
-      return result.data;
+      // Server returns { data: { brokers, allBrokers }, error: null }
+      // apiInvoke wraps it again: result.data = { data: { brokers, allBrokers }, error: null }
+      const serverResponse = result.data;
+      return serverResponse?.data ?? { brokers: [], allBrokers: [] };
     },
     enabled: !!organization?.id,
   });

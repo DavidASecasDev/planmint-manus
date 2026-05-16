@@ -701,3 +701,5 @@
 - [x] TRANSFER MODULE REDESIGN: Flujo guiado paso a paso en portal de brokers (sin cálculos manuales) — Wizard 4 pasos: tipo cliente → tipo servicio/vehículo → detalles → resumen
 - [x] TRANSFER MODULE REDESIGN: Actualizar panel interno para el equipo con nueva lógica de precios — Badges de client_type, service_type y client_reference en TransferRequestCard y TransferDetail
 - [x] TRANSFER MODULE REDESIGN: Tests y verificación completa — 30 tests transferPricing (incluyendo nuevas funciones), 0 errores TypeScript
+- [x] Bug: Gestión de Brokers muestra "No hay brokers registrados" — Fix: doble envoltorio en apiInvoke, result.data contenía { data: { brokers }, error } en vez de { brokers } directamente
+- [x] Verificar wizard de nueva solicitud en portal de brokers funciona correctamente — 4 pasos verificados visualmente en dev server
