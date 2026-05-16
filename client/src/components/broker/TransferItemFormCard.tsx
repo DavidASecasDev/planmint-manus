@@ -94,6 +94,8 @@ interface TransferItemFormCardProps {
   onChange: (field: keyof TransferItemFormData, value: any) => void;
   onRemove: () => void;
   isDark: boolean;
+  /** Hide the vehicle type selector (when selected globally in the wizard) */
+  hideVehicleType?: boolean;
 }
 
 export function TransferItemFormCard({
@@ -103,6 +105,7 @@ export function TransferItemFormCard({
   onChange,
   onRemove,
   isDark,
+  hideVehicleType = false,
 }: TransferItemFormCardProps) {
   return (
     <div
@@ -136,7 +139,7 @@ export function TransferItemFormCard({
 
       <div className="p-4 space-y-4">
         {/* Date, Pax & Vehicle */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className={`grid gap-4 ${hideVehicleType ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
           <div>
             <Label className="flex items-center gap-1.5 text-foreground">
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -163,27 +166,29 @@ export function TransferItemFormCard({
               className="mt-1.5 bg-background border-input text-foreground"
             />
           </div>
-          <div>
-            <Label className="flex items-center gap-1.5 text-foreground">
-              <Car className="h-3.5 w-3.5 text-muted-foreground" />
-              Tipo de vehículo
-            </Label>
-            <Select
-              value={item.vehicle_type}
-              onValueChange={(value) => onChange('vehicle_type', value)}
-            >
-              <SelectTrigger className="mt-1.5 bg-background border-input text-foreground">
-                <SelectValue placeholder="Seleccionar vehículo" />
-              </SelectTrigger>
-              <SelectContent>
-                {VEHICLE_TYPES.map((vehicle) => (
-                  <SelectItem key={vehicle.key} value={vehicle.key}>
-                    {vehicle.label} ({vehicle.capacity} pax)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!hideVehicleType && (
+            <div>
+              <Label className="flex items-center gap-1.5 text-foreground">
+                <Car className="h-3.5 w-3.5 text-muted-foreground" />
+                Tipo de vehículo
+              </Label>
+              <Select
+                value={item.vehicle_type}
+                onValueChange={(value) => onChange('vehicle_type', value)}
+              >
+                <SelectTrigger className="mt-1.5 bg-background border-input text-foreground">
+                  <SelectValue placeholder="Seleccionar vehículo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VEHICLE_TYPES.map((vehicle) => (
+                    <SelectItem key={vehicle.key} value={vehicle.key}>
+                      {vehicle.label} ({vehicle.capacity} pax)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Pickup */}

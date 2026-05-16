@@ -15,7 +15,8 @@ import {
 import { TransferStatusBadge } from './TransferStatusBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert } from 'lucide-react';
+import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert, Clock, Briefcase } from 'lucide-react';
+import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
 import { getMarginPercent, getMarginAlertLevel } from '@/utils/marginAlerts';
 import { useMarginThresholds } from '@/hooks/useMarginThresholds';
 import type { TransferRequest } from '@/types/transfers';
@@ -74,6 +75,18 @@ export function TransferRequestCard({ request, onClick, onDelete, canDelete }: T
               <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-0.5">
                 <ShieldAlert className="h-3 w-3" />
                 {marginPercent}%
+              </Badge>
+            )}
+            {request.client_type && request.client_type !== 'external_client' && (
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${CLIENT_TYPE_META[request.client_type]?.color || ''}`}>
+                <Briefcase className="h-3 w-3 mr-0.5" />
+                {CLIENT_TYPE_META[request.client_type]?.label || request.client_type}
+              </Badge>
+            )}
+            {request.service_type && request.service_type === 'pack' && (
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${SERVICE_TYPE_META[request.service_type]?.color || ''}`}>
+                <Clock className="h-3 w-3 mr-0.5" />
+                {SERVICE_TYPE_META[request.service_type]?.label || request.service_type}
               </Badge>
             )}
           </div>

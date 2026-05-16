@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS client_type text DEFAULT 'external_client'; ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS client_reference text; ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS service_type text DEFAULT 'point_to_point'; ALTER TABLE transfer_items ADD COLUMN IF NOT EXISTS pack_duration text; ALTER TABLE transfer_items ADD COLUMN IF NOT EXISTS estimated_price numeric;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS client_type text DEFAULT 'external_client'; ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS client_reference text; ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS service_type text DEFAULT 'point_to_point'; ALTER TABLE transfer_items ADD COLUMN IF NOT EXISTS pack_duration text; ALTER TABLE transfer_items ADD COLUMN IF NOT EXISTS estimated_price numeric;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'ixfk4yejeeakh8kczkpztm.transfer_requests' doesn't exist"
+  ]
+}

@@ -8,6 +8,12 @@ export type TransferDocumentType = 'presupuesto' | 'factura';
 
 export type PricingMode = 'zone_tariff' | 'provider_quote';
 
+export type ClientType = 'external_client' | 'broker_client';
+
+export type ServiceType = 'point_to_point' | 'pack';
+
+export type PackDuration = '2h' | '4h' | '8h' | '12h';
+
 export type AIStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'error';
 
 export interface TransferRequest {
@@ -18,6 +24,9 @@ export interface TransferRequest {
   broker_name: string;
   client_name: string;
   status: TransferRequestStatus;
+  client_type: ClientType;
+  service_type: ServiceType;
+  client_reference: string | null;
   is_external_provider: boolean;
   external_provider_name: string | null;
   notes: string | null;
@@ -72,6 +81,9 @@ export interface TransferItem {
   driver_pending: boolean;
   notes: string | null;
   created_at: string;
+  // Pack & estimated pricing
+  pack_duration: PackDuration | null;
+  estimated_price: number | null;
   // Pricing fields
   zone: string | null;
   zone_address: string | null;
@@ -202,6 +214,16 @@ export interface TransferItemVehicle {
   position: number;
   created_at: string;
 }
+
+export const CLIENT_TYPE_META: Record<ClientType, { label: string; color: string }> = {
+  external_client: { label: 'Cliente directo', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  broker_client: { label: 'Cliente de broker', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+};
+
+export const SERVICE_TYPE_META: Record<ServiceType, { label: string; color: string }> = {
+  point_to_point: { label: 'Punto a punto', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  pack: { label: 'Pack por horas', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+};
 
 export const TRANSFER_ITEM_STATUS_META: Record<TransferItemStatus, { label: string; color: string }> = {
   pendiente: { label: 'Pendiente', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },

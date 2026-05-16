@@ -28,10 +28,15 @@ export interface BrokerRequestItemData {
   pax_count: number | null;
   vehicle_type?: string | null;
   notes?: string | null;
+  pack_duration?: string | null;
+  estimated_price?: number | null;
 }
 
 export interface CreateBrokerRequestData {
   client_name: string;
+  client_type?: string;
+  service_type?: string;
+  client_reference?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
@@ -39,6 +44,9 @@ export interface CreateBrokerRequestData {
 export interface UpdateBrokerRequestData {
   id: string;
   client_name: string;
+  client_type?: string;
+  service_type?: string;
+  client_reference?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
@@ -137,6 +145,9 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           broker_id: broker.id,
           broker_name: broker.name,
           client_name: data.client_name,
+          client_type: data.client_type || 'external_client',
+          service_type: data.service_type || 'point_to_point',
+          client_reference: data.client_reference || null,
           notes: data.notes || null,
           status: 'pendiente',
           is_external_provider: false,
@@ -172,6 +183,8 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           vehicle_type: item.vehicle_type || null,
           notes: item.notes || null,
           driver_pending: true,
+          pack_duration: item.pack_duration || null,
+          estimated_price: item.estimated_price ?? null,
         }));
 
         const { error: itemsError } = await supabaseQuery

@@ -694,3 +694,10 @@
 - [x] Migrar 84 hooks de Supabase directo a supabaseQuery proxy — 83 migrados a proxy, 21 mantienen import supabase para realtime/storage/auth. TypeScript: 0 errores. Tests: 1148/1148 pass
 - [x] Fix Bug: /api/supabase-query devuelve 500 en producción — CAUSA: SUPABASE_SERVICE_ROLE_KEY inyectada por Manus era anon key, no service_role. FIX: configurada la key correcta del proyecto exayzwdudssyegxjiyrk
 - [x] Fix Bug: Proxy supabase-query aplica filtro organization_id a tablas sin esa columna — CAUSA: lista estática ORG_SCOPED_TABLES incluía tablas incorrectas. FIX: reemplazada por introspección dinámica via RPC get_tables_with_column + fallback verificado de 42 tablas
+- [x] TRANSFER MODULE REDESIGN: Auditar estado actual del portal de brokers y flujo de solicitudes
+- [x] TRANSFER MODULE REDESIGN: Implementar pregunta inicial "¿El cliente es cliente nuestro?" como primer paso del flujo — Wizard paso 1 con selección de client_type (external_client / broker_client)
+- [x] TRANSFER MODULE REDESIGN: Configurar precios LimoMallorca base y lógica de margen 50% automático para no-clientes — getEstimatedPointToPoint y getEstimatedPack con pricing diferenciado por client_type
+- [x] TRANSFER MODULE REDESIGN: Ocultar el margen/comisión en factura y documentación (solo mostrar precio final) — Broker solo ve precio estimado final, sin desglose de comisión
+- [x] TRANSFER MODULE REDESIGN: Flujo guiado paso a paso en portal de brokers (sin cálculos manuales) — Wizard 4 pasos: tipo cliente → tipo servicio/vehículo → detalles → resumen
+- [x] TRANSFER MODULE REDESIGN: Actualizar panel interno para el equipo con nueva lógica de precios — Badges de client_type, service_type y client_reference en TransferRequestCard y TransferDetail
+- [x] TRANSFER MODULE REDESIGN: Tests y verificación completa — 30 tests transferPricing (incluyendo nuevas funciones), 0 errores TypeScript

@@ -5,9 +5,14 @@ import {
   getCommissionAmount,
   getZoneLabel,
   getVehicleInfo,
+  getEstimatedPointToPoint,
+  getEstimatedPack,
+  getPackBasePrice,
   ZONE_PRICES,
+  PACK_PRICES,
   TRANSFER_ZONES,
   VEHICLE_TYPES,
+  PACK_DURATIONS,
 } from './transferPricing';
 
 describe('getBasePrice', () => {
@@ -85,6 +90,91 @@ describe('getVehicleInfo', () => {
 
   it('returns null for unknown vehicle type', () => {
     expect(getVehicleInfo('unknown')).toBeNull();
+  });
+});
+
+describe('getEstimatedPointToPoint', () => {
+  it('returns base price * 1.5 for external_client', () => {
+    const base = getBasePrice('palma', 'v_class');
+    expect(base).not.toBeNull();
+    const estimated = getEstimatedPointToPoint('palma', 'v_class', 'external_client');
+    expect(estimated).toBe(calculatePriceWithCommission(base!));
+  });
+
+  it('returns base price only for broker_client', () => {
+    const base = getBasePrice('palma', 'v_class');
+    expect(base).not.toBeNull();
+    const estimated = getEstimatedPointToPoint('palma', 'v_class', 'broker_client');
+    expect(estimated).toBe(base);
+  });
+
+  it('returns null for unknown zone', () => {
+    expect(getEstimatedPointToPoint('unknown', 'v_class', 'external_client')).toBeNull();
+  });
+
+  it('returns null for unknown vehicle', () => {
+    expect(getEstimatedPointToPoint('palma', 'unknown', 'broker_client')).toBeNull();
+  });
+
+  it('external_client price is always higher than broker_client', () => {
+    for (const zone of TRANSFER_ZONES) {
+      for (const vehicle of VEHICLE_TYPES) {
+        const ext = getEstimatedPointToPoint(zone.key, vehicle.key, 'external_client');
+        const brk = getEstimatedPointToPoint(zone.key, vehicle.key, 'broker_client');
+        if (ext !== null && brk !== null) {
+          expect(ext).toBeGreaterThan(brk);
+        }
+      }
+    }
+  });
+});
+
+describe('getEstimatedPack', () => {
+  it('returns pack price * 1.5 for external_client', () => {
+    const base = getPackBasePrice('v_class', '4h');
+    expect(base).not.toBeNull();
+    const estimated = getEstimatedPack('v_class', '4h', 'external_client');
+    expect(estimated).toBe(calculatePriceWithCommission(base!));
+  });
+
+  it('returns pack base price for broker_client', () => {
+    const base = getPackBasePrice('v_class', '4h');
+    expect(base).not.toBeNull();
+    const estimated = getEstimatedPack('v_class', '4h', 'broker_client');
+    expect(estimated).toBe(base);
+  });
+
+  it('returns null for unknown vehicle', () => {
+    expect(getEstimatedPack('unknown', '4h', 'external_client')).toBeNull();
+  });
+
+  it('returns null for unknown duration', () => {
+    expect(getEstimatedPack('v_class', '99h', 'broker_client')).toBeNull();
+  });
+});
+
+describe('getPackBasePrice', () => {
+  it('returns correct pack price for known vehicle and duration', () => {
+    const price = getPackBasePrice('v_class', '4h');
+    expect(price).toBeGreaterThan(0);
+  });
+
+  it('returns null for unknown vehicle', () => {
+    expect(getPackBasePrice('unknown', '4h')).toBeNull();
+  });
+
+  it('returns null for unknown duration', () => {
+    expect(getPackBasePrice('v_class', '99h')).toBeNull();
+  });
+});
+
+describe('PACK_DURATIONS', () => {
+  it('has expected duration options', () => {
+    const keys = PACK_DURATIONS.map(d => d.key);
+    expect(keys).toContain('2h');
+    expect(keys).toContain('4h');
+    expect(keys).toContain('8h');
+    expect(keys).toContain('12h');
   });
 });
 

@@ -31,6 +31,7 @@ import { ProviderSelect } from '@/components/transfers/ProviderSelect';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { toast } from 'sonner';
 import type { TransferRequest, TransferRequestStatus, TransferItem, TransferDocumentType, PricingMode } from '@/types/transfers';
+import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calculator, FileText } from 'lucide-react';
 
@@ -334,8 +335,23 @@ export default function TransferDetail() {
                 {isNew ? 'Nueva Solicitud de Transfer' : existingRequest?.request_number}
               </h1>
               {!isNew && existingRequest && (
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <TransferStatusBadge status={existingRequest.status} />
+                  {existingRequest.client_type && CLIENT_TYPE_META[existingRequest.client_type] && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${CLIENT_TYPE_META[existingRequest.client_type].color}`}>
+                      {CLIENT_TYPE_META[existingRequest.client_type].label}
+                    </span>
+                  )}
+                  {existingRequest.service_type && SERVICE_TYPE_META[existingRequest.service_type] && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${SERVICE_TYPE_META[existingRequest.service_type].color}`}>
+                      {SERVICE_TYPE_META[existingRequest.service_type].label}
+                    </span>
+                  )}
+                  {existingRequest.client_reference && (
+                    <span className="text-xs text-muted-foreground">
+                      Ref: {existingRequest.client_reference}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

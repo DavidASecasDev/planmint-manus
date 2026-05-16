@@ -106,6 +106,14 @@ export const EXTRA_PRICES: Record<string, {
 // Commission rate (50%)
 export const COMMISSION_RATE = 0.5;
 
+// Pack duration options for UI
+export const PACK_DURATIONS = [
+  { key: '2h', label: '2 horas' },
+  { key: '4h', label: '4 horas' },
+  { key: '8h', label: '8 horas' },
+  { key: '12h', label: '12 horas' },
+] as const;
+
 /**
  * Get the base price for a zone and vehicle type
  */
@@ -140,4 +148,43 @@ export function getZoneLabel(key: string): string {
 export function getVehicleInfo(key: string): { label: string; capacity: number } | null {
   const vehicle = VEHICLE_TYPES.find(v => v.key === key);
   return vehicle ? { label: vehicle.label, capacity: vehicle.capacity } : null;
+}
+
+// ── Client-facing pricing (with commission) ────────────────────────
+
+/**
+ * Get the estimated price for a point-to-point transfer.
+ * - external_client: base price + commission (×1.5)
+ * - broker_client: base price only (B2B tariff)
+ */
+export function getEstimatedPointToPoint(
+  zone: string,
+  vehicleType: string,
+  clientType: 'external_client' | 'broker_client',
+): number | null {
+  const base = getBasePrice(zone, vehicleType);
+  if (base === null) return null;
+  return clientType === 'external_client' ? calculatePriceWithCommission(base) : base;
+}
+
+/**
+ * Get the estimated price for a pack (by hours).
+ * - external_client: pack price + commission (×1.5)
+ * - broker_client: pack price only (B2B tariff)
+ */
+export function getEstimatedPack(
+  vehicleType: string,
+  packDuration: string,
+  clientType: 'external_client' | 'broker_client',
+): number | null {
+  const base = PACK_PRICES[vehicleType]?.[packDuration] ?? null;
+  if (base === null) return null;
+  return clientType === 'external_client' ? calculatePriceWithCommission(base) : base;
+}
+
+/**
+ * Get the pack base price (B2B) for a vehicle type and duration.
+ */
+export function getPackBasePrice(vehicleType: string, packDuration: string): number | null {
+  return PACK_PRICES[vehicleType]?.[packDuration] ?? null;
 }
