@@ -52,6 +52,16 @@ export interface UpdateBrokerRequestData {
   associated_service?: string;
   notes?: string;
   items: BrokerRequestItemData[];
+  /** Previous data for change tracking (optional) */
+  _previousData?: {
+    client_name?: string;
+    client_type?: string;
+    service_type?: string;
+    client_reference?: string;
+    associated_service?: string;
+    notes?: string;
+    items?: BrokerRequestItemData[];
+  };
 }
 
 export function useBrokerRequests(filters?: BrokerFilters) {
@@ -211,6 +221,23 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         note: 'Solicitud creada',
       });
 
+      // Log creation in change history
+      await supabaseQuery.from('transfer_change_history').insert({
+        request_id: requestResult.id,
+        organization_id: broker.organization_id,
+        change_type: 'created',
+        changed_by_type: 'broker',
+        changed_by_id: broker.id,
+        changed_by_name: broker.name,
+        changes: JSON.stringify([{
+          field: 'client_name',
+          label: 'Nombre del cliente',
+          old_value: null,
+          new_value: data.client_name,
+        }]),
+        summary: `Solicitud creada para ${data.client_name} con ${data.items.length} trayecto(s)`,
+      }).then(() => {}).catch(() => {});
+
       return requestResult;
     },
     onSuccess: () => {
@@ -289,11 +316,84 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         if (itemsError) throw itemsError;
       }
 
+      // Log field-level changes in change history
+      if (data._previousData) {
+        const changes: Array<{ field: string; label: string; old_value: unknown; new_value: unknown }> = [];
+        const fieldLabels: Record<string, string> = {
+          client_name: 'Nombre del cliente',
+          client_type: 'Tipo de cliente',
+          service_type: 'Tipo de servicio',
+          client_reference: 'Referencia del cliente',
+          associated_service: 'Servicio asociado',
+          notes: 'Notas',
+        };
+        const prev = data._previousData;
+        for (const [key, label] of Object.entries(fieldLabels)) {
+          const oldVal = (prev as Record<string, unknown>)[key] ?? null;
+          const newVal = (data as unknown as Record<string, unknown>)[key] ?? null;
+          const oldNorm = oldVal === '' ? null : oldVal;
+          const newNorm = newVal === '' ? null : newVal;
+          if (JSON.stringify(oldNorm) !== JSON.stringify(newNorm)) {
+            changes.push({ field: key, label, old_value: oldNorm, new_value: newNorm });
+          }
+        }
+
+        // Check item-level changes
+        const prevItems = prev.items || [];
+        const newItems = data.items;
+        if (prevItems.length !== newItems.length) {
+          changes.push({
+            field: 'items_count',
+            label: 'Nº de trayectos',
+            old_value: prevItems.length,
+            new_value: newItems.length,
+          });
+        } else {
+          const itemFieldLabels: Record<string, string> = {
+            transfer_date: 'Fecha', pickup_location: 'Recogida', pickup_time: 'Hora recogida',
+            dropoff_location: 'Destino', dropoff_time: 'Hora destino', pax_count: 'Pasajeros',
+            vehicle_type: 'Vehículo', flight_number: 'Nº vuelo/ferry',
+          };
+          for (let i = 0; i < newItems.length; i++) {
+            for (const [key, label] of Object.entries(itemFieldLabels)) {
+              const oldVal = (prevItems[i] as unknown as Record<string, unknown>)?.[key] ?? null;
+              const newVal = (newItems[i] as unknown as Record<string, unknown>)[key] ?? null;
+              const oldNorm = oldVal === '' ? null : oldVal;
+              const newNorm = newVal === '' ? null : newVal;
+              if (JSON.stringify(oldNorm) !== JSON.stringify(newNorm)) {
+                changes.push({
+                  field: `item_${i + 1}.${key}`,
+                  label: `Trayecto ${i + 1} - ${label}`,
+                  old_value: oldNorm,
+                  new_value: newNorm,
+                });
+              }
+            }
+          }
+        }
+
+        if (changes.length > 0) {
+          const summaryParts = changes.slice(0, 3).map(c => c.label);
+          const summary = `Editado: ${summaryParts.join(', ')}${changes.length > 3 ? ` y ${changes.length - 3} más` : ''}`;
+          await supabaseQuery.from('transfer_change_history').insert({
+            request_id: data.id,
+            organization_id: broker.organization_id,
+            change_type: 'updated',
+            changed_by_type: 'broker',
+            changed_by_id: broker.id,
+            changed_by_name: broker.name,
+            changes: JSON.stringify(changes),
+            summary,
+          }).then(() => {}).catch(() => {});
+        }
+      }
+
       return data.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-requests'] });
       queryClient.invalidateQueries({ queryKey: ['broker-request-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['transfer-change-history'] });
       toast.success('Solicitud actualizada correctamente');
     },
     onError: (error: Error) => {

@@ -70,7 +70,7 @@ function getFallbackOrgScopedTables(): Set<string> {
     'tags', 'task_assignees', 'tasks', 'teams', 'team_members',
     'transfer_brokers', 'transfer_documents', 'transfer_invoice_settings',
     'transfer_item_vehicles', 'transfer_items',
-    'transfer_providers', 'transfer_requests', 'transfer_status_history',
+    'transfer_change_history', 'transfer_providers', 'transfer_requests', 'transfer_status_history',
     'user_sessions', 'user_templates',
     'vehicle_locations', 'vehicles', 'workshops',
   ]);

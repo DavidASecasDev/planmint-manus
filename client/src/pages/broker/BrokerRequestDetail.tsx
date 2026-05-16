@@ -15,6 +15,8 @@ import { es } from 'date-fns/locale';
 import { getVehicleInfo } from '@/lib/transferPricing';
 import { TransferNotesSection } from '@/components/transfers/TransferNotesSection';
 import { StatusTimeline } from '@/components/transfers/StatusTimeline';
+import { ChangeHistoryTimeline } from '@/components/broker/ChangeHistoryTimeline';
+import { RouteEstimateBadge } from '@/components/broker/RouteEstimateBadge';
 import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import type { TransferItemVehicle } from '@/types/transfers';
 import { Button } from '@/components/ui/button';
@@ -494,6 +496,9 @@ export default function BrokerRequestDetail() {
       {/* Status History Timeline */}
       <StatusTimeline requestId={request.id} isDark={isDark} />
 
+      {/* Change History Timeline */}
+      <ChangeHistoryTimeline requestId={request.id} />
+
       {/* Internal Notes */}
       {broker && request && (
         <div>
@@ -661,6 +666,16 @@ function TransferItemDetail({ item, index, requestStatus, isDark }: TransferItem
           </div>
         )}
 
+        {/* Route Estimate (ida) */}
+        {item.pickup_enabled && item.pickup_location && item.dropoff_enabled && item.dropoff_location && (
+          <div className="pl-11">
+            <RouteEstimateBadge
+              origin={item.pickup_location}
+              destination={item.dropoff_location}
+            />
+          </div>
+        )}
+
         {/* Return Trip */}
         {item.has_return && (
           <div className="pt-4 space-y-3 border-t border-border">
@@ -706,6 +721,16 @@ function TransferItemDetail({ item, index, requestStatus, isDark }: TransferItem
                     </p>
                   )}
                 </div>
+              </div>
+            )}
+            {/* Route Estimate (vuelta) */}
+            {item.return_pickup_enabled && item.return_pickup_location && item.return_dropoff_enabled && item.return_dropoff_location && (
+              <div className="pl-11">
+                <RouteEstimateBadge
+                  origin={item.return_pickup_location}
+                  destination={item.return_dropoff_location}
+                  compact
+                />
               </div>
             )}
           </div>

@@ -18,6 +18,7 @@ import {
   Car,
 } from 'lucide-react';
 import { LocationAutocomplete } from './LocationAutocomplete';
+import { RouteEstimateBadge } from './RouteEstimateBadge';
 
 // ── Shared types & helpers ──────────────────────────────────────────
 
@@ -269,6 +270,16 @@ export function TransferItemFormCard({
           )}
         </div>
 
+        {/* Route Estimate Badge (ida) */}
+        {item.pickup_enabled && item.dropoff_enabled && item.pickup_location && item.dropoff_location && (
+          <div className="pl-6">
+            <RouteEstimateBadge
+              origin={item.pickup_location}
+              destination={item.dropoff_location}
+            />
+          </div>
+        )}
+
         {/* Return Trip */}
         <div className="space-y-2">
           <div
@@ -369,6 +380,17 @@ export function TransferItemFormCard({
                   </div>
                 )}
               </div>
+
+              {/* Route Estimate Badge (vuelta) */}
+              {item.return_pickup_enabled && item.return_dropoff_enabled && item.return_pickup_location && item.return_dropoff_location && (
+                <div className="mt-2">
+                  <RouteEstimateBadge
+                    origin={item.return_pickup_location}
+                    destination={item.return_dropoff_location}
+                    compact
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

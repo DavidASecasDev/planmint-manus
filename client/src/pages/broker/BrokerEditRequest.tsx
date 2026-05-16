@@ -198,6 +198,24 @@ export default function BrokerEditRequest() {
     e.preventDefault();
     if (!clientName.trim() || !id) return;
 
+    // Build previous data snapshot for change tracking
+    const previousItems = request?.items?.map(item => ({
+      transfer_date: item.transfer_date || null,
+      pickup_enabled: item.pickup_enabled ?? true,
+      pickup_location: item.pickup_location || null,
+      pickup_time: item.pickup_time || null,
+      dropoff_enabled: item.dropoff_enabled ?? true,
+      dropoff_location: item.dropoff_location || null,
+      dropoff_time: item.dropoff_time || null,
+      has_return: item.has_return ?? false,
+      pax_count: item.pax_count ?? null,
+      vehicle_type: item.vehicle_type || null,
+      flight_number: item.flight_number || null,
+      notes: item.notes || null,
+      pack_duration: item.pack_duration || null,
+      estimated_price: item.estimated_price ?? null,
+    })) || [];
+
     const data: UpdateBrokerRequestData = {
       id,
       client_name: clientName.trim(),
@@ -212,6 +230,15 @@ export default function BrokerEditRequest() {
         pack_duration: serviceType === 'pack' ? packDuration : undefined,
         estimated_price: estimatedPrice ?? undefined,
       })),
+      _previousData: {
+        client_name: request?.client_name || '',
+        client_type: request?.client_type || '',
+        service_type: request?.service_type || '',
+        client_reference: request?.client_reference || '',
+        associated_service: request?.associated_service || '',
+        notes: request?.notes || '',
+        items: previousItems,
+      },
     };
 
     try {

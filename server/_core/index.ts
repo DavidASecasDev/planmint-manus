@@ -121,6 +121,7 @@ import {
   handleAssignReinforcement,
 } from "../reinforcementEndpoint";
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
+import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 
@@ -264,6 +265,7 @@ async function startServer() {
   app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
   app.post("/api/assign-reinforcement", handleAssignReinforcement);
   app.post("/api/places-autocomplete", handlePlacesAutocomplete);
+  app.post("/api/transfer-route-estimate", handleTransferRouteEstimate);
   app.post("/api/geocode", handleGeocode);
   app.post("/api/en-camino-tracking", handleEnCaminoTrack);
   app.post("/api/en-camino-tracking/llego", handleEnCaminoLlego);
