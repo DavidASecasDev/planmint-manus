@@ -720,3 +720,4 @@
 - [x] Mejora 3: Permitir editar tipo de cliente/servicio/vehículo en pantalla de edición (misma estructura que wizard)
 - [x] Mejora 4: Campo de número de vuelo/ferry para transfers de aeropuerto/puerto — columna flight_number añadida a Supabase transfer_items
 - [x] Mejora 5: Plantillas rápidas para trayectos comunes (Aeropuerto→Hotel, Puerto→Villa, etc.) — 6 plantillas con pre-fill de pickup/dropoff
+- [x] Autocompletado de ubicaciones con Google Maps Places API en campos pickup/dropoff del wizard de transfers — componente LocationAutocomplete con debounce, keyboard nav, portal dropdown, sesgo Mallorca

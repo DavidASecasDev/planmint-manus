@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Car,
 } from 'lucide-react';
+import { LocationAutocomplete } from './LocationAutocomplete';
 
 // ── Shared types & helpers ──────────────────────────────────────────
 
@@ -211,11 +212,11 @@ export function TransferItemFormCard({
             <div className="grid gap-3 sm:grid-cols-2 pl-6">
               <div>
                 <Label className="text-xs text-muted-foreground">Ubicación</Label>
-                <Input
+                <LocationAutocomplete
                   value={item.pickup_location}
-                  onChange={(e) => onChange('pickup_location', e.target.value)}
+                  onChange={(val) => onChange('pickup_location', val)}
                   placeholder="Ej: Puerto de Palma"
-                  className="mt-1 bg-background border-input text-foreground"
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -248,11 +249,11 @@ export function TransferItemFormCard({
             <div className="grid gap-3 sm:grid-cols-2 pl-6">
               <div>
                 <Label className="text-xs text-muted-foreground">Ubicación</Label>
-                <Input
+                <LocationAutocomplete
                   value={item.dropoff_location}
-                  onChange={(e) => onChange('dropoff_location', e.target.value)}
+                  onChange={(val) => onChange('dropoff_location', val)}
                   placeholder="Ej: Aeropuerto PMI"
-                  className="mt-1 bg-background border-input text-foreground"
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -313,11 +314,11 @@ export function TransferItemFormCard({
                   <div className="grid gap-3 sm:grid-cols-2 pl-6">
                     <div>
                       <Label className="text-xs text-muted-foreground">Ubicación</Label>
-                      <Input
+                      <LocationAutocomplete
                         value={item.return_pickup_location}
-                        onChange={(e) => onChange('return_pickup_location', e.target.value)}
+                        onChange={(val) => onChange('return_pickup_location', val)}
                         placeholder="Ej: Hotel Son Vida"
-                        className="mt-1 bg-background border-input text-foreground"
+                        className="mt-1"
                       />
                     </div>
                     <div>
@@ -349,11 +350,11 @@ export function TransferItemFormCard({
                   <div className="grid gap-3 sm:grid-cols-2 pl-6">
                     <div>
                       <Label className="text-xs text-muted-foreground">Ubicación</Label>
-                      <Input
+                      <LocationAutocomplete
                         value={item.return_dropoff_location}
-                        onChange={(e) => onChange('return_dropoff_location', e.target.value)}
+                        onChange={(val) => onChange('return_dropoff_location', val)}
                         placeholder="Ej: Puerto de Palma"
-                        className="mt-1 bg-background border-input text-foreground"
+                        className="mt-1"
                       />
                     </div>
                     <div>
