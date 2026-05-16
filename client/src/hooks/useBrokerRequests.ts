@@ -27,6 +27,7 @@ export interface BrokerRequestItemData {
   return_dropoff_time?: string | null;
   pax_count: number | null;
   vehicle_type?: string | null;
+  flight_number?: string | null;
   notes?: string | null;
   pack_duration?: string | null;
   estimated_price?: number | null;
@@ -48,6 +49,7 @@ export interface UpdateBrokerRequestData {
   client_type?: string;
   service_type?: string;
   client_reference?: string;
+  associated_service?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
@@ -183,6 +185,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           return_dropoff_time: item.return_dropoff_time || null,
           pax_count: item.pax_count,
           vehicle_type: item.vehicle_type || null,
+          flight_number: item.flight_number || null,
           notes: item.notes || null,
           driver_pending: true,
           pack_duration: item.pack_duration || null,
@@ -230,6 +233,10 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         .from('transfer_requests')
         .update({
           client_name: data.client_name,
+          client_type: data.client_type || null,
+          service_type: data.service_type || null,
+          client_reference: data.client_reference || null,
+          associated_service: data.associated_service || null,
           notes: data.notes || null,
         })
         .eq('id', data.id)
@@ -268,6 +275,9 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           return_dropoff_time: item.return_dropoff_time || null,
           pax_count: item.pax_count,
           vehicle_type: item.vehicle_type || null,
+          flight_number: item.flight_number || null,
+          pack_duration: item.pack_duration || null,
+          estimated_price: item.estimated_price ?? null,
           notes: item.notes || null,
           driver_pending: true,
         }));

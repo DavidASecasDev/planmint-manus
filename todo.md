@@ -715,3 +715,8 @@
 - [x] Botón "Archivar" en transfers cancelados (en listado y detalle)
 - [x] Filtro para mostrar/ocultar transfers archivados en el listado principal
 - [x] Excluir transfers archivados del listado por defecto — 1184 tests pasando
+- [x] Mejora 1: Validación de capacidad del vehículo vs. pasajeros (warning si pax > capacidad)
+- [x] Mejora 2: Auto-guardado de borrador en localStorage (recuperar wizard incompleto)
+- [x] Mejora 3: Permitir editar tipo de cliente/servicio/vehículo en pantalla de edición (misma estructura que wizard)
+- [x] Mejora 4: Campo de número de vuelo/ferry para transfers de aeropuerto/puerto — columna flight_number añadida a Supabase transfer_items
+- [x] Mejora 5: Plantillas rápidas para trayectos comunes (Aeropuerto→Hotel, Puerto→Villa, etc.) — 6 plantillas con pre-fill de pickup/dropoff

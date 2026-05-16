@@ -76,6 +76,8 @@ export interface TransferItem {
   return_dropoff_enabled: boolean;
   return_dropoff_location: string | null;
   return_dropoff_time: string | null;
+  // Vuelo/Ferry
+  flight_number: string | null;
   // Pasajeros y conductor
   pax_count: number | null;
   driver_name: string | null;

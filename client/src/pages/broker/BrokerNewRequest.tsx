@@ -43,6 +43,10 @@ import {
   Clock,
   Check,
   Car,
+  Plane,
+  Ship,
+  Building2,
+  Route,
 } from 'lucide-react';
 
 const STEPS = [
@@ -58,25 +62,63 @@ export default function BrokerNewRequest() {
   const { resolvedTheme } = useBrokerTheme();
   const isDark = resolvedTheme === 'dark';
 
-  // Wizard state
-  const [step, setStep] = useState(1);
+  // ─── Draft persistence (localStorage) ───────────────────────────────────────
+  const DRAFT_KEY = 'transfer_wizard_draft';
+
+  const loadDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  };
+
+  const savedDraft = loadDraft();
+  const [hasDraft, setHasDraft] = useState(!!savedDraft);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Wizard state (initialized from draft if available)
+  const [step, setStep] = useState(savedDraft?.step ?? 1);
 
   // Step 1: Client type
-  const [clientType, setClientType] = useState<ClientType | null>(null);
-  const [associatedService, setAssociatedService] = useState('');
+  const [clientType, setClientType] = useState<ClientType | null>(savedDraft?.clientType ?? null);
+  const [associatedService, setAssociatedService] = useState(savedDraft?.associatedService ?? '');
 
   // Step 2: Service type + vehicle
-  const [serviceType, setServiceType] = useState<ServiceType | null>(null);
-  const [vehicleType, setVehicleType] = useState('v_class');
-  const [packDuration, setPackDuration] = useState<PackDuration>('4h');
+  const [serviceType, setServiceType] = useState<ServiceType | null>(savedDraft?.serviceType ?? null);
+  const [vehicleType, setVehicleType] = useState(savedDraft?.vehicleType ?? 'v_class');
+  const [packDuration, setPackDuration] = useState<PackDuration>(savedDraft?.packDuration ?? '4h');
   // For point_to_point, zone is used for estimated pricing
-  const [selectedZone, setSelectedZone] = useState('');
+  const [selectedZone, setSelectedZone] = useState(savedDraft?.selectedZone ?? '');
 
   // Step 3: Details
-  const [clientName, setClientName] = useState('');
-  const [clientReference, setClientReference] = useState('');
-  const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<TransferItemFormData[]>([createEmptyItem()]);
+  const [clientName, setClientName] = useState(savedDraft?.clientName ?? '');
+  const [clientReference, setClientReference] = useState(savedDraft?.clientReference ?? '');
+  const [notes, setNotes] = useState(savedDraft?.notes ?? '');
+  const [items, setItems] = useState<TransferItemFormData[]>(savedDraft?.items ?? [createEmptyItem()]);
+
+  // Auto-save draft to localStorage on every state change
+  useEffect(() => {
+    const draft = {
+      step, clientType, associatedService, serviceType, vehicleType,
+      packDuration, selectedZone, clientName, clientReference, notes, items,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [step, clientType, associatedService, serviceType, vehicleType, packDuration, selectedZone, clientName, clientReference, notes, items]);
+
+  // Clear draft on successful submit
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setHasDraft(false);
+  };
+
+  // Show draft restored banner
+  useEffect(() => {
+    if (savedDraft && !draftRestored) {
+      setDraftRestored(true);
+    }
+  }, []);
 
   // Load dynamic pricing from DB
   const [pricingRows, setPricingRows] = useState<DynamicPricingRow[]>([]);
@@ -102,6 +144,24 @@ export default function BrokerNewRequest() {
     return null;
   }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows]);
 
+  // Capacity validation: warn if any item has more pax than the vehicle can hold
+  const vehicleCapacity = useMemo(() => {
+    const v = VEHICLE_TYPES.find(vt => vt.key === vehicleType);
+    return v?.capacity ?? 99;
+  }, [vehicleType]);
+
+  const capacityWarnings = useMemo(() => {
+    return items
+      .map((item, idx) => {
+        const pax = parseInt(item.pax_count);
+        if (!isNaN(pax) && pax > vehicleCapacity) {
+          return { index: idx + 1, pax, capacity: vehicleCapacity };
+        }
+        return null;
+      })
+      .filter(Boolean) as { index: number; pax: number; capacity: number }[];
+  }, [items, vehicleCapacity]);
+
   // Navigation helpers
   const canGoNext = () => {
     switch (step) {
@@ -125,6 +185,23 @@ export default function BrokerNewRequest() {
 
   const goBack = () => {
     if (step > 1) setStep(step - 1);
+  };
+
+  // Quick route templates
+  const QUICK_TEMPLATES = [
+    { label: 'Aeropuerto → Hotel', icon: 'plane', pickup: 'Aeropuerto de Palma de Mallorca (PMI)', dropoff: '' },
+    { label: 'Hotel → Aeropuerto', icon: 'plane', pickup: '', dropoff: 'Aeropuerto de Palma de Mallorca (PMI)' },
+    { label: 'Puerto → Villa', icon: 'ship', pickup: 'Puerto de Palma', dropoff: '' },
+    { label: 'Villa → Puerto', icon: 'ship', pickup: '', dropoff: 'Puerto de Palma' },
+    { label: 'Aeropuerto → Puerto', icon: 'route', pickup: 'Aeropuerto de Palma de Mallorca (PMI)', dropoff: 'Puerto de Palma' },
+    { label: 'Hotel → Hotel', icon: 'building', pickup: '', dropoff: '' },
+  ];
+
+  const handleAddFromTemplate = (template: typeof QUICK_TEMPLATES[number]) => {
+    const newItem = createEmptyItem();
+    if (template.pickup) newItem.pickup_location = template.pickup;
+    if (template.dropoff) newItem.dropoff_location = template.dropoff;
+    setItems(prev => [...prev, newItem]);
   };
 
   // Item management
@@ -164,6 +241,7 @@ export default function BrokerNewRequest() {
 
     try {
       await createRequest(data);
+      clearDraft();
       navigate('/broker');
     } catch {
       // Error handled by hook
@@ -196,6 +274,35 @@ export default function BrokerNewRequest() {
           style={{ background: 'linear-gradient(90deg, oklch(0.72 0.10 80), transparent)' }}
         />
       </div>
+
+      {/* Draft restored banner */}
+      {draftRestored && hasDraft && (
+        <div className="mb-4 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-center justify-between">
+          <span className="text-sm text-blue-700 dark:text-blue-300">
+            Se ha recuperado un borrador guardado automáticamente.
+          </span>
+          <button
+            onClick={() => {
+              clearDraft();
+              setStep(1);
+              setClientType(null);
+              setAssociatedService('');
+              setServiceType(null);
+              setVehicleType('v_class');
+              setPackDuration('4h');
+              setSelectedZone('');
+              setClientName('');
+              setClientReference('');
+              setNotes('');
+              setItems([createEmptyItem()]);
+              setDraftRestored(false);
+            }}
+            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Descartar borrador
+          </button>
+        </div>
+      )}
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8">
@@ -625,6 +732,59 @@ export default function BrokerNewRequest() {
                 Añadir trayecto
               </Button>
             </div>
+
+            {/* Quick route templates */}
+            <div className="rounded-lg border border-border bg-card/50 p-3">
+              <p
+                className="mb-2 text-muted-foreground"
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 600,
+                  fontSize: '10px',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Trayectos rápidos
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_TEMPLATES.map((tpl) => {
+                  const Icon = tpl.icon === 'plane' ? Plane : tpl.icon === 'ship' ? Ship : tpl.icon === 'route' ? Route : Building2;
+                  return (
+                    <Button
+                      key={tpl.label}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddFromTemplate(tpl)}
+                      className="gap-1.5 text-xs border-border text-foreground hover:bg-accent"
+                      style={{ fontFamily: 'Barlow, sans-serif', fontWeight: 500 }}
+                    >
+                      <Icon className="h-3.5 w-3.5 opacity-70" />
+                      {tpl.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Capacity warning */}
+            {capacityWarnings.length > 0 && (
+              <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 flex items-start gap-2">
+                <Users className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <div className="text-sm text-amber-700 dark:text-amber-400">
+                  <span className="font-semibold">Atención:</span>{' '}
+                  {capacityWarnings.map(w => (
+                    <span key={w.index}>
+                      Trayecto {w.index} tiene {w.pax} pasajeros pero el vehículo seleccionado solo admite {w.capacity}.{' '}
+                    </span>
+                  ))}
+                  <span className="block mt-1 text-xs opacity-80">
+                    Considera cambiar a un vehículo de mayor capacidad en el paso anterior.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {items.map((item, index) => (
               <TransferItemFormCard
