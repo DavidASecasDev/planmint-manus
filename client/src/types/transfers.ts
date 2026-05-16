@@ -217,7 +217,7 @@ export interface TransferItemVehicle {
 
 export const CLIENT_TYPE_META: Record<ClientType, { label: string; color: string }> = {
   external_client: { label: 'Cliente directo', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  broker_client: { label: 'Cliente de broker', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  broker_client: { label: 'Cliente Isle Of Mallorca', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
 };
 
 export const SERVICE_TYPE_META: Record<ServiceType, { label: string; color: string }> = {

@@ -99,7 +99,13 @@ export default function BrokerNewRequest() {
   };
 
   const goNext = () => {
-    if (canGoNext() && step < 4) setStep(step + 1);
+    if (canGoNext() && step < 4) {
+      // If moving to step 2 and client is Isle Of Mallorca, reset pack selection
+      if (step === 1 && clientType === 'broker_client' && serviceType === 'pack') {
+        setServiceType(null);
+      }
+      setStep(step + 1);
+    }
   };
 
   const goBack = () => {
@@ -243,7 +249,7 @@ export default function BrokerNewRequest() {
                 </span>
               </div>
               <p className="text-sm text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                Un cliente final que contacta directamente. Se aplica la tarifa con comisión.
+                Cliente que <strong>no tiene nada contratado</strong> con nosotros. Se aplica tarifa con comisión.
               </p>
             </button>
 
@@ -267,11 +273,11 @@ export default function BrokerNewRequest() {
                   className="text-foreground"
                   style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: '15px' }}
                 >
-                  Cliente de broker
+                  Cliente Isle Of Mallorca
                 </span>
               </div>
               <p className="text-sm text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                Un cliente que viene a través de un broker/agencia. Se aplica la tarifa B2B.
+                Cliente que <strong>ya tiene un servicio</strong> con nosotros (villa, charter, etc.). Tarifa B2B, solo punto a punto.
               </p>
             </button>
           </div>
@@ -321,18 +327,21 @@ export default function BrokerNewRequest() {
 
             <button
               type="button"
-              onClick={() => setServiceType('pack')}
+              onClick={() => clientType !== 'broker_client' && setServiceType('pack')}
+              disabled={clientType === 'broker_client'}
               className={`
                 p-5 rounded-lg border-2 text-left transition-all
-                ${serviceType === 'pack'
-                  ? 'border-amber-500 bg-amber-500/5'
-                  : 'border-border bg-card hover:border-foreground/30'
+                ${clientType === 'broker_client'
+                  ? 'border-border bg-muted/50 opacity-50 cursor-not-allowed'
+                  : serviceType === 'pack'
+                    ? 'border-amber-500 bg-amber-500/5'
+                    : 'border-border bg-card hover:border-foreground/30'
                 }
               `}
             >
               <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${serviceType === 'pack' ? 'bg-amber-500/10' : 'bg-muted'}`}>
-                  <Clock className={`h-5 w-5 ${serviceType === 'pack' ? 'text-amber-600' : 'text-muted-foreground'}`} />
+                <div className={`p-2 rounded-lg ${serviceType === 'pack' && clientType !== 'broker_client' ? 'bg-amber-500/10' : 'bg-muted'}`}>
+                  <Clock className={`h-5 w-5 ${serviceType === 'pack' && clientType !== 'broker_client' ? 'text-amber-600' : 'text-muted-foreground'}`} />
                 </div>
                 <span
                   className="text-foreground"
@@ -342,7 +351,10 @@ export default function BrokerNewRequest() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                Disposición del vehículo por un período de tiempo.
+                {clientType === 'broker_client'
+                  ? 'No disponible para clientes Isle Of Mallorca.'
+                  : 'Disposición del vehículo por un período de tiempo.'
+                }
               </p>
             </button>
           </div>
@@ -614,7 +626,7 @@ export default function BrokerNewRequest() {
                     : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
                 }`}>
                   {clientType === 'external_client' ? <Users className="h-3 w-3" /> : <Briefcase className="h-3 w-3" />}
-                  {clientType === 'external_client' ? 'Cliente directo' : 'Cliente de broker'}
+                  {clientType === 'external_client' ? 'Cliente directo' : 'Cliente Isle Of Mallorca'}
                 </span>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
                   serviceType === 'point_to_point'
