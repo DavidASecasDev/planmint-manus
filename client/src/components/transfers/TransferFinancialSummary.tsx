@@ -8,6 +8,7 @@ import { evaluateMarginAlert } from '@/utils/marginAlerts';
 import { useMarginThresholds } from '@/hooks/useMarginThresholds';
 import { cn } from '@/lib/utils';
 import type { TransferItem, PricingMode } from '@/types/transfers';
+import { VAT_PROVIDER, VAT_CLIENT, COMMISSION_RATE } from '@/lib/pricingEngine';
 
 interface TransferFinancialSummaryProps {
   providerCost: number | null;
@@ -42,6 +43,23 @@ export function TransferFinancialSummary({
 
   const hasData = effectiveProviderCost > 0 || effectiveClientTotal > 0;
   const marginPercent = alert.marginPercent;
+
+  // Dual-IVA breakdown calculations
+  // Provider: base_price (neto) + 10% IVA = total proveedor
+  const providerNet = effectiveProviderCost; // base_price is the net provider cost
+  const providerVat = Math.round(providerNet * VAT_PROVIDER * 100) / 100;
+  const providerTotal = Math.round((providerNet + providerVat) * 100) / 100;
+
+  // Commission: 50% on provider total (incl. IVA)
+  const commissionAmount = Math.round(providerTotal * COMMISSION_RATE * 100) / 100;
+
+  // Client: net = providerNet + commission, + 21% IVA
+  const clientNet = effectiveClientTotal > 0 ? effectiveClientTotal : (providerNet + commissionAmount);
+  const clientVat = Math.round(clientNet * VAT_CLIENT * 100) / 100;
+  const clientTotalWithVat = Math.round((clientNet + clientVat) * 100) / 100;
+
+  // Profit = commission (what Azul Cars keeps)
+  const profit = commissionAmount;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -91,36 +109,58 @@ export function TransferFinancialSummary({
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Provider Cost */}
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-muted-foreground">
-                    {pricingMode === 'provider_quote' ? 'Coste proveedor' : 'Coste base (tarifa zona)'}
-                  </span>
-                  <span className="font-medium">{formatCurrency(effectiveProviderCost)}</span>
+              <div className="space-y-1">
+                {/* ── PROVEEDOR (lo que pagamos a LimoMallorca) ── */}
+                <div className="pb-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Coste proveedor
+                  </p>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">
+                      {pricingMode === 'provider_quote' ? 'Coste proveedor (neto)' : 'Tarifa zona (neto)'}
+                    </span>
+                    <span className="text-sm font-medium">{formatCurrency(providerNet)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">IVA 10% (transporte)</span>
+                    <span className="text-sm">{formatCurrency(providerVat)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                    <span className="text-sm font-medium">Total proveedor</span>
+                    <span className="font-semibold">{formatCurrency(providerTotal)}</span>
+                  </div>
                 </div>
 
-                {/* Client Total (sin IVA) */}
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Total cliente (sin IVA)</span>
-                  <span className="font-semibold text-lg">{formatCurrency(effectiveClientTotal)}</span>
+                {/* ── COMISIÓN ── */}
+                <div className="py-3 border-t border-border">
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">Comisión Azul Cars (50%)</span>
+                    <span className="text-sm font-medium text-primary">{formatCurrency(commissionAmount)}</span>
+                  </div>
                 </div>
 
-                {/* IVA */}
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-muted-foreground">IVA 21%</span>
-                  <span className="font-medium">{formatCurrency(effectiveClientTotal * 0.21)}</span>
+                {/* ── CLIENTE (lo que facturamos) ── */}
+                <div className="py-3 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Factura cliente
+                  </p>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">Servicio (sin IVA)</span>
+                    <span className="text-sm font-medium">{formatCurrency(clientNet)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">IVA 21% (intermediación)</span>
+                    <span className="text-sm">{formatCurrency(clientVat)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                    <span className="font-medium">Total cliente</span>
+                    <span className="font-bold text-lg">{formatCurrency(clientTotalWithVat)}</span>
+                  </div>
                 </div>
 
-                {/* Total con IVA */}
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="font-medium">Total cliente (con IVA)</span>
-                  <span className="font-bold text-lg">{formatCurrency(effectiveClientTotal * 1.21)}</span>
-                </div>
-
-                {/* Margin */}
+                {/* ── MARGEN ── */}
                 <div className={cn(
-                  'flex items-center justify-between py-2 rounded-lg px-3 -mx-3',
+                  'flex items-center justify-between py-3 rounded-lg px-3 -mx-3 mt-2 border-t border-border',
                   alert.level === 'danger' ? 'bg-red-500/10' :
                   alert.level === 'warning' ? 'bg-amber-500/10' :
                   'bg-primary/5'
@@ -138,7 +178,7 @@ export function TransferFinancialSummary({
                     ) : (
                       <TrendingUp className="h-4 w-4 text-primary" />
                     )}
-                    Margen bruto
+                    Beneficio neto
                   </span>
                   <div className="text-right">
                     <span className={cn(
@@ -147,7 +187,7 @@ export function TransferFinancialSummary({
                       alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
                       'text-primary'
                     )}>
-                      {formatCurrency(effectiveMargin)}
+                      {formatCurrency(profit)}
                     </span>
                     {effectiveProviderCost > 0 && (
                       <span className={cn(
@@ -164,7 +204,7 @@ export function TransferFinancialSummary({
 
                 {/* Alert messages */}
                 {alert.level === 'danger' && (
-                  <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400 bg-red-500/10 border border-red-300/30 rounded-lg p-3">
+                  <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400 bg-red-500/10 border border-red-300/30 rounded-lg p-3 mt-2">
                     <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium">Margen inferior al {thresholds.danger}%</p>
@@ -174,7 +214,7 @@ export function TransferFinancialSummary({
                 )}
 
                 {alert.level === 'warning' && (
-                  <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-300/30 rounded-lg p-3">
+                  <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-300/30 rounded-lg p-3 mt-2">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium">Margen por debajo del {thresholds.warning}%</p>

@@ -30,6 +30,13 @@ import {
   getZoneLabel,
   type DynamicPricingRow,
 } from '@/lib/transferPricing';
+import {
+  calculatePointToPointPricing,
+  calculatePackPricing,
+  type PricingBreakdown,
+  type SupplementConfig,
+} from '@/lib/pricingEngine';
+import { Switch } from '@/components/ui/switch';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import type { ClientType, ServiceType, PackDuration } from '@/types/transfers';
 import {
@@ -47,6 +54,9 @@ import {
   Ship,
   Building2,
   Route,
+  PlaneTakeoff,
+  Moon,
+  Info,
 } from 'lucide-react';
 
 const STEPS = [
@@ -91,6 +101,10 @@ export default function BrokerNewRequest() {
   // For point_to_point, zone is used for estimated pricing
   const [selectedZone, setSelectedZone] = useState(savedDraft?.selectedZone ?? '');
 
+  // Supplements
+  const [airportPickup, setAirportPickup] = useState(savedDraft?.airportPickup ?? false);
+  const [nightHours, setNightHours] = useState(savedDraft?.nightHours ?? 0);
+
   // Step 3: Details
   const [clientName, setClientName] = useState(savedDraft?.clientName ?? '');
   const [clientReference, setClientReference] = useState(savedDraft?.clientReference ?? '');
@@ -102,10 +116,11 @@ export default function BrokerNewRequest() {
     const draft = {
       step, clientType, associatedService, serviceType, vehicleType,
       packDuration, selectedZone, clientName, clientReference, notes, items,
+      airportPickup, nightHours,
       savedAt: Date.now(),
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [step, clientType, associatedService, serviceType, vehicleType, packDuration, selectedZone, clientName, clientReference, notes, items]);
+  }, [step, clientType, associatedService, serviceType, vehicleType, packDuration, selectedZone, clientName, clientReference, notes, items, airportPickup, nightHours]);
 
   // Clear draft on successful submit
   const clearDraft = () => {
@@ -143,6 +158,19 @@ export default function BrokerNewRequest() {
     }
     return null;
   }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows]);
+
+  // Full pricing breakdown using the new engine (with supplements)
+  const pricingBreakdown = useMemo<PricingBreakdown | null>(() => {
+    if (!clientType || !serviceType) return null;
+    const supplements: Partial<SupplementConfig> = { airportPickup, nightHours };
+    if (serviceType === 'point_to_point' && selectedZone) {
+      return calculatePointToPointPricing(selectedZone, vehicleType, supplements);
+    }
+    if (serviceType === 'pack') {
+      return calculatePackPricing(vehicleType, packDuration, supplements);
+    }
+    return null;
+  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, airportPickup, nightHours]);
 
   // Capacity validation: warn if any item has more pax than the vehicle can hold
   const vehicleCapacity = useMemo(() => {
@@ -235,7 +263,9 @@ export default function BrokerNewRequest() {
         ...item,
         vehicle_type: vehicleType,
         pack_duration: serviceType === 'pack' ? packDuration : undefined,
-        estimated_price: estimatedPrice ?? undefined,
+        estimated_price: pricingBreakdown
+          ? (clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet)
+          : (estimatedPrice ?? undefined),
       })),
     };
 
@@ -594,27 +624,119 @@ export default function BrokerNewRequest() {
                 </div>
               )}
 
-              {/* Estimated price display */}
-              {estimatedPrice !== null && (
-                <div
-                  className="mt-4 p-4 rounded-lg bg-muted/50 border border-border"
-                >
+              {/* Supplements */}
+              {(serviceType === 'point_to_point' && selectedZone) || serviceType === 'pack' ? (
+                <div className="space-y-3 pt-2">
+                  <h4
+                    className="text-muted-foreground"
+                    style={{
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      letterSpacing: '1.5px',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Suplementos
+                  </h4>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <PlaneTakeoff className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Recogida en aeropuerto</span>
+                    </div>
+                    <Switch checked={airportPickup} onCheckedChange={setAirportPickup} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Horario nocturno (1:00–5:00)</span>
+                    </div>
+                    <Select
+                      value={String(nightHours)}
+                      onValueChange={(v) => setNightHours(Number(v))}
+                    >
+                      <SelectTrigger className="w-24 h-8 text-xs bg-background border-input text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">No</SelectItem>
+                        <SelectItem value="1">1 hora</SelectItem>
+                        <SelectItem value="2">2 horas</SelectItem>
+                        <SelectItem value="3">3 horas</SelectItem>
+                        <SelectItem value="4">4 horas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Pricing breakdown */}
+              {pricingBreakdown && (
+                <div className="mt-4 p-4 rounded-lg bg-muted/50 border border-border space-y-3">
+                  {/* Base price */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Tarifa base</span>
+                    <span className="text-foreground font-medium">{pricingBreakdown.basePrice} €</span>
+                  </div>
+
+                  {/* Supplements detail */}
+                  {pricingBreakdown.totalSupplements > 0 && (
+                    <>
+                      {pricingBreakdown.airportPickupFee > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>+ Recogida aeropuerto</span>
+                          <span className="text-foreground">{pricingBreakdown.airportPickupFee} €</span>
+                        </div>
+                      )}
+                      {pricingBreakdown.nightFee > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>+ Nocturno ({nightHours}h)</span>
+                          <span className="text-foreground">{pricingBreakdown.nightFee} €</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Divider */}
+                  <div className="border-t border-border" />
+
+                  {/* Client-facing price */}
                   <div className="flex items-center justify-between">
                     <span
                       className="text-sm text-muted-foreground"
                       style={{ fontFamily: 'Barlow, sans-serif' }}
                     >
-                      Precio estimado {clientType === 'external_client' ? '(con comisión)' : '(B2B)'}
+                      {clientType === 'external_client' ? 'Precio servicio (sin IVA)' : 'Precio B2B (sin IVA)'}
                     </span>
                     <span
                       className="text-xl text-foreground"
                       style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
                     >
-                      {estimatedPrice} €
+                      {clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet} €
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                    Precio por trayecto, sin IVA. Precio final sujeto a confirmación.
+
+                  {clientType === 'external_client' && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>IVA 21%</span>
+                        <span className="text-foreground">{pricingBreakdown.clientVat} €</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Total cliente</span>
+                        <span
+                          className="text-lg text-foreground"
+                          style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
+                        >
+                          {pricingBreakdown.clientTotal} €
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  <p className="text-xs text-muted-foreground flex items-center gap-1" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                    <Info className="h-3 w-3" />
+                    Precio por trayecto. Precio final sujeto a confirmación.
                   </p>
                 </div>
               )}
@@ -881,35 +1003,61 @@ export default function BrokerNewRequest() {
                 </div>
               </div>
 
-              {/* Estimated price */}
-              {estimatedPrice !== null && (
-                <div className="pt-3 mt-2 border-t border-border">
+              {/* Estimated price with full breakdown */}
+              {pricingBreakdown && (
+                <div className="pt-3 mt-2 border-t border-border space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Tarifa base</span>
+                    <span className="text-foreground">{pricingBreakdown.basePrice} €</span>
+                  </div>
+                  {pricingBreakdown.airportPickupFee > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>+ Recogida aeropuerto</span>
+                      <span className="text-foreground">{pricingBreakdown.airportPickupFee} €</span>
+                    </div>
+                  )}
+                  {pricingBreakdown.nightFee > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>+ Nocturno ({nightHours}h)</span>
+                      <span className="text-foreground">{pricingBreakdown.nightFee} €</span>
+                    </div>
+                  )}
+                  <div className="border-t border-border my-1" />
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                      Precio estimado por trayecto
+                      {clientType === 'external_client' ? 'Precio por trayecto (sin IVA)' : 'Precio B2B por trayecto'}
                     </span>
                     <span
                       className="text-lg text-foreground"
                       style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
                     >
-                      {estimatedPrice} €
+                      {clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet} €
                     </span>
                   </div>
                   {items.length > 1 && (
-                    <div className="flex items-center justify-between mt-1">
+                    <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                        Total estimado ({items.length} trayectos)
+                        Total estimado ({items.length} trayectos, sin IVA)
                       </span>
                       <span
                         className="text-lg text-foreground"
                         style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
                       >
-                        {estimatedPrice * items.length} €
+                        {((clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet) * items.length).toFixed(2)} €
                       </span>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground mt-2" style={{ fontFamily: 'Barlow, sans-serif' }}>
-                    Precios sin IVA. El precio final será confirmado por el equipo.
+                  {clientType === 'external_client' && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Total con IVA 21%</span>
+                      <span className="text-foreground font-semibold">
+                        {(pricingBreakdown.clientTotal * items.length).toFixed(2)} €
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                    <Info className="h-3 w-3" />
+                    Precio final sujeto a confirmación por el equipo.
                   </p>
                 </div>
               )}

@@ -724,3 +724,9 @@
 - [x] Historial de cambios en solicitudes de transfer: tabla transfer_change_history, registro automático de quién/cuándo/qué cambió
 - [x] UI de historial de cambios en la vista de detalle de solicitud (timeline visual con expandir/colapsar detalles)
 - [x] Estimación de tiempo de trayecto con Google Maps Directions API en wizard y detalle de solicitud (ida + vuelta)
+- [x] Crear módulo de datos de tarifas LimoMallorca B2B 2026 (29 zonas, 4 vehículos, packs, suplementos)
+- [x] Motor de cálculo de precios: coste proveedor + IVA 10%, comisión 50%, precio cliente + IVA 21% — pricingEngine.ts con 14 tests
+- [x] Integrar selector de zona/destino en wizard de transfers con auto-cálculo de precio
+- [x] Vista interna de desglose financiero (coste proveedor 10% IVA, comisión 50%, factura cliente 21% IVA, beneficio neto) — TransferFinancialSummary
+- [x] Vista cliente (precio servicio + IVA 21%, sin desglose interno) — BrokerRequestDetail solo muestra price_with_commission
+- [x] Suplementos: nocturno (1-5am) con selector de horas, airport pickup toggle — integrados en wizard step 2 y resumen step 4
