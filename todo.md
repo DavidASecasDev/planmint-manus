@@ -735,3 +735,4 @@
 - [x] Actualizar pricing engine para leer tarifas desde BD — getDynamicBasePrice/getDynamicPackPrice con fallback a hardcodeado
 - [x] Generación de PDF de presupuesto confirmado: desglose servicio + IVA 21% para el cliente — useBrokerQuotePdf con selector ES/EN
 - [x] Integrar botón de descarga de PDF en el detalle de solicitud del broker — visible en estados presupuesto_enviado, confirmado, completado
+- [x] Unificar formulario interno de nueva solicitud de transfer con el wizard del broker — InternalNewTransferWizard con selector de broker, empresa externa, modo precio manual, proveedor externo; ruta /transfers/new apunta al nuevo wizard
