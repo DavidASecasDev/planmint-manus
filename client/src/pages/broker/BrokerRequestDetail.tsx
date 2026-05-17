@@ -17,6 +17,7 @@ import { TransferNotesSection } from '@/components/transfers/TransferNotesSectio
 import { StatusTimeline } from '@/components/transfers/StatusTimeline';
 import { ChangeHistoryTimeline } from '@/components/broker/ChangeHistoryTimeline';
 import { RouteEstimateBadge } from '@/components/broker/RouteEstimateBadge';
+import { useBrokerQuotePdf, type BrokerPdfLanguage } from '@/hooks/useBrokerQuotePdf';
 import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import type { TransferItemVehicle } from '@/types/transfers';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,8 @@ import {
   Info,
   CheckCircle2,
   XCircle,
+  Download,
+  FileText,
 } from 'lucide-react';
 import type { TransferRequestStatus, TransferItem } from '@/types/transfers';
 
@@ -70,6 +73,8 @@ export default function BrokerRequestDetail() {
   const [statusAction, setStatusAction] = useState<'confirmado' | 'en_gestion' | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<'accept' | 'reject' | null>(null);
   const { logStatusChange } = useTransferStatusHistory(id);
+  const { generateBrokerPdf, isGenerating: isGeneratingPdf } = useBrokerQuotePdf();
+  const [pdfLanguage, setPdfLanguage] = useState<BrokerPdfLanguage>('es');
 
   if (isLoading) {
     return (
@@ -345,6 +350,72 @@ export default function BrokerRequestDetail() {
           );
         })()}
       </div>
+
+      {/* PDF Download Section — visible when quote sent, confirmed, or completed */}
+      {['presupuesto_enviado', 'confirmado', 'completado'].includes(request.status) && request.items && request.items.length > 0 && (
+        <div className="rounded-lg p-5 mb-6 bg-card border border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-lg"
+                style={{ backgroundColor: request.status === 'confirmado' || request.status === 'completado' ? '#DCFCE7' : '#FEF3C7' }}
+              >
+                <FileText
+                  className="h-5 w-5"
+                  style={{ color: request.status === 'confirmado' || request.status === 'completado' ? '#166534' : '#92400E' }}
+                />
+              </div>
+              <div>
+                <p
+                  className="text-foreground"
+                  style={{
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                  }}
+                >
+                  {request.status === 'confirmado' || request.status === 'completado'
+                    ? 'Confirmación de Servicio'
+                    : 'Presupuesto'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Descarga el documento para enviar a tu cliente
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={pdfLanguage}
+                onChange={(e) => setPdfLanguage(e.target.value as BrokerPdfLanguage)}
+                className="text-sm rounded-md border border-border bg-background text-foreground px-3 py-1.5"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '12px' }}
+              >
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+              <Button
+                onClick={() => generateBrokerPdf(request, request.items || [], pdfLanguage)}
+                disabled={isGeneratingPdf}
+                className="gap-2"
+                style={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {isGeneratingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Descargar PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Client Info Card */}
       <div className="rounded-lg p-6 mb-6 bg-card border border-border">

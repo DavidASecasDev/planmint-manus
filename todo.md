@@ -730,3 +730,8 @@
 - [x] Vista interna de desglose financiero (coste proveedor 10% IVA, comisión 50%, factura cliente 21% IVA, beneficio neto) — TransferFinancialSummary
 - [x] Vista cliente (precio servicio + IVA 21%, sin desglose interno) — BrokerRequestDetail solo muestra price_with_commission
 - [x] Suplementos: nocturno (1-5am) con selector de horas, airport pickup toggle — integrados en wizard step 2 y resumen step 4
+- [x] Detección automática de suplemento nocturno: calcular horas nocturnas (1:00-5:00) desde hora de pickup del trayecto — nightHoursCalculator con 19 tests, auto-detección en wizard con override manual
+- [x] Tabla de tarifas dinámica en Supabase: migrar precios hardcodeados a BD — 145 filas point-to-point + 20 packs insertados via SQL seed
+- [x] Actualizar pricing engine para leer tarifas desde BD — getDynamicBasePrice/getDynamicPackPrice con fallback a hardcodeado
+- [x] Generación de PDF de presupuesto confirmado: desglose servicio + IVA 21% para el cliente — useBrokerQuotePdf con selector ES/EN
+- [x] Integrar botón de descarga de PDF en el detalle de solicitud del broker — visible en estados presupuesto_enviado, confirmado, completado

@@ -37,6 +37,7 @@ import {
   type SupplementConfig,
 } from '@/lib/pricingEngine';
 import { Switch } from '@/components/ui/switch';
+import { calculateNightHours, getNightHoursDescription } from '@/lib/nightHoursCalculator';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import type { ClientType, ServiceType, PackDuration } from '@/types/transfers';
 import {
@@ -171,6 +172,32 @@ export default function BrokerNewRequest() {
     }
     return null;
   }, [clientType, serviceType, vehicleType, selectedZone, packDuration, airportPickup, nightHours]);
+
+  // Auto-detect night hours from pickup times in items
+  // Uses the earliest pickup time across all items to calculate overlap with 01:00-05:00
+  const autoNightHours = useMemo(() => {
+    const pickupTimes = items
+      .map(it => it.pickup_time)
+      .filter(t => t && t.includes(':'));
+    // Also check return pickup times
+    const returnTimes = items
+      .filter(it => it.has_return)
+      .map(it => it.return_pickup_time)
+      .filter(t => t && t.includes(':'));
+    const allTimes = [...pickupTimes, ...returnTimes];
+    if (allTimes.length === 0) return 0;
+    // Calculate max night hours across all pickup times (use 90 min estimated duration)
+    return Math.max(...allTimes.map(t => calculateNightHours(t, 90)));
+  }, [items]);
+
+  // Sync auto-detected night hours with manual state
+  // Only auto-update if user hasn't manually overridden
+  const [nightHoursManuallySet, setNightHoursManuallySet] = useState(false);
+  useEffect(() => {
+    if (!nightHoursManuallySet) {
+      setNightHours(autoNightHours);
+    }
+  }, [autoNightHours, nightHoursManuallySet]);
 
   // Capacity validation: warn if any item has more pax than the vehicle can hold
   const vehicleCapacity = useMemo(() => {
@@ -646,26 +673,45 @@ export default function BrokerNewRequest() {
                     </div>
                     <Switch checked={airportPickup} onCheckedChange={setAirportPickup} />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Moon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Horario nocturno (1:00–5:00)</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Moon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>Horario nocturno (1:00–5:00)</span>
+                      </div>
+                      <Select
+                        value={String(nightHours)}
+                        onValueChange={(v) => {
+                          setNightHours(Number(v));
+                          setNightHoursManuallySet(true);
+                        }}
+                      >
+                        <SelectTrigger className="w-24 h-8 text-xs bg-background border-input text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">No</SelectItem>
+                          <SelectItem value="1">1 hora</SelectItem>
+                          <SelectItem value="2">2 horas</SelectItem>
+                          <SelectItem value="3">3 horas</SelectItem>
+                          <SelectItem value="4">4 horas</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select
-                      value={String(nightHours)}
-                      onValueChange={(v) => setNightHours(Number(v))}
-                    >
-                      <SelectTrigger className="w-24 h-8 text-xs bg-background border-input text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">No</SelectItem>
-                        <SelectItem value="1">1 hora</SelectItem>
-                        <SelectItem value="2">2 horas</SelectItem>
-                        <SelectItem value="3">3 horas</SelectItem>
-                        <SelectItem value="4">4 horas</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {autoNightHours > 0 && !nightHoursManuallySet && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 ml-6" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                        Detectado autom\u00e1ticamente desde la hora de recogida
+                      </p>
+                    )}
+                    {nightHoursManuallySet && autoNightHours !== nightHours && (
+                      <button
+                        type="button"
+                        onClick={() => { setNightHoursManuallySet(false); setNightHours(autoNightHours); }}
+                        className="text-xs text-primary underline ml-6" style={{ fontFamily: 'Barlow, sans-serif' }}
+                      >
+                        Restaurar detecci\u00f3n autom\u00e1tica ({autoNightHours}h)
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : null}
