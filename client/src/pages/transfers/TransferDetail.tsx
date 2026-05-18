@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check, Pencil } from 'lucide-react';
 import { useTransferRequest, useTransferRequests } from '@/hooks/useTransferRequests';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransferItems } from '@/hooks/useTransferItems';
@@ -369,6 +369,12 @@ export default function TransferDetail() {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {!isNew && (
+              <Button variant="outline" onClick={() => navigate(`/transfers/${id}/edit`)} className="gap-2">
+                <Pencil className="h-4 w-4" />
+                Editar
+              </Button>
             )}
             <Button onClick={handleSave} disabled={isCreating || isUpdating} className="gap-2">
               <Save className="h-4 w-4" />

@@ -21,6 +21,7 @@ import {
   getCommissionAmount,
 } from '@/lib/transferPricing';
 import type { TransferItem, TransferItemStatus, PricingMode } from '@/types/transfers';
+import { RouteMapPreview } from './RouteMapPreview';
 
 interface TransferItemBlockProps {
   item: TransferItem;
@@ -586,6 +587,17 @@ export function TransferItemBlock({ item, index, requestId, pricingMode = 'zone_
                 </div>
               )}
             </div>
+
+            {/* Route Map Preview */}
+            {item.pickup_enabled && item.dropoff_enabled && localFields.pickup_location && localFields.dropoff_location && (
+              <div className="relative">
+                <RouteMapPreview
+                  pickupLocation={localFields.pickup_location}
+                  dropoffLocation={localFields.dropoff_location}
+                  height="180px"
+                />
+              </div>
+            )}
 
             {/* Driver Info */}
             <div className="space-y-4 p-4 rounded-lg border">

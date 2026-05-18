@@ -736,3 +736,5 @@
 - [x] Generación de PDF de presupuesto confirmado: desglose servicio + IVA 21% para el cliente — useBrokerQuotePdf con selector ES/EN
 - [x] Integrar botón de descarga de PDF en el detalle de solicitud del broker — visible en estados presupuesto_enviado, confirmado, completado
 - [x] Unificar formulario interno de nueva solicitud de transfer con el wizard del broker — InternalNewTransferWizard con selector de broker, empresa externa, modo precio manual, proveedor externo; ruta /transfers/new apunta al nuevo wizard
+- [x] Unificar edición interna de transfers con wizard mejorado y campos admin (InternalEditTransferWizard) — ruta /transfers/:id/edit, botón Editar en TransferDetail, lazy import en App.tsx
+- [x] Mini-mapa visual con ruta dibujada entre pickup y dropoff en detalle de transfers (interno y broker) — RouteMapPreview con Leaflet + OSRM, integrado en TransferItemBlock y BrokerRequestDetail (ida + vuelta)

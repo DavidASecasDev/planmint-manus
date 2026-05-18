@@ -142,6 +142,7 @@ const TransferDetail = lazy(() => import("./pages/transfers/TransferDetail"));
 const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement"));
 const TransferPricing = lazy(() => import("./pages/transfers/TransferPricing"));
 const InternalNewTransferWizard = lazy(() => import("./pages/transfers/InternalNewTransferWizard"));
+const InternalEditTransferWizard = lazy(() => import("./pages/transfers/InternalEditTransferWizard"));
 
 // Service Requests (cross-org)
 const ServiceRequests = lazy(() => import("./pages/ServiceRequests"));
@@ -1000,6 +1001,16 @@ function QueryRecovery() {
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="transfers" moduleName="Transfers">
                     <InternalNewTransferWizard />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/transfers/:id/edit" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
+                    <InternalEditTransferWizard />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

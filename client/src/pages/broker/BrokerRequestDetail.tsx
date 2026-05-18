@@ -17,6 +17,7 @@ import { TransferNotesSection } from '@/components/transfers/TransferNotesSectio
 import { StatusTimeline } from '@/components/transfers/StatusTimeline';
 import { ChangeHistoryTimeline } from '@/components/broker/ChangeHistoryTimeline';
 import { RouteEstimateBadge } from '@/components/broker/RouteEstimateBadge';
+import { RouteMapPreview } from '@/components/transfers/RouteMapPreview';
 import { useBrokerQuotePdf, type BrokerPdfLanguage } from '@/hooks/useBrokerQuotePdf';
 import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import type { TransferItemVehicle } from '@/types/transfers';
@@ -739,10 +740,15 @@ function TransferItemDetail({ item, index, requestStatus, isDark }: TransferItem
 
         {/* Route Estimate (ida) */}
         {item.pickup_enabled && item.pickup_location && item.dropoff_enabled && item.dropoff_location && (
-          <div className="pl-11">
+          <div className="pl-11 space-y-2">
             <RouteEstimateBadge
               origin={item.pickup_location}
               destination={item.dropoff_location}
+            />
+            <RouteMapPreview
+              pickupLocation={item.pickup_location}
+              dropoffLocation={item.dropoff_location}
+              height="160px"
             />
           </div>
         )}
@@ -796,11 +802,16 @@ function TransferItemDetail({ item, index, requestStatus, isDark }: TransferItem
             )}
             {/* Route Estimate (vuelta) */}
             {item.return_pickup_enabled && item.return_pickup_location && item.return_dropoff_enabled && item.return_dropoff_location && (
-              <div className="pl-11">
+              <div className="pl-11 space-y-2">
                 <RouteEstimateBadge
                   origin={item.return_pickup_location}
                   destination={item.return_dropoff_location}
                   compact
+                />
+                <RouteMapPreview
+                  pickupLocation={item.return_pickup_location}
+                  dropoffLocation={item.return_dropoff_location}
+                  height="140px"
                 />
               </div>
             )}
