@@ -515,6 +515,7 @@ export async function handleGetScheduleNotes(req: Request, res: Response) {
       .from("schedule_notes")
       .select(`
         id,
+        user_id,
         date,
         content,
         created_by,
@@ -570,10 +571,10 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
     const { allowed: canNotes } = await checkUserPermission(sb, orgId, userId, "schedules.manage_notes");
     if (!canNotes) return res.status(403).json({ ok: false, error: "No permission to manage schedule notes" });
 
-    const { date, content } = req.body;
+     const { date, content, user_id: targetUserId } = req.body;
     if (!date) return res.status(400).json({ ok: false, error: "date is required" });
+    if (!targetUserId) return res.status(400).json({ ok: false, error: "user_id is required" });
     if (typeof content !== 'string') return res.status(400).json({ ok: false, error: "content is required" });
-
     // If content is empty, delete the note
     if (content.trim() === '') {
       // Get existing note for history before deleting
@@ -581,9 +582,9 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
         .from("schedule_notes")
         .select("id, content")
         .eq("organization_id", orgId)
+        .eq("user_id", targetUserId)
         .eq("date", date)
         .maybeSingle();
-
       if (existing) {
         // Record deletion in history
         await sb.from("schedule_note_history").insert({
@@ -593,38 +594,37 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
           changed_by: userId,
         });
       }
-
       const { error } = await sb
         .from("schedule_notes")
         .delete()
         .eq("organization_id", orgId)
+        .eq("user_id", targetUserId)
         .eq("date", date);
       if (error) throw error;
       return res.json({ ok: true, data: null });
     }
-
     // Check if note already exists (to determine created vs updated)
     const { data: existingNote } = await sb
       .from("schedule_notes")
       .select("id")
       .eq("organization_id", orgId)
+      .eq("user_id", targetUserId)
       .eq("date", date)
       .maybeSingle();
-
     const isUpdate = !!existingNote;
-
     const { data, error } = await sb
       .from("schedule_notes")
       .upsert(
         {
           organization_id: orgId,
+          user_id: targetUserId,
           date,
           content: content.trim(),
           created_by: userId,
           updated_by: userId,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "organization_id,date" }
+        { onConflict: "organization_id,user_id,date" }
       )
       .select()
       .single();

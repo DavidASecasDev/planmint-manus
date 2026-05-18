@@ -749,3 +749,4 @@
 - [x] Crear tabla schedule_note_history para historial de versiones de notas
 - [x] Endpoint para obtener historial de una nota (get-schedule-note-history)
 - [x] Mostrar historial de versiones en el popover de gestión de notas (NoteHistorySection con timeline)
+- [x] Corregir notas de horarios: deben ser por celda individual (empleado + día), no por columna/día completa

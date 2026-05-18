@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 export interface ScheduleNote {
   id: string;
+  user_id: string;
   date: string;
   content: string;
   created_by: string;
@@ -28,7 +29,7 @@ export interface ScheduleNoteHistoryEntry {
 
 /**
  * Hook to manage schedule notes for a given week.
- * Returns a lookup map (date -> note), plus upsert/delete mutations.
+ * Returns a lookup map (user_id:date -> note), plus upsert/delete mutations.
  */
 export function useScheduleNotes({
   weekStart,
@@ -57,18 +58,20 @@ export function useScheduleNotes({
     staleTime: 30_000,
   });
 
+  // Key: "user_id:date" → ScheduleNote (per-cell lookup)
   const noteLookup = useMemo(() => {
     const map = new Map<string, ScheduleNote>();
     for (const n of notes) {
-      map.set(n.date, n);
+      const key = `${n.user_id}:${n.date}`;
+      map.set(key, n);
     }
     return map;
   }, [notes]);
 
   const upsertNote = useMutation({
-    mutationFn: async ({ date, content }: { date: string; content: string }) => {
+    mutationFn: async ({ date, content, user_id }: { date: string; content: string; user_id: string }) => {
       const res = await apiInvoke<{ ok: boolean }>('upsert-schedule-note', {
-        body: { date, content },
+        body: { date, content, user_id },
       });
       if (res.error) throw new Error(res.error.message || 'Error al guardar nota');
       return res;

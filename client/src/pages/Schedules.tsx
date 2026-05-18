@@ -320,8 +320,8 @@ export default function Schedules() {
     enabled: canManageNotes,
   });
 
-  const handleSaveNote = useCallback((date: string, content: string) => {
-    upsertNote.mutate({ date, content });
+  const handleSaveNote = useCallback((date: string, content: string, userId: string) => {
+    upsertNote.mutate({ date, content, user_id: userId });
   }, [upsertNote]);
 
   const handleDeleteNote = useCallback((noteId: string) => {
@@ -835,7 +835,7 @@ interface TeamScheduleGridProps {
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
   canManageNotes: boolean;
   noteLookup: Map<string, ScheduleNote>;
-  onSaveNote: (date: string, content: string) => void;
+  onSaveNote: (date: string, content: string, userId: string) => void;
   onDeleteNote: (noteId: string) => void;
   isNoteSaving: boolean;
 }
@@ -1024,7 +1024,7 @@ function TeamScheduleGrid({
                       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                       const isSelected = selectedCell?.teamId === team.team_id && selectedCell?.userId === member.id && selectedCell?.date === dateStr;
 
-                      const cellNote = noteLookup.get(dateStr) || null;
+                      const cellNote = noteLookup.get(`${member.id}:${dateStr}`) || null;
 
                       return (
                         <td
@@ -1039,6 +1039,7 @@ function TeamScheduleGrid({
                             {/* Excel-style note triangle */}
                             <CellNoteIndicator
                               date={dateStr}
+                              userId={member.id}
                               note={cellNote}
                               canManageNotes={canManageNotes}
                               onSave={onSaveNote}

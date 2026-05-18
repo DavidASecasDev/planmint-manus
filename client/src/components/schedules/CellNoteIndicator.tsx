@@ -19,9 +19,10 @@ import { useScheduleNoteHistory } from '@/hooks/useScheduleNotes';
 
 interface CellNoteIndicatorProps {
   date: string;
+  userId: string;
   note: ScheduleNote | null;
   canManageNotes: boolean;
-  onSave: (date: string, content: string) => void;
+  onSave: (date: string, content: string, userId: string) => void;
   onDelete: (noteId: string) => void;
   isSaving: boolean;
 }
@@ -34,6 +35,7 @@ interface CellNoteIndicatorProps {
  */
 export function CellNoteIndicator({
   date,
+  userId,
   note,
   canManageNotes,
   onSave,
@@ -53,9 +55,9 @@ export function CellNoteIndicator({
   }, [note?.content, open]);
 
   const handleSave = useCallback(() => {
-    onSave(date, content);
+    onSave(date, content, userId);
     setOpen(false);
-  }, [date, content, onSave]);
+  }, [date, content, userId, onSave]);
 
   const handleDelete = useCallback(() => {
     if (note) {
