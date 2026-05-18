@@ -492,6 +492,156 @@ export async function handleGetAvailableStaff(req: Request, res: Response) {
  * Reorder members within a team by updating their sort_order.
  * Body: { team_id: string, ordered_user_ids: string[] }
  */
+// ─── Schedule Notes ─────────────────────────────────────────────────────────
+
+/** Get schedule notes for a date range */
+export async function handleGetScheduleNotes(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_notes
+    const { allowed: canNotes } = await checkUserPermission(sb, orgId, userId, "schedules.manage_notes");
+    if (!canNotes) return res.status(403).json({ ok: false, error: "No permission to view schedule notes" });
+
+    const { start_date, end_date } = req.body;
+    if (!start_date || !end_date) {
+      return res.status(400).json({ ok: false, error: "start_date and end_date are required" });
+    }
+
+    const { data, error } = await sb
+      .from("schedule_notes")
+      .select(`
+        id,
+        date,
+        content,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
+      `)
+      .eq("organization_id", orgId)
+      .gte("date", start_date)
+      .lte("date", end_date)
+      .order("date", { ascending: true });
+
+    if (error) throw error;
+
+    // Enrich with profile names
+    const userIds = Array.from(new Set(
+      (data || []).flatMap(n => [n.created_by, n.updated_by].filter(Boolean))
+    ));
+    let profiles: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const { data: profs } = await sb
+        .from("profiles")
+        .select("id, name")
+        .in("id", userIds);
+      if (profs) {
+        profiles = Object.fromEntries(profs.map(p => [p.id, p.name]));
+      }
+    }
+
+    const enriched = (data || []).map(n => ({
+      ...n,
+      created_by_name: profiles[n.created_by] || null,
+      updated_by_name: profiles[n.updated_by] || null,
+    }));
+
+    return res.json({ ok: true, data: enriched });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[get-schedule-notes]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Upsert a schedule note (one per org+date) */
+export async function handleUpsertScheduleNote(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_notes
+    const { allowed: canNotes } = await checkUserPermission(sb, orgId, userId, "schedules.manage_notes");
+    if (!canNotes) return res.status(403).json({ ok: false, error: "No permission to manage schedule notes" });
+
+    const { date, content } = req.body;
+    if (!date) return res.status(400).json({ ok: false, error: "date is required" });
+    if (typeof content !== 'string') return res.status(400).json({ ok: false, error: "content is required" });
+
+    // If content is empty, delete the note
+    if (content.trim() === '') {
+      const { error } = await sb
+        .from("schedule_notes")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("date", date);
+      if (error) throw error;
+      return res.json({ ok: true, data: null });
+    }
+
+    const { data, error } = await sb
+      .from("schedule_notes")
+      .upsert(
+        {
+          organization_id: orgId,
+          date,
+          content: content.trim(),
+          created_by: userId,
+          updated_by: userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "organization_id,date" }
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[upsert-schedule-note]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Delete a schedule note */
+export async function handleDeleteScheduleNote(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_notes
+    const { allowed: canNotes } = await checkUserPermission(sb, orgId, userId, "schedules.manage_notes");
+    if (!canNotes) return res.status(403).json({ ok: false, error: "No permission to manage schedule notes" });
+
+    const { note_id } = req.body;
+    if (!note_id) return res.status(400).json({ ok: false, error: "note_id is required" });
+
+    const { error } = await sb
+      .from("schedule_notes")
+      .delete()
+      .eq("id", note_id)
+      .eq("organization_id", orgId);
+
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[delete-schedule-note]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+// ─── Reorder Team Members ──────────────────────────────────────────────────────
+
 export async function handleReorderTeamMembers(req: Request, res: Response) {
   try {
     const sb = getServiceClient();

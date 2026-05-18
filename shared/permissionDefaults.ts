@@ -59,7 +59,7 @@ export const ALL_PERMISSION_KEYS = [
   // Fleet
   "fleet.view", "fleet.manage", "fleet.import",
   // Schedules (Horarios)
-  "schedules.view", "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage",
+  "schedules.view", "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
@@ -112,7 +112,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "movements.create", "movements.manage", "movements.delete", "movements.edit_photos", "movements.upload_receipt",
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "fleet.manage", "fleet.import",
-    "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage",
+    "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
   ],
   manager: [
     "tasks.create", "tasks.update", "tasks.assign", "tasks.change_status",
@@ -299,6 +299,7 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["schedules.assign"] = pj?.schedules?.assign ?? pj?.schedules?.manage ?? false;
   flat["schedules.manage_templates"] = pj?.schedules?.manage_templates ?? pj?.schedules?.manage ?? false;
   flat["schedules.view_directiva"] = pj?.schedules?.view_directiva ?? pj?.schedules?.manage ?? false;
+  flat["schedules.manage_notes"] = pj?.schedules?.manage_notes ?? pj?.schedules?.manage ?? false;
   flat["schedules.manage"] = pj?.schedules?.manage ?? false;
 
   return flat;

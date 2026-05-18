@@ -139,6 +139,8 @@ describe('PERMISSION_CATEGORIES completeness', () => {
     'daily_tasks.view', 'daily_tasks.view_other_days', 'daily_tasks.complete', 'daily_tasks.manage',
     // Fleet
     'fleet.view', 'fleet.manage', 'fleet.import',
+    // Schedules (Horarios)
+    'schedules.view', 'schedules.assign', 'schedules.manage_templates', 'schedules.view_directiva', 'schedules.manage_notes', 'schedules.manage',
   ];
 
   it('has at least 18 categories', () => {
@@ -278,11 +280,12 @@ describe('Permission mapping structural integrity', () => {
   // We test that the PermissionKey type covers all categories by checking
   // that PERMISSION_CATEGORIES keys match what we expect
   
-  it('PERMISSION_CATEGORIES covers movements, daily_tasks, and fleet', () => {
+  it('PERMISSION_CATEGORIES covers movements, daily_tasks, fleet, and schedules', () => {
     const categoryIds = PERMISSION_CATEGORIES.map(c => c.id);
     expect(categoryIds).toContain('movements');
     expect(categoryIds).toContain('daily_tasks');
     expect(categoryIds).toContain('fleet');
+    expect(categoryIds).toContain('schedules');
   });
 
   it('movements category has 6 permissions', () => {
@@ -303,8 +306,14 @@ describe('Permission mapping structural integrity', () => {
     expect(fleet!.permissions).toHaveLength(3);
   });
 
-  it('total permission keys count is at least 91', () => {
+  it('schedules category has 6 permissions', () => {
+    const schedules = PERMISSION_CATEGORIES.find(c => c.id === 'schedules');
+    expect(schedules).toBeDefined();
+    expect(schedules!.permissions).toHaveLength(6);
+  });
+
+  it('total permission keys count is at least 97', () => {
     const totalKeys = PERMISSION_CATEGORIES.reduce((sum, cat) => sum + cat.permissions.length, 0);
-    expect(totalKeys).toBeGreaterThanOrEqual(91);
+    expect(totalKeys).toBeGreaterThanOrEqual(97);
   });
 });

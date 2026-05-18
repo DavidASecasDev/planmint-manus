@@ -235,6 +235,7 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       assign: 'Permite asignar y quitar turnos a empleados',
       manage_templates: 'Permite crear, editar y eliminar plantillas de turno',
       view_directiva: 'Permite ver los horarios del equipo Directiva',
+      manage_notes: 'Permite crear, ver y eliminar notas internas en horarios',
       manage: 'Acceso completo a horarios',
     },
   },

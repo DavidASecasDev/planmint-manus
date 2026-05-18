@@ -738,3 +738,8 @@
 - [x] Unificar formulario interno de nueva solicitud de transfer con el wizard del broker — InternalNewTransferWizard con selector de broker, empresa externa, modo precio manual, proveedor externo; ruta /transfers/new apunta al nuevo wizard
 - [x] Unificar edición interna de transfers con wizard mejorado y campos admin (InternalEditTransferWizard) — ruta /transfers/:id/edit, botón Editar en TransferDetail, lazy import en App.tsx
 - [x] Mini-mapa visual con ruta dibujada entre pickup y dropoff en detalle de transfers (interno y broker) — RouteMapPreview con Leaflet + OSRM, integrado en TransferItemBlock y BrokerRequestDetail (ida + vuelta)
+- [x] Crear tabla schedule_notes en Supabase para notas del módulo de Horarios (id, org_id, date, content, created_by, created_at, updated_at)
+- [x] Añadir permiso schedules.manage_notes al sistema de permisos (PermissionKey, permissionDefaults, permissionDefinitions, enterprise.ts, RoleEditor, MemberPermissionsEditor, EffectivePermissionsView)
+- [x] Crear endpoints backend para CRUD de notas de horarios (get-schedule-notes, upsert-schedule-note, delete-schedule-note)
+- [x] Implementar UI de notas en Schedules.tsx: ScheduleNotesRow con popover por día, visible solo con permiso schedules.manage_notes
+- [x] Tests para la funcionalidad de notas de horarios (permissions.test.ts actualizado con schedules coverage)

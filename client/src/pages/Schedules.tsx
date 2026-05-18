@@ -42,6 +42,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { WeeklyCapacityPanel } from '@/components/WeeklyCapacityPanel';
+import { ScheduleNotesRow } from '@/components/schedules/ScheduleNotesRow';
 import { TravelTimeEditor } from '@/components/TravelTimeEditor';
 import {
   Tooltip,
@@ -161,6 +162,7 @@ export default function Schedules() {
   const canAssign = hasPermission('schedules.assign');
   const canManageTemplates = hasPermission('schedules.manage_templates');
   const canManage = hasPermission('schedules.manage');
+  const canManageNotes = hasPermission('schedules.manage_notes');
   const canViewDirectiva = hasPermission('schedules.view_directiva');
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -673,6 +675,7 @@ export default function Schedules() {
                   onAssignShift={handleAssignShift}
                   canAssign={canAssign}
                   onReorderMember={canAssign ? handleReorderMember : undefined}
+                  canManageNotes={canManageNotes}
                 />
               ))}
 
@@ -807,6 +810,7 @@ interface TeamScheduleGridProps {
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
+  canManageNotes: boolean;
 }
 
 function TeamScheduleGrid({
@@ -820,6 +824,7 @@ function TeamScheduleGrid({
   onAssignShift,
   canAssign,
   onReorderMember,
+  canManageNotes,
 }: TeamScheduleGridProps) {
   // Calculate weekly hours per member
   const memberWeeklyHours = useMemo(() => {
@@ -1116,6 +1121,8 @@ function TeamScheduleGrid({
                   </td>
                 </tr>
               )}
+              {/* Schedule Notes Row — only visible with manage_notes permission */}
+              <ScheduleNotesRow weekDates={weekDates} canManageNotes={canManageNotes} />
             </tbody>
           </table>
         </div>

@@ -59,7 +59,7 @@ export interface RolePermissions {
   // Fleet
   fleet: { view: boolean; manage: boolean; import: boolean };
   // Schedules (Horarios)
-  schedules: { view: boolean; assign: boolean; manage_templates: boolean; view_directiva: boolean; manage: boolean };
+  schedules: { view: boolean; assign: boolean; manage_templates: boolean; view_directiva: boolean; manage_notes: boolean; manage: boolean };
 }
 
 export interface UserRoleAssignment {
@@ -376,7 +376,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
   movements: { view: true, create: false, manage: false, delete: false, edit_photos: false, upload_receipt: false },
   daily_tasks: { view: true, view_other_days: false, complete: false, manage: false },
   fleet: { view: true, manage: false, import: false },
-  schedules: { view: true, assign: false, manage_templates: false, view_directiva: false, manage: false },
+  schedules: { view: true, assign: false, manage_templates: false, view_directiva: false, manage_notes: false, manage: false },
 };
 
 export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
@@ -533,6 +533,7 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     assign: 'Asignar turnos',
     manage_templates: 'Gestionar plantillas de turno',
     view_directiva: 'Ver horarios de Directiva',
+    manage_notes: 'Gestionar notas de horarios',
     manage: 'Gestionar todo (Horarios)',
   },
 };

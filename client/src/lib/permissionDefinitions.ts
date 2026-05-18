@@ -255,6 +255,7 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'schedules.assign', label: 'Asignar turnos', description: 'Permite asignar y quitar turnos a empleados en la cuadrícula' },
       { key: 'schedules.manage_templates', label: 'Gestionar plantillas de turno', description: 'Permite crear, editar y eliminar plantillas de turno (horarios tipo)' },
       { key: 'schedules.view_directiva', label: 'Ver horarios de Directiva', description: 'Permite ver los turnos del equipo Directiva (si está desactivado, el equipo Directiva queda oculto)' },
+      { key: 'schedules.manage_notes', label: 'Gestionar notas de horarios', description: 'Permite crear, ver y eliminar notas internas en la cuadrícula de horarios' },
       { key: 'schedules.manage', label: 'Gestionar todo (Horarios)', description: 'Acceso completo: copiar semanas, gestionar plantillas y asignar turnos' },
     ],
   },

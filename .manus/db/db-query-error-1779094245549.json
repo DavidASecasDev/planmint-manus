@@ -1,0 +1,15 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS schedule_notes (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,\n  date DATE NOT NULL,\n  content TEXT NOT NULL DEFAULT '',\n  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,\n  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,\n  created_at TIMESTAMPTZ DEFAULT NOW(),\n  updated_at TIMESTAMPTZ DEFAULT NOW(),\n  UNIQUE(organization_id, date)\n);\n\n-- Enable RLS\nALTER TABLE schedule_notes ENABLE ROW LEVEL SECURITY;\n\n-- Create policy for service role (full access)\nCREATE POLICY \"Service role full access\" ON schedule_notes\n  FOR ALL\n  USING (true)\n  WITH CHECK (true);\n\n-- Index for fast lookups by org + date range\nCREATE INDEX IF NOT EXISTS idx_schedule_notes_org_date ON schedule_notes(organization_id, date);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute \nCREATE TABLE IF NOT EXISTS schedule_notes (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,\n  date DATE NOT NULL,\n  content TEXT NOT NULL DEFAULT '',\n  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,\n  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,\n  created_at TIMESTAMPTZ DEFAULT NOW(),\n  updated_at TIMESTAMPTZ DEFAULT NOW(),\n  UNIQUE(organization_id, date)\n);\n\n-- Enable RLS\nALTER TABLE schedule_notes ENABLE ROW LEVEL SECURITY;\n\n-- Create policy for service role (full access)\nCREATE POLICY \"Service role full access\" ON schedule_notes\n  FOR ALL\n  USING (true)\n  WITH CHECK (true);\n\n-- Index for fast lookups by org + date range\nCREATE INDEX IF NOT EXISTS idx_schedule_notes_org_date ON schedule_notes(organization_id, date);\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 2: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 2 column 10 near \"UUID DEFAULT gen_random_uuid() PRIMARY KEY,",
+    "  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,",
+    "  date DATE NOT NULL,",
+    "  content TEXT NOT NULL DEFAULT '',",
+    "  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,",
+    "  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,",
+    "  created_at TIMESTAMPTZ DEFAULT NOW(),",
+    "  updated_at TIMESTAM"
+  ]
+}
