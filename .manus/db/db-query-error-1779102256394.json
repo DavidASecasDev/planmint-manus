@@ -1,0 +1,8 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS public.schedule_notes (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL, date DATE NOT NULL, content TEXT NOT NULL DEFAULT '', created_by UUID, updated_by UUID, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(org_id, date))",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute CREATE TABLE IF NOT EXISTS public.schedule_notes (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL, date DATE NOT NULL, content TEXT NOT NULL DEFAULT '', created_by UUID, updated_by UUID, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(org_id, date))",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 1 column 57 near \"UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL, date DATE NOT NULL, content TEXT NOT NULL DEFAULT '', created_by UUID, updated_by UUID, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(org_id, date))\""
+  ]
+}

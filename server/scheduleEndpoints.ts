@@ -588,8 +588,6 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
         // Record deletion in history
         await sb.from("schedule_note_history").insert({
           note_id: existing.id,
-          organization_id: orgId,
-          date,
           content: existing.content,
           action: 'deleted',
           changed_by: userId,
@@ -637,8 +635,6 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
     if (data) {
       await sb.from("schedule_note_history").insert({
         note_id: data.id,
-        organization_id: orgId,
-        date,
         content: content.trim(),
         action: isUpdate ? 'updated' : 'created',
         changed_by: userId,
@@ -680,8 +676,6 @@ export async function handleDeleteScheduleNote(req: Request, res: Response) {
       // Record deletion in history
       await sb.from("schedule_note_history").insert({
         note_id: noteData.id,
-        organization_id: orgId,
-        date: noteData.date,
         content: noteData.content,
         action: 'deleted',
         changed_by: userId,

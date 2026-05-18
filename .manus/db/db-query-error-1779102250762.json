@@ -1,0 +1,17 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS public.schedule_notes (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  org_id UUID NOT NULL,\n  date DATE NOT NULL,\n  content TEXT NOT NULL DEFAULT '',\n  created_by UUID,\n  updated_by UUID,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  UNIQUE(org_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS public.schedule_note_history (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  note_id UUID NOT NULL REFERENCES public.schedule_notes(id) ON DELETE CASCADE,\n  content TEXT,\n  action TEXT NOT NULL DEFAULT 'created',\n  changed_by UUID,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE INDEX IF NOT EXISTS idx_schedule_notes_org_date ON public.schedule_notes(org_id, date);\nCREATE INDEX IF NOT EXISTS idx_schedule_note_history_note ON public.schedule_note_history(note_id);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2vFDbXk9HMeSZNN.root --database ixFK4yeJEEAkh8kCZkpztM --execute CREATE TABLE IF NOT EXISTS public.schedule_notes (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  org_id UUID NOT NULL,\n  date DATE NOT NULL,\n  content TEXT NOT NULL DEFAULT '',\n  created_by UUID,\n  updated_by UUID,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  UNIQUE(org_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS public.schedule_note_history (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  note_id UUID NOT NULL REFERENCES public.schedule_notes(id) ON DELETE CASCADE,\n  content TEXT,\n  action TEXT NOT NULL DEFAULT 'created',\n  changed_by UUID,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE INDEX IF NOT EXISTS idx_schedule_notes_org_date ON public.schedule_notes(org_id, date);\nCREATE INDEX IF NOT EXISTS idx_schedule_note_history_note ON public.schedule_note_history(note_id);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 2 column 10 near \"UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+    "  org_id UUID NOT NULL,",
+    "  date DATE NOT NULL,",
+    "  content TEXT NOT NULL DEFAULT '',",
+    "  created_by UUID,",
+    "  updated_by UUID,",
+    "  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),",
+    "  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),",
+    "  UNIQUE(org_id, date)",
+    ")\""
+  ]
+}
