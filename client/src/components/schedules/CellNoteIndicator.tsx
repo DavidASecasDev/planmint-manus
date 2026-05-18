@@ -56,7 +56,8 @@ export function CellNoteIndicator({
 
   const handleSave = useCallback(() => {
     onSave(date, content, userId);
-    setOpen(false);
+    // Keep popover open and show history so user sees the update immediately
+    setShowHistory(true);
   }, [date, content, userId, onSave]);
 
   const handleDelete = useCallback(() => {

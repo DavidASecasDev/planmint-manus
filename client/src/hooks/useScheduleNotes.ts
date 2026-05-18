@@ -78,6 +78,7 @@ export function useScheduleNotes({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-notes', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-note-history'] });
       toast.success('Nota guardada');
     },
     onError: (err: Error) => {
@@ -95,6 +96,7 @@ export function useScheduleNotes({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-notes', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-note-history'] });
       toast.success('Nota eliminada');
     },
     onError: (err: Error) => {
