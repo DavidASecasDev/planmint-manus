@@ -576,6 +576,26 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
 
     // If content is empty, delete the note
     if (content.trim() === '') {
+      // Get existing note for history before deleting
+      const { data: existing } = await sb
+        .from("schedule_notes")
+        .select("id, content")
+        .eq("organization_id", orgId)
+        .eq("date", date)
+        .maybeSingle();
+
+      if (existing) {
+        // Record deletion in history
+        await sb.from("schedule_note_history").insert({
+          note_id: existing.id,
+          organization_id: orgId,
+          date,
+          content: existing.content,
+          action: 'deleted',
+          changed_by: userId,
+        });
+      }
+
       const { error } = await sb
         .from("schedule_notes")
         .delete()
@@ -584,6 +604,16 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
       if (error) throw error;
       return res.json({ ok: true, data: null });
     }
+
+    // Check if note already exists (to determine created vs updated)
+    const { data: existingNote } = await sb
+      .from("schedule_notes")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("date", date)
+      .maybeSingle();
+
+    const isUpdate = !!existingNote;
 
     const { data, error } = await sb
       .from("schedule_notes")
@@ -602,6 +632,19 @@ export async function handleUpsertScheduleNote(req: Request, res: Response) {
       .single();
 
     if (error) throw error;
+
+    // Record in history
+    if (data) {
+      await sb.from("schedule_note_history").insert({
+        note_id: data.id,
+        organization_id: orgId,
+        date,
+        content: content.trim(),
+        action: isUpdate ? 'updated' : 'created',
+        changed_by: userId,
+      });
+    }
+
     return res.json({ ok: true, data });
   } catch (err: any) {
     if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
@@ -625,6 +668,26 @@ export async function handleDeleteScheduleNote(req: Request, res: Response) {
     const { note_id } = req.body;
     if (!note_id) return res.status(400).json({ ok: false, error: "note_id is required" });
 
+    // Get note data for history before deleting
+    const { data: noteData } = await sb
+      .from("schedule_notes")
+      .select("id, date, content")
+      .eq("id", note_id)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+
+    if (noteData) {
+      // Record deletion in history
+      await sb.from("schedule_note_history").insert({
+        note_id: noteData.id,
+        organization_id: orgId,
+        date: noteData.date,
+        content: noteData.content,
+        action: 'deleted',
+        changed_by: userId,
+      });
+    }
+
     const { error } = await sb
       .from("schedule_notes")
       .delete()
@@ -640,7 +703,59 @@ export async function handleDeleteScheduleNote(req: Request, res: Response) {
   }
 }
 
-// ─── Reorder Team Members ──────────────────────────────────────────────────────
+// ─── Schedule Note History ─────────────────────────────────────────────────────────────────────────────
+
+/** Get history for a specific schedule note */
+export async function handleGetScheduleNoteHistory(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage_notes
+    const { allowed: canNotes } = await checkUserPermission(sb, orgId, userId, "schedules.manage_notes");
+    if (!canNotes) return res.status(403).json({ ok: false, error: "No permission to view schedule note history" });
+
+    const { note_id } = req.body;
+    if (!note_id) return res.status(400).json({ ok: false, error: "note_id is required" });
+
+    const { data, error } = await sb
+      .from("schedule_note_history")
+      .select("id, note_id, content, action, changed_by, created_at")
+      .eq("note_id", note_id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    // Enrich with profile names
+    const userIds = Array.from(new Set((data || []).map(h => h.changed_by).filter(Boolean)));
+    let profiles: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const { data: profs } = await sb
+        .from("profiles")
+        .select("id, name")
+        .in("id", userIds);
+      if (profs) {
+        profiles = Object.fromEntries(profs.map(p => [p.id, p.name]));
+      }
+    }
+
+    const enriched = (data || []).map(h => ({
+      ...h,
+      changed_by_name: profiles[h.changed_by] || null,
+    }));
+
+    return res.json({ ok: true, data: enriched });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[get-schedule-note-history]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+// ─── Reorder Team Members ──────────────────────────────────────────────────────────────────────────────
 
 export async function handleReorderTeamMembers(req: Request, res: Response) {
   try {

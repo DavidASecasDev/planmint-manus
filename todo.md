@@ -743,3 +743,9 @@
 - [x] Crear endpoints backend para CRUD de notas de horarios (get-schedule-notes, upsert-schedule-note, delete-schedule-note)
 - [x] Implementar UI de notas en Schedules.tsx: ScheduleNotesRow con popover por día, visible solo con permiso schedules.manage_notes
 - [x] Tests para la funcionalidad de notas de horarios (permissions.test.ts actualizado con schedules coverage)
+- [x] Rediseñar notas de horarios estilo Excel: triángulo en esquina superior derecha de cada celda de turno (no fila separada)
+- [x] Tooltip al hover sobre triángulo mostrando contenido de la nota
+- [x] Popover al clic sobre celda con nota para gestionar (crear/editar/eliminar)
+- [x] Crear tabla schedule_note_history para historial de versiones de notas
+- [x] Endpoint para obtener historial de una nota (get-schedule-note-history)
+- [x] Mostrar historial de versiones en el popover de gestión de notas (NoteHistorySection con timeline)

@@ -42,7 +42,9 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { WeeklyCapacityPanel } from '@/components/WeeklyCapacityPanel';
-import { ScheduleNotesRow } from '@/components/schedules/ScheduleNotesRow';
+import { useScheduleNotes } from '@/hooks/useScheduleNotes';
+import type { ScheduleNote } from '@/hooks/useScheduleNotes';
+import { CellNoteIndicator } from '@/components/schedules/CellNoteIndicator';
 import { TravelTimeEditor } from '@/components/TravelTimeEditor';
 import {
   Tooltip,
@@ -310,6 +312,23 @@ export default function Schedules() {
     });
   const schedules = weeklyData?.schedules || [];
   const dayStats = weeklyData?.dayStats || {};
+
+  // ─── Schedule Notes (fetched once at parent, passed down) ───────────────
+  const { noteLookup, upsertNote, deleteNote } = useScheduleNotes({
+    weekStart,
+    weekEnd,
+    enabled: canManageNotes,
+  });
+
+  const handleSaveNote = useCallback((date: string, content: string) => {
+    upsertNote.mutate({ date, content });
+  }, [upsertNote]);
+
+  const handleDeleteNote = useCallback((noteId: string) => {
+    deleteNote.mutate({ noteId });
+  }, [deleteNote]);
+
+  const isNoteSaving = upsertNote.isPending || deleteNote.isPending;
 
   // Build schedule lookup: userId+date -> ScheduleEntry
   const scheduleLookup = useMemo(() => {
@@ -676,6 +695,10 @@ export default function Schedules() {
                   canAssign={canAssign}
                   onReorderMember={canAssign ? handleReorderMember : undefined}
                   canManageNotes={canManageNotes}
+                  noteLookup={noteLookup}
+                  onSaveNote={handleSaveNote}
+                  onDeleteNote={handleDeleteNote}
+                  isNoteSaving={isNoteSaving}
                 />
               ))}
 
@@ -811,6 +834,10 @@ interface TeamScheduleGridProps {
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
   canManageNotes: boolean;
+  noteLookup: Map<string, ScheduleNote>;
+  onSaveNote: (date: string, content: string) => void;
+  onDeleteNote: (noteId: string) => void;
+  isNoteSaving: boolean;
 }
 
 function TeamScheduleGrid({
@@ -825,6 +852,10 @@ function TeamScheduleGrid({
   canAssign,
   onReorderMember,
   canManageNotes,
+  noteLookup,
+  onSaveNote,
+  onDeleteNote,
+  isNoteSaving,
 }: TeamScheduleGridProps) {
   // Calculate weekly hours per member
   const memberWeeklyHours = useMemo(() => {
@@ -993,6 +1024,8 @@ function TeamScheduleGrid({
                       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                       const isSelected = selectedCell?.teamId === team.team_id && selectedCell?.userId === member.id && selectedCell?.date === dateStr;
 
+                      const cellNote = noteLookup.get(dateStr) || null;
+
                       return (
                         <td
                           key={dateStr}
@@ -1002,6 +1035,16 @@ function TeamScheduleGrid({
                             isWeekend && !today && "bg-muted/20"
                           )}
                         >
+                          <div className="relative group/cell">
+                            {/* Excel-style note triangle */}
+                            <CellNoteIndicator
+                              date={dateStr}
+                              note={cellNote}
+                              canManageNotes={canManageNotes}
+                              onSave={onSaveNote}
+                              onDelete={onDeleteNote}
+                              isSaving={isNoteSaving}
+                            />
                           {canAssign ? (
                           <Popover
                             open={isSelected}
@@ -1099,6 +1142,7 @@ function TeamScheduleGrid({
                               )}
                             </div>
                           )}
+                          </div>
                         </td>
                       );
                     })}
@@ -1121,8 +1165,7 @@ function TeamScheduleGrid({
                   </td>
                 </tr>
               )}
-              {/* Schedule Notes Row — only visible with manage_notes permission */}
-              <ScheduleNotesRow weekDates={weekDates} canManageNotes={canManageNotes} />
+
             </tbody>
           </table>
         </div>

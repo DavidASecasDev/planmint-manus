@@ -110,6 +110,7 @@ import {
   handleGetScheduleNotes,
   handleUpsertScheduleNote,
   handleDeleteScheduleNote,
+  handleGetScheduleNoteHistory,
 } from "../scheduleEndpoints";
 import { handleGetStaffCapacity } from "../staffCapacityEndpoint";
 import {
@@ -261,6 +262,7 @@ async function startServer() {
   app.post("/api/get-schedule-notes", handleGetScheduleNotes);
   app.post("/api/upsert-schedule-note", handleUpsertScheduleNote);
   app.post("/api/delete-schedule-note", handleDeleteScheduleNote);
+  app.post("/api/get-schedule-note-history", handleGetScheduleNoteHistory);
   app.post("/api/get-available-staff", handleGetAvailableStaff);
   app.post("/api/get-staff-capacity", handleGetStaffCapacity);
   app.post("/api/get-staff-capacity-week", handleGetStaffCapacityWeek);
