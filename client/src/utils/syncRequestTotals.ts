@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { calculateRequestTotals } from './syncRequestTotals.pure';
-import type { PricingMode } from '@/types/transfers';
 
 // Re-export the pure function for convenience
 export { calculateRequestTotals };
@@ -13,26 +12,12 @@ export { calculateRequestTotals };
  * so that the request-level financial fields stay in sync with the items.
  *
  * - client_total = sum of price_with_commission (what the client pays, sin IVA)
- * - provider_cost = sum of base_price (zone_tariff) or provider_cost (provider_quote)
+ * - provider_cost = sum of base_price (tarifa zona)
  * - internal_margin = client_total - provider_cost
  */
 export async function syncRequestTotals(requestId: string): Promise<void> {
   try {
-    // 1. Fetch the request's pricing_mode
-    const { data: request, error: reqError } = await supabase
-      .from('transfer_requests')
-      .select('pricing_mode')
-      .eq('id', requestId)
-      .single();
-
-    if (reqError || !request) {
-      console.error('syncRequestTotals: failed to fetch request', reqError);
-      return;
-    }
-
-    const pricingMode: PricingMode = (request.pricing_mode as PricingMode) || 'zone_tariff';
-
-    // 2. Fetch all items for this request
+    // 1. Fetch all items for this request
     const { data: items, error: itemsError } = await supabase
       .from('transfer_items')
       .select('price_with_commission, base_price, provider_cost')
@@ -43,10 +28,10 @@ export async function syncRequestTotals(requestId: string): Promise<void> {
       return;
     }
 
-    // 3. Calculate totals using the pure function
-    const totals = calculateRequestTotals(items || [], pricingMode);
+    // 2. Calculate totals using the pure function
+    const totals = calculateRequestTotals(items || []);
 
-    // 4. Update the request
+    // 3. Update the request
     const { error: updateError } = await supabase
       .from('transfer_requests')
       .update({

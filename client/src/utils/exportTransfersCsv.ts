@@ -18,11 +18,6 @@ function escapeField(value: string): string {
   return value;
 }
 
-const PRICING_MODE_LABELS: Record<string, string> = {
-  zone_tariff: 'Tarifa por zona',
-  provider_quote: 'Presupuesto proveedor',
-};
-
 const STATUS_LABELS: Record<string, string> = {
   pendiente: 'Pendiente',
   en_gestion: 'En gestión',
@@ -42,7 +37,6 @@ export function generateTransfersCsv(requests: TransferRequest[]): string {
     'Broker',
     'Cliente',
     'Estado',
-    'Modo de precio',
     'Nº Trayectos',
     'Primera fecha',
     'Total cliente (€)',
@@ -61,7 +55,6 @@ export function generateTransfersCsv(requests: TransferRequest[]): string {
       escapeField(r.broker_name || ''),
       escapeField(r.client_name || ''),
       escapeField(STATUS_LABELS[r.status] || r.status),
-      escapeField(PRICING_MODE_LABELS[r.pricing_mode || 'zone_tariff'] || 'Zona'),
       String(r.items_count || 0),
       r.first_transfer_date || '',
       csvNumber(clientTotal),

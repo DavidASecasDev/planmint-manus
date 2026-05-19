@@ -757,3 +757,5 @@
 - [x] Normalizar datos antiguos en BD para coherencia con el flujo actual (22 registros → zone_tariff)
 - [x] Eliminar badge "Zona" y referencias a pricing_mode zone_tariff del código
 - [x] Limpiar lógica obsoleta del sistema antiguo de transfers en el frontend
+- [x] Eliminar campo pricing_mode del tipo TypeScript y todas las referencias en código
+- [x] Añadir filtro por tipo de servicio (Punto a punto / Pack) en TransferFilters

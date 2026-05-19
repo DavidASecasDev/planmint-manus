@@ -1,4 +1,3 @@
-import type { PricingMode } from '@/types/transfers';
 import { calculateRequestTotals } from './syncRequestTotals.pure';
 
 // Default margin thresholds (used as fallback when settings aren't loaded)
@@ -73,10 +72,9 @@ export function evaluateMarginAlert(
     base_price: number | null;
     provider_cost: number | null;
   }>,
-  pricingMode: PricingMode,
   thresholds: MarginThresholdConfig = DEFAULT_THRESHOLDS
 ): MarginAlertInfo {
-  const { clientTotal, providerCost, internalMargin } = calculateRequestTotals(items, pricingMode);
+  const { clientTotal, providerCost, internalMargin } = calculateRequestTotals(items);
   const marginPercent = getMarginPercent(providerCost, clientTotal);
   const level = getMarginAlertLevel(marginPercent, thresholds);
   const message = getMarginAlertMessage(level, marginPercent);

@@ -8,7 +8,7 @@ import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
-import type { TransferRequest, TransferItem, TransferItemVehicle, PricingMode } from '@/types/transfers';
+import type { TransferRequest, TransferItem, TransferItemVehicle } from '@/types/transfers';
 import { getVehicleInfo } from '@/lib/transferPricing';
 
 type DocumentType = 'quote' | 'invoice';
@@ -164,16 +164,14 @@ export function useTransferQuotePdf() {
    * The client-facing price is always price_with_commission (regardless of pricing mode).
    * IVA is always 21%.
    */
-  const calculatePdfTotals = (items: TransferItem[], pricingMode: PricingMode) => {
+  const calculatePdfTotals = (items: TransferItem[]) => {
     const subtotal = items.reduce((sum, item) => sum + (item.price_with_commission || item.base_price || 0), 0);
     const vatRate = 21;
     const vatAmount = Math.round(subtotal * 0.21 * 100) / 100;
     const total = Math.round((subtotal + vatAmount) * 100) / 100;
 
     // Internal-only: provider cost for margin calculation
-    const providerCost = pricingMode === 'provider_quote'
-      ? items.reduce((sum, it) => sum + (it.provider_cost || it.base_price || 0), 0)
-      : items.reduce((sum, it) => sum + (it.base_price || 0), 0);
+    const providerCost = items.reduce((sum, it) => sum + (it.base_price || 0), 0);
 
     return { subtotal, vatRate, vatAmount, total, providerCost };
   };
@@ -215,7 +213,7 @@ export function useTransferQuotePdf() {
     }
     const t = TRANSLATIONS[language];
     const dateLocale = language === 'es' ? es : enUS;
-    const pricingMode: PricingMode = request.pricing_mode || 'zone_tariff';
+
 
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -480,7 +478,7 @@ export function useTransferQuotePdf() {
       // Calculated from items (unified source of truth)
       // ═══════════════════════════════════════════════════════════
       
-      const { subtotal, vatRate, vatAmount, total } = calculatePdfTotals(items, pricingMode);
+      const { subtotal, vatRate, vatAmount, total } = calculatePdfTotals(items);
 
       const totalsBoxWidth = 85;
       const totalsBoxX = pageWidth - marginRight - totalsBoxWidth;
@@ -542,16 +540,7 @@ export function useTransferQuotePdf() {
       // PRICING MODE NOTE (subtle, left of totals box)
       // ═══════════════════════════════════════════════════════════
       
-      if (request.is_external_provider && pricingMode === 'provider_quote') {
-        pdf.setFontSize(7);
-        pdf.setFont('helvetica', 'italic');
-        pdf.setTextColor(...COLORS.lightGray);
-        pdf.text(
-          t.providerQuoteNote,
-          marginLeft,
-          yPos + totalsBoxHeight - 4
-        );
-      }
+
 
       // Move yPos past the totals box
       yPos += totalsBoxHeight + 8;

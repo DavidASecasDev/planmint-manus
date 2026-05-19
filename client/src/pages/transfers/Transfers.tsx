@@ -35,7 +35,7 @@ export default function Transfers() {
     search: '',
     broker: '',
     status: 'all',
-    pricingMode: 'all',
+    serviceType: 'all',
     dateFrom: '',
     dateTo: '',
     showArchived: false,

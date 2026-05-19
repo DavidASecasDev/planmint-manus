@@ -30,7 +30,7 @@ import { BrokerSelect } from '@/components/transfers/BrokerSelect';
 import { ProviderSelect } from '@/components/transfers/ProviderSelect';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { toast } from 'sonner';
-import type { TransferRequest, TransferRequestStatus, TransferItem, TransferDocumentType, PricingMode } from '@/types/transfers';
+import type { TransferRequest, TransferRequestStatus, TransferItem, TransferDocumentType } from '@/types/transfers';
 import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
 import { Calculator, FileText } from 'lucide-react';
 
@@ -72,7 +72,6 @@ export default function TransferDetail() {
   const [generalOpen, setGeneralOpen] = useState(true);
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [financialOpen, setFinancialOpen] = useState(true);
-  const pricingMode: PricingMode = 'zone_tariff';
 
   const { brokers } = useTransferBrokers();
 
@@ -129,7 +128,6 @@ export default function TransferDetail() {
           client_name: clientName.trim(),
           is_external_provider: isExternalProvider,
           external_provider_name: isExternalProvider ? externalProviderName.trim() : null,
-          pricing_mode: pricingMode,
           notes: notes.trim() || null,
         });
 
@@ -149,7 +147,6 @@ export default function TransferDetail() {
           client_name: clientName.trim(),
           is_external_provider: isExternalProvider,
           external_provider_name: isExternalProvider ? externalProviderName.trim() : null,
-          pricing_mode: pricingMode,
           notes: notes.trim() || null,
         });
       }
@@ -527,7 +524,6 @@ export default function TransferDetail() {
             clientTotal={existingRequest.client_total}
             internalMargin={existingRequest.internal_margin}
             isExternalProvider={existingRequest.is_external_provider}
-            pricingMode={pricingMode}
             items={items}
           />
         )}
@@ -595,7 +591,6 @@ export default function TransferDetail() {
                       item={item}
                       index={index}
                       requestId={existingRequest.id}
-                      pricingMode={pricingMode}
                     />
                   ))}
               </div>

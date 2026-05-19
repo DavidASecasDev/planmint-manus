@@ -20,14 +20,13 @@ import {
   calculatePriceWithCommission,
   getCommissionAmount,
 } from '@/lib/transferPricing';
-import type { TransferItem, TransferItemStatus, PricingMode } from '@/types/transfers';
+import type { TransferItem, TransferItemStatus } from '@/types/transfers';
 import { RouteMapPreview } from './RouteMapPreview';
 
 interface TransferItemBlockProps {
   item: TransferItem;
   index: number;
   requestId: string;
-  pricingMode?: PricingMode;
 }
 
 const ITEM_STATUS_OPTIONS: { value: TransferItemStatus; label: string }[] = [
@@ -55,7 +54,7 @@ function getLocalFieldsFromItem(item: TransferItem): Record<LocalTextFieldKey, s
   }, {} as Record<LocalTextFieldKey, string>);
 }
 
-export function TransferItemBlock({ item, index, requestId, pricingMode = 'zone_tariff' }: TransferItemBlockProps) {
+export function TransferItemBlock({ item, index, requestId }: TransferItemBlockProps) {
   const [isOpen, setIsOpen] = useState(true);
   const { updateItem, updateItemStatus, deleteItem } = useTransferItems(requestId);
   const { vehicles, addVehicle, updateVehicle, deleteVehicle } = useTransferItemVehicles(item.id);

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem, PricingMode } from '@/types/transfers';
+import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem } from '@/types/transfers';
 
 export function useTransferRequests(filters?: Partial<TransferFilters>) {
   const { profile } = useAuth();
@@ -31,6 +31,10 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
       }
       if (filters?.search) {
         query = query.or(`broker_name.ilike.%${filters.search}%,client_name.ilike.%${filters.search}%,request_number.ilike.%${filters.search}%`);
+      }
+
+      if (filters?.serviceType && filters.serviceType !== 'all') {
+        query = query.eq('service_type', filters.serviceType);
       }
 
       // Filter archived: by default hide archived, show only when toggle is on
@@ -100,7 +104,6 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           client_name: data.client_name!,
           is_external_provider: data.is_external_provider ?? false,
           external_provider_name: data.external_provider_name,
-          pricing_mode: data.pricing_mode || 'zone_tariff',
           notes: data.notes,
           created_by: profile.id,
         }])

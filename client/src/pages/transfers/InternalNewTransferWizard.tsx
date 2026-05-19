@@ -47,7 +47,7 @@ import { calculateNightHours, getNightHoursDescription } from '@/lib/nightHoursC
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { BrokerSelect } from '@/components/transfers/BrokerSelect';
 import { ProviderSelect } from '@/components/transfers/ProviderSelect';
-import type { ClientType, ServiceType, PackDuration, PricingMode } from '@/types/transfers';
+import type { ClientType, ServiceType, PackDuration } from '@/types/transfers';
 import {
   ArrowLeft,
   ArrowRight,
@@ -108,7 +108,6 @@ export default function InternalNewTransferWizard() {
   const [vehicleType, setVehicleType] = useState(savedDraft?.vehicleType ?? 'v_class');
   const [packDuration, setPackDuration] = useState<PackDuration>(savedDraft?.packDuration ?? '4h');
   const [selectedZone, setSelectedZone] = useState(savedDraft?.selectedZone ?? '');
-  const pricingMode: PricingMode = 'zone_tariff';
 
   // Supplements
   const [airportPickup, setAirportPickup] = useState(savedDraft?.airportPickup ?? false);
@@ -128,13 +127,13 @@ export default function InternalNewTransferWizard() {
   useEffect(() => {
     const draft = {
       step, clientType, associatedService, serviceType, vehicleType,
-      packDuration, selectedZone, pricingMode, clientName, clientReference,
+      packDuration, selectedZone, clientName, clientReference,
       notes, items, airportPickup, nightHours, brokerName, brokerId,
       isExternalProvider, externalProviderName,
       savedAt: Date.now(),
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [step, clientType, associatedService, serviceType, vehicleType, packDuration, selectedZone, pricingMode, clientName, clientReference, notes, items, airportPickup, nightHours, brokerName, brokerId, isExternalProvider, externalProviderName]);
+  }, [step, clientType, associatedService, serviceType, vehicleType, packDuration, selectedZone, clientName, clientReference, notes, items, airportPickup, nightHours, brokerName, brokerId, isExternalProvider, externalProviderName]);
 
   const clearDraft = () => {
     localStorage.removeItem(DRAFT_KEY);
@@ -169,7 +168,7 @@ export default function InternalNewTransferWizard() {
       return getEstimatedPackDynamic(pricingRows, selectedZone, vehicleType, packDuration, clientType);
     }
     return null;
-  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows, pricingMode]);
+  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows]);
 
   // Full pricing breakdown
   const pricingBreakdown = useMemo<PricingBreakdown | null>(() => {
@@ -182,7 +181,7 @@ export default function InternalNewTransferWizard() {
       return calculatePackPricing(vehicleType, packDuration, supplements);
     }
     return null;
-  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, airportPickup, nightHours, pricingMode]);
+  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, airportPickup, nightHours]);
 
   // Auto-detect night hours
   const autoNightHours = useMemo(() => {
@@ -288,7 +287,7 @@ export default function InternalNewTransferWizard() {
         service_type: serviceType,
         is_external_provider: isExternalProvider,
         external_provider_name: isExternalProvider ? externalProviderName.trim() : null,
-        pricing_mode: pricingMode,
+        pricing_mode: 'zone_tariff',
         notes: notes.trim() || null,
         client_reference: clientReference.trim() || null,
         associated_service: clientType === 'broker_client' ? associatedService : null,

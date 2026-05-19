@@ -47,7 +47,7 @@ import { calculateNightHours, getNightHoursDescription } from '@/lib/nightHoursC
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { BrokerSelect } from '@/components/transfers/BrokerSelect';
 import { ProviderSelect } from '@/components/transfers/ProviderSelect';
-import type { ClientType, ServiceType, PackDuration, PricingMode, TransferItem } from '@/types/transfers';
+import type { ClientType, ServiceType, PackDuration, TransferItem } from '@/types/transfers';
 import {
   ArrowLeft,
   ArrowRight,
@@ -123,7 +123,6 @@ export default function InternalEditTransferWizard() {
   const [vehicleType, setVehicleType] = useState('v_class');
   const [packDuration, setPackDuration] = useState<PackDuration>('4h');
   const [selectedZone, setSelectedZone] = useState('');
-  const pricingMode: PricingMode = 'zone_tariff';
 
   // Supplements
   const [airportPickup, setAirportPickup] = useState(false);
@@ -195,7 +194,7 @@ export default function InternalEditTransferWizard() {
       return getEstimatedPackDynamic(pricingRows, selectedZone, vehicleType, packDuration, clientType);
     }
     return null;
-  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows, pricingMode]);
+  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, pricingRows]);
 
   // Full pricing breakdown
   const pricingBreakdown = useMemo<PricingBreakdown | null>(() => {
@@ -208,7 +207,7 @@ export default function InternalEditTransferWizard() {
       return calculatePackPricing(vehicleType, packDuration, supplements);
     }
     return null;
-  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, airportPickup, nightHours, pricingMode]);
+  }, [clientType, serviceType, vehicleType, selectedZone, packDuration, airportPickup, nightHours]);
 
   // Auto-detect night hours
   const autoNightHours = useMemo(() => {
@@ -304,7 +303,7 @@ export default function InternalEditTransferWizard() {
         service_type: serviceType,
         is_external_provider: isExternalProvider,
         external_provider_name: isExternalProvider ? externalProviderName.trim() : null,
-        pricing_mode: pricingMode,
+        pricing_mode: 'zone_tariff',
         notes: notes.trim() || null,
         client_reference: clientReference.trim() || null,
         associated_service: clientType === 'broker_client' ? associatedService : null,

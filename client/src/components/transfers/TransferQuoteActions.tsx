@@ -21,7 +21,7 @@ import { useMarginThresholds } from '@/hooks/useMarginThresholds';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/transferCalculations';
-import type { TransferRequest, TransferItem, PricingMode } from '@/types/transfers';
+import type { TransferRequest, TransferItem } from '@/types/transfers';
 
 interface TransferQuoteActionsProps {
   request: TransferRequest;
@@ -41,11 +41,10 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
   const canGenerate = items.length > 0;
 
   // Use the same calculation as the PDF for consistency
-  const pricingMode: PricingMode = 'zone_tariff';
-  const { total } = calculatePdfTotals(items, pricingMode);
+  const { total } = calculatePdfTotals(items);
 
   // Evaluate margin alert with configurable thresholds
-  const marginAlert = evaluateMarginAlert(items, pricingMode, {
+  const marginAlert = evaluateMarginAlert(items, {
     danger: thresholds.danger,
     warning: thresholds.warning,
   });

@@ -11,7 +11,6 @@ function makeRequest(overrides: Partial<TransferRequest> = {}): TransferRequest 
     broker_name: 'Yacht Broker',
     client_name: 'John Doe',
     status: 'confirmado',
-    pricing_mode: 'zone_tariff',
     items_count: 2,
     first_transfer_date: '2025-06-15',
     total_amount: 500,
@@ -39,7 +38,6 @@ describe('generateTransfersCsv', () => {
     expect(lines[0]).toContain('Broker');
     expect(lines[0]).toContain('Cliente');
     expect(lines[0]).toContain('Estado');
-    expect(lines[0]).toContain('Modo de precio');
     expect(lines[0]).toContain('Total cliente');
     expect(lines[0]).toContain('Coste proveedor');
     expect(lines[0]).toContain('Margen');
@@ -48,12 +46,11 @@ describe('generateTransfersCsv', () => {
   it('should include request data row', () => {
     const csv = generateTransfersCsv([makeRequest()]);
     const lines = csv.split('\n');
-    const dataLine = lines[1]; // BOM is on line 0 header
+    const dataLine = lines[1];
     expect(dataLine).toContain('TR-001');
     expect(dataLine).toContain('Yacht Broker');
     expect(dataLine).toContain('John Doe');
     expect(dataLine).toContain('Confirmado');
-    expect(dataLine).toContain('Tarifa por zona');
   });
 
   it('should include totals row at the end', () => {
@@ -84,11 +81,6 @@ describe('generateTransfersCsv', () => {
     // Header + empty totals row
     expect(lines.length).toBe(2);
     expect(lines[1]).toContain('TOTALES');
-  });
-
-  it('should show provider_quote mode label', () => {
-    const csv = generateTransfersCsv([makeRequest({ pricing_mode: 'provider_quote' })]);
-    expect(csv).toContain('Presupuesto proveedor');
   });
 
   it('should escape fields containing semicolons', () => {

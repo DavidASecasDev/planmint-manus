@@ -7,7 +7,7 @@ import { formatCurrency } from '@/utils/transferCalculations';
 import { evaluateMarginAlert } from '@/utils/marginAlerts';
 import { useMarginThresholds } from '@/hooks/useMarginThresholds';
 import { cn } from '@/lib/utils';
-import type { TransferItem, PricingMode } from '@/types/transfers';
+import type { TransferItem } from '@/types/transfers';
 import { VAT_PROVIDER, VAT_CLIENT, COMMISSION_RATE } from '@/lib/pricingEngine';
 
 interface TransferFinancialSummaryProps {
@@ -15,7 +15,6 @@ interface TransferFinancialSummaryProps {
   clientTotal: number | null;
   internalMargin: number | null;
   isExternalProvider: boolean;
-  pricingMode: PricingMode;
   items?: TransferItem[];
 }
 
@@ -24,14 +23,13 @@ export function TransferFinancialSummary({
   clientTotal, 
   internalMargin,
   isExternalProvider,
-  pricingMode,
   items = [],
 }: TransferFinancialSummaryProps) {
   const [open, setOpen] = useState(true);
   const thresholds = useMarginThresholds();
 
   // Evaluate margin alert from items with configurable thresholds
-  const alert = evaluateMarginAlert(items, pricingMode, {
+  const alert = evaluateMarginAlert(items, {
     danger: thresholds.danger,
     warning: thresholds.warning,
   });
@@ -96,17 +94,8 @@ export function TransferFinancialSummary({
             {!hasData ? (
               <div className="text-center py-6 text-muted-foreground">
                 <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                {pricingMode === 'provider_quote' ? (
-                  <>
-                    <p>Sube un presupuesto del proveedor</p>
-                    <p className="text-sm">o introduce el coste por trayecto</p>
-                  </>
-                ) : (
-                  <>
-                    <p>Selecciona zona y vehículo en los trayectos</p>
-                    <p className="text-sm">para ver el resumen financiero</p>
-                  </>
-                )}
+                <p>Selecciona zona y vehículo en los trayectos</p>
+                <p className="text-sm">para ver el resumen financiero</p>
               </div>
             ) : (
               <div className="space-y-1">
@@ -117,7 +106,7 @@ export function TransferFinancialSummary({
                   </p>
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-sm text-muted-foreground">
-                      {pricingMode === 'provider_quote' ? 'Coste proveedor (neto)' : 'Tarifa zona (neto)'}
+                      Tarifa zona (neto)
                     </span>
                     <span className="text-sm font-medium">{formatCurrency(providerNet)}</span>
                   </div>

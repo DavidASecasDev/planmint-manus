@@ -6,7 +6,6 @@ export type TransferItemStatus = 'pendiente' | 'confirmado' | 'completado' | 'ca
 
 export type TransferDocumentType = 'presupuesto' | 'factura';
 
-export type PricingMode = 'zone_tariff' | 'provider_quote';
 
 export type ClientType = 'external_client' | 'broker_client';
 
@@ -35,8 +34,6 @@ export interface TransferRequest {
   created_at: string;
   updated_at: string;
   archived_at: string | null;
-  // Pricing mode
-  pricing_mode: PricingMode;
   // Financial fields
   provider_cost: number | null;
   client_total: number | null;
@@ -191,7 +188,7 @@ export interface TransferFilters {
   search: string;
   broker: string;
   status: TransferRequestStatus | 'all';
-  pricingMode?: PricingMode | 'all'; // Deprecated - kept for backwards compat
+  serviceType: ServiceType | 'all';
   dateFrom: string;
   dateTo: string;
   showArchived: boolean;

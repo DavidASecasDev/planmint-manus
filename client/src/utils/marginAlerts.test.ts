@@ -83,17 +83,17 @@ describe('marginAlerts', () => {
         { price_with_commission: 150, base_price: 100, provider_cost: null },
         { price_with_commission: 200, base_price: 120, provider_cost: null },
       ];
-      const result = evaluateMarginAlert(items, 'zone_tariff');
+      const result = evaluateMarginAlert(items);
       expect(result.level).toBe('ok');
       expect(result.clientTotal).toBe(350);
       expect(result.providerCost).toBe(220);
     });
 
-    it('returns danger for items with low margin in provider_quote mode', () => {
+    it('returns danger for items with low margin', () => {
       const items = [
-        { price_with_commission: 105, base_price: null, provider_cost: 100 },
+        { price_with_commission: 105, base_price: 100, provider_cost: null },
       ];
-      const result = evaluateMarginAlert(items, 'provider_quote');
+      const result = evaluateMarginAlert(items);
       expect(result.level).toBe('danger');
       expect(result.marginPercent).toBe(5);
       expect(result.message).toContain('revisar los precios');
@@ -103,34 +103,23 @@ describe('marginAlerts', () => {
       const items = [
         { price_with_commission: 117, base_price: 100, provider_cost: null },
       ];
-      const result = evaluateMarginAlert(items, 'zone_tariff');
+      const result = evaluateMarginAlert(items);
       expect(result.level).toBe('warning');
       expect(result.marginPercent).toBe(17);
     });
 
     it('handles empty items array', () => {
-      const result = evaluateMarginAlert([], 'zone_tariff');
+      const result = evaluateMarginAlert([]);
       expect(result.level).toBe('danger'); // 0% margin
       expect(result.clientTotal).toBe(0);
       expect(result.providerCost).toBe(0);
     });
 
-    it('uses provider_cost for provider_quote mode', () => {
+    it('uses base_price as provider cost', () => {
       const items = [
         { price_with_commission: 200, base_price: 100, provider_cost: 150 },
       ];
-      const result = evaluateMarginAlert(items, 'provider_quote');
-      // providerCost = 150, clientTotal = 200, margin = (200-150)/150 * 100 = 33.3%
-      expect(result.providerCost).toBe(150);
-      expect(result.clientTotal).toBe(200);
-      expect(result.level).toBe('ok');
-    });
-
-    it('uses base_price for zone_tariff mode', () => {
-      const items = [
-        { price_with_commission: 200, base_price: 100, provider_cost: 150 },
-      ];
-      const result = evaluateMarginAlert(items, 'zone_tariff');
+      const result = evaluateMarginAlert(items);
       // providerCost = 100 (base_price), clientTotal = 200, margin = 100%
       expect(result.providerCost).toBe(100);
       expect(result.clientTotal).toBe(200);
@@ -151,7 +140,7 @@ describe('marginAlerts', () => {
   describe('configurable thresholds', () => {
     it('getMarginAlertLevel uses custom thresholds', () => {
       const custom = { danger: 10, warning: 25 };
-      // 12% would be warning with defaults (15/20), but ok with custom (10/25)? No: 12 < 25 → warning
+      // 12% would be warning with defaults (15/20), but with custom (10/25): 12 >= 10 and < 25 → warning
       expect(getMarginAlertLevel(12, custom)).toBe('warning');
       // 8% would be danger with custom (< 10)
       expect(getMarginAlertLevel(8, custom)).toBe('danger');
@@ -178,11 +167,11 @@ describe('marginAlerts', () => {
         { price_with_commission: 112, base_price: 100, provider_cost: null },
       ];
       // With defaults: margin = 12% → danger (< 15)
-      const defaultResult = evaluateMarginAlert(items, 'zone_tariff');
+      const defaultResult = evaluateMarginAlert(items);
       expect(defaultResult.level).toBe('danger');
 
       // With custom thresholds (danger=10, warning=15): 12% → warning
-      const customResult = evaluateMarginAlert(items, 'zone_tariff', { danger: 10, warning: 15 });
+      const customResult = evaluateMarginAlert(items, { danger: 10, warning: 15 });
       expect(customResult.level).toBe('warning');
       expect(customResult.thresholds.danger).toBe(10);
       expect(customResult.thresholds.warning).toBe(15);
@@ -193,11 +182,11 @@ describe('marginAlerts', () => {
         { price_with_commission: 130, base_price: 100, provider_cost: null },
       ];
       // margin = 30% → ok with defaults
-      const defaultResult = evaluateMarginAlert(items, 'zone_tariff');
+      const defaultResult = evaluateMarginAlert(items);
       expect(defaultResult.level).toBe('ok');
 
       // With strict thresholds (danger=25, warning=40): 30% → warning
-      const strictResult = evaluateMarginAlert(items, 'zone_tariff', { danger: 25, warning: 40 });
+      const strictResult = evaluateMarginAlert(items, { danger: 25, warning: 40 });
       expect(strictResult.level).toBe('warning');
     });
   });

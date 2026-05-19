@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Search, X, CalendarDays, Archive } from 'lucide-react';
-import type { TransferRequestStatus, TransferFilters } from '@/types/transfers';
+import type { TransferRequestStatus, TransferFilters, ServiceType } from '@/types/transfers';
 
 interface TransferFiltersProps {
   filters: TransferFilters;
@@ -26,6 +26,7 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
   const hasActiveFilters = filters.search 
     || filters.broker 
     || (filters.status && filters.status !== 'all') 
+    || (filters.serviceType && filters.serviceType !== 'all')
     || filters.dateFrom
     || filters.dateTo
     || filters.showArchived;
@@ -35,7 +36,7 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
       search: '',
       broker: '',
       status: 'all',
-      pricingMode: 'all',
+      serviceType: 'all',
       dateFrom: '',
       dateTo: '',
       showArchived: false,
@@ -86,6 +87,20 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
                 {option.label}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.serviceType || 'all'}
+          onValueChange={(value) => onFiltersChange({ ...filters, serviceType: value as ServiceType | 'all' })}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Tipo de servicio" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los servicios</SelectItem>
+            <SelectItem value="point_to_point">Punto a punto</SelectItem>
+            <SelectItem value="pack">Pack por horas</SelectItem>
           </SelectContent>
         </Select>
       </div>
