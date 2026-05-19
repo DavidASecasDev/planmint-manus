@@ -226,7 +226,7 @@ export default function Transfers() {
                 </CardContent>
               </Card>
             ) : viewMode === 'kanban' ? (
-              <TransfersKanban requests={requests} onStatusChange={updateStatus} />
+              <TransfersKanban requests={requests} onStatusChange={updateStatus} brokers={brokers} />
             ) : (
               <div className="space-y-3">
                 {requests.map((request) => (

@@ -759,3 +759,6 @@
 - [x] Limpiar lógica obsoleta del sistema antiguo de transfers en el frontend
 - [x] Eliminar campo pricing_mode del tipo TypeScript y todas las referencias en código
 - [x] Añadir filtro por tipo de servicio (Punto a punto / Pack) en TransferFilters
+- [x] Eliminar columna pricing_mode de la tabla transfer_requests en Supabase (pendiente ejecución manual en SQL Editor)
+- [x] Añadir badge de tipo de servicio (P2P/Pack) en tarjetas del Kanban
+- [x] Añadir filtro rápido por broker en el Kanban de Transfers

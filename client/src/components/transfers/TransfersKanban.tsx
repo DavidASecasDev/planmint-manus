@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Euro, Building2, User, GripVertical } from 'lucide-react';
+import { Calendar, Users, Euro, Building2, User, GripVertical, Filter } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -17,11 +18,12 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import type { TransferRequest, TransferRequestStatus } from '@/types/transfers';
+import type { TransferRequest, TransferRequestStatus, ServiceType } from '@/types/transfers';
 
 interface TransfersKanbanProps {
   requests: TransferRequest[];
   onStatusChange: (params: { id: string; status: TransferRequestStatus }) => void;
+  brokers: string[];
 }
 
 const KANBAN_COLUMNS: { status: TransferRequestStatus; label: string; color: string; headerBg: string; textColor: string }[] = [
@@ -33,9 +35,16 @@ const KANBAN_COLUMNS: { status: TransferRequestStatus; label: string; color: str
   { status: 'cancelado', label: 'Cancelado', color: 'border-t-red-500', headerBg: 'bg-red-500/10', textColor: 'text-red-600' },
 ];
 
-export function TransfersKanban({ requests, onStatusChange }: TransfersKanbanProps) {
+export function TransfersKanban({ requests, onStatusChange, brokers }: TransfersKanbanProps) {
   const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [brokerFilter, setBrokerFilter] = useState<string>('all');
+
+  // Filter requests by broker
+  const filteredRequests = useMemo(() => {
+    if (brokerFilter === 'all') return requests;
+    return requests.filter((r) => r.broker_name === brokerFilter);
+  }, [requests, brokerFilter]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -54,13 +63,13 @@ export function TransfersKanban({ requests, onStatusChange }: TransfersKanbanPro
       completado: [],
       cancelado: [],
     };
-    for (const req of requests) {
+    for (const req of filteredRequests) {
       if (map[req.status]) {
         map[req.status].push(req);
       }
     }
     return map;
-  }, [requests]);
+  }, [filteredRequests]);
 
   // Column totals
   const columnTotals = useMemo(() => {
@@ -72,14 +81,14 @@ export function TransfersKanban({ requests, onStatusChange }: TransfersKanbanPro
       completado: { count: 0, amount: 0 },
       cancelado: { count: 0, amount: 0 },
     };
-    for (const req of requests) {
+    for (const req of filteredRequests) {
       if (totals[req.status]) {
         totals[req.status].count += 1;
         totals[req.status].amount += (req.client_total || req.total_amount || 0);
       }
     }
     return totals;
-  }, [requests]);
+  }, [filteredRequests]);
 
   const activeRequest = useMemo(() => {
     if (!activeId) return null;
@@ -110,33 +119,58 @@ export function TransfersKanban({ requests, onStatusChange }: TransfersKanbanPro
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">
-        {KANBAN_COLUMNS.map((col) => (
-          <KanbanColumn
-            key={col.status}
-            col={col}
-            items={grouped[col.status]}
-            totals={columnTotals[col.status]}
-            onCardClick={(id) => navigate(`/transfers/${id}`)}
-            isDragging={!!activeId}
-          />
-        ))}
-      </div>
+    <div className="space-y-3">
+      {/* Broker filter */}
+      {brokers.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <Select value={brokerFilter} onValueChange={setBrokerFilter}>
+            <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectValue placeholder="Todos los brokers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los brokers</SelectItem>
+              {brokers.map((b) => (
+                <SelectItem key={b} value={b}>{b}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {brokerFilter !== 'all' && (
+            <span className="text-xs text-muted-foreground">
+              {filteredRequests.length} de {requests.length} solicitudes
+            </span>
+          )}
+        </div>
+      )}
 
-      <DragOverlay>
-        {activeRequest ? (
-          <div className="opacity-90 rotate-2 scale-105">
-            <KanbanCardContent request={activeRequest} isDragging />
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">
+          {KANBAN_COLUMNS.map((col) => (
+            <KanbanColumn
+              key={col.status}
+              col={col}
+              items={grouped[col.status]}
+              totals={columnTotals[col.status]}
+              onCardClick={(id) => navigate(`/transfers/${id}`)}
+              isDragging={!!activeId}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeRequest ? (
+            <div className="opacity-90 rotate-2 scale-105">
+              <KanbanCardContent request={activeRequest} isDragging />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }
 
@@ -236,6 +270,22 @@ function DraggableKanbanCard({ request, onClick }: { request: TransferRequest; o
   );
 }
 
+// Service type badge
+function ServiceTypeBadge({ serviceType }: { serviceType: ServiceType }) {
+  if (serviceType === 'pack') {
+    return (
+      <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-500/10 text-amber-600 border-amber-500/20">
+        Pack
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-violet-500/10 text-violet-600 border-violet-500/20">
+      P2P
+    </Badge>
+  );
+}
+
 // Card content (shared between real card and drag overlay)
 function KanbanCardContent({
   request,
@@ -262,7 +312,7 @@ function KanbanCardContent({
       }`}
       onClick={onClick}
     >
-      {/* Header: drag handle + number + badge */}
+      {/* Header: drag handle + number + service type badge */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span
@@ -274,7 +324,7 @@ function KanbanCardContent({
           </span>
           <span className="text-xs font-mono text-muted-foreground">{request.request_number}</span>
         </div>
-
+        <ServiceTypeBadge serviceType={request.service_type} />
       </div>
 
       {/* Client name */}
