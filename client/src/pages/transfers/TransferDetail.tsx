@@ -32,7 +32,6 @@ import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { toast } from 'sonner';
 import type { TransferRequest, TransferRequestStatus, TransferItem, TransferDocumentType, PricingMode } from '@/types/transfers';
 import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calculator, FileText } from 'lucide-react';
 
 const STATUS_OPTIONS: { value: TransferRequestStatus; label: string }[] = [
@@ -73,7 +72,7 @@ export default function TransferDetail() {
   const [generalOpen, setGeneralOpen] = useState(true);
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [financialOpen, setFinancialOpen] = useState(true);
-  const [pricingMode, setPricingMode] = useState<PricingMode>('zone_tariff');
+  const pricingMode: PricingMode = 'zone_tariff';
 
   const { brokers } = useTransferBrokers();
 
@@ -85,7 +84,7 @@ export default function TransferDetail() {
       setIsExternalProvider(existingRequest.is_external_provider);
       setExternalProviderName(existingRequest.external_provider_name || '');
       setNotes(existingRequest.notes || '');
-      setPricingMode(existingRequest.pricing_mode || 'zone_tariff');
+
 
       // Auto-resolve broker_id: if null or mismatched, find by name
       const existingBrokerId = existingRequest.broker_id || null;
@@ -470,49 +469,7 @@ export default function TransferDetail() {
                   )}
                 </div>
 
-                {/* Pricing Mode Selector */}
-                <div className="space-y-3 p-4 rounded-lg border border-primary/20 bg-primary/5">
-                  <Label className="font-medium text-primary flex items-center gap-2">
-                    <Calculator className="h-4 w-4" />
-                    Modo de precio
-                  </Label>
-                  <RadioGroup
-                    value={pricingMode}
-                    onValueChange={(v) => setPricingMode(v as PricingMode)}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-3"
-                  >
-                    <label
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        pricingMode === 'zone_tariff'
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="zone_tariff" className="mt-0.5" />
-                      <div>
-                        <span className="font-medium text-sm">Tarifa por zona</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Precio calculado automáticamente según zona y tipo de vehículo
-                        </p>
-                      </div>
-                    </label>
-                    <label
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        pricingMode === 'provider_quote'
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="provider_quote" className="mt-0.5" />
-                      <div>
-                        <span className="font-medium text-sm">Presupuesto proveedor</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Precio basado en el presupuesto del proveedor externo
-                        </p>
-                      </div>
-                    </label>
-                  </RadioGroup>
-                </div>
+
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notas</Label>

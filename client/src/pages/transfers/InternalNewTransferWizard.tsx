@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 import { Switch } from '@/components/ui/switch';
 import {
   TransferItemFormCard,
@@ -66,7 +66,6 @@ import {
   PlaneTakeoff,
   Moon,
   Info,
-  Calculator,
   FileText,
 } from 'lucide-react';
 
@@ -109,7 +108,7 @@ export default function InternalNewTransferWizard() {
   const [vehicleType, setVehicleType] = useState(savedDraft?.vehicleType ?? 'v_class');
   const [packDuration, setPackDuration] = useState<PackDuration>(savedDraft?.packDuration ?? '4h');
   const [selectedZone, setSelectedZone] = useState(savedDraft?.selectedZone ?? '');
-  const [pricingMode, setPricingMode] = useState<PricingMode>(savedDraft?.pricingMode ?? 'zone_tariff');
+  const pricingMode: PricingMode = 'zone_tariff';
 
   // Supplements
   const [airportPickup, setAirportPickup] = useState(savedDraft?.airportPickup ?? false);
@@ -162,7 +161,7 @@ export default function InternalNewTransferWizard() {
 
   // Estimated price calculation
   const estimatedPrice = useMemo(() => {
-    if (!clientType || !serviceType || pricingMode === 'provider_quote') return null;
+    if (!clientType || !serviceType) return null;
     if (serviceType === 'point_to_point' && selectedZone) {
       return getEstimatedPointToPointDynamic(pricingRows, selectedZone, vehicleType, clientType);
     }
@@ -174,7 +173,7 @@ export default function InternalNewTransferWizard() {
 
   // Full pricing breakdown
   const pricingBreakdown = useMemo<PricingBreakdown | null>(() => {
-    if (!clientType || !serviceType || pricingMode === 'provider_quote') return null;
+    if (!clientType || !serviceType) return null;
     const supplements: Partial<SupplementConfig> = { airportPickup, nightHours };
     if (serviceType === 'point_to_point' && selectedZone) {
       return calculatePointToPointPricing(selectedZone, vehicleType, supplements);
@@ -379,7 +378,7 @@ export default function InternalNewTransferWizard() {
                 clearDraft();
                 setStep(1); setClientType(null); setAssociatedService('');
                 setServiceType(null); setVehicleType('v_class'); setPackDuration('4h');
-                setSelectedZone(''); setPricingMode('zone_tariff');
+                setSelectedZone('');
                 setClientName(''); setClientReference(''); setNotes('');
                 setBrokerName(''); setBrokerId(null);
                 setIsExternalProvider(false); setExternalProviderName('');
@@ -492,49 +491,6 @@ export default function InternalNewTransferWizard() {
         {/* ═══════════════════════════════════════════════════════════════ */}
         {step === 2 && (
           <div className="space-y-6">
-            {/* Pricing Mode (internal only) */}
-            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-              <Label className="font-medium text-primary flex items-center gap-2 mb-3">
-                <Calculator className="h-4 w-4" />
-                Modo de precio
-              </Label>
-              <RadioGroup
-                value={pricingMode}
-                onValueChange={(v) => setPricingMode(v as PricingMode)}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-              >
-                <label
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    pricingMode === 'zone_tariff'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <RadioGroupItem value="zone_tariff" className="mt-0.5" />
-                  <div>
-                    <span className="font-medium text-sm">Tarifa por zona</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Precio calculado automáticamente según zona y tipo de vehículo
-                    </p>
-                  </div>
-                </label>
-                <label
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    pricingMode === 'provider_quote'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <RadioGroupItem value="provider_quote" className="mt-0.5" />
-                  <div>
-                    <span className="font-medium text-sm">Presupuesto proveedor</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Precio basado en el presupuesto del proveedor externo
-                    </p>
-                  </div>
-                </label>
-              </RadioGroup>
-            </div>
 
             {/* Service type */}
             <div>
@@ -632,8 +588,8 @@ export default function InternalNewTransferWizard() {
               </div>
             )}
 
-            {/* Zone selection (for point_to_point with zone_tariff pricing) */}
-            {serviceType === 'point_to_point' && pricingMode === 'zone_tariff' && (
+            {/* Zone selection (for point_to_point) */}
+            {serviceType === 'point_to_point' && (
               <div className="space-y-2">
                 <Label className="text-foreground font-medium">Zona de destino</Label>
                 <Select value={selectedZone} onValueChange={setSelectedZone}>
@@ -649,8 +605,8 @@ export default function InternalNewTransferWizard() {
               </div>
             )}
 
-            {/* Supplements (only for zone_tariff) */}
-            {pricingMode === 'zone_tariff' && serviceType && (
+            {/* Supplements */}
+            {serviceType && (
               <div className="space-y-4 p-4 rounded-lg border border-border bg-muted/30">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4" />
@@ -717,7 +673,7 @@ export default function InternalNewTransferWizard() {
             )}
 
             {/* Pricing breakdown */}
-            {pricingBreakdown && pricingMode === 'zone_tariff' && (
+            {pricingBreakdown && (
               <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Tarifa base</span>
@@ -787,14 +743,7 @@ export default function InternalNewTransferWizard() {
               </div>
             )}
 
-            {pricingMode === 'provider_quote' && (
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-                <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  Modo presupuesto proveedor: los precios se introducirán manualmente después de crear la solicitud.
-                </p>
-              </div>
-            )}
+
           </div>
         )}
 
@@ -981,14 +930,7 @@ export default function InternalNewTransferWizard() {
                   {serviceType === 'point_to_point' ? <MapPin className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
                   {serviceType === 'point_to_point' ? 'Punto a punto' : `Pack ${packDuration}`}
                 </span>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
-                  pricingMode === 'zone_tariff'
-                    ? 'bg-primary/10 text-primary border-primary/20'
-                    : 'bg-orange-500/10 text-orange-600 border-orange-500/20'
-                }`}>
-                  <Calculator className="h-3 w-3" />
-                  {pricingMode === 'zone_tariff' ? 'Tarifa por zona' : 'Ppto. proveedor'}
-                </span>
+
                 {airportPickup && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-sky-500/10 text-sky-600 border-sky-500/20">
                     <PlaneTakeoff className="h-3 w-3" />
@@ -1048,7 +990,7 @@ export default function InternalNewTransferWizard() {
               </div>
 
               {/* Pricing breakdown (internal full view) */}
-              {pricingBreakdown && pricingMode === 'zone_tariff' && (
+              {pricingBreakdown && (
                 <div className="pt-3 mt-2 border-t border-border space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Tarifa base</span>

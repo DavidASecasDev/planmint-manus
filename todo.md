@@ -753,3 +753,7 @@
 - [x] Implementar vista Kanban en Transfers con columnas por estado y toggle lista/kanban
 - [x] Drag & drop en Kanban de Transfers: arrastrar tarjetas entre columnas para cambiar estado
 - [x] Contador por columna en Kanban: badge con total de solicitudes e importe acumulado en header de cada columna
+- [x] Auditar transfers existentes en BD: revisar campos, estados, pricing_mode, datos faltantes
+- [x] Normalizar datos antiguos en BD para coherencia con el flujo actual (22 registros → zone_tariff)
+- [x] Eliminar badge "Zona" y referencias a pricing_mode zone_tariff del código
+- [x] Limpiar lógica obsoleta del sistema antiguo de transfers en el frontend

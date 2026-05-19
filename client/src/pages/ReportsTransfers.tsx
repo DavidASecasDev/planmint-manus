@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ReportsLayout } from '@/components/reports/ReportsLayout';
 import { ReportFiltersBar } from '@/components/reports/ReportFiltersBar';
 import { KPICard } from '@/components/reports/KPICard';
-import { TransfersByStatusChart, TransfersTrendChart, PricingModeDistributionChart } from '@/components/reports/TransferReportsCharts';
+import { TransfersByStatusChart, TransfersTrendChart } from '@/components/reports/TransferReportsCharts';
 import { TransferReportsTable } from '@/components/reports/TransferReportsTable';
 import { BrokerRankingTable } from '@/components/reports/BrokerRankingTable';
 import { useTransferReports } from '@/hooks/useTransferReports';
@@ -147,8 +147,6 @@ export default function ReportsTransfers() {
           <TransfersTrendChart data={report?.dailyTrend || []} isLoading={isLoading} />
         </div>
 
-        {/* Chart — Pricing Mode Distribution */}
-        <PricingModeDistributionChart data={report?.byPricingMode || []} isLoading={isLoading} />
 
         {/* Broker Ranking */}
         <BrokerRankingTable brokers={report?.brokerStats || []} isLoading={isLoading} />

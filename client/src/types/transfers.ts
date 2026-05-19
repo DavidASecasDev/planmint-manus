@@ -191,7 +191,7 @@ export interface TransferFilters {
   search: string;
   broker: string;
   status: TransferRequestStatus | 'all';
-  pricingMode: PricingMode | 'all';
+  pricingMode?: PricingMode | 'all'; // Deprecated - kept for backwards compat
   dateFrom: string;
   dateTo: string;
   showArchived: boolean;

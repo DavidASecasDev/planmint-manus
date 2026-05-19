@@ -41,7 +41,7 @@ export function TransferQuoteActions({ request, items }: TransferQuoteActionsPro
   const canGenerate = items.length > 0;
 
   // Use the same calculation as the PDF for consistency
-  const pricingMode: PricingMode = request.pricing_mode || 'zone_tariff';
+  const pricingMode: PricingMode = 'zone_tariff';
   const { total } = calculatePdfTotals(items, pricingMode);
 
   // Evaluate margin alert with configurable thresholds

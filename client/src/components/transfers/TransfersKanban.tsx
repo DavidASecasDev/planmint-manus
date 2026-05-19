@@ -274,11 +274,7 @@ function KanbanCardContent({
           </span>
           <span className="text-xs font-mono text-muted-foreground">{request.request_number}</span>
         </div>
-        {request.pricing_mode === 'zone_tariff' && (
-          <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-            Zona
-          </Badge>
-        )}
+
       </div>
 
       {/* Client name */}

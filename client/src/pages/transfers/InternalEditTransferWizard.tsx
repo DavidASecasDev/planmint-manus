@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -67,7 +66,6 @@ import {
   PlaneTakeoff,
   Moon,
   Info,
-  Calculator,
   FileText,
   Save,
 } from 'lucide-react';
@@ -125,7 +123,7 @@ export default function InternalEditTransferWizard() {
   const [vehicleType, setVehicleType] = useState('v_class');
   const [packDuration, setPackDuration] = useState<PackDuration>('4h');
   const [selectedZone, setSelectedZone] = useState('');
-  const [pricingMode, setPricingMode] = useState<PricingMode>('zone_tariff');
+  const pricingMode: PricingMode = 'zone_tariff';
 
   // Supplements
   const [airportPickup, setAirportPickup] = useState(false);
@@ -147,7 +145,7 @@ export default function InternalEditTransferWizard() {
       setClientType(existingRequest.client_type || null);
       setAssociatedService(existingRequest.associated_service || '');
       setServiceType(existingRequest.service_type || null);
-      setPricingMode(existingRequest.pricing_mode || 'zone_tariff');
+
       setBrokerName(existingRequest.broker_name || '');
       setBrokerId(existingRequest.broker_id || null);
       setClientName(existingRequest.client_name || '');
@@ -189,7 +187,7 @@ export default function InternalEditTransferWizard() {
 
   // Estimated price calculation
   const estimatedPrice = useMemo(() => {
-    if (!clientType || !serviceType || pricingMode === 'provider_quote') return null;
+    if (!clientType || !serviceType) return null;
     if (serviceType === 'point_to_point' && selectedZone) {
       return getEstimatedPointToPointDynamic(pricingRows, selectedZone, vehicleType, clientType);
     }
@@ -201,7 +199,7 @@ export default function InternalEditTransferWizard() {
 
   // Full pricing breakdown
   const pricingBreakdown = useMemo<PricingBreakdown | null>(() => {
-    if (!clientType || !serviceType || pricingMode === 'provider_quote') return null;
+    if (!clientType || !serviceType) return null;
     const supplements: Partial<SupplementConfig> = { airportPickup, nightHours };
     if (serviceType === 'point_to_point' && selectedZone) {
       return calculatePointToPointPricing(selectedZone, vehicleType, supplements);
@@ -589,36 +587,8 @@ export default function InternalEditTransferWizard() {
               </div>
             )}
 
-            {/* Pricing mode (internal only) */}
-            <div className="space-y-3 p-4 rounded-lg border border-primary/20 bg-primary/5">
-              <Label className="font-medium text-primary flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
-                Modo de precio
-              </Label>
-              <RadioGroup
-                value={pricingMode}
-                onValueChange={(v) => setPricingMode(v as PricingMode)}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3"
-              >
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${pricingMode === 'zone_tariff' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
-                  <RadioGroupItem value="zone_tariff" className="mt-0.5" />
-                  <div>
-                    <span className="font-medium text-sm">Tarifa por zona</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">Precio calculado automáticamente</p>
-                  </div>
-                </label>
-                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${pricingMode === 'provider_quote' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
-                  <RadioGroupItem value="provider_quote" className="mt-0.5" />
-                  <div>
-                    <span className="font-medium text-sm">Presupuesto proveedor</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">Precio basado en presupuesto externo</p>
-                  </div>
-                </label>
-              </RadioGroup>
-            </div>
-
             {/* Supplements */}
-            {pricingMode === 'zone_tariff' && serviceType && (
+            {serviceType && (
               <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
                 <Label className="font-medium flex items-center gap-2">
                   <Info className="h-4 w-4 text-muted-foreground" />

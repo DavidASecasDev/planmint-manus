@@ -15,7 +15,7 @@ import {
 import { TransferStatusBadge } from './TransferStatusBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Building2, User, Trash2, Euro, MapPin, FileText, ShieldAlert, Clock, Briefcase, Archive, ArchiveRestore } from 'lucide-react';
+import { Calendar, Users, Building2, User, Trash2, Euro, ShieldAlert, Clock, Briefcase, Archive, ArchiveRestore } from 'lucide-react';
 import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
 import { getMarginPercent, getMarginAlertLevel } from '@/utils/marginAlerts';
 import { useMarginThresholds } from '@/hooks/useMarginThresholds';
@@ -41,7 +41,6 @@ export function TransferRequestCard({ request, onClick, onDelete, onArchive, onU
     e.stopPropagation();
   };
 
-  const pricingMode = request.pricing_mode || 'zone_tariff';
 
   // Calculate margin alert from request-level totals with configurable thresholds
   const clientTotal = request.client_total || request.total_amount || 0;
@@ -66,17 +65,7 @@ export function TransferRequestCard({ request, onClick, onDelete, onArchive, onU
               {request.request_number}
             </span>
             <TransferStatusBadge status={request.status} />
-            {pricingMode === 'provider_quote' ? (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-amber-300 text-amber-700 bg-amber-50">
-                <FileText className="h-3 w-3 mr-0.5" />
-                Proveedor
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-blue-300 text-blue-700 bg-blue-50">
-                <MapPin className="h-3 w-3 mr-0.5" />
-                Zona
-              </Badge>
-            )}
+
             {marginLevel === 'danger' && (
               <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-0.5">
                 <ShieldAlert className="h-3 w-3" />

@@ -392,7 +392,7 @@ export function TransferItemBlock({ item, index, requestId, pricingMode = 'zone_
                   <h5 className="font-medium flex items-center gap-2">
                     <Euro className="h-4 w-4" /> Precio
                   </h5>
-                  {pricingMode === 'zone_tariff' && item.price_manually_set && canEditPrice && (
+                  {item.price_manually_set && canEditPrice && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -406,7 +406,7 @@ export function TransferItemBlock({ item, index, requestId, pricingMode = 'zone_
                 </div>
                 
                 <div className="space-y-2 text-sm">
-                  {pricingMode === 'zone_tariff' && item.zone && (
+                  {item.zone && (
                     <>
                       <div className="flex justify-between text-muted-foreground">
                         <span>Precio proveedor (tarifa zona):</span>
@@ -419,29 +419,7 @@ export function TransferItemBlock({ item, index, requestId, pricingMode = 'zone_
                     </>
                   )}
 
-                  {pricingMode === 'provider_quote' && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Coste proveedor (trayecto):</span>
-                      <div className="flex items-center gap-2">
-                        {canEditPrice ? (
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={item.provider_cost ?? ''}
-                            onChange={(e) => {
-                              const cost = parseFloat(e.target.value) || 0;
-                              handleProviderCostChange(cost);
-                            }}
-                            className="w-24 h-8 text-right"
-                          />
-                        ) : (
-                          <span>{item.provider_cost ?? 0}</span>
-                        )}
-                        <span>€</span>
-                      </div>
-                    </div>
-                  )}
+
 
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between items-center">
