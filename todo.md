@@ -750,3 +750,4 @@
 - [x] Endpoint para obtener historial de una nota (get-schedule-note-history)
 - [x] Mostrar historial de versiones en el popover de gestión de notas (NoteHistorySection con timeline)
 - [x] Corregir notas de horarios: deben ser por celda individual (empleado + día), no por columna/día completa
+- [x] Implementar vista Kanban en Transfers con columnas por estado y toggle lista/kanban

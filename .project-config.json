@@ -1,0 +1,44 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [
+    "db",
+    "server",
+    "user"
+  ],
+  "dev_command": "pnpm run dev",
+  "env_vars": {
+    "DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}"
+  },
+  "experiments": null,
+  "git_remote": {
+    "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663452253312/ixFK4yeJEEAkh8kCZkpztM",
+    "access_key_id": "ASIAZV3A2ECZFBDOJFLE",
+    "secret_access_key": "YnE20aqq8NnSR4/UzBK8lVTgis60LS4gFcjHLTDt",
+    "session_token": "IQoJb3JpZ2luX2VjEAkaCXVzLWVhc3QtMSJGMEQCIF2sgkvE7A/mlnQsKIZFMR5X8kAEoLD2HtWYE19V93D8AiBvJ7K+G5DeXBI4CWRKryraaThDjtTu8E0ZOowQtMT9iSr/AwjR//////////8BEAQaDDY2NTM4NjA5ODg2NiIMCcxtTddzScMxBTLWKtMDhCme+Ik5KhLX+1VdxHt8Pu6tBtF54/EKssECQ8YRKMCRJtINHQQxPw7PZgFpdYAcf7GqrLM1PWIfUKd9kfDTeL1U5A1KS5DteXtowIYewAlg79lZ2UJ23AtUukC02j5uhRKpd5CeC4QSQRG0OAlr3Bxo4nFfAYGMOljw3+ZLm8SZRfNuzIOyOk73HSrMaRUlrue8jI+QXnFCR1ThufKw73NclFs3t5f6DvxOReaQgeduGrkNWeBA9eNAjNP5uOCFD8JaH5ayhxANprhCOocr3DGD9ujWFG6hVVf5dfZt76WeNwyNlsi8VI17TiXeKouhGKW1CadXDcJzVOz0aZG71QTzn5aZd6m5wBVlpTcW0AlR81fSrsINGpfT6VwEWUZA/ORCyqRstywkMnm27bxgFTlqMmiGIIo/FSwyogVZpIui2UBw4/nnwKRTnDNXCBOyvvA/s8C+w92pKgQOhRzoOhhVqEl89UR8uEkJwwEK8YLhaJ0gyNv/DWYopeqasgFQ8rpA8Flu6QSS03hhZmQe3WbXwHKP/k7n9hoPlJ2wXChLuudbUoI/ElPZJGz3hBK89G5Mrf4PbMkSwMbt7CJlIAtx+XfkiBqHi/xvnYP7MpSw9g0w0Lew0AY6ngGzwkkoow/AYIcogFVxUAvt5038Lzw6VE2h18f/rU3IrRv0kw2WUjCe3PGKXJW7krABVuc5n4ZPgKPmxFAVIGEp4yMSoqDckULqjFg9gG02v2SPaGnyhuMR0LelxqO1BlQcnmQQcMP4ylU+eiXqefZGLyueqhegANkAn4m8iF1QHMkHmo1r3412VgoyPQ91cwrpukAW9+0ZXhPATwaVWw==",
+    "expiration": "2026-05-19T20:14:08.000Z"
+  },
+  "name": "planmint-preview",
+  "path": "/home/ubuntu/planmint-preview",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "cMX7oCWF757mc7g8onfGBC",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "JWT_SECRET": "DN7JjhYgGFJVKPqy77x8yB",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "David Marente",
+    "OWNER_OPEN_ID": "S4wbHyuvESzpqXtpG2KDJj",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YXl6d2R1ZHNzeWVneGppeXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDkzNDYsImV4cCI6MjA4OTQyNTM0Nn0.GstFrSuWtj9923mHfLVfNkcH0M9MrwpPH0SW3om-WK0",
+    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YXl6d2R1ZHNzeWVneGppeXJrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzg0OTM0NiwiZXhwIjoyMDg5NDI1MzQ2fQ.LHopfIBDuLDqdRKZffLKp042hK6atJ34OOe938xnuFw",
+    "SUPABASE_URL": "https://exayzwdudssyegxjiyrk.supabase.co",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "c754f7f5-921d-4786-9b54-8db6aa8685e2",
+    "VITE_APP_ID": "ixFK4yeJEEAkh8kCZkpztM",
+    "VITE_APP_LOGO": "https://files.manuscdn.com/user_upload_by_module/web_dev_logo/310519663452253312/ZaPYFDBuKZpVdVaL.png",
+    "VITE_APP_TITLE": "PlanMint",
+    "VITE_FRONTEND_FORGE_API_KEY": "FT6v5oAMZrjLRNRuCWuNjt",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-db-user",
+  "test_command": "pnpm test"
+}

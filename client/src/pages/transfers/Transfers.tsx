@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -6,19 +6,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
-import { Plus, Ship, Loader2, ShieldAlert, Download } from 'lucide-react';
+import { Plus, Ship, Loader2, ShieldAlert, Download, List, Columns3 } from 'lucide-react';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { usePermissions } from '@/hooks/usePermissions';
 import { TransferRequestCard } from '@/components/transfers/TransferRequestCard';
+import { TransfersKanban } from '@/components/transfers/TransfersKanban';
 import { TransferFilters } from '@/components/transfers/TransferFilters';
 import { downloadTransfersCsv } from '@/utils/exportTransfersCsv';
 import { toast } from 'sonner';
 import type { TransferFilters as TFilters } from '@/types/transfers';
 
+type ViewMode = 'list' | 'kanban';
+
 export default function Transfers() {
   const navigate = useNavigate();
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    return (localStorage.getItem('transfers_view_mode') as ViewMode) || 'list';
+  });
   
   const canView = !permissionsLoading && hasPermission('transfers.view');
   const canCreate = !permissionsLoading && (hasPermission('transfers.create') || hasPermission('transfers.manage'));
@@ -50,6 +56,11 @@ export default function Transfers() {
     }
     downloadTransfersCsv(requests);
     toast.success(`${requests.length} solicitudes exportadas a CSV`);
+  };
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('transfers_view_mode', mode);
   };
 
   // Loading state for permissions
@@ -132,7 +143,7 @@ export default function Transfers() {
 
   return (
     <AppLayout title="Transfers">
-      <div className="container max-w-5xl py-6">
+      <div className={`${viewMode === 'kanban' ? 'px-4 md:px-6' : 'container max-w-5xl'} py-6`}>
         <SkeletonTransition isLoading={isLoading} skeleton={transfersSkeleton}>
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -144,6 +155,32 @@ export default function Transfers() {
                 <p className="text-muted-foreground">Gestión de traslados para brokers de yates</p>
               </div>
               <div className="flex items-center gap-2">
+                {/* View mode toggle */}
+                <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => handleViewModeChange('list')}
+                    className={`p-2 transition-colors ${
+                      viewMode === 'list'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground'
+                    }`}
+                    title="Vista lista"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange('kanban')}
+                    className={`p-2 transition-colors ${
+                      viewMode === 'kanban'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground'
+                    }`}
+                    title="Vista Kanban"
+                  >
+                    <Columns3 className="h-4 w-4" />
+                  </button>
+                </div>
+
                 {requests.length > 0 && (
                   <Button variant="outline" onClick={handleExportCsv} className="gap-2">
                     <Download className="h-4 w-4" />
@@ -188,6 +225,8 @@ export default function Transfers() {
                   )}
                 </CardContent>
               </Card>
+            ) : viewMode === 'kanban' ? (
+              <TransfersKanban requests={requests} />
             ) : (
               <div className="space-y-3">
                 {requests.map((request) => (
