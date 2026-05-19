@@ -2,6 +2,16 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar, Users, Euro, Building2, User, GripVertical, Filter } from 'lucide-react';
@@ -40,6 +50,9 @@ export function TransfersKanban({ requests, onStatusChange, brokers }: Transfers
   const [activeId, setActiveId] = useState<string | null>(null);
   const [brokerFilter, setBrokerFilter] = useState<string>('all');
 
+  // Cancel confirmation dialog state
+  const [cancelConfirm, setCancelConfirm] = useState<{ id: string; clientName: string; requestNumber: string } | null>(null);
+
   // Filter requests by broker
   const filteredRequests = useMemo(() => {
     if (brokerFilter === 'all') return requests;
@@ -67,6 +80,19 @@ export function TransfersKanban({ requests, onStatusChange, brokers }: Transfers
       if (map[req.status]) {
         map[req.status].push(req);
       }
+    }
+    // Sort each column by date (most recent first)
+    for (const status of Object.keys(map) as TransferRequestStatus[]) {
+      map[status].sort((a, b) => {
+        // Primary sort: first_transfer_date (nearest date first)
+        const dateA = a.first_transfer_date ? new Date(a.first_transfer_date).getTime() : Infinity;
+        const dateB = b.first_transfer_date ? new Date(b.first_transfer_date).getTime() : Infinity;
+        if (dateA !== dateB) return dateA - dateB;
+        // Secondary sort: created_at (most recent first)
+        const createdA = new Date(a.created_at).getTime();
+        const createdB = new Date(b.created_at).getTime();
+        return createdB - createdA;
+      });
     }
     return map;
   }, [filteredRequests]);
@@ -114,7 +140,23 @@ export function TransfersKanban({ requests, onStatusChange, brokers }: Transfers
 
     // Only update if dropped on a different column
     if (request.status !== targetStatus) {
-      onStatusChange({ id: requestId, status: targetStatus });
+      // Show confirmation dialog when moving to "cancelado"
+      if (targetStatus === 'cancelado') {
+        setCancelConfirm({
+          id: requestId,
+          clientName: request.client_name,
+          requestNumber: request.request_number,
+        });
+      } else {
+        onStatusChange({ id: requestId, status: targetStatus });
+      }
+    }
+  }
+
+  function handleConfirmCancel() {
+    if (cancelConfirm) {
+      onStatusChange({ id: cancelConfirm.id, status: 'cancelado' });
+      setCancelConfirm(null);
     }
   }
 
@@ -170,6 +212,29 @@ export function TransfersKanban({ requests, onStatusChange, brokers }: Transfers
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Cancel confirmation dialog */}
+      <AlertDialog open={!!cancelConfirm} onOpenChange={(open) => !open && setCancelConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estás a punto de mover la solicitud <strong>{cancelConfirm?.requestNumber}</strong> de{' '}
+              <strong>{cancelConfirm?.clientName}</strong> al estado "Cancelado". Esta acción se puede revertir
+              arrastrando la tarjeta a otra columna.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, mantener</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmCancel}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Sí, cancelar solicitud
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -762,3 +762,5 @@
 - [x] Eliminar columna pricing_mode de la tabla transfer_requests en Supabase (pendiente ejecución manual en SQL Editor)
 - [x] Añadir badge de tipo de servicio (P2P/Pack) en tarjetas del Kanban
 - [x] Añadir filtro rápido por broker en el Kanban de Transfers
+- [x] Confirmación al mover a "cancelado" en Kanban: mostrar diálogo antes de cambiar estado por drag & drop
+- [x] Ordenación dentro de columna en Kanban: ordenar tarjetas por fecha (próxima fecha de transfer primero)
