@@ -751,3 +751,5 @@
 - [x] Mostrar historial de versiones en el popover de gestión de notas (NoteHistorySection con timeline)
 - [x] Corregir notas de horarios: deben ser por celda individual (empleado + día), no por columna/día completa
 - [x] Implementar vista Kanban en Transfers con columnas por estado y toggle lista/kanban
+- [x] Drag & drop en Kanban de Transfers: arrastrar tarjetas entre columnas para cambiar estado
+- [x] Contador por columna en Kanban: badge con total de solicitudes e importe acumulado en header de cada columna

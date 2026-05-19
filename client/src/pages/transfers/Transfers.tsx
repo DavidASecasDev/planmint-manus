@@ -41,7 +41,7 @@ export default function Transfers() {
     showArchived: false,
   });
 
-  const { requests, isLoading, deleteRequest, archiveRequest, unarchiveRequest } = useTransferRequests(filters);
+  const { requests, isLoading, deleteRequest, archiveRequest, unarchiveRequest, updateStatus } = useTransferRequests(filters);
   const { brokers: allBrokerRecords } = useTransferBrokers();
 
   // Get broker names from the full transfer_brokers table (not just from existing requests)
@@ -226,7 +226,7 @@ export default function Transfers() {
                 </CardContent>
               </Card>
             ) : viewMode === 'kanban' ? (
-              <TransfersKanban requests={requests} />
+              <TransfersKanban requests={requests} onStatusChange={updateStatus} />
             ) : (
               <div className="space-y-3">
                 {requests.map((request) => (
