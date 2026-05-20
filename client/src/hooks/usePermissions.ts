@@ -47,6 +47,7 @@ export type PermissionKey =
   | 'billing.manage'
   // Members
   | 'members.view'
+  | 'members.create'
   | 'members.invite'
   | 'members.change_role'
   | 'members.manage_permissions'

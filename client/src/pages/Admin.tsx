@@ -15,13 +15,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MoreHorizontal, Shield, UserPlus, Users, Crown, AlertTriangle, Settings, Layers, Bug, Trash2, Mail, Eye } from 'lucide-react';
+import { Loader2, MoreHorizontal, Shield, UserPlus, Users, Crown, AlertTriangle, Settings, Layers, Bug, Trash2, Eye } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { PERMISSION_CATEGORIES as PERMISSION_CATEGORIES_DEF } from '@/lib/permissionDefinitions';
 import { MemberPermissionsEditor } from '@/components/admin/MemberPermissionsEditor';
 import { RoleEditor } from '@/components/admin/RoleEditor';
-import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
-import { PendingInvitationsList } from '@/components/admin/PendingInvitationsList';
+import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
 import { EffectivePermissionsView } from '@/components/admin/EffectivePermissionsView';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -115,7 +114,7 @@ export default function Admin() {
             </Button>
             <Button onClick={() => setInviteDialogOpen(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
-              Invitar miembro
+              Crear usuario
             </Button>
           </div>
         </div>
@@ -176,10 +175,7 @@ export default function Admin() {
               <Layers className="h-4 w-4 mr-2" />
               Roles
             </TabsTrigger>
-            <TabsTrigger value="invitations">
-              <Mail className="h-4 w-4 mr-2" />
-              Invitaciones
-            </TabsTrigger>
+
             <TabsTrigger value="defaults">Permisos por defecto</TabsTrigger>
             <TabsTrigger value="effective">
               <Eye className="h-4 w-4 mr-2" />
@@ -324,9 +320,6 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="invitations" className="mt-6">
-            <PendingInvitationsList />
-          </TabsContent>
 
           <TabsContent value="roles" className="mt-6">
             <RoleEditor />
@@ -416,8 +409,8 @@ export default function Admin() {
           </DialogContent>
         </Dialog>
 
-        {/* Invite Member Dialog */}
-        <InviteMemberDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} />
+        {/* Create User Dialog */}
+        <CreateUserDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} />
       </div>
     </AppLayout>
   );

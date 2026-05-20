@@ -35,7 +35,7 @@ export const ALL_PERMISSION_KEYS = [
   // Billing
   "billing.view", "billing.manage",
   // Members
-  "members.view", "members.invite", "members.change_role", "members.manage_permissions", "members.suspend",
+  "members.view", "members.create", "members.invite", "members.change_role", "members.manage_permissions", "members.suspend",
   // Security
   "security.view_audit_logs",
   // Integrations
@@ -100,7 +100,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "automations.view", "automations.create", "automations.manage",
     "reports.view", "reports.export", "reports.view_financial",
     "billing.view", "billing.manage",
-    "members.invite", "members.change_role", "members.manage_permissions", "members.suspend",
+    "members.create", "members.invite", "members.change_role", "members.manage_permissions", "members.suspend",
     "security.view_audit_logs",
     "integrations.manage_api_keys",
     "reservations.create", "reservations.manage",
@@ -225,6 +225,7 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["billing.manage"] = pj?.billing?.manage ?? false;
   // Members
   flat["members.view"] = pj?.team?.read ?? false;
+  flat["members.create"] = pj?.team?.manage ?? false;
   flat["members.invite"] = pj?.team?.manage ?? false;
   flat["members.change_role"] = pj?.team?.manage ?? false;
   flat["members.manage_permissions"] = pj?.team?.manage ?? false;

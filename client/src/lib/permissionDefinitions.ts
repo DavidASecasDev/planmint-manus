@@ -197,6 +197,7 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
     permissions: [
       { key: 'teams.view', label: 'Ver equipos', description: 'Permite ver el módulo de equipos en el sidebar' },
       { key: 'members.view', label: 'Ver miembros', description: 'Permite ver el listado de miembros de la organización' },
+      { key: 'members.create', label: 'Crear usuarios', description: 'Permite crear usuarios directamente con email y contraseña' },
       { key: 'members.invite', label: 'Invitar miembros', description: 'Permite enviar invitaciones a nuevos miembros' },
       { key: 'members.change_role', label: 'Cambiar roles', description: 'Permite cambiar el rol asignado a un miembro' },
       { key: 'members.manage_permissions', label: 'Gestionar permisos', description: 'Permite configurar permisos individuales (overrides)' },

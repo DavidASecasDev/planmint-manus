@@ -787,3 +787,7 @@
 - [ ] Feature #9: Gráfico comparativo de brokers en Reports
 - [x] Feature: Duplicar/Clonar solicitud de transfer (botón en detalle, copia broker/cliente/items)
 - [x] Feature: Vista calendario mensual para transfers (por fecha de primer transfer)
+- [x] Feature: Endpoint POST /api/create-user (crea usuario directo con email+password+nombre+rol)
+- [x] Feature: Permiso members.create para controlar quién puede crear usuarios
+- [x] Feature: CreateUserDialog en página Admin (reemplaza InviteMemberDialog)
+- [x] Cleanup: Eliminar flujo de invitaciones de la UI de Admin (tab y diálogo reemplazados)

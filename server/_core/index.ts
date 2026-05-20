@@ -17,6 +17,7 @@ import { handleSignupWithInvitation } from "../signupWithInvitation";
 import { handleGetVapidKey } from "../vapidKey";
 import { handleApplyTemplate } from "../applyTemplate";
 import { handleCreateInvitation } from "../createInvitation";
+import { handleCreateUser } from "../createUser";
 import {
   handleGetInvitationPublic,
   handleAcceptInvitation,
@@ -287,6 +288,9 @@ async function startServer() {
   app.post("/api/en-camino-tracking/stats", handleEnCaminoStats);
   app.get("/api/en-camino-tracking", handleEnCaminoList);
   app.delete("/api/en-camino-tracking", handleEnCaminoDelete);
+
+  // User management
+  app.post("/api/create-user", handleCreateUser);
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);
