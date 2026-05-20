@@ -22,6 +22,33 @@ const STATUS_OPTIONS: { value: TransferRequestStatus | 'all'; label: string }[] 
   { value: 'cancelado', label: 'Cancelado' },
 ];
 
+function getToday(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getWeekRange(): { from: string; to: string } {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const monday = new Date(now.setDate(diff));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return {
+    from: monday.toISOString().split('T')[0],
+    to: sunday.toISOString().split('T')[0],
+  };
+}
+
+function getMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    from: firstDay.toISOString().split('T')[0],
+    to: lastDay.toISOString().split('T')[0],
+  };
+}
+
 export function TransferFilters({ filters, onFiltersChange, brokers }: TransferFiltersProps) {
   const hasActiveFilters = filters.search 
     || filters.broker 
@@ -42,6 +69,27 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
       showArchived: false,
     });
   };
+
+  const handleQuickDate = (type: 'today' | 'week' | 'month') => {
+    if (type === 'today') {
+      const today = getToday();
+      onFiltersChange({ ...filters, dateFrom: today, dateTo: today });
+    } else if (type === 'week') {
+      const { from, to } = getWeekRange();
+      onFiltersChange({ ...filters, dateFrom: from, dateTo: to });
+    } else {
+      const { from, to } = getMonthRange();
+      onFiltersChange({ ...filters, dateFrom: from, dateTo: to });
+    }
+  };
+
+  // Determine which quick date button is active
+  const today = getToday();
+  const week = getWeekRange();
+  const month = getMonthRange();
+  const isToday = filters.dateFrom === today && filters.dateTo === today;
+  const isWeek = filters.dateFrom === week.from && filters.dateTo === week.to;
+  const isMonth = filters.dateFrom === month.from && filters.dateTo === month.to;
 
   return (
     <div className="space-y-3">
@@ -105,12 +153,41 @@ export function TransferFilters({ filters, onFiltersChange, brokers }: TransferF
         </Select>
       </div>
 
-      {/* Row 2: Date range + Clear */}
+      {/* Row 2: Date range + Quick buttons + Clear */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground whitespace-nowrap">Fecha transfer:</span>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">Fecha:</span>
         </div>
+
+        {/* Quick date buttons */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant={isToday ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 text-xs px-2.5"
+            onClick={() => handleQuickDate('today')}
+          >
+            Hoy
+          </Button>
+          <Button
+            variant={isWeek ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 text-xs px-2.5"
+            onClick={() => handleQuickDate('week')}
+          >
+            Semana
+          </Button>
+          <Button
+            variant={isMonth ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 text-xs px-2.5"
+            onClick={() => handleQuickDate('month')}
+          >
+            Mes
+          </Button>
+        </div>
+
         <Input
           type="date"
           value={filters.dateFrom}

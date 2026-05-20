@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -6,18 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
-import { Plus, Ship, Loader2, ShieldAlert, Download, List, Columns3 } from 'lucide-react';
+import { Plus, Ship, Loader2, ShieldAlert, Download, List, Columns3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
+import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { TransferRequestCard } from '@/components/transfers/TransferRequestCard';
 import { TransfersKanban } from '@/components/transfers/TransfersKanban';
 import { TransferFilters } from '@/components/transfers/TransferFilters';
 import { downloadTransfersCsv } from '@/utils/exportTransfersCsv';
 import { toast } from 'sonner';
-import type { TransferFilters as TFilters } from '@/types/transfers';
+import type { TransferFilters as TFilters, TransferRequestStatus } from '@/types/transfers';
 
 type ViewMode = 'list' | 'kanban';
+const PAGE_SIZE = 20;
 
 export default function Transfers() {
   const navigate = useNavigate();
@@ -31,6 +34,8 @@ export default function Transfers() {
   const canManage = !permissionsLoading && hasPermission('transfers.manage');
   const canDelete = !permissionsLoading && hasPermission('transfers.delete');
   
+  const [page, setPage] = useState(1);
+
   const [filters, setFilters] = usePersistedFilters<TFilters>({
     search: '',
     broker: '',
@@ -43,6 +48,42 @@ export default function Transfers() {
 
   const { requests, isLoading, deleteRequest, archiveRequest, unarchiveRequest, updateStatus } = useTransferRequests(filters);
   const { brokers: allBrokerRecords } = useTransferBrokers();
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [filters]);
+  const { logStatusChange } = useTransferStatusHistory(undefined);
+  const { profile } = useAuth();
+
+  // Wrapped status change that also logs history + notifies broker
+  const handleKanbanStatusChange = ({ id, status }: { id: string; status: TransferRequestStatus }) => {
+    const request = requests.find(r => r.id === id);
+    if (!request) {
+      updateStatus({ id, status });
+      return;
+    }
+    const previousStatus = request.status;
+    updateStatus({
+      id,
+      status,
+      previousStatus,
+      brokerId: request.broker_id,
+      brokerName: request.broker_name,
+      clientName: request.client_name,
+      requestNumber: request.request_number,
+    });
+    logStatusChange({
+      request_id: id,
+      organization_id: profile?.organization_id || '',
+      previous_status: previousStatus,
+      new_status: status,
+      changed_by_type: 'admin',
+      changed_by_id: profile?.id,
+      changed_by_name: profile?.name || 'Admin',
+      broker_id: request.broker_id,
+      request_number: request.request_number,
+      client_name: request.client_name,
+    }).catch(e => console.error('Failed to log kanban status change:', e));
+  };
 
   // Get broker names from the full transfer_brokers table (not just from existing requests)
   const brokers = useMemo(() => {
@@ -202,11 +243,24 @@ export default function Transfers() {
               brokers={brokers}
             />
 
-            {/* Results count */}
+            {/* Results count + total revenue */}
             {requests.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {requests.length} solicitud{requests.length !== 1 ? 'es' : ''} encontrada{requests.length !== 1 ? 's' : ''}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {requests.length} solicitud{requests.length !== 1 ? 'es' : ''} encontrada{requests.length !== 1 ? 's' : ''}
+                  {viewMode === 'list' && requests.length > PAGE_SIZE && (
+                    <span className="ml-1">— Página {page} de {Math.ceil(requests.length / PAGE_SIZE)}</span>
+                  )}
+                </p>
+                {(() => {
+                  const totalRevenue = requests.reduce((sum, r) => sum + (r.total_amount || r.client_total || 0), 0);
+                  return totalRevenue > 0 ? (
+                    <p className="text-sm font-medium text-emerald-600">
+                      Ingresos: {totalRevenue.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </p>
+                  ) : null;
+                })()}
+              </div>
             )}
 
             {requests.length === 0 ? (
@@ -226,22 +280,50 @@ export default function Transfers() {
                 </CardContent>
               </Card>
             ) : viewMode === 'kanban' ? (
-              <TransfersKanban requests={requests} onStatusChange={updateStatus} brokers={brokers} />
+              <TransfersKanban requests={requests} onStatusChange={handleKanbanStatusChange} brokers={brokers} />
             ) : (
-              <div className="space-y-3">
-                {requests.map((request) => (
-                  <TransferRequestCard
-                    key={request.id}
-                    request={request}
-                    onClick={() => navigate(`/transfers/${request.id}`)}
-                    onDelete={deleteRequest}
-                    onArchive={archiveRequest}
-                    onUnarchive={unarchiveRequest}
-                    canDelete={canDelete}
-                    canManage={canManage}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="space-y-3">
+                  {requests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((request) => (
+                    <TransferRequestCard
+                      key={request.id}
+                      request={request}
+                      onClick={() => navigate(`/transfers/${request.id}`)}
+                      onDelete={deleteRequest}
+                      onArchive={archiveRequest}
+                      onUnarchive={unarchiveRequest}
+                      onStatusChange={(id, status) => handleKanbanStatusChange({ id, status })}
+                      canDelete={canDelete}
+                      canManage={canManage}
+                    />
+                  ))}
+                </div>
+                {requests.length > PAGE_SIZE && (
+                  <div className="flex items-center justify-between pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {page} de {Math.ceil(requests.length / PAGE_SIZE)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(Math.ceil(requests.length / PAGE_SIZE), p + 1))}
+                      disabled={page >= Math.ceil(requests.length / PAGE_SIZE)}
+                    >
+                      Siguiente
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </SkeletonTransition>

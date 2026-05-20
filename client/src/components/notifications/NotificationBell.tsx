@@ -4,7 +4,7 @@
  * Bell icon: muted-foreground | Badge: gold accent
  * Popover: popover bg | foreground text
  */
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +25,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   assignment: UserCheck,
   reminder: Clock,
   transfer_note: MessageSquare,
+  transfer_status_change: ArrowRightLeft,
   repair_update: Wrench,
   accident_report: AlertTriangle,
   damage_report_update: FileWarning,
@@ -41,6 +42,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   assignment: '#22C55E',
   reminder: '#F97316',
   transfer_note: 'oklch(0.72 0.10 80)',
+  transfer_status_change: '#8B5CF6',
   repair_update: '#6366F1',
   accident_report: '#EF4444',
   damage_report_update: '#F43F5E',

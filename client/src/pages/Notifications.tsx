@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +21,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   assignment: UserCheck,
   reminder: Clock,
   transfer_note: MessageSquare,
+  transfer_status_change: ArrowRightLeft,
   repair_update: Wrench,
   accident_report: AlertTriangle,
   damage_report_update: FileWarning,
@@ -37,6 +38,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   assignment: 'text-green-500 bg-green-500/10',
   reminder: 'text-orange-500 bg-orange-500/10',
   transfer_note: 'text-amber-600 bg-amber-500/10',
+  transfer_status_change: 'text-violet-500 bg-violet-500/10',
   repair_update: 'text-indigo-500 bg-indigo-500/10',
   accident_report: 'text-red-500 bg-red-500/10',
   damage_report_update: 'text-rose-500 bg-rose-500/10',
@@ -53,6 +55,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   assignment: 'Asignación',
   reminder: 'Recordatorio',
   transfer_note: 'Nota de Transfer',
+  transfer_status_change: 'Cambio de Estado',
   repair_update: 'Reparación',
   accident_report: 'Accidente',
   damage_report_update: 'Informe Daños',

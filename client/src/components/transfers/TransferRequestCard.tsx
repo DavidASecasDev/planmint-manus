@@ -13,13 +13,23 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { TransferStatusBadge } from './TransferStatusBadge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, Users, Building2, User, Trash2, Euro, ShieldAlert, Clock, Briefcase, Archive, ArchiveRestore } from 'lucide-react';
+import { Calendar, Users, Building2, User, Trash2, Euro, ShieldAlert, Clock, Briefcase, Archive, ArchiveRestore, Zap } from 'lucide-react';
 import { CLIENT_TYPE_META, SERVICE_TYPE_META } from '@/types/transfers';
 import { getMarginPercent, getMarginAlertLevel } from '@/utils/marginAlerts';
 import { useMarginThresholds } from '@/hooks/useMarginThresholds';
-import type { TransferRequest } from '@/types/transfers';
+import type { TransferRequest, TransferRequestStatus } from '@/types/transfers';
+
+const INLINE_STATUS_OPTIONS: { value: TransferRequestStatus; label: string }[] = [
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'en_gestion', label: 'En gestión' },
+  { value: 'presupuesto_enviado', label: 'Ppto. Enviado' },
+  { value: 'confirmado', label: 'Confirmado' },
+  { value: 'completado', label: 'Completado' },
+  { value: 'cancelado', label: 'Cancelado' },
+];
 
 interface TransferRequestCardProps {
   request: TransferRequest;
@@ -27,15 +37,33 @@ interface TransferRequestCardProps {
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
   onUnarchive?: (id: string) => void;
+  onStatusChange?: (id: string, status: TransferRequestStatus) => void;
   canDelete?: boolean;
   canManage?: boolean;
 }
 
-export function TransferRequestCard({ request, onClick, onDelete, onArchive, onUnarchive, canDelete, canManage }: TransferRequestCardProps) {
+export function TransferRequestCard({ request, onClick, onDelete, onArchive, onUnarchive, onStatusChange, canDelete, canManage }: TransferRequestCardProps) {
   const formattedDate = request.first_transfer_date
     ? format(new Date(request.first_transfer_date), "d MMM yyyy", { locale: es })
     : 'Sin fecha';
   const thresholds = useMarginThresholds();
+
+  // Compute proximity badge for upcoming transfers
+  const getProximityLabel = (): string | null => {
+    if (!request.first_transfer_date) return null;
+    if (request.status === 'completado' || request.status === 'cancelado') return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const transferDate = new Date(request.first_transfer_date);
+    transferDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((transferDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return null;
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Mañana';
+    if (diffDays <= 3) return `En ${diffDays} días`;
+    return null;
+  };
+  const proximityLabel = getProximityLabel();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,7 +92,27 @@ export function TransferRequestCard({ request, onClick, onDelete, onArchive, onU
             <span className="font-mono text-sm text-muted-foreground">
               {request.request_number}
             </span>
-            <TransferStatusBadge status={request.status} />
+            {canManage && onStatusChange ? (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Select
+                  value={request.status}
+                  onValueChange={(value) => onStatusChange(request.id, value as TransferRequestStatus)}
+                >
+                  <SelectTrigger className="h-6 w-auto gap-1 px-2 text-[11px] font-medium border-0 bg-transparent hover:bg-muted/80 focus:ring-0 focus:ring-offset-0">
+                    <TransferStatusBadge status={request.status} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INLINE_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <TransferStatusBadge status={request.status} />
+            )}
 
             {marginLevel === 'danger' && (
               <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-0.5">
@@ -88,6 +136,12 @@ export function TransferRequestCard({ request, onClick, onDelete, onArchive, onU
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-gray-300 text-gray-500 bg-gray-50">
                 <Archive className="h-3 w-3 mr-0.5" />
                 Archivado
+              </Badge>
+            )}
+            {proximityLabel && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-amber-300 text-amber-700 bg-amber-50">
+                <Zap className="h-3 w-3 mr-0.5" />
+                {proximityLabel}
               </Badge>
             )}
           </div>

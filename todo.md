@@ -764,3 +764,24 @@
 - [x] Añadir filtro rápido por broker en el Kanban de Transfers
 - [x] Confirmación al mover a "cancelado" en Kanban: mostrar diálogo antes de cambiar estado por drag & drop
 - [x] Ordenación dentro de columna en Kanban: ordenar tarjetas por fecha (próxima fecha de transfer primero)
+
+## Auditoría Mayo 2026 — Mejoras Prioritarias
+
+### Bugs Críticos
+- [x] Bug #1: DROP columna pricing_mode de tabla transfer_requests en Supabase
+- [x] Bug #2: Crear notificación para broker cuando admin cambia estado de su solicitud
+- [x] Bug #3: Añadir triggers de transfers al motor de automatizaciones (motor completo con evaluación de reglas y ejecución de acciones)
+- [x] Bug #4: Implementar paginación en lista de transfers (PAGE_SIZE=20, reset al cambiar filtros)
+
+### Quick Wins
+- [x] QW #15: Botones rápidos "Hoy" / "Esta semana" / "Este mes" en TransferFilters
+- [x] QW #16: Mostrar ingresos totales en header de página Transfers
+- [x] QW #17: Copiar número de solicitud al portapapeles en TransferDetail
+- [x] QW #18: Badge "próximo transfer" en tarjetas de la lista (Mañana, En 3 días, etc.)
+
+### Features Ausentes
+- [x] Feature #6: Cambio rápido de estado inline desde vista lista (dropdown en tarjeta)
+- [ ] Feature #5: Vista calendario para transfers
+- [ ] Feature #7: Duplicar solicitud de transfer
+- [ ] Feature #8: KPIs de transfers en Dashboard principal
+- [ ] Feature #9: Gráfico comparativo de brokers en Reports

@@ -128,6 +128,7 @@ import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
+import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -286,6 +287,9 @@ async function startServer() {
   app.post("/api/en-camino-tracking/stats", handleEnCaminoStats);
   app.get("/api/en-camino-tracking", handleEnCaminoList);
   app.delete("/api/en-camino-tracking", handleEnCaminoDelete);
+
+  // Transfer automation engine
+  app.post("/api/fire-transfer-automation", handleFireTransferAutomation);
 
   // tRPC API
   app.use(

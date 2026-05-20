@@ -44,6 +44,8 @@ import {
   CONDITION_FIELD_OPTIONS,
   OPERATOR_OPTIONS,
   ACTION_TYPE_OPTIONS,
+  isTransferTrigger,
+  TRANSFER_STATUS_OPTIONS,
 } from '@/types/automations';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS, TASK_TYPE_OPTIONS } from '@/types/tasks';
 
@@ -185,7 +187,17 @@ export function AutomationRuleDialog({ open, onOpenChange, editingRule }: Automa
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TRIGGER_OPTIONS.map((option) => (
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Tareas</div>
+            {TRIGGER_OPTIONS.filter(o => o.category === 'tasks').map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                <div>
+                  <span className="font-medium">{option.label}</span>
+                  <span className="text-muted-foreground text-xs ml-2">{option.description}</span>
+                </div>
+              </SelectItem>
+            ))}
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1.5">Transfers</div>
+            {TRIGGER_OPTIONS.filter(o => o.category === 'transfers').map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 <div>
                   <span className="font-medium">{option.label}</span>
@@ -244,7 +256,9 @@ export function AutomationRuleDialog({ open, onOpenChange, editingRule }: Automa
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CONDITION_FIELD_OPTIONS.map((f) => (
+                      {CONDITION_FIELD_OPTIONS
+                        .filter(f => !f.category || f.category === (isTransferTrigger(triggerType) ? 'transfers' : 'tasks'))
+                        .map((f) => (
                         <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -323,7 +337,9 @@ export function AutomationRuleDialog({ open, onOpenChange, editingRule }: Automa
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ACTION_TYPE_OPTIONS.map((a) => (
+                      {ACTION_TYPE_OPTIONS
+                        .filter(a => !a.category || a.category === 'general' || a.category === (isTransferTrigger(triggerType) ? 'transfers' : 'tasks'))
+                        .map((a) => (
                         <SelectItem 
                           key={a.value} 
                           value={a.value}

@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import type { TransferStatusHistoryEntry } from '@/types/transferStatusHistory';
 
+const STATUS_LABELS: Record<string, string> = {
+  pendiente: 'Pendiente',
+  en_gestion: 'En gestión',
+  presupuesto_enviado: 'Ppto. Enviado',
+  confirmado: 'Confirmado',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+};
+
 export function useTransferStatusHistory(requestId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -32,6 +41,10 @@ export function useTransferStatusHistory(requestId: string | undefined) {
       changed_by_id?: string;
       changed_by_name?: string;
       note?: string;
+      // Optional: for broker notification
+      broker_id?: string | null;
+      request_number?: string;
+      client_name?: string;
     }) => {
       const { error } = await supabaseQuery
         .from('transfer_status_history')
@@ -47,6 +60,39 @@ export function useTransferStatusHistory(requestId: string | undefined) {
         });
 
       if (error) throw error;
+
+      // Notify broker if status changed by admin and broker has portal access
+      if (entry.changed_by_type === 'admin' && entry.broker_id) {
+        try {
+          // Look up broker's user_id from transfer_brokers
+          const { data: broker } = await supabaseQuery
+            .from('transfer_brokers')
+            .select('user_id, name')
+            .eq('id', entry.broker_id)
+            .single();
+
+          if (broker?.user_id) {
+            const newLabel = STATUS_LABELS[entry.new_status] || entry.new_status;
+            const ref = entry.request_number || entry.request_id.slice(0, 8);
+            const client = entry.client_name || '';
+            await supabaseQuery.from('notifications').insert({
+              organization_id: entry.organization_id,
+              user_id: broker.user_id,
+              type: 'transfer_status_change',
+              title: `${ref} — Estado: ${newLabel}`,
+              body: client
+                ? `Tu solicitud para ${client} ha cambiado a "${newLabel}".`
+                : `Tu solicitud ha cambiado a "${newLabel}".`,
+              entity_type: 'transfer_request',
+              entity_id: entry.request_id,
+              is_read: false,
+            });
+          }
+        } catch (notifErr) {
+          // Non-blocking: don't fail status change if notification fails
+          console.error('Failed to notify broker of status change:', notifErr);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-status-history'] });

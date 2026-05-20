@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check, Pencil } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check, Pencil, Copy } from 'lucide-react';
 import { useTransferRequest, useTransferRequests } from '@/hooks/useTransferRequests';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransferItems } from '@/hooks/useTransferItems';
@@ -158,7 +158,15 @@ export default function TransferDetail() {
   const handleStatusChange = async (status: TransferRequestStatus) => {
     if (id && !isNew) {
       const previousStatus = existingRequest?.status || null;
-      updateStatus({ id, status });
+      updateStatus({
+        id,
+        status,
+        previousStatus: previousStatus || undefined,
+        brokerId: existingRequest?.broker_id || brokerId,
+        brokerName: existingRequest?.broker_name || brokerName,
+        clientName: existingRequest?.client_name || clientName,
+        requestNumber: existingRequest?.request_number,
+      });
       try {
         await logStatusChange({
           request_id: id,
@@ -168,6 +176,9 @@ export default function TransferDetail() {
           changed_by_type: 'admin',
           changed_by_id: profile?.id,
           changed_by_name: profile?.name || 'Admin',
+          broker_id: existingRequest?.broker_id || brokerId,
+          request_number: existingRequest?.request_number,
+          client_name: existingRequest?.client_name,
         });
       } catch (e) {
         console.error('Failed to log status change:', e);
@@ -327,8 +338,20 @@ export default function TransferDetail() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">
+              <h1 className="text-2xl font-bold flex items-center gap-2">
                 {isNew ? 'Nueva Solicitud de Transfer' : existingRequest?.request_number}
+                {!isNew && existingRequest?.request_number && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(existingRequest.request_number);
+                      toast.success('Número copiado al portapapeles');
+                    }}
+                    className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+                    title="Copiar número de solicitud"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                )}
               </h1>
               {!isNew && existingRequest && (
                 <div className="flex items-center gap-2 mt-1 flex-wrap">

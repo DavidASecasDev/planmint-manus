@@ -2,11 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useTransferAutomation } from '@/hooks/useTransferAutomation';
 import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem } from '@/types/transfers';
 
 export function useTransferRequests(filters?: Partial<TransferFilters>) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const { onTransferCreated, onTransferStatusChanged } = useTransferAutomation();
 
   const { data: requests = [], isLoading, error, refetch } = useQuery({
     queryKey: ['transfer-requests', profile?.organization_id, filters],
@@ -113,9 +115,20 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
       if (error) throw error;
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result: any, variables: Partial<TransferRequest>) => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       toast.success('Solicitud de transfer creada');
+      // Fire automation for transfer_created
+      if (result?.id) {
+        onTransferCreated({
+          request_id: result.id,
+          status: 'pendiente',
+          broker_id: variables.broker_id,
+          broker_name: variables.broker_name,
+          client_name: variables.client_name,
+          request_number: result.request_number,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Error al crear solicitud: ${error.message}`);
@@ -141,18 +154,39 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: TransferRequestStatus }) => {
+    mutationFn: async ({ id, status, previousStatus, brokerId, brokerName, clientName, requestNumber }: {
+      id: string;
+      status: TransferRequestStatus;
+      previousStatus?: string;
+      brokerId?: string | null;
+      brokerName?: string;
+      clientName?: string;
+      requestNumber?: string;
+    }) => {
       const { error } = await supabaseQuery
         .from('transfer_requests')
         .update({ status })
         .eq('id', id);
 
       if (error) throw error;
+      return { id, status, previousStatus, brokerId, brokerName, clientName, requestNumber };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
       toast.success('Estado actualizado');
+      // Fire automation for transfer_status_changed
+      if (result) {
+        onTransferStatusChanged({
+          request_id: result.id,
+          status: result.status,
+          previous_status: result.previousStatus,
+          broker_id: result.brokerId,
+          broker_name: result.brokerName,
+          client_name: result.clientName,
+          request_number: result.requestNumber,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Error al cambiar estado: ${error.message}`);
