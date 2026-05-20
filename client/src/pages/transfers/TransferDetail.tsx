@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check, Pencil, Copy } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, Plus, Trash2, Ship, Check, Pencil, Copy, CopyPlus } from 'lucide-react';
 import { useTransferRequest, useTransferRequests } from '@/hooks/useTransferRequests';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransferItems } from '@/hooks/useTransferItems';
 import { useTransferDocuments } from '@/hooks/useTransferDocuments';
@@ -190,6 +191,66 @@ export default function TransferDetail() {
     if (existingRequest?.id) {
       await createMultipleItems(1);
       toast.success('Transfer añadido');
+    }
+  };
+
+  const handleClone = async () => {
+    if (!existingRequest) return;
+    try {
+      const newRequest = await createRequest({
+        broker_name: existingRequest.broker_name,
+        broker_id: existingRequest.broker_id,
+        client_name: existingRequest.client_name,
+        is_external_provider: existingRequest.is_external_provider,
+        external_provider_name: existingRequest.external_provider_name,
+        notes: existingRequest.notes ? `[Clon de ${existingRequest.request_number}] ${existingRequest.notes}` : `Clon de ${existingRequest.request_number}`,
+      });
+      if (newRequest?.id && existingRequest.items && existingRequest.items.length > 0) {
+        // Clone items one by one with their data
+        for (const item of existingRequest.items) {
+          await supabaseQuery
+            .from('transfer_items')
+            .insert({
+              request_id: newRequest.id,
+              organization_id: existingRequest.organization_id,
+              position: item.position,
+              transfer_date: item.transfer_date,
+              pickup_enabled: item.pickup_enabled,
+              pickup_location: item.pickup_location,
+              pickup_time: item.pickup_time,
+              dropoff_enabled: item.dropoff_enabled,
+              dropoff_location: item.dropoff_location,
+              dropoff_time: item.dropoff_time,
+              has_return: item.has_return,
+              return_pickup_enabled: item.return_pickup_enabled,
+              return_pickup_location: item.return_pickup_location,
+              return_pickup_time: item.return_pickup_time,
+              return_dropoff_enabled: item.return_dropoff_enabled,
+              return_dropoff_location: item.return_dropoff_location,
+              return_dropoff_time: item.return_dropoff_time,
+              pax_count: item.pax_count,
+              driver_name: item.driver_name,
+              driver_phone: item.driver_phone,
+              driver_pending: item.driver_pending,
+              notes: item.notes,
+              zone: item.zone,
+              zone_address: item.zone_address,
+              vehicle_type: item.vehicle_type,
+              base_price: item.base_price,
+              price_with_commission: item.price_with_commission,
+              price_manually_set: item.price_manually_set,
+              flight_number: item.flight_number,
+            });
+        }
+        toast.success(`Solicitud clonada con ${existingRequest.items.length} transfer(s)`);
+        navigate(`/transfers/${newRequest.id}`);
+      } else if (newRequest?.id) {
+        toast.success('Solicitud clonada (sin items)');
+        navigate(`/transfers/${newRequest.id}`);
+      }
+    } catch (err) {
+      console.error('Clone error:', err);
+      toast.error('Error al clonar la solicitud');
     }
   };
 
@@ -393,6 +454,12 @@ export default function TransferDetail() {
               <Button variant="outline" onClick={() => navigate(`/transfers/${id}/edit`)} className="gap-2">
                 <Pencil className="h-4 w-4" />
                 Editar
+              </Button>
+            )}
+            {!isNew && (
+              <Button variant="outline" onClick={handleClone} className="gap-2">
+                <CopyPlus className="h-4 w-4" />
+                Clonar
               </Button>
             )}
             <Button onClick={handleSave} disabled={isCreating || isUpdating} className="gap-2">

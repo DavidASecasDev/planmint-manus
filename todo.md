@@ -781,7 +781,9 @@
 
 ### Features Ausentes
 - [x] Feature #6: Cambio rápido de estado inline desde vista lista (dropdown en tarjeta)
-- [ ] Feature #5: Vista calendario para transfers
+- [x] Feature #5: Vista calendario para transfers
 - [ ] Feature #7: Duplicar solicitud de transfer
 - [ ] Feature #8: KPIs de transfers en Dashboard principal
 - [ ] Feature #9: Gráfico comparativo de brokers en Reports
+- [x] Feature: Duplicar/Clonar solicitud de transfer (botón en detalle, copia broker/cliente/items)
+- [x] Feature: Vista calendario mensual para transfers (por fecha de primer transfer)

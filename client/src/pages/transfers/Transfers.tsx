@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
-import { Plus, Ship, Loader2, ShieldAlert, Download, List, Columns3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Ship, Loader2, ShieldAlert, Download, List, Columns3, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { useTransferStatusHistory } from '@/hooks/useTransferStatusHistory';
@@ -14,12 +14,13 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { TransferRequestCard } from '@/components/transfers/TransferRequestCard';
 import { TransfersKanban } from '@/components/transfers/TransfersKanban';
+import { TransfersCalendar } from '@/components/transfers/TransfersCalendar';
 import { TransferFilters } from '@/components/transfers/TransferFilters';
 import { downloadTransfersCsv } from '@/utils/exportTransfersCsv';
 import { toast } from 'sonner';
 import type { TransferFilters as TFilters, TransferRequestStatus } from '@/types/transfers';
 
-type ViewMode = 'list' | 'kanban';
+type ViewMode = 'list' | 'kanban' | 'calendar';
 const PAGE_SIZE = 20;
 
 export default function Transfers() {
@@ -220,6 +221,17 @@ export default function Transfers() {
                   >
                     <Columns3 className="h-4 w-4" />
                   </button>
+                  <button
+                    onClick={() => handleViewModeChange('calendar')}
+                    className={`p-2 transition-colors ${
+                      viewMode === 'calendar'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground'
+                    }`}
+                    title="Vista Calendario"
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                  </button>
                 </div>
 
                 {requests.length > 0 && (
@@ -279,6 +291,8 @@ export default function Transfers() {
                   )}
                 </CardContent>
               </Card>
+            ) : viewMode === 'calendar' ? (
+              <TransfersCalendar requests={requests} onRequestClick={(r) => navigate(`/transfers/${r.id}`)} />
             ) : viewMode === 'kanban' ? (
               <TransfersKanban requests={requests} onStatusChange={handleKanbanStatusChange} brokers={brokers} />
             ) : (
