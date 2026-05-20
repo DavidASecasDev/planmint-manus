@@ -791,3 +791,4 @@
 - [x] Feature: Permiso members.create para controlar quién puede crear usuarios
 - [x] Feature: CreateUserDialog en página Admin (reemplaza InviteMemberDialog)
 - [x] Cleanup: Eliminar flujo de invitaciones de la UI de Admin (tab y diálogo reemplazados)
+- [x] Bug: Crear usuario muestra "El usuario se creó pero no se pudo añadir a la organización" — trigger handle_new_user ya inserta membership, upsert sin onConflict fallaba con 23505

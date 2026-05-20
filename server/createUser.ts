@@ -147,22 +147,38 @@ export async function handleCreateUser(req: Request, res: Response) {
     }
 
     // 7. Add to organization_members
+    // Note: A DB trigger (handle_new_user) may have already inserted the membership
+    // when the user was created. We use upsert with onConflict to handle both cases.
     const { error: memberError } = await serviceClient
       .from("organization_members")
-      .upsert({
-        user_id: newUserId,
-        organization_id: organizationId,
-        role: normalizedRole,
-        status: "active",
-      });
+      .upsert(
+        {
+          user_id: newUserId,
+          organization_id: organizationId,
+          role: normalizedRole,
+          status: "active",
+        },
+        { onConflict: "organization_id,user_id" }
+      );
 
     if (memberError) {
-      console.error("[create-user] Member upsert error:", memberError);
-      return res.json({
-        success: false,
-        error: "member_creation_failed",
-        message: memberError.message,
-      });
+      // If it's a duplicate key error (23505), the trigger already created the membership — not a real error
+      if (memberError.code === "23505") {
+        console.log("[create-user] Member already exists (created by trigger), updating role...");
+        // Just update the role/status in case it differs
+        await serviceClient
+          .from("organization_members")
+          .update({ role: normalizedRole, status: "active" })
+          .eq("user_id", newUserId)
+          .eq("organization_id", organizationId);
+      } else {
+        console.error("[create-user] Member upsert error:", memberError);
+        return res.json({
+          success: false,
+          error: "member_creation_failed",
+          message: memberError.message,
+        });
+      }
     }
 
     return res.json({
