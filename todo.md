@@ -792,3 +792,6 @@
 - [x] Feature: CreateUserDialog en página Admin (reemplaza InviteMemberDialog)
 - [x] Cleanup: Eliminar flujo de invitaciones de la UI de Admin (tab y diálogo reemplazados)
 - [x] Bug: Crear usuario muestra "El usuario se creó pero no se pudo añadir a la organización" — trigger handle_new_user ya inserta membership, upsert sin onConflict fallaba con 23505
+- [x] Insertar 27 facturas Montiel 2025 en Garatech con fechas correctas
+- [x] Insertar 14 facturas Montiel 2026 en Garatech con fechas correctas
+- [x] Rediseño completo del Dashboard de Garatech: KPIs hero, pipeline visual, gráficos de evolución 12 meses, distribución por tipo, ranking talleres, ranking vehículos, actividad reciente
