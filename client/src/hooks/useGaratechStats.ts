@@ -80,6 +80,8 @@ export interface GaratechStats {
   urgentRepairs: Repair[];
   // Datos mensuales
   monthlyData: MonthlyData[];
+  // Year-over-year comparison
+  previousYearMonthlyData: MonthlyData[];
   // Legacy compat
   monthlyExpenses: { month: string; total: number }[];
   monthlyBalance: { month: string; income: number; expenses: number; balance: number }[];
@@ -336,6 +338,49 @@ export function useGaratechStats(dateRange: DateRange) {
         };
       });
 
+      // Previous year monthly data (YoY comparison)
+      // Shift the period range back by 1 year
+      const prevYearFrom = new Date(dateRange.from);
+      prevYearFrom.setFullYear(prevYearFrom.getFullYear() - 1);
+      const prevYearTo = new Date(dateRange.to);
+      prevYearTo.setFullYear(prevYearTo.getFullYear() - 1);
+
+      const prevYearRangeFromStr = format(prevYearFrom, 'yyyy-MM-dd');
+      const prevYearRangeToStr = format(prevYearTo, 'yyyy-MM-dd');
+
+      const repairsInPrevYear = allRepairs.filter((r: any) =>
+        r.created_at && r.created_at >= prevYearRangeFromStr && r.created_at <= prevYearRangeToStr + 'T23:59:59'
+      );
+
+      const prevYearMonthsInRange = eachMonthOfInterval({ start: prevYearFrom, end: prevYearTo });
+      const previousYearMonthlyData: MonthlyData[] = prevYearMonthsInRange.map((monthDate, idx) => {
+        const monthKey = format(monthDate, 'yyyy-MM');
+        // Use the same month label as the current period for alignment
+        const currentMonthLabel = monthlyData[idx]?.month || format(monthDate, 'MMM', { locale: es });
+        const monthFull = format(monthDate, 'MMMM yyyy', { locale: es });
+
+        const monthExpenses = repairsInPrevYear
+          .filter((r: any) => r.created_at && r.created_at.startsWith(monthKey))
+          .reduce((sum: number, r: any) => sum + (r.cost_final || 0), 0);
+
+        const monthIncome = damageReportsWithCollection
+          .filter((r: any) => r.collected_at && r.collected_at.startsWith(monthKey) && r.amount_collected)
+          .reduce((sum: number, r: any) => sum + (r.amount_collected || 0), 0);
+
+        const monthRepairCount = repairsInPrevYear
+          .filter((r: any) => r.created_at && r.created_at.startsWith(monthKey))
+          .length;
+
+        return {
+          month: currentMonthLabel,
+          monthFull,
+          income: monthIncome,
+          expenses: monthExpenses,
+          balance: monthIncome - monthExpenses,
+          repairCount: monthRepairCount,
+        };
+      });
+
       // Accidents in period
       const accidentsInPeriod = (accidentsRes.data || []).length;
 
@@ -359,6 +404,7 @@ export function useGaratechStats(dateRange: DateRange) {
         expensesInPeriod,
         balanceInPeriod,
         monthlyData,
+        previousYearMonthlyData,
         monthlyExpenses: monthlyData.map(d => ({ month: d.month, total: d.expenses })),
         monthlyBalance: monthlyData.map(d => ({
           month: d.month,
@@ -433,6 +479,7 @@ export function useGaratechStats(dateRange: DateRange) {
     expensesInPeriod: 0,
     balanceInPeriod: 0,
     monthlyData: [],
+    previousYearMonthlyData: [],
     monthlyExpenses: [],
     monthlyBalance: [],
     periodLabel: '',

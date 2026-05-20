@@ -6,15 +6,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
   Wrench, Hammer, Euro, Clock, AlertTriangle, TrendingUp, TrendingDown,
   Car, Building2, LayoutGrid, FileText, ArrowUpRight, ArrowDownRight,
-  PieChart, BarChart3, Activity, Plus, ChevronRight,
+  PieChart, BarChart3, Activity, Plus, ChevronRight, GitCompareArrows,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPie, Pie, Cell, Legend, Area, AreaChart,
+  PieChart as RechartsPie, Pie, Cell, Legend, Area, AreaChart, Line, LineChart,
 } from 'recharts';
 import { useGaratechStats, getDateRangeForPreset, type PeriodPreset, type DateRange } from '@/hooks/useGaratechStats';
 import { PeriodSelector } from '@/components/garatech/dashboard/PeriodSelector';
@@ -46,7 +47,27 @@ export default function GaratechDashboard() {
 
   const { stats, recentActivity, isLoading } = useGaratechStats(dateRange);
   const [newRepairOpen, setNewRepairOpen] = useState(false);
+  const [showYoY, setShowYoY] = useState(false);
   const navigate = useNavigate();
+
+  // Merge current and previous year data for YoY charts
+  const yoyChartData = useMemo(() => {
+    if (!showYoY) return null;
+    return stats.monthlyData.map((current, idx) => {
+      const prev = stats.previousYearMonthlyData[idx];
+      return {
+        month: current.month,
+        expenses: current.expenses,
+        prevExpenses: prev?.expenses || 0,
+        income: current.income,
+        prevIncome: prev?.income || 0,
+        repairCount: current.repairCount,
+        prevRepairCount: prev?.repairCount || 0,
+      };
+    });
+  }, [showYoY, stats.monthlyData, stats.previousYearMonthlyData]);
+
+  const hasPrevYearData = stats.previousYearMonthlyData.some(d => d.expenses > 0 || d.repairCount > 0);
 
   const handlePresetChange = (p: PeriodPreset) => {
     setPreset(p);
@@ -130,9 +151,22 @@ export default function GaratechDashboard() {
               onPresetChange={handlePresetChange}
               onDateRangeChange={handleDateRangeChange}
             />
-            <span className="text-xs text-muted-foreground hidden sm:block">
-              {format(dateRange.from, "dd MMM yyyy", { locale: es })} — {format(dateRange.to, "dd MMM yyyy", { locale: es })}
-            </span>
+            <div className="flex items-center gap-3">
+              {hasPrevYearData && (
+                <div className="flex items-center gap-2">
+                  <GitCompareArrows className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground hidden sm:inline">vs Año Anterior</span>
+                  <Switch
+                    checked={showYoY}
+                    onCheckedChange={setShowYoY}
+                    className="scale-75"
+                  />
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {format(dateRange.from, "dd MMM yyyy", { locale: es })} — {format(dateRange.to, "dd MMM yyyy", { locale: es })}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -279,6 +313,11 @@ export default function GaratechDashboard() {
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
                   Evolución de Gastos
+                  {showYoY && (
+                    <Badge variant="outline" className="text-[10px] ml-1 font-normal">
+                      vs Año Anterior
+                    </Badge>
+                  )}
                 </CardTitle>
               </div>
             </CardHeader>
@@ -286,49 +325,89 @@ export default function GaratechDashboard() {
               {stats.monthlyData.some(d => d.expenses > 0) ? (
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats.monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="expensesGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}€`} className="fill-muted-foreground" />
-                      <Tooltip
-                        formatter={(value: number, name: string) => [
-                          `${value.toLocaleString('es-ES')}€`,
-                          name === 'expenses' ? 'Gastos' : 'Ingresos'
-                        ]}
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="expenses"
-                        stroke="hsl(0, 84%, 60%)"
-                        fill="url(#expensesGradient)"
-                        strokeWidth={2}
-                        name="expenses"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="income"
-                        stroke="hsl(142, 76%, 36%)"
-                        fill="url(#incomeGradient)"
-                        strokeWidth={2}
-                        name="income"
-                      />
-                    </AreaChart>
+                    {showYoY && yoyChartData ? (
+                      <LineChart data={yoyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}€`} className="fill-muted-foreground" />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            const labels: Record<string, string> = {
+                              expenses: 'Gastos (actual)',
+                              prevExpenses: 'Gastos (año ant.)',
+                              income: 'Ingresos (actual)',
+                              prevIncome: 'Ingresos (año ant.)',
+                            };
+                            return [`${value.toLocaleString('es-ES')}€`, labels[name] || name];
+                          }}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
+                        />
+                        <Legend
+                          formatter={(value) => {
+                            const labels: Record<string, string> = {
+                              expenses: 'Gastos (actual)',
+                              prevExpenses: 'Gastos (año ant.)',
+                              income: 'Ingresos (actual)',
+                              prevIncome: 'Ingresos (año ant.)',
+                            };
+                            return <span className="text-xs">{labels[value] || value}</span>;
+                          }}
+                        />
+                        <Line type="monotone" dataKey="expenses" stroke="hsl(0, 84%, 60%)" strokeWidth={2.5} dot={{ r: 3 }} name="expenses" />
+                        <Line type="monotone" dataKey="prevExpenses" stroke="hsl(0, 84%, 60%)" strokeWidth={1.5} strokeDasharray="5 5" dot={{ r: 2 }} opacity={0.5} name="prevExpenses" />
+                        <Line type="monotone" dataKey="income" stroke="hsl(142, 76%, 36%)" strokeWidth={2.5} dot={{ r: 3 }} name="income" />
+                        <Line type="monotone" dataKey="prevIncome" stroke="hsl(142, 76%, 36%)" strokeWidth={1.5} strokeDasharray="5 5" dot={{ r: 2 }} opacity={0.5} name="prevIncome" />
+                      </LineChart>
+                    ) : (
+                      <AreaChart data={stats.monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="expensesGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}€`} className="fill-muted-foreground" />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            `${value.toLocaleString('es-ES')}€`,
+                            name === 'expenses' ? 'Gastos' : 'Ingresos'
+                          ]}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="expenses"
+                          stroke="hsl(0, 84%, 60%)"
+                          fill="url(#expensesGradient)"
+                          strokeWidth={2}
+                          name="expenses"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="income"
+                          stroke="hsl(142, 76%, 36%)"
+                          fill="url(#incomeGradient)"
+                          strokeWidth={2}
+                          name="income"
+                        />
+                      </AreaChart>
+                    )}
                   </ResponsiveContainer>
                 </div>
               ) : (
@@ -497,18 +576,29 @@ export default function GaratechDashboard() {
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 Reparaciones por Mes
+                {showYoY && (
+                  <Badge variant="outline" className="text-[10px] ml-1 font-normal">
+                    vs Año Ant.
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {stats.monthlyData.some(d => d.repairCount > 0) ? (
                 <div className="h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.monthlyData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                    <BarChart data={showYoY && yoyChartData ? yoyChartData : stats.monthlyData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                       <XAxis dataKey="month" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
                       <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" allowDecimals={false} />
                       <Tooltip
-                        formatter={(value: number) => [`${value} reparaciones`]}
+                        formatter={(value: number, name: string) => {
+                          if (showYoY) {
+                            const label = name === 'repairCount' ? 'Actual' : 'Año ant.';
+                            return [`${value} reparaciones`, label];
+                          }
+                          return [`${value} reparaciones`];
+                        }}
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
@@ -516,7 +606,10 @@ export default function GaratechDashboard() {
                           fontSize: '12px',
                         }}
                       />
-                      <Bar dataKey="repairCount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="repairCount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="repairCount" />
+                      {showYoY && (
+                        <Bar dataKey="prevRepairCount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} opacity={0.3} name="prevRepairCount" />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
