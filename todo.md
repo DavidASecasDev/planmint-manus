@@ -795,3 +795,4 @@
 - [x] Insertar 27 facturas Montiel 2025 en Garatech con fechas correctas
 - [x] Insertar 14 facturas Montiel 2026 en Garatech con fechas correctas
 - [x] Rediseño completo del Dashboard de Garatech: KPIs hero, pipeline visual, gráficos de evolución 12 meses, distribución por tipo, ranking talleres, ranking vehículos, actividad reciente
+- [x] Garatech Dashboard: Filtro de periodo (este mes / trimestre / año / personalizado) para KPIs y gráficos

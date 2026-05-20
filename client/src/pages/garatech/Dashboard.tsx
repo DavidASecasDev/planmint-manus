@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -14,9 +14,10 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPie, Pie, Cell, Legend, Area, AreaChart, Line, LineChart,
+  PieChart as RechartsPie, Pie, Cell, Legend, Area, AreaChart,
 } from 'recharts';
-import { useGaratechStats } from '@/hooks/useGaratechStats';
+import { useGaratechStats, getDateRangeForPreset, type PeriodPreset, type DateRange } from '@/hooks/useGaratechStats';
+import { PeriodSelector } from '@/components/garatech/dashboard/PeriodSelector';
 import { RepairFormDialog } from '@/components/garatech/RepairFormDialog';
 import { REPAIR_STATUS_LABELS, REPAIR_TYPE_LABELS } from '@/types/garatech';
 import { format } from 'date-fns';
@@ -35,9 +36,29 @@ const STATUS_COLORS: Record<string, string> = {
 const TYPE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function GaratechDashboard() {
-  const { stats, recentActivity, isLoading } = useGaratechStats();
+  const [preset, setPreset] = useState<PeriodPreset>('year');
+  const [customRange, setCustomRange] = useState<DateRange | null>(null);
+
+  const dateRange = useMemo(() => {
+    if (preset === 'custom' && customRange) return customRange;
+    return getDateRangeForPreset(preset);
+  }, [preset, customRange]);
+
+  const { stats, recentActivity, isLoading } = useGaratechStats(dateRange);
   const [newRepairOpen, setNewRepairOpen] = useState(false);
   const navigate = useNavigate();
+
+  const handlePresetChange = (p: PeriodPreset) => {
+    setPreset(p);
+    if (p !== 'custom') {
+      setCustomRange(null);
+    }
+  };
+
+  const handleDateRangeChange = (range: DateRange) => {
+    setCustomRange(range);
+    setPreset('custom');
+  };
 
   if (isLoading) {
     return (
@@ -51,16 +72,12 @@ export default function GaratechDashboard() {
             <Skeleton className="h-80 lg:col-span-2" />
             <Skeleton className="h-80" />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-72" />
-            <Skeleton className="h-72" />
-          </div>
         </div>
       </AppLayout>
     );
   }
 
-  const isPositiveBalance = stats.balanceThisMonth >= 0;
+  const isPositiveBalance = stats.balanceInPeriod >= 0;
 
   // Prepare pie chart data for repair types
   const typeChartData = Object.entries(stats.repairsByType)
@@ -85,22 +102,37 @@ export default function GaratechDashboard() {
   return (
     <AppLayout title="Garatech">
       <div className="space-y-6">
-        {/* Header with quick actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <PageHeader
-            title="Garatech"
-            description="Panel de control de taller y mantenimiento de flota"
-            icon={Wrench}
-          />
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('/garatech/repairs')}>
-              <LayoutGrid className="h-4 w-4 mr-1.5" />
-              Kanban
-            </Button>
-            <Button size="sm" onClick={() => setNewRepairOpen(true)}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Nueva Reparación
-            </Button>
+        {/* Header with period selector and quick actions */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <PageHeader
+              title="Garatech"
+              description="Panel de control de taller y mantenimiento de flota"
+              icon={Wrench}
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate('/garatech/repairs')}>
+                <LayoutGrid className="h-4 w-4 mr-1.5" />
+                Kanban
+              </Button>
+              <Button size="sm" onClick={() => setNewRepairOpen(true)}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                Nueva Reparación
+              </Button>
+            </div>
+          </div>
+
+          {/* Period Selector */}
+          <div className="flex items-center justify-between">
+            <PeriodSelector
+              preset={preset}
+              dateRange={dateRange}
+              onPresetChange={handlePresetChange}
+              onDateRangeChange={handleDateRangeChange}
+            />
+            <span className="text-xs text-muted-foreground hidden sm:block">
+              {format(dateRange.from, "dd MMM yyyy", { locale: es })} — {format(dateRange.to, "dd MMM yyyy", { locale: es })}
+            </span>
           </div>
         </div>
 
@@ -116,20 +148,20 @@ export default function GaratechDashboard() {
               </div>
               <p className="text-3xl font-bold">{stats.activeRepairs}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                de {stats.totalRepairs} totales
+                {stats.totalRepairs} en periodo
               </p>
             </CardContent>
           </Card>
 
-          {/* Monthly Cost */}
+          {/* Period Cost */}
           <Card className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full" />
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-1">
                 <Euro className="h-4 w-4 text-red-500" />
-                <span className="text-xs font-medium text-muted-foreground">Gasto Mes</span>
+                <span className="text-xs font-medium text-muted-foreground">Gasto</span>
               </div>
-              <p className="text-3xl font-bold">{stats.totalCostThisMonth.toLocaleString('es-ES')}€</p>
+              <p className="text-3xl font-bold">{stats.totalCostInPeriod.toLocaleString('es-ES')}€</p>
               <div className="flex items-center gap-1 mt-1">
                 {stats.costTrend !== 0 && (
                   <>
@@ -141,7 +173,7 @@ export default function GaratechDashboard() {
                     <span className={cn('text-xs font-medium', stats.costTrend > 0 ? 'text-red-500' : 'text-green-500')}>
                       {Math.abs(stats.costTrend)}%
                     </span>
-                    <span className="text-xs text-muted-foreground">vs mes ant.</span>
+                    <span className="text-xs text-muted-foreground">vs anterior</span>
                   </>
                 )}
               </div>
@@ -190,13 +222,13 @@ export default function GaratechDashboard() {
                 ) : (
                   <TrendingDown className="h-4 w-4 text-red-500" />
                 )}
-                <span className="text-xs font-medium text-muted-foreground">Balance Mes</span>
+                <span className="text-xs font-medium text-muted-foreground">Balance</span>
               </div>
               <p className={cn('text-3xl font-bold', isPositiveBalance ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
-                {isPositiveBalance ? '+' : ''}{stats.balanceThisMonth.toLocaleString('es-ES')}€
+                {isPositiveBalance ? '+' : ''}{stats.balanceInPeriod.toLocaleString('es-ES')}€
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {stats.incomeThisMonth.toLocaleString('es-ES')}€ cobrado
+                {stats.incomeInPeriod.toLocaleString('es-ES')}€ cobrado
               </p>
             </CardContent>
           </Card>
@@ -246,7 +278,7 @@ export default function GaratechDashboard() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
-                  Evolución de Gastos (12 meses)
+                  Evolución de Gastos
                 </CardTitle>
               </div>
             </CardHeader>
@@ -301,7 +333,7 @@ export default function GaratechDashboard() {
                 </div>
               ) : (
                 <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-                  <p className="text-sm">Sin datos suficientes</p>
+                  <p className="text-sm">Sin datos suficientes para este periodo</p>
                 </div>
               )}
             </CardContent>
@@ -352,7 +384,7 @@ export default function GaratechDashboard() {
                 </div>
               ) : (
                 <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-                  <p className="text-sm">Sin datos</p>
+                  <p className="text-sm">Sin datos en este periodo</p>
                 </div>
               )}
             </CardContent>
@@ -367,7 +399,7 @@ export default function GaratechDashboard() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-primary" />
-                  Talleres por Gasto (12 meses)
+                  Talleres por Gasto
                 </CardTitle>
                 <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate('/garatech/workshops')}>
                   Ver todos <ChevronRight className="h-3 w-3 ml-1" />
@@ -404,7 +436,7 @@ export default function GaratechDashboard() {
                 </div>
               ) : (
                 <div className="py-8 text-center text-muted-foreground text-sm">
-                  Sin datos de talleres
+                  Sin datos de talleres en este periodo
                 </div>
               )}
             </CardContent>
@@ -416,7 +448,7 @@ export default function GaratechDashboard() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Car className="h-4 w-4 text-primary" />
-                  Vehículos con Mayor Gasto (12 meses)
+                  Vehículos con Mayor Gasto
                 </CardTitle>
               </div>
             </CardHeader>
@@ -450,7 +482,7 @@ export default function GaratechDashboard() {
                 </div>
               ) : (
                 <div className="py-8 text-center text-muted-foreground text-sm">
-                  Sin datos de vehículos
+                  Sin datos de vehículos en este periodo
                 </div>
               )}
             </CardContent>
@@ -490,7 +522,7 @@ export default function GaratechDashboard() {
                 </div>
               ) : (
                 <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">
-                  Sin datos
+                  Sin datos en este periodo
                 </div>
               )}
             </CardContent>
@@ -600,7 +632,7 @@ export default function GaratechDashboard() {
         </div>
 
         {/* Accidents indicator */}
-        {stats.accidentsThisMonth > 0 && (
+        {stats.accidentsInPeriod > 0 && (
           <Card className="border-red-200 dark:border-red-800/40 bg-red-50/50 dark:bg-red-900/10">
             <CardContent className="py-4">
               <div className="flex items-center gap-3">
@@ -609,7 +641,7 @@ export default function GaratechDashboard() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">
-                    {stats.accidentsThisMonth} accidente{stats.accidentsThisMonth > 1 ? 's' : ''} este mes
+                    {stats.accidentsInPeriod} accidente{stats.accidentsInPeriod > 1 ? 's' : ''} en este periodo
                   </p>
                   <p className="text-xs text-muted-foreground">Revisa el módulo de accidentes para más detalles</p>
                 </div>
