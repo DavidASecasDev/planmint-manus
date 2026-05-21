@@ -806,3 +806,5 @@
 - [x] Optimización: Migrar useTags a useQuery para caché compartida (staleTime 5min)
 - [x] Optimización: Paginar useReservations con filtro por rango de fechas (por defecto: día actual) — server-side date overlap filtering en endpoint + hook acepta dateFilter
 - [x] Optimización: Consolidar 12 queries del dashboard operacional en 1 endpoint servidor (/api/get-operational-dashboard) — reduce 12 round-trips a 1
+- [x] Optimización: Paginar useMovements con filtro por rango de fechas (presets: Hoy, 3d, 7d, 30d, Todo) + staleTime 2min
+- [x] Optimización: Migrar useTasks a useQuery para caché compartida — eliminados useState/useEffect, queries paralelas para relaciones, staleTime 3min, invalidación centralizada

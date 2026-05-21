@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Route, List, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Route, List, LayoutGrid, Calendar } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,19 @@ import { useMovements, MovementStatus, MovementType } from '@/hooks/useMovements
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'list' | 'kanban';
+type DatePreset = 'today' | '3days' | '7days' | '30days' | 'all';
+
+function getDateRange(preset: DatePreset): { dateFrom?: string; dateTo?: string } {
+  if (preset === 'all') return {};
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  if (preset === 'today') {
+    return { dateFrom: todayStr, dateTo: todayStr };
+  }
+  const days = preset === '3days' ? 3 : preset === '7days' ? 7 : 30;
+  const from = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+  return { dateFrom: from.toISOString().split('T')[0], dateTo: todayStr };
+}
 
 export default function Movements() {
   const navigate = useNavigate();
@@ -19,11 +32,16 @@ export default function Movements() {
   const [statusFilter, setStatusFilter] = useState<MovementStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<MovementType | 'all'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [datePreset, setDatePreset] = useState<DatePreset>('7days');
+
+  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset]);
 
   const { movements, isLoading, updateMovement } = useMovements({
     status: statusFilter !== 'all' ? statusFilter : undefined,
     movement_type: typeFilter !== 'all' ? typeFilter : undefined,
     search: search || undefined,
+    dateFrom: dateRange.dateFrom,
+    dateTo: dateRange.dateTo,
   });
 
   const handleUpdateStatus = (id: string, status: MovementStatus) => {
@@ -67,7 +85,7 @@ export default function Movements() {
           }
         />
 
-        <div className="flex items-center gap-3 rounded-xl bg-muted/30 p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-muted/30 p-3">
           <div className="relative flex-1 min-w-[140px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -102,6 +120,19 @@ export default function Movements() {
               </SelectContent>
             </Select>
           )}
+          <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Periodo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Hoy</SelectItem>
+              <SelectItem value="3days">3 días</SelectItem>
+              <SelectItem value="7days">7 días</SelectItem>
+              <SelectItem value="30days">30 días</SelectItem>
+              <SelectItem value="all">Todo</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {!isLoading && movements.length > 0 && (

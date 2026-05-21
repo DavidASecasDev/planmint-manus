@@ -35,6 +35,8 @@ export function useMovements(filters?: {
   status?: MovementStatus;
   movement_type?: MovementType;
   search?: string;
+  dateFrom?: string; // ISO date string (YYYY-MM-DD)
+  dateTo?: string;   // ISO date string (YYYY-MM-DD)
 }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -59,12 +61,20 @@ export function useMovements(filters?: {
       if (filters?.search) {
         query = query.ilike('matricula', `%${filters.search}%`);
       }
+      // Date range filter: movements that started within the range
+      if (filters?.dateFrom) {
+        query = query.gte('started_at', `${filters.dateFrom}T00:00:00`);
+      }
+      if (filters?.dateTo) {
+        query = query.lte('started_at', `${filters.dateTo}T23:59:59`);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
       return (data || []) as unknown as VehicleMovement[];
     },
     enabled: !!profile?.organization_id,
+    staleTime: 2 * 60_000, // 2 minutes stale time
   });
 
   const startMovement = useMutation({
