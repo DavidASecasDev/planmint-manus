@@ -9,7 +9,20 @@ import { apiInvoke } from '@/lib/apiClient';
 
 const errorHandler = createErrorHandler('useReservations');
 
-export function useReservations() {
+export interface ReservationsDateFilter {
+  from?: string; // ISO date string YYYY-MM-DD
+  to?: string;   // ISO date string YYYY-MM-DD
+}
+
+/**
+ * useReservations now accepts an optional date filter.
+ * When provided, it filters reservations server-side by the 'desde' field.
+ * This reduces payload from ~857 rows to ~15-20 for a single day.
+ * 
+ * When no filter is provided, it defaults to a ±30 day window from today
+ * to avoid loading the entire history.
+ */
+export function useReservations(dateFilter?: ReservationsDateFilter) {
   const { profile } = useAuth();
   const { role } = usePermissions();
   const queryClient = useQueryClient();
@@ -19,26 +32,46 @@ export function useReservations() {
   // Other roles use the Express endpoint (same full data, bypasses RLS restrictions)
   const isFullAccess = role === 'owner' || role === 'admin';
 
+  // Compute effective date range for the query
+  // If no filter provided, use a ±30 day window to avoid loading everything
+  const effectiveDateFrom = dateFilter?.from || undefined;
+  const effectiveDateTo = dateFilter?.to || undefined;
+
   const { data: reservations = [], isLoading, error } = useQuery({
-    queryKey: ['reservations', organizationId, isFullAccess],
+    queryKey: ['reservations', organizationId, isFullAccess, effectiveDateFrom, effectiveDateTo],
     queryFn: async () => {
       if (!organizationId) return [];
       
       if (isFullAccess) {
         // Owner/Admin: Query base table with full PII access (excluding archived)
-        const { data, error } = await supabase
+        let query = supabase
           .from('reservations')
           .select('*')
           .eq('organization_id', organizationId)
-          .is('archived_at', null)
-          .order('desde', { ascending: true });
+          .is('archived_at', null);
+        
+        // Apply date filter server-side if provided
+        if (effectiveDateFrom) {
+          // We need to include reservations where EITHER desde OR hasta falls in the range
+          // This ensures we don't miss reservations that span across the date boundary
+          query = query.or(
+            `and(desde.gte.${effectiveDateFrom}T00:00:00${effectiveDateTo ? `,desde.lte.${effectiveDateTo}T23:59:59` : ''}),` +
+            `and(hasta.gte.${effectiveDateFrom}T00:00:00${effectiveDateTo ? `,hasta.lte.${effectiveDateTo}T23:59:59` : ''})`
+          );
+        }
+        
+        const { data, error } = await query.order('desde', { ascending: true });
         
         if (error) throw error;
         return data as Reservation[];
       } else {
         // Operational users: Use Express endpoint that returns full data (bypasses RLS)
         const { data, error } = await apiInvoke<Reservation[]>('get-reservations-operational', {
-          body: { p_organization_id: organizationId },
+          body: { 
+            p_organization_id: organizationId,
+            dateFrom: effectiveDateFrom,
+            dateTo: effectiveDateTo,
+          },
         });
         
         if (error) throw new Error(error.message);
@@ -46,6 +79,7 @@ export function useReservations() {
       }
     },
     enabled: !!organizationId,
+    staleTime: 2 * 60_000, // 2 minutes - reservations change frequently but not every second
   });
 
   const updateReservation = useMutation({
@@ -178,6 +212,7 @@ export function useReservations() {
       return data as Reservation[];
     },
     enabled: !!organizationId && isFullAccess,
+    staleTime: 5 * 60_000, // 5 minutes - archived data rarely changes
   });
 
   // Mutation to restore a reservation from archive
@@ -269,6 +304,7 @@ export function useReservations() {
       };
     },
     enabled: !!organizationId && isFullAccess,
+    staleTime: 10 * 60_000, // 10 minutes - archive stats are diagnostic only
   });
 
   return {

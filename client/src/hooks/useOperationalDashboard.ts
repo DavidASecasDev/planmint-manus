@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabaseQuery } from '@/lib/supabaseQuery';
+import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface VehiclePrepItem {
@@ -111,6 +111,32 @@ function toTimestamp(s: string | null): number | null {
   return isNaN(t) ? null : t;
 }
 
+/** Shape of the server response from /api/get-operational-dashboard */
+interface DashboardServerResponse {
+  vehicles: Array<{ status: string }>;
+  activeReservationsCount: number;
+  todayReservationsDetail: Array<{
+    id: string; cliente_nombre: string | null; cliente_apellido: string | null;
+    auto: string | null; modelo: string | null; desde: string | null; hasta: string | null;
+    lugar_entrega: string | null; lugar_devolucion: string | null; estado: string | null;
+    confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null;
+    extras_contratados: string | null; tipo_actividad: string | null;
+    entrega_completada: boolean; devolucion_completada: boolean; transfer_completado: boolean;
+  }>;
+  upcomingReservationsCount: number;
+  activeMovementsCount: number;
+  activeRepairsCount: number;
+  fleetCount: number;
+  expiringContractsCount: number;
+  pendingTasksHighCount: number;
+  pendingTasksTotalCount: number;
+  dirtyVehicles: Array<{ id: string; matricula: string; modelo: string | null; status: string }>;
+  upcomingReservationsDetail: Array<{
+    auto: string | null; desde: string | null; cliente_nombre: string | null;
+    cliente_apellido: string | null; estado: string | null;
+  }>;
+}
+
 export function useOperationalDashboard() {
   const { profile, sessionReady } = useAuth();
   const orgId = profile?.organization_id;
@@ -120,146 +146,18 @@ export function useOperationalDashboard() {
     queryFn: async (): Promise<OperationalStats> => {
       if (!orgId) throw new Error('No org');
 
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-      const in7days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
 
-      // Fetch all stats in parallel
-      const [
-        vehiclesResult,
-        activeReservationsResult,
-        todayReservationsDetailResult,
-        upcomingReservationsResult,
-        activeMovementsResult,
-        activeRepairsResult,
-        fleetResult,
-        expiringContractsResult,
-        pendingTasksHighResult,
-        pendingTasksTotalResult,
-        dirtyVehiclesResult,
-        upcomingReservationsDetailResult,
-      ] = await Promise.all([
-        // All non-archived vehicles with their status
-        supabaseQuery
-          .from('vehicles')
-          .select('status')
-          .eq('organization_id', orgId)
-          .eq('is_archived', false),
-        // Active reservations (not cancelled, not terminated, not archived)
-        // Use .or() to handle NULL estado correctly (SQL three-valued logic:
-        // NOT (NULL LIKE '%x%') = NULL = excluded, so we must include is.null)
-        supabaseQuery
-          .from('reservations')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .or('estado.not.ilike.%cancelada%,estado.is.null')
-          .or('estado.not.ilike.%terminada%,estado.is.null'),
-        // Today's reservations: fetch all non-cancelled, non-archived reservations
-        // where desde OR hasta falls on today. We use an OR filter to get both
-        // check-ins and check-outs in a single query, then expand client-side.
-        supabaseQuery
-          .from('reservations')
-          .select('id, cliente_nombre, cliente_apellido, auto, modelo, desde, hasta, lugar_entrega, lugar_devolucion, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, extras_contratados, tipo_actividad, entrega_completada, devolucion_completada, transfer_completado')
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .or('estado.not.ilike.%cancelada%,estado.is.null')
-          .or(`and(desde.gte.${todayStr}T00:00:00,desde.lte.${todayStr}T23:59:59),and(hasta.gte.${todayStr}T00:00:00,hasta.lte.${todayStr}T23:59:59)`)
-          .order('desde', { ascending: true })
-          .limit(100),
-        // Upcoming reservations (next 7 days)
-        supabaseQuery
-          .from('reservations')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .gte('desde', `${todayStr}T00:00:00`)
-          .lte('desde', `${in7days}T23:59:59`)
-          .or('estado.not.ilike.%cancelada%,estado.is.null')
-          .or('estado.not.ilike.%terminada%,estado.is.null'),
-        // Active movements
-        supabaseQuery
-          .from('vehicle_movements')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('status', 'en_curso'),
-        // Active repairs
-        supabaseQuery
-          .from('repairs')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .in('status', ['pending', 'in_progress', 'waiting_parts']),
-        // Fleet vehicles count
-        supabaseQuery
-          .from('fleet_vehicles')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId),
-        // Contracts expiring in next 30 days
-        supabaseQuery
-          .from('fleet_vehicles')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .lte('fecha_fin_contrato', new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-          .gte('fecha_fin_contrato', todayStr),
-        // Pending tasks with urgent priority only
-        supabaseQuery
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('is_archived', false)
-          .is('deleted_at', null)
-          .in('status', ['pending', 'in_progress'])
-          .eq('priority', 'urgent'),
-        // All pending tasks
-        supabaseQuery
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('is_archived', false)
-          .is('deleted_at', null)
-          .in('status', ['pending', 'in_progress']),
-        // All vehicles needing preparation (sucio or incompleto)
-        supabaseQuery
-          .from('vehicles')
-          .select('id, matricula, modelo, status')
-          .eq('organization_id', orgId)
-          .eq('is_archived', false)
-          .in('status', ['sucio', 'incompleto']),
-        // Upcoming reservations with vehicle info (next 7 days) for cross-referencing
-        supabaseQuery
-          .from('reservations')
-          .select('auto, desde, cliente_nombre, cliente_apellido, estado')
-          .eq('organization_id', orgId)
-          .is('archived_at', null)
-          .gte('desde', today.toISOString())
-          .lte('desde', `${in7days}T23:59:59`)
-          .or('estado.not.ilike.%cancelada%,estado.is.null')
-          .or('estado.not.ilike.%terminada%,estado.is.null')
-          .order('desde', { ascending: true }),
-      ]);
+      // Single server call replaces 12 individual Supabase queries
+      const { data: serverData, error: apiError } = await apiInvoke<DashboardServerResponse>(
+        'get-operational-dashboard',
+        { body: { p_organization_id: orgId } }
+      );
 
-      // Check for critical errors in any of the results
-      const results = [
-        vehiclesResult, activeReservationsResult, todayReservationsDetailResult,
-        upcomingReservationsResult, activeMovementsResult, activeRepairsResult,
-        fleetResult, expiringContractsResult, pendingTasksHighResult,
-        pendingTasksTotalResult, dirtyVehiclesResult, upcomingReservationsDetailResult,
-      ];
-      
-      // If any query returned a 401/403 error, throw to trigger retry
-      for (const result of results) {
-        if (result.error) {
-          const code = (result.error as any)?.code;
-          const status = (result.error as any)?.status;
-          if (status === 401 || status === 403 || code === 'PGRST301') {
-            console.error('[Dashboard] Auth error in query:', result.error.message);
-            throw new Error(`Auth error: ${result.error.message}`);
-          }
-        }
-      }
+      if (apiError) throw new Error(apiError.message || 'Dashboard fetch failed');
+      if (!serverData) throw new Error('No data returned from dashboard endpoint');
 
-      // Count vehicles by status
-      const vehicles = vehiclesResult.data || [];
+      // ─── Process vehicle status breakdown ───
       const vehiclesByStatus = {
         sucio: 0,
         incompleto: 0,
@@ -267,31 +165,18 @@ export function useOperationalDashboard() {
         en_servicio: 0,
         alquilado: 0,
       };
-      vehicles.forEach((v: any) => {
+      for (const v of serverData.vehicles) {
         const status = v.status as keyof typeof vehiclesByStatus;
         if (status in vehiclesByStatus) {
           vehiclesByStatus[status]++;
         }
-      });
+      }
 
       // ─── Build today's operations list (matching ReservationsTable logic) ───
-      // Expand each reservation into Entrega/Devolución/Transfer rows,
-      // then filter by date part of fechaHora matching today.
-      type TodayResRaw = {
-        id: string; cliente_nombre: string | null; cliente_apellido: string | null;
-        auto: string | null; modelo: string | null; desde: string | null; hasta: string | null;
-        lugar_entrega: string | null; lugar_devolucion: string | null; estado: string | null;
-        confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null;
-        extras_contratados: string | null; tipo_actividad: string | null;
-        entrega_completada: boolean; devolucion_completada: boolean; transfer_completado: boolean;
-      };
-      const rawReservations = (todayReservationsDetailResult.data || []) as unknown as TodayResRaw[];
-
       const todayOperations: TodayOperationRow[] = [];
 
-      for (const r of rawReservations) {
+      for (const r of serverData.todayReservationsDetail) {
         if (r.tipo_actividad === 'Transfer') {
-          // Transfer: single row, fechaHora = desde
           const fechaHora = r.desde;
           const datePart = extractDatePart(fechaHora);
           if (datePart === todayStr) {
@@ -388,13 +273,11 @@ export function useOperationalDashboard() {
       todayOperations.sort((a, b) => {
         const aTs = toTimestamp(a.confirmedDatetime);
         const bTs = toTimestamp(b.confirmedDatetime);
-        // Null confirmed datetimes sort last
         if (aTs === null && bTs === null) return 0;
         if (aTs === null) return 1;
         if (bTs === null) return -1;
         const cmp = aTs - bTs;
         if (cmp !== 0) return cmp;
-        // Secondary sort by fechaHora
         const aFh = toTimestamp(a.fechaHora);
         const bFh = toTimestamp(b.fechaHora);
         if (aFh !== null && bFh !== null) return aFh - bFh;
@@ -406,13 +289,8 @@ export function useOperationalDashboard() {
       const todayCheckOuts = todayOperations.filter(op => op.type === 'checkout').length;
 
       // ─── Cross-reference dirty vehicles with upcoming reservations ───
-      const dirtyVehicles = (dirtyVehiclesResult.data || []) as Array<{
-        id: string; matricula: string; modelo: string | null; status: string;
-      }>;
-      const upcomingRes = (upcomingReservationsDetailResult.data || []) as Array<{
-        auto: string | null; desde: string | null; cliente_nombre: string | null;
-        cliente_apellido: string | null; estado: string | null;
-      }>;
+      const dirtyVehicles = serverData.dirtyVehicles;
+      const upcomingRes = serverData.upcomingReservationsDetail;
 
       // Build a map: matricula -> earliest upcoming reservation
       const nextReservationByPlate = new Map<string, {
@@ -476,17 +354,17 @@ export function useOperationalDashboard() {
 
       return {
         vehiclesByStatus,
-        totalVehicles: vehicles.length,
-        activeReservations: activeReservationsResult.count || 0,
+        totalVehicles: serverData.vehicles.length,
+        activeReservations: serverData.activeReservationsCount,
         todayCheckIns,
         todayCheckOuts,
-        upcomingReservations: upcomingReservationsResult.count || 0,
-        activeMovements: activeMovementsResult.count || 0,
-        activeRepairs: activeRepairsResult.count || 0,
-        fleetVehicles: fleetResult.count || 0,
-        contractsExpiringSoon: expiringContractsResult.count || 0,
-        pendingTasksHigh: pendingTasksHighResult.count || 0,
-        pendingTasksTotal: pendingTasksTotalResult.count || 0,
+        upcomingReservations: serverData.upcomingReservationsCount,
+        activeMovements: serverData.activeMovementsCount,
+        activeRepairs: serverData.activeRepairsCount,
+        fleetVehicles: serverData.fleetCount,
+        contractsExpiringSoon: serverData.expiringContractsCount,
+        pendingTasksHigh: serverData.pendingTasksHighCount,
+        pendingTasksTotal: serverData.pendingTasksTotalCount,
         todayReservations: todayOperations,
         vehiclesNeedingPrep,
         totalDirtyVehicles: dirtyVehicles.length,
@@ -495,7 +373,7 @@ export function useOperationalDashboard() {
     // Gate on sessionReady to prevent queries from firing before
     // the Supabase token has been fully refreshed after a hard reload.
     enabled: !!orgId && sessionReady,
-    refetchInterval: 5 * 60_000, // Refresh every 5 minutes (12 queries per refresh)
+    refetchInterval: 5 * 60_000, // Refresh every 5 minutes (now just 1 server call instead of 12)
     retry: 1,
     retryDelay: 1000,
   });

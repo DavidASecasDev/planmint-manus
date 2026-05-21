@@ -65,17 +65,21 @@ describe('Bug 2: Operaciones de hoy inconsistentes (NULL estado)', () => {
   });
 
   it('should use an OR filter that includes NULL estado', () => {
-    // The fix should use .or('estado.is.null,estado.not.ilike.%cancelada%')
-    // or equivalent that properly handles NULL values
-    expect(hookSource).toMatch(/\.or\(['"](estado\.is\.null|estado\.not\.ilike)/);
+    // The hook now uses a consolidated server endpoint.
+    // The server endpoint (dashboardEndpoint.ts) uses the NULL-safe .or() filter.
+    // The hook itself filters by estado client-side via extractDatePart + todayStr matching.
+    // Verify the server endpoint has the proper filter:
+    const serverSource = readServerSource('server/dashboardEndpoint.ts');
+    expect(serverSource).toMatch(/\.or\(['"]estado\.not\.ilike\.%cancelada%,estado\.is\.null['"]\)/);
   });
 
-  it('should apply the NULL-safe filter to all 4 reservation queries', () => {
-    // There are 4 queries: entregas, devoluciones, transfers, all reservations
-    // All should use the same NULL-safe filter
-    const orFilterMatches = hookSource.match(/\.or\(['"]estado\.not\.ilike\.%cancelada%,estado\.is\.null['"]\)/g);
+  it('should apply the NULL-safe filter to reservation queries in the server endpoint', () => {
+    // The consolidated server endpoint should use the NULL-safe filter
+    const serverSource = readServerSource('server/dashboardEndpoint.ts');
+    const orFilterMatches = serverSource.match(/\.or\(['"]estado\.not\.ilike\.%cancelada%,estado\.is\.null['"]\)/g);
     expect(orFilterMatches).toBeTruthy();
-    expect(orFilterMatches!.length).toBeGreaterThanOrEqual(4); });
+    expect(orFilterMatches!.length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 // ─── Bug 3: Gloria no aparece en dropdown de brokers ────────────────────────

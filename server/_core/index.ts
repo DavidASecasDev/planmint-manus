@@ -52,6 +52,7 @@ import {
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
 import { handleGetTransferBrokers } from "../brokerListEndpoint";
 import { handleSupabaseQuery } from "../supabaseProxy";
+import { handleGetOperationalDashboard } from "../dashboardEndpoint";
 import { handleValidateBrokerInvite } from "../validateBrokerInvite";
 import { handlePublicOperations } from "../publicOperationsEndpoint";
 import {
@@ -191,6 +192,7 @@ async function startServer() {
   app.post("/api/get-next-transfer-document-number", handleGetNextTransferDocumentNumber);
   app.post("/api/update-vehicle-location", handleUpdateVehicleLocation);
   app.post("/api/get-reservations-operational", handleGetReservationsOperational);
+  app.post("/api/get-operational-dashboard", handleGetOperationalDashboard);
 
   // ─── Auth data endpoints (bypass RLS for profile/org loading) ─────────────
   app.post("/api/get-my-profile", handleGetMyProfile);

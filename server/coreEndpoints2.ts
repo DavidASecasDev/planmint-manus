@@ -274,18 +274,34 @@ export async function handleGetReservationsOperational(
     const { organizationId } = await authenticateSupabaseRequest(
       req.headers.authorization
     );
-    const { p_organization_id } = req.body;
+    const { p_organization_id, dateFrom, dateTo } = req.body;
     const orgId = p_organization_id || organizationId;
 
     const serviceClient = getServiceClient();
 
-    // Fetch all reservations for authenticated users (full data including client names)
-    const { data, error } = await serviceClient
+    // Fetch reservations for authenticated users, optionally filtered by date range
+    let query = serviceClient
       .from("reservations")
       .select("*")
       .eq("organization_id", orgId)
-      .is("archived_at", null)
-      .order("desde", { ascending: true });
+      .is("archived_at", null);
+
+    // Apply server-side date filter if provided
+    // Match reservations where the reservation period overlaps with the requested range
+    if (dateFrom && dateTo) {
+      // Reservation overlaps [dateFrom, dateTo] if: desde <= dateTo AND hasta >= dateFrom
+      query = query
+        .lte("desde", `${dateTo}T23:59:59`)
+        .gte("hasta", `${dateFrom}T00:00:00`);
+    } else if (dateFrom) {
+      // Single day: reservation overlaps if desde <= dateFrom end AND hasta >= dateFrom start
+      query = query
+        .lte("desde", `${dateFrom}T23:59:59`)
+        .gte("hasta", `${dateFrom}T00:00:00`);
+    }
+    // If no date filter, fetch all (backwards compatible)
+
+    const { data, error } = await query.order("desde", { ascending: true });
 
     if (error) {
       console.error("[getReservationsOperational] Query error:", error);

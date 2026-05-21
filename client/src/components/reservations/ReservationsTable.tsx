@@ -120,15 +120,6 @@ interface OperationRow {
 type ColumnFilters = Record<string, string>;
 
 export function ReservationsTable() {
-  const { 
-    reservations, 
-    isLoading, 
-    updateReservation,
-    archivedReservations,
-    restoreReservation,
-    archiveReservation,
-    isFullAccess,
-  } = useReservations();
   const { profile } = useAuth();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
@@ -154,6 +145,21 @@ export function ReservationsTable() {
     confirmedDateFrom: '',
     confirmedDateTo: '',
   });
+  // Pass the URL date filter to useReservations for server-side filtering
+  // This reduces payload from ~857 rows to only those in the selected date window
+  const dateFilterForQuery = useMemo(() => ({
+    from: urlFilters.dateFrom || undefined,
+    to: urlFilters.dateTo || undefined,
+  }), [urlFilters.dateFrom, urlFilters.dateTo]);
+  const { 
+    reservations, 
+    isLoading, 
+    updateReservation,
+    archivedReservations,
+    restoreReservation,
+    archiveReservation,
+    isFullAccess,
+  } = useReservations(dateFilterForQuery);
   const search = urlFilters.search;
   const setSearch = (v: string) => setUrlFilters(prev => ({ ...prev, search: v }));
   const sortKey = urlFilters.sortKey;

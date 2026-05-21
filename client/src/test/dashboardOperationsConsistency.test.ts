@@ -437,8 +437,8 @@ describe('Dashboard Operations Consistency', () => {
       // Should NOT have separate todayCheckInsDetailResult and todayCheckOutsDetailResult
       expect(hookSource).not.toContain('todayCheckInsDetailResult');
       expect(hookSource).not.toContain('todayCheckOutsDetailResult');
-      // Should have a single combined query
-      expect(hookSource).toContain('todayReservationsDetailResult');
+      // Should reference todayReservationsDetail from the server response
+      expect(hookSource).toContain('todayReservationsDetail');
     });
 
     it('should include tipo_actividad in the query select', () => {
