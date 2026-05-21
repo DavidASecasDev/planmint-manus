@@ -5,7 +5,7 @@ import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import type { NotificationWithDetails, NotificationType, NotificationEntityType } from '@/types/notifications';
 
-const POLL_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 60_000;
 
 /**
  * Broker-side notification hook.

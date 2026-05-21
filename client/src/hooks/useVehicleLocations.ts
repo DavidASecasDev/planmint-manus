@@ -27,6 +27,7 @@ export function useVehicleLocations() {
       return (data || []) as VehicleLocation[];
     },
     enabled: !!orgId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - locations rarely change
   });
 
   // Create a new location

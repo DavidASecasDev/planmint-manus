@@ -94,6 +94,7 @@ export function useTransferBrokers() {
       return serverResponse?.data ?? { brokers: [], allBrokers: [] };
     },
     enabled: !!organization?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - broker list rarely changes
   });
 
   const brokers = brokerData?.brokers ?? [];

@@ -8,14 +8,14 @@ import { apiInvoke } from '@/lib/apiClient';
  * When the user hovers over a sidebar link, we prefetch the main data
  * for that page so it's already cached when they click.
  *
- * IMPORTANT: Prefetch queries MUST use the exact same queryKey AND queryFn
- * as the actual page hooks. If the prefetch returns a different shape
- * (e.g., raw rows vs. enriched objects), the page component will crash
- * when it tries to access properties that don't exist on the prefetched data.
+ * IMPORTANT: We only prefetch routes where we can guarantee the same
+ * queryKey + queryFn shape as the actual page hook. For complex queries
+ * (vehicles with joins, reservations via role-dependent endpoints), we
+ * do NOTHING — the existing staleTime cache will serve the data if fresh,
+ * or the page hook will fetch on mount.
  *
- * For complex queries (vehicles with cleaning_tasks, reservations via
- * Express endpoints), we simply invalidate the cache to trigger a fresh
- * fetch when the user navigates, rather than risk shape mismatches.
+ * We NEVER invalidate queries on hover — that's counterproductive because
+ * it forces a refetch even when the cached data is still valid.
  *
  * Uses a debounce (150ms) to avoid prefetching on quick mouse sweeps.
  * Each route is only prefetched once per session to avoid redundant calls.
@@ -48,44 +48,16 @@ export function usePrefetch() {
           });
           break;
 
+        // For routes with complex queryFns (joins, role-dependent endpoints),
+        // we do nothing. The page hook will use cached data if staleTime hasn't
+        // expired, or fetch fresh data on mount. This is better than invalidating
+        // which would force a refetch even when cached data is still valid.
         case '/reservations':
-          // Reservations use either Supabase direct or Express endpoint
-          // depending on user role. Just warm the cache by invalidating
-          // so the actual hook fetches fresh data quickly.
-          queryClient.invalidateQueries({
-            queryKey: ['reservations', orgId],
-          });
-          break;
-
         case '/transfers':
-          // Transfer requests — invalidate to trigger fresh fetch
-          queryClient.invalidateQueries({
-            queryKey: ['transfer-requests', orgId],
-          });
-          break;
-
         case '/fleet':
-          // Fleet vehicles — invalidate to trigger fresh fetch
-          queryClient.invalidateQueries({
-            queryKey: ['fleet-vehicles', orgId],
-          });
-          break;
-
         case '/movements':
-          // Vehicle movements — invalidate to trigger fresh fetch
-          queryClient.invalidateQueries({
-            queryKey: ['vehicle-movements', orgId],
-          });
-          break;
-
         case '/vehicles':
-          // Vehicles use a complex queryFn that joins cleaning_tasks,
-          // reservations, locations, etc. A simple select('*') prefetch
-          // would return raw rows without cleaning_tasks, causing crashes.
-          // Just invalidate so the actual hook fetches with full joins.
-          queryClient.invalidateQueries({
-            queryKey: ['vehicles', orgId],
-          });
+          // No-op: let the existing cache serve data or let the page hook fetch
           break;
 
         default:

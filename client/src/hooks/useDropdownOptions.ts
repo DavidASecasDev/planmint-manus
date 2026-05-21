@@ -29,6 +29,7 @@ export function useDropdownOptions(fieldName?: DropdownFieldName) {
       return data as DropdownOption[];
     },
     enabled: !!organizationId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - dropdown options rarely change
   });
 
   const createOption = useMutation({

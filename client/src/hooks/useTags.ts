@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -8,44 +8,33 @@ import { Tag, CreateTagData, UpdateTagData } from '@/types/tags';
 export function useTags() {
   const { profile } = useAuth();
   const { hasPermission, isAdmin, isLoading: permissionsLoading } = usePermissions();
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const orgId = profile?.organization_id;
 
   // Use specific permission check for managing tags - wait for permissions to load
   const canManageTags = !permissionsLoading && (isAdmin || hasPermission('tasks.create'));
 
-  const fetchTags = useCallback(async () => {
-    if (!profile?.organization_id) {
-      setTags([]);
-      setLoading(false);
-      return;
-    }
+  const { data: tags = [], isLoading: loading, refetch: fetchTags } = useQuery({
+    queryKey: ['tags', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
 
-    setLoading(true);
-    try {
       const { data, error } = await supabaseQuery
         .from('tags')
         .select('*')
-        .eq('organization_id', profile.organization_id)
+        .eq('organization_id', orgId)
         .order('name');
 
       if (error) throw error;
-
-      setTags(data || []);
-    } catch (error: any) {
-      console.error('Error fetching tags:', error);
-      toast.error('Error al cargar las etiquetas');
-    } finally {
-      setLoading(false);
-    }
-  }, [profile?.organization_id]);
-
-  useEffect(() => {
-    fetchTags();
-  }, [fetchTags]);
+      return (data || []) as Tag[];
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - tags rarely change
+  });
 
   const createTag = async (data: CreateTagData): Promise<Tag | null> => {
-    if (!profile?.organization_id) {
+    if (!orgId) {
       toast.error('No se pudo crear la etiqueta');
       return null;
     }
@@ -54,7 +43,7 @@ export function useTags() {
       const { data: newTag, error } = await supabaseQuery
         .from('tags')
         .insert({
-          organization_id: profile.organization_id,
+          organization_id: orgId,
           name: data.name,
           color: data.color,
           icon: data.icon,
@@ -71,7 +60,10 @@ export function useTags() {
       }
 
       toast.success('Etiqueta creada correctamente');
-      setTags(prev => [...prev, newTag].sort((a, b) => a.name.localeCompare(b.name)));
+      // Optimistic update: add to cache
+      queryClient.setQueryData(['tags', orgId], (old: Tag[] | undefined) =>
+        [...(old || []), newTag].sort((a, b) => a.name.localeCompare(b.name))
+      );
       return newTag;
     } catch (error: any) {
       console.error('Error creating tag:', error);
@@ -96,8 +88,9 @@ export function useTags() {
       }
 
       toast.success('Etiqueta actualizada correctamente');
-      setTags(prev =>
-        prev
+      // Optimistic update: modify in cache
+      queryClient.setQueryData(['tags', orgId], (old: Tag[] | undefined) =>
+        (old || [])
           .map(t => (t.id === id ? { ...t, ...data } : t))
           .sort((a, b) => a.name.localeCompare(b.name))
       );
@@ -119,7 +112,10 @@ export function useTags() {
       if (error) throw error;
 
       toast.success('Etiqueta eliminada correctamente');
-      setTags(prev => prev.filter(t => t.id !== id));
+      // Optimistic update: remove from cache
+      queryClient.setQueryData(['tags', orgId], (old: Tag[] | undefined) =>
+        (old || []).filter(t => t.id !== id)
+      );
       return true;
     } catch (error: any) {
       console.error('Error deleting tag:', error);

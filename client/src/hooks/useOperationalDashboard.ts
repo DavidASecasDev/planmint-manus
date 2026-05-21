@@ -495,7 +495,7 @@ export function useOperationalDashboard() {
     // Gate on sessionReady to prevent queries from firing before
     // the Supabase token has been fully refreshed after a hard reload.
     enabled: !!orgId && sessionReady,
-    refetchInterval: 60_000, // Refresh every minute
+    refetchInterval: 5 * 60_000, // Refresh every 5 minutes (12 queries per refresh)
     retry: 1,
     retryDelay: 1000,
   });

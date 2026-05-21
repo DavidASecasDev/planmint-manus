@@ -28,6 +28,7 @@ export function useEquipmentInventory() {
       return data as EquipmentItem[];
     },
     enabled: !!orgId && sessionReady,
+    staleTime: 5 * 60 * 1000, // 5 minutes - equipment inventory rarely changes
   });
 
   const createItem = useMutation({

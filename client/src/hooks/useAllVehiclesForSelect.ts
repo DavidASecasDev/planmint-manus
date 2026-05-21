@@ -39,6 +39,7 @@ export function useAllVehiclesForSelect() {
       }));
     },
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - vehicle list for selects doesn't change often
   });
 
   const activeVehicles = vehicles.filter(v => !v.is_archived);

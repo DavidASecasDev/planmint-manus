@@ -31,6 +31,7 @@ export function useTransferProviders() {
       return data as TransferProvider[];
     },
     enabled: !!organization?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - providers rarely change
   });
 
   const { data: allProviders = [], isLoading: isLoadingAll } = useQuery({
@@ -48,6 +49,7 @@ export function useTransferProviders() {
       return data as TransferProvider[];
     },
     enabled: !!organization?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - providers rarely change
   });
 
   const createMutation = useMutation({

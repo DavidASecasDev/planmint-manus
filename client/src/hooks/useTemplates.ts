@@ -83,6 +83,7 @@ export const useTemplates = () => {
       return data as (TemplateApply & { templates: Pick<Template, 'name' | 'icon' | 'color'> })[];
     },
     enabled: !!profile?.organization_id,
+    staleTime: 10 * 60 * 1000, // 10 minutes - templates rarely change
   });
 
   // Apply template mutation - calls Edge Function (server-side)

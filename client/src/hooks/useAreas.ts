@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -12,10 +13,11 @@ const errorHandler = createErrorHandler('useAreas');
 export function useAreas() {
   const { profile } = useAuth();
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<AreaFilter>('active');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const orgId = profile?.organization_id;
 
   // Use permission engine instead of profile.role
   const canCreate = hasPermission('areas.create');
@@ -23,20 +25,15 @@ export function useAreas() {
   const canDelete = hasPermission('areas.delete');
   const canManageVisibility = hasPermission('areas.manage_visibility');
 
-  const fetchAreas = useCallback(async () => {
-    // Wait for profile to be loaded with organization_id
-    if (!profile?.organization_id) {
-      setLoading(false);
-      return;
-    }
+  const { data: areas = [], isLoading: loading, refetch: fetchAreas } = useQuery({
+    queryKey: ['areas', orgId, filter],
+    queryFn: async () => {
+      if (!orgId) return [];
 
-    setLoading(true);
-
-    try {
       let query = supabase
         .from('areas')
         .select('*')
-        .eq('organization_id', profile.organization_id)
+        .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
 
       // Apply filter
@@ -55,36 +52,28 @@ export function useAreas() {
           description: ERROR_MESSAGES.areas.loadError.description,
           variant: 'destructive',
         });
-        setAreas([]);
-      } else {
-        // RLS will filter based on visibility - user only sees what they're allowed to
-        setAreas((data || []).map(a => ({
-          ...a,
-          visibility: (a.visibility as AreaVisibility) || 'org',
-        })) as Area[]);
+        return [];
       }
-    } catch (err) {
-      errorHandler.log('Unexpected error fetching areas', err);
-      toast({
-        title: ERROR_MESSAGES.generic.unexpected.title,
-        description: ERROR_MESSAGES.generic.unexpected.description,
-        variant: 'destructive',
-      });
-      setAreas([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [profile?.organization_id, filter]);
 
-  useEffect(() => {
-    fetchAreas();
-  }, [fetchAreas]);
+      // RLS will filter based on visibility - user only sees what they're allowed to
+      return ((data || []).map(a => ({
+        ...a,
+        visibility: (a.visibility as AreaVisibility) || 'org',
+      }))) as Area[];
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - areas rarely change
+  });
+
+  const invalidateAreas = () => {
+    queryClient.invalidateQueries({ queryKey: ['areas', orgId] });
+  };
 
   const createArea = async (
     data: CreateAreaData,
     accessSubjects?: Array<{ type: 'user' | 'role' | 'team'; id: string }>
   ): Promise<boolean> => {
-    if (!profile?.organization_id) return false;
+    if (!orgId) return false;
 
     const { data: newArea, error } = await apiInvoke<Area>('create-area-secure', {
       body: {
@@ -127,7 +116,7 @@ export function useAreas() {
         .from('area_access_rules')
         .insert(
           accessSubjects.map((s) => ({
-            organization_id: profile.organization_id!,
+            organization_id: orgId!,
             area_id: newArea.id,
             subject_type: s.type,
             subject_id: s.id,
@@ -150,7 +139,7 @@ export function useAreas() {
       description: `${data.name} ha sido creada exitosamente`,
     });
 
-    await fetchAreas();
+    invalidateAreas();
     return true;
   };
 
@@ -183,13 +172,13 @@ export function useAreas() {
     }
 
     // If visibility changed to custom, update access rules
-    if (data.visibility === 'custom' && accessSubjects && profile?.organization_id) {
+    if (data.visibility === 'custom' && accessSubjects && orgId) {
       // Delete existing rules
       await supabase
         .from('area_access_rules')
         .delete()
         .eq('area_id', id)
-        .eq('organization_id', profile.organization_id);
+        .eq('organization_id', orgId);
 
       // Insert new rules
       if (accessSubjects.length > 0) {
@@ -197,7 +186,7 @@ export function useAreas() {
           .from('area_access_rules')
           .insert(
             accessSubjects.map((s) => ({
-              organization_id: profile.organization_id!,
+              organization_id: orgId!,
               area_id: id,
               subject_type: s.type,
               subject_id: s.id,
@@ -209,13 +198,13 @@ export function useAreas() {
           errorHandler.log('Error updating access rules', accessError);
         }
       }
-    } else if (data.visibility && data.visibility !== 'custom' && profile?.organization_id) {
+    } else if (data.visibility && data.visibility !== 'custom' && orgId) {
       // If visibility changed FROM custom, clear access rules
       await supabase
         .from('area_access_rules')
         .delete()
         .eq('area_id', id)
-        .eq('organization_id', profile.organization_id);
+        .eq('organization_id', orgId);
     }
 
     toast({
@@ -223,7 +212,7 @@ export function useAreas() {
       description: 'Los cambios han sido guardados',
     });
 
-    await fetchAreas();
+    invalidateAreas();
     return true;
   };
 
@@ -249,7 +238,7 @@ export function useAreas() {
         : 'El área ha sido restaurada',
     });
 
-    await fetchAreas();
+    invalidateAreas();
     return true;
   };
 
@@ -274,11 +263,11 @@ export function useAreas() {
       description: 'El área ha sido eliminada permanentemente',
     });
 
-    await fetchAreas();
+    invalidateAreas();
     return true;
   };
 
-  // Filter areas by search query
+  // Filter areas by search query (client-side)
   const filteredAreas = areas.filter(area =>
     area.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (area.description?.toLowerCase().includes(searchQuery.toLowerCase()))

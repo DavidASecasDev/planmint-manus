@@ -45,6 +45,7 @@ export function useTransferInvoiceSettings() {
       return data as TransferInvoiceSettings | null;
     },
     enabled: !!profile?.organization_id,
+    staleTime: 10 * 60 * 1000, // 10 minutes - invoice settings rarely change
   });
 
   const saveSettings = useMutation({

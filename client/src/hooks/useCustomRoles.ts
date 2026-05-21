@@ -28,6 +28,7 @@ export function useCustomRoles() {
       })) as CustomRole[];
     },
     enabled: !!profile?.organization_id,
+    staleTime: 10 * 60 * 1000, // 10 minutes - roles rarely change
   });
 
   const createRole = useMutation({

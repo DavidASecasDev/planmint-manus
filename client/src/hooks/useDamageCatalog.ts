@@ -31,6 +31,7 @@ export function useDamageCatalog() {
       return data as DamageCatalogItem[];
     },
     enabled: !!orgId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - damage catalog rarely changes
   });
 
   // Check existing items by name (for import preview)

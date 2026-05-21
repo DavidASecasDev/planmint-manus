@@ -28,6 +28,7 @@ export function useWorkshops() {
       return data as Workshop[];
     },
     enabled: !!orgId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - workshops rarely change
   });
 
   const activeWorkshops = workshops.filter(w => w.is_active);

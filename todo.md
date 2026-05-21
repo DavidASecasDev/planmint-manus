@@ -797,3 +797,10 @@
 - [x] Rediseño completo del Dashboard de Garatech: KPIs hero, pipeline visual, gráficos de evolución 12 meses, distribución por tipo, ranking talleres, ranking vehículos, actividad reciente
 - [x] Garatech Dashboard: Filtro de periodo (este mes / trimestre / año / personalizado) para KPIs y gráficos
 - [x] Garatech Dashboard: Vista comparativa año vs año — superponer datos del año anterior en gráficos para detectar tendencias estacionales
+- [x] Optimización: Reducir polling de notificaciones de 15s a 60s
+- [x] Optimización: Cambiar usePrefetch de invalidate a prefetch real (eliminadas invalidaciones en hover)
+- [x] Optimización: Subir staleTime a 5-10min para datos estáticos (workshops, locations, teams, equipment, damage catalog, roles, templates, dropdowns, brokers, providers, invoice settings, notifications)
+- [x] Optimización: Reducir refetchInterval del dashboard operacional de 60s a 5min
+- [ ] Optimización: Migrar useTasks a useQuery para caché compartida (pospuesto — 832 líneas, alto riesgo de regresión)
+- [x] Optimización: Migrar useAreas a useQuery para caché compartida (staleTime 5min)
+- [x] Optimización: Migrar useTags a useQuery para caché compartida (staleTime 5min)

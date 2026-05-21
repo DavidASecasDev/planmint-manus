@@ -80,6 +80,7 @@ export function useTeams() {
       }));
     },
     enabled: !!organizationId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - teams rarely change
   });
 
   const createTeam = useMutation({

@@ -112,6 +112,7 @@ export function useNotifications() {
       return enrichedNotifications;
     },
     enabled: !!organizationId && sessionReady,
+    staleTime: 60_000, // 1 minute - realtime subscription handles updates
   });
 
   // Fetch unread count with React Query
@@ -131,6 +132,7 @@ export function useNotifications() {
       return count || 0;
     },
     enabled: !!organizationId && sessionReady,
+    staleTime: 60_000, // 1 minute - realtime subscription handles updates
   });
 
   // Create notification mutation
