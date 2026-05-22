@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronDown,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -218,6 +219,7 @@ export default function Schedules() {
           profiles: Array<{ id: string; name: string; avatar_url: string | null }>;
           schedules: ScheduleEntry[];
           dailyCounts: Record<string, { entregas: number; devoluciones: number; transfers: number }>;
+          teamsWithCustomOrder?: string[];
         };
       }>('get-weekly-schedule', {
         body: { organizationId: orgId, start_date: weekStart, end_date: weekEnd },
@@ -287,6 +289,7 @@ export default function Schedules() {
         teams,
         schedules: raw.schedules || [],
         dayStats,
+        teamsWithCustomOrder: raw.teamsWithCustomOrder || [],
       };
     },
     enabled: !!orgId && sessionReady,
@@ -294,6 +297,7 @@ export default function Schedules() {
   });
 
   const allTeams = weeklyData?.teams || [];
+  const teamsWithCustomOrder = new Set(weeklyData?.teamsWithCustomOrder || []);
   // Filter out Directiva team if user doesn't have view_directiva permission
   // Then sort by custom order: Directiva → Mostrador → Rentals → Preparación
   const TEAM_ORDER: Record<string, number> = {
@@ -831,6 +835,7 @@ export default function Schedules() {
                   onSaveNote={handleSaveNote}
                   onDeleteNote={handleDeleteNote}
                   isNoteSaving={isNoteSaving}
+                  hasCustomOrder={teamsWithCustomOrder.has(team.team_id)}
                 />
               ))}
 
@@ -970,6 +975,7 @@ interface TeamScheduleGridProps {
   onSaveNote: (date: string, content: string, userId: string) => void;
   onDeleteNote: (noteId: string) => void;
   isNoteSaving: boolean;
+  hasCustomOrder?: boolean;
 }
 
 function TeamScheduleGrid({
@@ -988,6 +994,7 @@ function TeamScheduleGrid({
   onSaveNote,
   onDeleteNote,
   isNoteSaving,
+  hasCustomOrder,
 }: TeamScheduleGridProps) {
   // Calculate weekly hours per member
   const memberWeeklyHours = useMemo(() => {
@@ -1024,6 +1031,19 @@ function TeamScheduleGrid({
           <Badge variant="secondary" className="text-xs ml-1">
             {team.members.length}
           </Badge>
+          {hasCustomOrder && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                  <ArrowUpDown className="h-3 w-3" />
+                  <span className="text-[10px] font-medium">Orden personalizado</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">El orden de los miembros ha sido personalizado para esta semana</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         {teamTotalHours > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -293,6 +293,13 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
       }
     });
 
+    // Determine which teams have custom per-week ordering
+    const teamsWithCustomOrder: string[] = [];
+    if (weeklyOrder && weeklyOrder.length > 0) {
+      const customTeamIds = new Set(weeklyOrder.map((wo: any) => wo.team_id));
+      teamsWithCustomOrder.push(...Array.from(customTeamIds));
+    }
+
     return res.json({
       ok: true,
       data: {
@@ -300,6 +307,7 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
         teamMembers: teamMembers || [],
         profiles: profiles || [],
         dailyCounts,
+        teamsWithCustomOrder,
       },
     });
   } catch (err: any) {
