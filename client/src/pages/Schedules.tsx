@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -40,6 +40,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
+  ChevronDown,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -169,6 +170,7 @@ export default function Schedules() {
   const canManageNotes = hasPermission('schedules.manage_notes');
   const canViewDirectiva = hasPermission('schedules.view_directiva');
 
+  const capacityPanelRef = useRef<HTMLDivElement>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCell, setSelectedCell] = useState<{ teamId: string; userId: string; date: string } | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -575,12 +577,15 @@ export default function Schedules() {
 
   const isCurrentWeek = weekOffset === 0;
 
-  // ─── Today's staff summary (for the sticky banner) ──────────────────────
-  const todayStaffSummary = useMemo(() => {
-    // Find today's date in the current week
-    const todayDate = weekDates.find(d => isToday(d));
-    if (!todayDate || teams.length === 0) return null;
-    const todayStr = formatDateISO(todayDate);
+  // ─── Staff summary for banner (today or first day of displayed week) ─────
+  const staffSummary = useMemo(() => {
+    if (teams.length === 0) return null;
+    // If current week, use today; otherwise use first day of the week (Monday)
+    const targetDate = isCurrentWeek
+      ? weekDates.find(d => isToday(d)) || weekDates[0]
+      : weekDates[0];
+    const todayStr = formatDateISO(targetDate);
+    const isTodayBanner = isToday(targetDate);
 
     // Count working staff per team (excluding day-off shifts and unassigned)
     const teamBreakdown: { name: string; working: number; total: number }[] = [];
@@ -614,8 +619,11 @@ export default function Schedules() {
     const ratio = totalMembers > 0 ? totalWorking / totalMembers : 1;
     const status: 'good' | 'warning' | 'critical' = ratio >= 0.7 ? 'good' : ratio >= 0.5 ? 'warning' : 'critical';
 
-    return { todayStr, totalWorking, totalMembers, teamBreakdown, totalOps, stats, status };
-  }, [weekDates, teams, scheduleLookup, shiftTemplates, dayStats]);
+    // Date label for the banner
+    const dateLabel = isTodayBanner ? 'Hoy' : `${formatDayLabel(targetDate)} ${formatDateShort(targetDate)}`;
+
+    return { todayStr, totalWorking, totalMembers, teamBreakdown, totalOps, stats, status, isTodayBanner, dateLabel };
+  }, [weekDates, teams, scheduleLookup, shiftTemplates, dayStats, isCurrentWeek]);
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -707,29 +715,34 @@ export default function Schedules() {
           </div>
         </div>
 
-        {/* ── Today's Staff Banner (sticky) ── */}
-        {!isLoading && todayStaffSummary && isCurrentWeek && (
+        {/* ── Staff Banner (sticky, clickable → scrolls to Carga Semanal) ── */}
+        {!isLoading && staffSummary && (
           <div className="sticky top-0 z-20 mx-4 mt-2 mb-0">
-            <div className={cn(
-              "flex items-center gap-4 px-4 py-2.5 rounded-xl border shadow-sm transition-all",
-              todayStaffSummary.status === 'good' && "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
-              todayStaffSummary.status === 'warning' && "bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
-              todayStaffSummary.status === 'critical' && "bg-red-50/80 border-red-200 dark:bg-red-950/30 dark:border-red-800",
-            )}>
+            <button
+              onClick={() => {
+                capacityPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={cn(
+                "w-full flex items-center gap-4 px-4 py-2.5 rounded-xl border shadow-sm transition-all cursor-pointer hover:shadow-md",
+                staffSummary.status === 'good' && "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50",
+                staffSummary.status === 'warning' && "bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/50",
+                staffSummary.status === 'critical' && "bg-red-50/80 border-red-200 dark:bg-red-950/30 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/50",
+              )}
+            >
               {/* Status icon */}
-              {todayStaffSummary.status === 'good' ? (
+              {staffSummary.status === 'good' ? (
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               ) : (
                 <AlertTriangle className={cn(
                   "h-5 w-5 shrink-0",
-                  todayStaffSummary.status === 'warning' ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400 animate-pulse"
+                  staffSummary.status === 'warning' ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400 animate-pulse"
                 )} />
               )}
 
               {/* Main count */}
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold tabular-nums">{todayStaffSummary.totalWorking}</span>
-                <span className="text-sm text-muted-foreground">de {todayStaffSummary.totalMembers} hoy</span>
+                <span className="text-lg font-bold tabular-nums">{staffSummary.totalWorking}</span>
+                <span className="text-sm text-muted-foreground">de {staffSummary.totalMembers}</span>
               </div>
 
               {/* Separator */}
@@ -737,7 +750,7 @@ export default function Schedules() {
 
               {/* Team breakdown */}
               <div className="flex items-center gap-3 flex-wrap">
-                {todayStaffSummary.teamBreakdown.map(tb => (
+                {staffSummary.teamBreakdown.map(tb => (
                   <div key={tb.name} className="flex items-center gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground">{tb.name}:</span>
                     <span className={cn(
@@ -753,29 +766,32 @@ export default function Schedules() {
               </div>
 
               {/* Operations */}
-              {todayStaffSummary.totalOps > 0 && (
+              {staffSummary.totalOps > 0 && (
                 <>
                   <div className="h-6 w-px bg-border/60" />
                   <div className="flex items-center gap-2 text-xs">
-                    {todayStaffSummary.stats?.deliveries ? (
+                    {staffSummary.stats?.deliveries ? (
                       <span className="flex items-center gap-0.5 text-emerald-700 dark:text-emerald-300 font-medium">
                         <ArrowUp className="h-3 w-3" />
-                        {todayStaffSummary.stats.deliveries}
+                        {staffSummary.stats.deliveries}
                       </span>
                     ) : null}
-                    {todayStaffSummary.stats?.returns ? (
+                    {staffSummary.stats?.returns ? (
                       <span className="flex items-center gap-0.5 text-blue-700 dark:text-blue-300 font-medium">
                         <ArrowDown className="h-3 w-3" />
-                        {todayStaffSummary.stats.returns}
+                        {staffSummary.stats.returns}
                       </span>
                     ) : null}
                   </div>
                 </>
               )}
 
-              {/* Spacer + label */}
-              <span className="ml-auto text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium">Hoy</span>
-            </div>
+              {/* Spacer + label + scroll hint */}
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium">{staffSummary.dateLabel}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40" />
+              </div>
+            </button>
           </div>
         )}
 
@@ -819,7 +835,7 @@ export default function Schedules() {
               ))}
 
               {/* ── Carga Semanal & Tiempos (after all team grids) ── */}
-              <div className="space-y-3 pt-2">
+              <div ref={capacityPanelRef} className="space-y-3 pt-2">
                 <WeeklyCapacityPanel weekStartDate={weekStart} />
                 <TravelTimeEditor />
               </div>
@@ -1284,7 +1300,7 @@ function TeamScheduleGrid({
               )}
 
             </tbody>
-            {/* Staff count summary row */}
+            {/* Staff count summary row with tooltips */}
             <tfoot>
               <tr className="bg-muted/30 border-t border-border/40">
                 <td className="sticky left-0 z-10 bg-muted/30 px-3 py-1.5 border-r border-border/30">
@@ -1293,17 +1309,36 @@ function TeamScheduleGrid({
                 {weekDates.map(d => {
                   const dateStr = formatDateISO(d);
                   const today = isToday(d);
-                  // Count members working this day (have a shift that is NOT day_off)
+                  // Count members working and collect off names
                   let working = 0;
+                  const offNames: string[] = [];
                   for (const member of team.members) {
                     const entry = scheduleLookup.get(`${member.id}__${dateStr}`);
                     if (entry?.shift_template_id) {
                       const shift = shiftTemplates.find(t => t.id === entry.shift_template_id);
-                      if (shift && !shift.is_day_off) working++;
+                      if (shift && !shift.is_day_off) {
+                        working++;
+                      } else if (shift?.is_day_off) {
+                        offNames.push(member.name.split(' ')[0]); // First name only
+                      }
+                    } else {
+                      // No shift assigned — count as not working
+                      offNames.push(member.name.split(' ')[0]);
                     }
                   }
                   const total = team.members.length;
                   const ratio = total > 0 ? working / total : 1;
+
+                  const badge = (
+                    <span className={cn(
+                      "inline-flex items-center justify-center text-[11px] font-bold tabular-nums rounded-md px-1.5 py-0.5",
+                      ratio >= 0.7 ? "text-emerald-700 dark:text-emerald-300 bg-emerald-100/60 dark:bg-emerald-900/30" :
+                      ratio >= 0.5 ? "text-amber-700 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/30" :
+                      "text-red-700 dark:text-red-300 bg-red-100/60 dark:bg-red-900/30"
+                    )}>
+                      {working}/{total}
+                    </span>
+                  );
 
                   return (
                     <td
@@ -1313,14 +1348,17 @@ function TeamScheduleGrid({
                         today && "bg-primary/5"
                       )}
                     >
-                      <span className={cn(
-                        "inline-flex items-center justify-center text-[11px] font-bold tabular-nums rounded-md px-1.5 py-0.5",
-                        ratio >= 0.7 ? "text-emerald-700 dark:text-emerald-300 bg-emerald-100/60 dark:bg-emerald-900/30" :
-                        ratio >= 0.5 ? "text-amber-700 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/30" :
-                        "text-red-700 dark:text-red-300 bg-red-100/60 dark:bg-red-900/30"
-                      )}>
-                        {working}/{total}
-                      </span>
+                      {offNames.length > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {badge}
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px]">
+                            <p className="text-xs font-medium mb-0.5">Descansan:</p>
+                            <p className="text-xs text-muted-foreground">{offNames.join(', ')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : badge}
                     </td>
                   );
                 })}

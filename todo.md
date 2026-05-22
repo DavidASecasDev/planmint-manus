@@ -810,3 +810,6 @@
 - [x] Optimización: Migrar useTasks a useQuery para caché compartida — eliminados useState/useEffect, queries paralelas para relaciones, staleTime 3min, invalidación centralizada
 - [x] Horarios: Fila resumen "Staff del día" en tfoot de cada equipo (personas trabajando/total por día con código color verde/ámbar/rojo)
 - [x] Horarios: Banner sticky "Vista rápida del día" encima de la grilla con resumen del día actual (staff por equipo, operaciones, estado)
+- [x] Horarios: Banner clickable → scroll suave al panel de Carga Semanal + hover shadow
+- [x] Horarios: Tooltips en badges Staff mostrando nombres de quiénes descansan ese día (primer nombre)
+- [x] Horarios: Banner visible en todas las semanas (futuras/pasadas) — muestra día target con label dinámico
