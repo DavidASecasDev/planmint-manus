@@ -813,3 +813,4 @@
 - [x] Horarios: Banner clickable → scroll suave al panel de Carga Semanal + hover shadow
 - [x] Horarios: Tooltips en badges Staff mostrando nombres de quiénes descansan ese día (primer nombre)
 - [x] Horarios: Banner visible en todas las semanas (futuras/pasadas) — muestra día target con label dinámico
+- [x] Bug fix: Eliminar check constraint organization_members_role_check para permitir roles personalizados (Rental, etc.) + endpoint resuelve custom:uuid al nombre del rol

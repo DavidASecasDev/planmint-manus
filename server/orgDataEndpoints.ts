@@ -338,9 +338,24 @@ export async function handleUpdateMemberRole(req: Request, res: Response) {
     // Permission check: caller must have members.change_role
     await requirePermission(serviceClient, orgId, userId, "members.change_role");
 
+    // Resolve custom:uuid to the custom role name for cleaner storage
+    let resolvedRole = p_role;
+    if (p_role.startsWith("custom:")) {
+      const customRoleId = p_role.replace("custom:", "");
+      const { data: customRole } = await serviceClient
+        .from("custom_roles")
+        .select("name")
+        .eq("id", customRoleId)
+        .eq("organization_id", orgId)
+        .single();
+      if (customRole) {
+        resolvedRole = customRole.name;
+      }
+    }
+
     const { error } = await serviceClient
       .from("organization_members")
-      .update({ role: p_role })
+      .update({ role: resolvedRole })
       .eq("id", p_member_id);
 
     if (error) {
