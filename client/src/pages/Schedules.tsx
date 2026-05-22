@@ -367,7 +367,7 @@ export default function Schedules() {
   });
 
   const reorderMutation = useMutation({
-    mutationFn: async (params: { team_id: string; ordered_user_ids: string[] }) => {
+    mutationFn: async (params: { team_id: string; ordered_user_ids: string[]; week_start: string }) => {
       const res = await apiInvoke('reorder-team-members', {
         body: params,
       });
@@ -389,7 +389,7 @@ export default function Schedules() {
     // Swap
     [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
     const ordered_user_ids = newMembers.map(m => m.id);
-    reorderMutation.mutate({ team_id: teamId, ordered_user_ids });
+    reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
   };
 
   const createTemplateMutation = useMutation({

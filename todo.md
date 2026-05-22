@@ -814,3 +814,4 @@
 - [x] Horarios: Tooltips en badges Staff mostrando nombres de quiénes descansan ese día (primer nombre)
 - [x] Horarios: Banner visible en todas las semanas (futuras/pasadas) — muestra día target con label dinámico
 - [x] Bug fix: Eliminar check constraint organization_members_role_check para permitir roles personalizados (Rental, etc.) + endpoint resuelve custom:uuid al nombre del rol
+- [x] Horarios: Reordenamiento de usuarios (subir/bajar) ahora aplica solo a la semana concreta — nueva tabla schedule_member_order con fallback a sort_order global

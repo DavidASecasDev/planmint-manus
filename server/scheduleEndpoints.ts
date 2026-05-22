@@ -215,6 +215,27 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
 
     if (tmError) throw tmError;
 
+    // Fetch per-week member order overrides
+    const { data: weeklyOrder } = await sb
+      .from("schedule_member_order")
+      .select("team_id, user_id, sort_order")
+      .eq("organization_id", orgId)
+      .eq("week_start", start_date);
+
+    // Merge weekly order into teamMembers: if a per-week order exists, override sort_order
+    if (weeklyOrder && weeklyOrder.length > 0) {
+      const orderMap = new Map<string, number>();
+      for (const wo of weeklyOrder) {
+        orderMap.set(`${wo.team_id}:${wo.user_id}`, wo.sort_order);
+      }
+      for (const tm of (teamMembers || []) as any[]) {
+        const key = `${tm.team_id}:${tm.user_id}`;
+        if (orderMap.has(key)) {
+          tm.sort_order = orderMap.get(key)!;
+        }
+      }
+    }
+
     // Get profiles for all team members
     const memberUserIds = Array.from(new Set((teamMembers || []).map((tm: any) => tm.user_id)));
     const { data: profiles, error: profError } = await sb
@@ -757,9 +778,12 @@ export async function handleReorderTeamMembers(req: Request, res: Response) {
     const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
     if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
 
-    const { team_id, ordered_user_ids } = req.body;
+    const { team_id, ordered_user_ids, week_start } = req.body;
     if (!team_id || !Array.isArray(ordered_user_ids) || ordered_user_ids.length === 0) {
       return res.status(400).json({ ok: false, error: "team_id and ordered_user_ids are required" });
+    }
+    if (!week_start) {
+      return res.status(400).json({ ok: false, error: "week_start is required" });
     }
 
     // Verify the team belongs to the organization
@@ -774,16 +798,21 @@ export async function handleReorderTeamMembers(req: Request, res: Response) {
       return res.status(404).json({ ok: false, error: "Team not found" });
     }
 
-    // Update sort_order for each member
-    const updates = ordered_user_ids.map((userId: string, index: number) =>
-      sb
-        .from("team_members")
-        .update({ sort_order: index })
-        .eq("team_id", team_id)
-        .eq("user_id", userId)
-    );
+    // Save per-week order in schedule_member_order table
+    // Upsert all members for this team+week
+    const upsertRows = ordered_user_ids.map((uid: string, index: number) => ({
+      organization_id: orgId,
+      team_id,
+      week_start,
+      user_id: uid,
+      sort_order: index,
+    }));
 
-    await Promise.all(updates);
+    const { error: upsertErr } = await sb
+      .from("schedule_member_order")
+      .upsert(upsertRows, { onConflict: "organization_id,team_id,week_start,user_id" });
+
+    if (upsertErr) throw upsertErr;
 
     return res.json({ ok: true });
   } catch (err: any) {
