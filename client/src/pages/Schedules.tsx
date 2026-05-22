@@ -38,6 +38,8 @@ import {
   Copy,
   Clock,
   Loader2,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -573,6 +575,48 @@ export default function Schedules() {
 
   const isCurrentWeek = weekOffset === 0;
 
+  // ─── Today's staff summary (for the sticky banner) ──────────────────────
+  const todayStaffSummary = useMemo(() => {
+    // Find today's date in the current week
+    const todayDate = weekDates.find(d => isToday(d));
+    if (!todayDate || teams.length === 0) return null;
+    const todayStr = formatDateISO(todayDate);
+
+    // Count working staff per team (excluding day-off shifts and unassigned)
+    const teamBreakdown: { name: string; working: number; total: number }[] = [];
+    let totalWorking = 0;
+    let totalMembers = 0;
+
+    for (const team of teams) {
+      // Skip Directiva from the operational count
+      if (team.team_name.toLowerCase() === 'directiva') continue;
+
+      let working = 0;
+      for (const member of team.members) {
+        const entry = scheduleLookup.get(`${member.id}__${todayStr}`);
+        if (entry?.shift_template_id) {
+          const shift = shiftTemplates.find(t => t.id === entry.shift_template_id);
+          if (shift && !shift.is_day_off) {
+            working++;
+          }
+        }
+      }
+      teamBreakdown.push({ name: team.team_name, working, total: team.members.length });
+      totalWorking += working;
+      totalMembers += team.members.length;
+    }
+
+    // Get today's operations
+    const stats = dayStats[todayStr];
+    const totalOps = stats ? stats.deliveries + stats.returns : 0;
+
+    // Status
+    const ratio = totalMembers > 0 ? totalWorking / totalMembers : 1;
+    const status: 'good' | 'warning' | 'critical' = ratio >= 0.7 ? 'good' : ratio >= 0.5 ? 'warning' : 'critical';
+
+    return { todayStr, totalWorking, totalMembers, teamBreakdown, totalOps, stats, status };
+  }, [weekDates, teams, scheduleLookup, shiftTemplates, dayStats]);
+
   // ─── Render ──────────────────────────────────────────────────────────────
 
   if (!orgId) {
@@ -662,6 +706,78 @@ export default function Schedules() {
             )}
           </div>
         </div>
+
+        {/* ── Today's Staff Banner (sticky) ── */}
+        {!isLoading && todayStaffSummary && isCurrentWeek && (
+          <div className="sticky top-0 z-20 mx-4 mt-2 mb-0">
+            <div className={cn(
+              "flex items-center gap-4 px-4 py-2.5 rounded-xl border shadow-sm transition-all",
+              todayStaffSummary.status === 'good' && "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+              todayStaffSummary.status === 'warning' && "bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
+              todayStaffSummary.status === 'critical' && "bg-red-50/80 border-red-200 dark:bg-red-950/30 dark:border-red-800",
+            )}>
+              {/* Status icon */}
+              {todayStaffSummary.status === 'good' ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle className={cn(
+                  "h-5 w-5 shrink-0",
+                  todayStaffSummary.status === 'warning' ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400 animate-pulse"
+                )} />
+              )}
+
+              {/* Main count */}
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold tabular-nums">{todayStaffSummary.totalWorking}</span>
+                <span className="text-sm text-muted-foreground">de {todayStaffSummary.totalMembers} hoy</span>
+              </div>
+
+              {/* Separator */}
+              <div className="h-6 w-px bg-border/60" />
+
+              {/* Team breakdown */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {todayStaffSummary.teamBreakdown.map(tb => (
+                  <div key={tb.name} className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">{tb.name}:</span>
+                    <span className={cn(
+                      "text-xs font-bold tabular-nums",
+                      tb.working === tb.total ? "text-emerald-700 dark:text-emerald-300" :
+                      tb.working >= tb.total * 0.5 ? "text-amber-700 dark:text-amber-300" :
+                      "text-red-700 dark:text-red-300"
+                    )}>
+                      {tb.working}/{tb.total}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Operations */}
+              {todayStaffSummary.totalOps > 0 && (
+                <>
+                  <div className="h-6 w-px bg-border/60" />
+                  <div className="flex items-center gap-2 text-xs">
+                    {todayStaffSummary.stats?.deliveries ? (
+                      <span className="flex items-center gap-0.5 text-emerald-700 dark:text-emerald-300 font-medium">
+                        <ArrowUp className="h-3 w-3" />
+                        {todayStaffSummary.stats.deliveries}
+                      </span>
+                    ) : null}
+                    {todayStaffSummary.stats?.returns ? (
+                      <span className="flex items-center gap-0.5 text-blue-700 dark:text-blue-300 font-medium">
+                        <ArrowDown className="h-3 w-3" />
+                        {todayStaffSummary.stats.returns}
+                      </span>
+                    ) : null}
+                  </div>
+                </>
+              )}
+
+              {/* Spacer + label */}
+              <span className="ml-auto text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium">Hoy</span>
+            </div>
+          </div>
+        )}
 
         {/* ── Grid (main content — shown first) ── */}
         <div className="flex-1 overflow-auto p-4">
@@ -1168,6 +1284,50 @@ function TeamScheduleGrid({
               )}
 
             </tbody>
+            {/* Staff count summary row */}
+            <tfoot>
+              <tr className="bg-muted/30 border-t border-border/40">
+                <td className="sticky left-0 z-10 bg-muted/30 px-3 py-1.5 border-r border-border/30">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Staff</span>
+                </td>
+                {weekDates.map(d => {
+                  const dateStr = formatDateISO(d);
+                  const today = isToday(d);
+                  // Count members working this day (have a shift that is NOT day_off)
+                  let working = 0;
+                  for (const member of team.members) {
+                    const entry = scheduleLookup.get(`${member.id}__${dateStr}`);
+                    if (entry?.shift_template_id) {
+                      const shift = shiftTemplates.find(t => t.id === entry.shift_template_id);
+                      if (shift && !shift.is_day_off) working++;
+                    }
+                  }
+                  const total = team.members.length;
+                  const ratio = total > 0 ? working / total : 1;
+
+                  return (
+                    <td
+                      key={dateStr}
+                      className={cn(
+                        "px-1 py-1.5 text-center",
+                        today && "bg-primary/5"
+                      )}
+                    >
+                      <span className={cn(
+                        "inline-flex items-center justify-center text-[11px] font-bold tabular-nums rounded-md px-1.5 py-0.5",
+                        ratio >= 0.7 ? "text-emerald-700 dark:text-emerald-300 bg-emerald-100/60 dark:bg-emerald-900/30" :
+                        ratio >= 0.5 ? "text-amber-700 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/30" :
+                        "text-red-700 dark:text-red-300 bg-red-100/60 dark:bg-red-900/30"
+                      )}>
+                        {working}/{total}
+                      </span>
+                    </td>
+                  );
+                })}
+                {/* Empty hours cell */}
+                <td className="px-3 py-1.5 border-l border-border/30 bg-muted/10" />
+              </tr>
+            </tfoot>
           </table>
         </div>
       </CardContent>
