@@ -819,3 +819,6 @@
 - [x] Preparación: Autocompletar matrícula al escribir en el campo (sugerencias de la flota con marca/modelo, navegación por teclado)
 - [x] Sidebar: Badge contador de pendientes (naranja) en el sidebar junto al enlace Dashboard (refetch cada 60s)
 - [x] Bug fix: Sincronización Rently machaca reservas reactivadas — corregida lógica de prioridad de estados para permitir reactivación (Cancelada → Confirmada/En curso) + limpieza de side-effects de cancelación
+- [x] Reactivación: Log visible en UI de detalle de reserva cuando se reactiva automáticamente desde Rently
+- [x] Reactivación: Notificación al admin cuando una reserva cancelada se reactiva automáticamente
+- [x] Bug: Dashboard crash "Cannot read properties of undefined (reading 'sucio')" en carga inicial (race condition)

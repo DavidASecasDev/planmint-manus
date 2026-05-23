@@ -1,7 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiInvoke } from '@/lib/apiClient';
 
 /**
  * Hook that provides a prefetch handler for sidebar navigation items.
@@ -21,7 +19,6 @@ import { apiInvoke } from '@/lib/apiClient';
  * Each route is only prefetched once per session to avoid redundant calls.
  */
 export function usePrefetch() {
-  const queryClient = useQueryClient();
   const { profile } = useAuth();
   const orgId = profile?.organization_id;
   const prefetchedRef = useRef<Set<string>>(new Set());
@@ -33,38 +30,14 @@ export function usePrefetch() {
       if (prefetchedRef.current.has(route)) return;
       prefetchedRef.current.add(route);
 
-      const opts = { staleTime: 60_000 }; // 1 minute
-
-      switch (route) {
-        case '/dashboard':
-          // Dashboard uses apiInvoke — safe to prefetch with same shape
-          queryClient.prefetchQuery({
-            queryKey: ['operational-dashboard', orgId],
-            queryFn: async () => {
-              const result = await apiInvoke('get-operational-dashboard');
-              return result?.data ?? null;
-            },
-            ...opts,
-          });
-          break;
-
-        // For routes with complex queryFns (joins, role-dependent endpoints),
-        // we do nothing. The page hook will use cached data if staleTime hasn't
-        // expired, or fetch fresh data on mount. This is better than invalidating
-        // which would force a refetch even when cached data is still valid.
-        case '/reservations':
-        case '/transfers':
-        case '/fleet':
-        case '/movements':
-        case '/vehicles':
-          // No-op: let the existing cache serve data or let the page hook fetch
-          break;
-
-        default:
-          break;
-      }
+      // NOTE: Dashboard prefetch was removed because the useOperationalDashboard hook
+      // transforms the raw server response (DashboardServerResponse → OperationalStats).
+      // Prefetching raw data into the same cache key caused a type mismatch crash
+      // ("Cannot read properties of undefined reading 'sucio'").
+      // All routes currently use complex queryFns with transformations, so we do nothing
+      // and let the page hooks fetch on mount with their own queryFn.
     },
-    [orgId, queryClient],
+    [orgId],
   );
 
   /**

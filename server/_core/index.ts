@@ -131,6 +131,7 @@ import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
+import { handleGetReservationStatusHistory } from "../reservationHistoryEndpoint";
 import {
   handleGetPreparationList,
   handleAddPreparationItem,
@@ -312,6 +313,9 @@ async function startServer() {
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);
+
+  // Reservation status history (reactivation log)
+  app.post("/api/get-reservation-status-history", handleGetReservationStatusHistory);
 
   // tRPC API
   app.use(

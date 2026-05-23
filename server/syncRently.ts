@@ -12,6 +12,7 @@
  */
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
+import { notifyOwner } from "./_core/notification";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1106,6 +1107,34 @@ export async function handleSyncRently(req: Request, res: Response) {
           updateData.estado_entrega = null;
           updateData.estado_devolucion = null;
           console.log(`[sync-rently] Reactivated reservation ${update.fullData.external_reservation_id}: ${existingEntry.estado} → ${update.newStatus}`);
+
+          // ─── LOG REACTIVATION EVENT ─────────────────────────────────────
+          const clienteName = [update.fullData.cliente_nombre, update.fullData.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre';
+          const vehiclePlate = (update.fullData.auto as string) || 'N/A';
+          try {
+            await serviceClient.from('reservation_status_history').insert({
+              organization_id: organizationId,
+              reservation_id: existingEntry.id,
+              external_reservation_id: update.fullData.external_reservation_id as string,
+              old_status: existingEntry.estado,
+              new_status: update.newStatus,
+              change_type: 'reactivation_auto',
+              changed_by_name: 'Sistema (Sync Rently)',
+              notes: `Reserva reactivada automáticamente desde Rently. Cliente: ${clienteName}, Vehículo: ${vehiclePlate}`,
+            });
+          } catch (logErr) {
+            console.error('[sync-rently] Failed to insert reactivation log:', logErr);
+          }
+
+          // ─── NOTIFY ADMIN ──────────────────────────────────────────────
+          try {
+            await notifyOwner({
+              title: '⚠️ Reserva reactivada automáticamente',
+              content: `La reserva #${update.fullData.external_reservation_id} (${clienteName} — ${vehiclePlate}) pasó de Cancelada a ${update.newStatus} tras sincronizar con Rently.`,
+            });
+          } catch (notifyErr) {
+            console.error('[sync-rently] Failed to notify owner about reactivation:', notifyErr);
+          }
         }
 
         await serviceClient.from("reservations").update(updateData).eq("id", update.id);

@@ -67,7 +67,7 @@ export function OperationalPanel() {
   const rentlyCtx = useRentlySyncContextSafe();
   const navigate = useNavigate();
 
-  const needsPrep = stats ? stats.vehiclesByStatus.sucio + stats.vehiclesByStatus.incompleto : 0;
+  const needsPrep = stats?.vehiclesByStatus ? stats.vehiclesByStatus.sucio + stats.vehiclesByStatus.incompleto : 0;
 
   const hasAlerts = stats ? (stats.contractsExpiringSoon > 0 || stats.pendingTasksHigh > 0) : false;
 
@@ -162,7 +162,7 @@ export function OperationalPanel() {
 
   return (
     <SkeletonTransition isLoading={isLoading} skeleton={dashboardSkeleton}>
-    {stats && <div className="space-y-5 sm:space-y-6">
+    {stats && stats.vehiclesByStatus && <div className="space-y-5 sm:space-y-6">
       {/* ─── Fleet Status Bar ─── */}
       <Card className="border-border/50 shadow-sm">
         <CardHeader className="pb-3 px-4 sm:px-6">

@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { Reservation, RentlyExtra, RentlyPriceItem, RentlyDriver } from '@/types/reservations';
 import { ReservationEquipmentSection } from './ReservationEquipmentSection';
+import { ReservationStatusHistory } from './ReservationStatusHistory';
 
 interface ReservationDetailSheetProps {
   reservation: Reservation | null;
@@ -201,6 +202,9 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
               </TabsTrigger>
               <TabsTrigger value="extras" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
                 Extras
+              </TabsTrigger>
+              <TabsTrigger value="historial" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
+                Historial
               </TabsTrigger>
             </TabsList>
 
@@ -565,6 +569,11 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
                   vehicleMatricula={r.auto || undefined}
                 />
               </TabsContent>
+
+            {/* === TAB: Historial === */}
+            <TabsContent value="historial" className="px-6 py-4 space-y-4 mt-0">
+              <ReservationStatusHistory reservationId={r.id} />
+            </TabsContent>
           </Tabs>
         </ScrollArea>
       </SheetContent>
