@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { apiInvoke } from '@/lib/apiClient';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
@@ -26,6 +26,12 @@ interface PreparationItem {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface FleetVehicleOption {
+  matricula: string;
+  modelo: string | null;
+  marca: string | null;
 }
 
 function formatDeadlineTime(dateStr: string): string {
@@ -70,11 +76,118 @@ const URGENCY_STYLES = {
   low: { bg: 'bg-muted/30', text: 'text-muted-foreground', border: 'border-border/50' },
 };
 
+// ─── Plate Autocomplete Component ───────────────────────────────────────
+function PlateAutocomplete({
+  value,
+  onChange,
+  onSelectVehicle,
+  vehicles,
+  placeholder = '1234ABC',
+  autoFocus = false,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectVehicle: (v: FleetVehicleOption) => void;
+  vehicles: FleetVehicleOption[];
+  placeholder?: string;
+  autoFocus?: boolean;
+}) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!value.trim()) return vehicles.slice(0, 8);
+    const q = value.toUpperCase().replace(/\s/g, '');
+    return vehicles
+      .filter(v => v.matricula.replace(/\s/g, '').includes(q) ||
+        (v.modelo && v.modelo.toUpperCase().includes(q)) ||
+        (v.marca && v.marca.toUpperCase().includes(q)))
+      .slice(0, 8);
+  }, [value, vehicles]);
+
+  useEffect(() => {
+    setHighlightIndex(-1);
+  }, [value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || filtered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex(prev => Math.min(prev + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter' && highlightIndex >= 0) {
+      e.preventDefault();
+      const selected = filtered[highlightIndex];
+      onSelectVehicle(selected);
+      setShowSuggestions(false);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value.toUpperCase());
+          setShowSuggestions(true);
+        }}
+        onFocus={() => setShowSuggestions(true)}
+        onBlur={() => {
+          // Delay to allow click on suggestion
+          setTimeout(() => setShowSuggestions(false), 200);
+        }}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className="mt-1"
+        autoFocus={autoFocus}
+        autoComplete="off"
+      />
+      {showSuggestions && filtered.length > 0 && (
+        <div
+          ref={listRef}
+          className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
+        >
+          {filtered.map((v, i) => (
+            <button
+              key={v.matricula}
+              type="button"
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${
+                i === highlightIndex ? 'bg-accent' : ''
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onSelectVehicle(v);
+                setShowSuggestions(false);
+              }}
+            >
+              <span className="font-semibold text-foreground">{v.matricula}</span>
+              {(v.marca || v.modelo) && (
+                <span className="text-muted-foreground text-xs truncate">
+                  {[v.marca, v.modelo].filter(Boolean).join(' ')}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────
 export function ManualPreparationList() {
-  const { organization } = useAuth();
+  const { organization, profile } = useAuth();
   const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const organizationId = organization?.id;
+  const orgId = profile?.organization_id;
 
   const canManage = hasPermission('preparation.manage');
 
@@ -84,6 +197,23 @@ export function ManualPreparationList() {
   const [formModelo, setFormModelo] = useState('');
   const [formDeadline, setFormDeadline] = useState('');
   const [formNotes, setFormNotes] = useState('');
+
+  // Fetch fleet vehicles for autocomplete
+  const { data: fleetVehicles = [] } = useQuery<FleetVehicleOption[]>({
+    queryKey: ['fleet-vehicles-plates', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabaseQuery
+        .from('fleet_vehicles')
+        .select('matricula, modelo, marca')
+        .eq('organization_id', orgId!)
+        .eq('status', 'activo')
+        .order('matricula');
+      if (error) throw error;
+      return (data || []) as FleetVehicleOption[];
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
 
   // Fetch preparation list
   const { data: items = [], isLoading } = useQuery({
@@ -97,7 +227,7 @@ export function ManualPreparationList() {
       return result.data.data;
     },
     enabled: !!organizationId,
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
     staleTime: 30000,
   });
 
@@ -220,11 +350,15 @@ export function ManualPreparationList() {
     setEditingItem(item);
     setFormMatricula(item.matricula);
     setFormModelo(item.modelo || '');
-    // Convert ISO to local datetime-local format
     const d = new Date(item.deadline_at);
     const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     setFormDeadline(localDate);
     setFormNotes(item.notes || '');
+  };
+
+  const handleSelectVehicle = (v: FleetVehicleOption) => {
+    setFormMatricula(v.matricula);
+    setFormModelo([v.marca, v.modelo].filter(Boolean).join(' '));
   };
 
   // Separate pending and completed
@@ -245,7 +379,6 @@ export function ManualPreparationList() {
     );
   }
 
-  // Don't render if user can't view
   if (!hasPermission('preparation.view')) return null;
 
   return (
@@ -269,7 +402,6 @@ export function ManualPreparationList() {
                 className="gap-1 text-xs h-7"
                 onClick={() => {
                   resetForm();
-                  // Set default deadline to next hour
                   const now = new Date();
                   now.setHours(now.getHours() + 1, 0, 0, 0);
                   const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -426,12 +558,12 @@ export function ManualPreparationList() {
           <div className="space-y-4 py-2">
             <div>
               <label className="text-sm font-medium text-foreground">Matrícula *</label>
-              <Input
+              <PlateAutocomplete
                 value={formMatricula}
-                onChange={(e) => setFormMatricula(e.target.value.toUpperCase())}
-                placeholder="1234ABC"
-                className="mt-1"
-                autoFocus
+                onChange={setFormMatricula}
+                onSelectVehicle={handleSelectVehicle}
+                vehicles={fleetVehicles}
+                autoFocus={!editingItem}
               />
             </div>
             <div>

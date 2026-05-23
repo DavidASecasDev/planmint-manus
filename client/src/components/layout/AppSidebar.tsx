@@ -38,6 +38,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { FeedbackModal } from '@/components/feedback/FeedbackModal';
 import { OrgSwitcher } from '@/components/layout/OrgSwitcher';
 import { usePrefetch } from '@/hooks/usePrefetch';
+import { useQuery } from '@tanstack/react-query';
+import { apiInvoke } from '@/lib/apiClient';
 
 import { PermissionKey } from '@/hooks/usePermissions';
 
@@ -155,6 +157,23 @@ export function AppSidebar() {
   const { role, canAccessAdminPanel, hasPermission, isManager, isLoading: permissionsLoading } = usePermissions();
   const { isModuleEnabled, isLoading: modulesLoading } = useOrganizationModules();
   const { handlePrefetch, cancelPrefetch } = usePrefetch();
+
+  // Preparation list pending count for badge
+  const orgId = organization?.id;
+  const { data: prepCount = 0 } = useQuery({
+    queryKey: ['preparation-count', orgId],
+    queryFn: async () => {
+      if (!orgId) return 0;
+      const result = await apiInvoke<{ ok: boolean; data: { id: string; status: string }[] }>('get-preparation-list', {
+        body: { organizationId: orgId },
+      });
+      if (result.error || !result.data?.ok) return 0;
+      return result.data.data.filter((i: { status: string }) => i.status === 'pending').length;
+    },
+    enabled: !!orgId,
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
 
   // CRITICAL: While auth/permissions/modules are still loading, show ALL menu items
   // to prevent the sidebar from flickering or showing a reduced set of items.
@@ -427,6 +446,11 @@ export function AppSidebar() {
                                 >
                                   <item.icon className="h-[18px] w-[18px] shrink-0" />
                                   {!isCollapsed && <span>{item.title}</span>}
+                                  {!isCollapsed && item.url === '/dashboard' && prepCount > 0 && (
+                                    <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-orange-500 text-[10px] font-bold text-white">
+                                      {prepCount}
+                                    </span>
+                                  )}
                                 </NavLink>
                               </SidebarMenuButton>
                             </span>
