@@ -60,6 +60,8 @@ export const ALL_PERMISSION_KEYS = [
   "fleet.view", "fleet.manage", "fleet.import",
   // Schedules (Horarios)
   "schedules.view", "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
+  // Preparation (Lista de preparación)
+  "preparation.view", "preparation.manage",
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
@@ -85,6 +87,7 @@ export const BASE_VIEW_PERMISSIONS: PermissionKey[] = [
   "forms.view",
   "time_tracking.view",
   "schedules.view",
+  "preparation.view",
 ];
 
 /**
@@ -113,6 +116,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "fleet.manage", "fleet.import",
     "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
+    "preparation.manage",
   ],
   manager: [
     "tasks.create", "tasks.update", "tasks.assign", "tasks.change_status",
@@ -130,6 +134,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "movements.create", "movements.manage", "movements.edit_photos", "movements.upload_receipt",
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "schedules.assign",
+    "preparation.manage",
   ],
   member: [
     "tasks.create", "tasks.update",

@@ -814,5 +814,10 @@
 - [x] Horarios: Tooltips en badges Staff mostrando nombres de quiénes descansan ese día (primer nombre)
 - [x] Horarios: Banner visible en todas las semanas (futuras/pasadas) — muestra día target con label dinámico
 - [x] Bug fix: Eliminar check constraint organization_members_role_check para permitir roles personalizados (Rental, etc.) + endpoint resuelve custom:uuid al nombre del rol
+<<<<<<< Updated upstream
 - [x] Horarios: Reordenamiento de usuarios (subir/bajar) ahora aplica solo a la semana concreta — nueva tabla schedule_member_order con fallback a sort_order global
 - [x] Horarios: Indicador visual "Orden personalizado" (badge azul + icono ArrowUpDown) en header del equipo cuando la semana tiene orden per-week
+=======
+- [x] Preparación: Reemplazar lista automática por lista manual — tabla preparation_list, 6 endpoints CRUD, UI con añadir matrícula + hora límite, marcar listo, eliminar
+- [x] Preparación: Permisos preparation.view y preparation.manage integrados en sistema de roles (admin/manager por defecto)
+>>>>>>> Stashed changes

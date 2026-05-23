@@ -131,6 +131,14 @@ import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
+import {
+  handleGetPreparationList,
+  handleAddPreparationItem,
+  handleCompletePreparationItem,
+  handleUncompletePreparationItem,
+  handleDeletePreparationItem,
+  handleUpdatePreparationItem,
+} from "../preparationEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -293,6 +301,14 @@ async function startServer() {
 
   // User management
   app.post("/api/create-user", handleCreateUser);
+
+  // Preparation list (manual)
+  app.post("/api/get-preparation-list", handleGetPreparationList);
+  app.post("/api/add-preparation-item", handleAddPreparationItem);
+  app.post("/api/complete-preparation-item", handleCompletePreparationItem);
+  app.post("/api/uncomplete-preparation-item", handleUncompletePreparationItem);
+  app.post("/api/delete-preparation-item", handleDeletePreparationItem);
+  app.post("/api/update-preparation-item", handleUpdatePreparationItem);
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);

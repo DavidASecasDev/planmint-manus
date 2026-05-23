@@ -124,7 +124,10 @@ export type PermissionKey =
   | 'schedules.manage_templates'
   | 'schedules.view_directiva'
   | 'schedules.manage_notes'
-  | 'schedules.manage';
+  | 'schedules.manage'
+  // Preparation
+  | 'preparation.view'
+  | 'preparation.manage';
 
 export interface PermissionsData {
   success: boolean;
