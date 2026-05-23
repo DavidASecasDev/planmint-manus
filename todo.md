@@ -818,3 +818,4 @@
 - [x] Preparación: Permisos preparation.view y preparation.manage integrados en sistema de roles (admin/manager por defecto)
 - [x] Preparación: Autocompletar matrícula al escribir en el campo (sugerencias de la flota con marca/modelo, navegación por teclado)
 - [x] Sidebar: Badge contador de pendientes (naranja) en el sidebar junto al enlace Dashboard (refetch cada 60s)
+- [x] Bug fix: Sincronización Rently machaca reservas reactivadas — corregida lógica de prioridad de estados para permitir reactivación (Cancelada → Confirmada/En curso) + limpieza de side-effects de cancelación

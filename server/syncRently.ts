@@ -998,7 +998,13 @@ export async function handleSyncRently(req: Request, res: Response) {
           const currentPriority = STATUS_PRIORITY[existing.estado] ?? -1;
           const newPriority = STATUS_PRIORITY[newStatus] ?? -1;
 
-          if (newStatus === "Cancelada" || newPriority > currentPriority) {
+          // Allow status change if:
+          // 1. New status is Cancelada (always allow cancellation from Rently)
+          // 2. New priority is higher than current (normal forward progression)
+          // 3. Current status is Cancelada but Rently now shows an active status
+          //    (reservation was reactivated in Rently — trust Rently as source of truth)
+          const isReactivation = existing.estado === "Cancelada" && newStatus !== "Cancelada";
+          if (newStatus === "Cancelada" || newPriority > currentPriority || isReactivation) {
             statusUpdates.push({ id: existing.id, newStatus, fullData: reservation });
           } else {
             statusUpdates.push({ id: existing.id, newStatus: existing.estado, fullData: reservation });
@@ -1091,6 +1097,15 @@ export async function handleSyncRently(req: Request, res: Response) {
         if (update.newStatus === "Cancelada") {
           updateData.estado_entrega = "Cancelada";
           updateData.estado_devolucion = "Cancelada";
+        }
+
+        // Undo cancellation side-effects when a reservation is reactivated
+        const existingEntry = existingMap.get(update.fullData.external_reservation_id as string);
+        if (existingEntry?.estado === "Cancelada" && update.newStatus !== "Cancelada") {
+          // Clear the cancellation markers on sub-statuses
+          updateData.estado_entrega = null;
+          updateData.estado_devolucion = null;
+          console.log(`[sync-rently] Reactivated reservation ${update.fullData.external_reservation_id}: ${existingEntry.estado} → ${update.newStatus}`);
         }
 
         await serviceClient.from("reservations").update(updateData).eq("id", update.id);
