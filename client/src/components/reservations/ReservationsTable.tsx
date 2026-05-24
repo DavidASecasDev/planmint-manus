@@ -119,11 +119,35 @@ interface OperationRow {
 
 type ColumnFilters = Record<string, string>;
 
+// Debounced input for column filters to avoid re-renders on every keystroke
+function DebouncedColumnInput({ value, onChange, placeholder, className }: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [local, setLocal] = useState(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <Input
+      placeholder={placeholder}
+      value={local}
+      onChange={(e) => {
+        setLocal(e.target.value);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => onChange(e.target.value), 300);
+      }}
+      className={className}
+    />
+  );
+}
+
 export function ReservationsTable() {
   const { profile } = useAuth();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-  const [urlFilters, setUrlFilters] = usePersistedFilters({
+  const filterDefaults = useMemo(() => ({
     search: '',
     sortKey: 'hora_confirmada',
     sortDir: 'asc' as string,
@@ -145,7 +169,8 @@ export function ReservationsTable() {
     cf_auto: '',
     confirmedDateFrom: '',
     confirmedDateTo: '',
-  });
+  }), [todayStr]);
+  const [urlFilters, setUrlFilters] = usePersistedFilters(filterDefaults);
   // Pass the URL date filter to useReservations for server-side filtering
   // This reduces payload from ~857 rows to only those in the selected date window
   // When showReactivated is active, skip date filter to load all reservations
@@ -165,8 +190,21 @@ export function ReservationsTable() {
     archiveReservation,
     isFullAccess,
   } = useReservations(dateFilterForQuery);
+  // Debounced search: local state for instant input feedback, URL update after 300ms
+  const [localSearch, setLocalSearch] = useState(urlFilters.search);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const search = urlFilters.search;
-  const setSearch = (v: string) => setUrlFilters(prev => ({ ...prev, search: v }));
+  const setSearch = (v: string) => {
+    setLocalSearch(v);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setUrlFilters(prev => ({ ...prev, search: v }));
+    }, 300);
+  };
+  // Sync local search when URL changes externally (e.g., reset filters)
+  useEffect(() => {
+    setLocalSearch(urlFilters.search);
+  }, [urlFilters.search]);
   const sortKey = urlFilters.sortKey;
   const setSortKey = (v: string) => setUrlFilters(prev => ({ ...prev, sortKey: v }));
   const sortDir = urlFilters.sortDir as 'asc' | 'desc';
@@ -1256,7 +1294,7 @@ export function ReservationsTable() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar reservas..."
-            value={search}
+            value={localSearch}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
@@ -1598,13 +1636,13 @@ export function ReservationsTable() {
                         </SelectContent>
                       </Select>
                     ) : col.filterable ? (
-                      <Input
+                      <DebouncedColumnInput
                         placeholder="Filtrar..."
                         value={columnFilters[col.key] || ''}
-                        onChange={(e) =>
+                        onChange={(val) =>
                           setColumnFilters(prev => ({
                             ...prev,
-                            [col.key]: e.target.value
+                            [col.key]: val
                           }))
                         }
                         className="h-7 text-xs"
