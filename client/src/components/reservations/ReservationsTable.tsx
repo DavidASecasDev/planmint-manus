@@ -128,6 +128,7 @@ export function ReservationsTable() {
     sortKey: 'hora_confirmada',
     sortDir: 'asc' as string,
     showCancelled: false,
+    showReactivated: false,
     dateFrom: todayStr,
     dateTo: '',
     cf_tipo_actividad: '',
@@ -168,6 +169,26 @@ export function ReservationsTable() {
   const setSortDir = (v: 'asc' | 'desc') => setUrlFilters(prev => ({ ...prev, sortDir: v }));
   const showCancelled = urlFilters.showCancelled;
   const setShowCancelled = (v: boolean) => setUrlFilters(prev => ({ ...prev, showCancelled: v }));
+  const showReactivated = urlFilters.showReactivated;
+  const setShowReactivated = (v: boolean) => setUrlFilters(prev => ({ ...prev, showReactivated: v }));
+
+  // Fetch reactivated reservation IDs when filter is active
+  const [reactivatedIds, setReactivatedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!showReactivated) {
+      setReactivatedIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    apiInvoke<{ reservation_id: string }[]>('get-reactivated-reservation-ids', { body: {} })
+      .then(resp => {
+        if (cancelled) return;
+        const ids = (resp.data || []).map(r => r.reservation_id);
+        setReactivatedIds(new Set(ids));
+      })
+      .catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [showReactivated]);
 
   // Staff capacity data for enriching rows with travel time
   const { data: capacityData } = useStaffCapacity(urlFilters.dateFrom || null);
@@ -678,6 +699,11 @@ export function ReservationsTable() {
         return estado?.toLowerCase() !== 'cancelada';
       });
     }
+
+    // Filter to show only reactivated reservations
+    if (showReactivated && reactivatedIds.size > 0) {
+      result = result.filter(row => reactivatedIds.has(row.reservationId));
+    }
     // Note: Old "terminadas" (>10 days) are now filtered at database level via archived_at
 
     // Helper: extract YYYY-MM-DD from an ISO string without timezone conversion.
@@ -832,7 +858,7 @@ export function ReservationsTable() {
     });
 
     return result;
-  }, [enrichedOperationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled]);
+  }, [enrichedOperationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled, showReactivated, reactivatedIds]);
 
   // Count cancelled reservations for info display
   const cancelledCount = useMemo(() => {
@@ -995,6 +1021,27 @@ export function ReservationsTable() {
 
   // Actualizar un campo según el tipo de operación
   const handleOperationFieldUpdate = (row: OperationRow, fieldKey: string, value: string | null) => {
+    // Log status changes to history (fire-and-forget)
+    if (fieldKey === 'estado' && value) {
+      const oldStatus = getOperationFieldValue(row, 'estado');
+      if (oldStatus !== value) {
+        const changeType = value === 'Cancelada' ? 'cancellation' : 'manual';
+        apiInvoke('log-reservation-status-change', {
+          body: {
+            reservation_id: row.reservationId,
+            external_reservation_id: row.reservation.external_reservation_id || null,
+            old_status: oldStatus,
+            new_status: value,
+            change_type: changeType,
+            changed_by_name: profile?.name || null,
+            notes: changeType === 'cancellation'
+              ? `Cancelación manual por ${profile?.name || 'usuario'}`
+              : `Cambio de estado manual: ${oldStatus || '(vacío)'} → ${value}`,
+          },
+        }).catch(() => { /* fire-and-forget */ });
+      }
+    }
+
     // Campos que son por reserva completa (no por operación)
     const reservationLevelFields = ['modelo', 'auto'];
     
@@ -1283,6 +1330,21 @@ export function ReservationsTable() {
                 {cancelledCount}
               </Badge>
             )}
+          </div>
+          {/* Toggle Mostrar reactivadas */}
+          <div className="flex items-center gap-2">
+            <Switch 
+              id="show-reactivated"
+              checked={showReactivated}
+              onCheckedChange={setShowReactivated}
+            />
+            <Label 
+              htmlFor="show-reactivated" 
+              className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap flex items-center gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reactivadas
+            </Label>
           </div>
         </div>
       </div>

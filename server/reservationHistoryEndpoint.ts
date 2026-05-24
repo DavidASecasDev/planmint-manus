@@ -6,6 +6,79 @@
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 
+export async function handleLogReservationStatusChange(req: Request, res: Response) {
+  try {
+    const { organizationId, userId } = await authenticateSupabaseRequest(
+      req.headers.authorization
+    );
+    const { reservation_id, external_reservation_id, old_status, new_status, change_type, notes, changed_by_name } = req.body;
+
+    if (!reservation_id || !new_status) {
+      return res.status(400).json({ error: "reservation_id and new_status are required" });
+    }
+
+    const serviceClient = getServiceClient();
+
+    const { error } = await serviceClient
+      .from("reservation_status_history")
+      .insert({
+        organization_id: organizationId,
+        reservation_id,
+        external_reservation_id: external_reservation_id || null,
+        old_status: old_status || null,
+        new_status,
+        change_type: change_type || "manual",
+        changed_by_user_id: userId || null,
+        changed_by_name: changed_by_name || null,
+        notes: notes || null,
+      });
+
+    if (error) {
+      console.error("[log-reservation-status-change] Insert error:", error);
+      return res.status(500).json({ error: "Failed to log status change" });
+    }
+
+    return res.json({ ok: true });
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error("[log-reservation-status-change] Error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function handleGetReactivatedReservationIds(req: Request, res: Response) {
+  try {
+    const { organizationId } = await authenticateSupabaseRequest(
+      req.headers.authorization
+    );
+
+    const serviceClient = getServiceClient();
+
+    const { data, error } = await serviceClient
+      .from("reservation_status_history")
+      .select("reservation_id")
+      .eq("organization_id", organizationId)
+      .eq("change_type", "reactivation_auto");
+
+    if (error) {
+      console.error("[get-reactivated-reservation-ids] Query error:", error);
+      return res.status(500).json({ error: "Failed to fetch reactivated IDs" });
+    }
+
+    // Deduplicate
+    const uniqueIds = Array.from(new Set((data || []).map(r => r.reservation_id)));
+    return res.json(uniqueIds.map(id => ({ reservation_id: id })));
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error("[get-reactivated-reservation-ids] Error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 export async function handleGetReservationStatusHistory(req: Request, res: Response) {
   try {
     const { organizationId } = await authenticateSupabaseRequest(

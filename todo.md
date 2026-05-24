@@ -822,3 +822,5 @@
 - [x] Reactivación: Log visible en UI de detalle de reserva cuando se reactiva automáticamente desde Rently
 - [x] Reactivación: Notificación al admin cuando una reserva cancelada se reactiva automáticamente
 - [x] Bug: Dashboard crash "Cannot read properties of undefined (reading 'sucio')" en carga inicial (race condition)
+- [x] Registrar cancelaciones manuales en reservation_status_history para trazabilidad completa
+- [x] Filtro/búsqueda de reservas reactivadas en el listado principal de reservas
