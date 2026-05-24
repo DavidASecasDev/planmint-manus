@@ -22,6 +22,7 @@ const CHANGE_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   reactivation_auto: { label: 'Reactivación automática', color: 'bg-amber-100 text-amber-800 border-amber-300' },
   manual: { label: 'Cambio manual', color: 'bg-blue-100 text-blue-800 border-blue-300' },
   sync: { label: 'Sincronización', color: 'bg-gray-100 text-gray-800 border-gray-300' },
+  sync_rently: { label: 'Sync Rently', color: 'bg-purple-100 text-purple-800 border-purple-300' },
   cancellation: { label: 'Cancelación', color: 'bg-red-100 text-red-800 border-red-300' },
 };
 
@@ -89,7 +90,7 @@ export function ReservationStatusHistory({ reservationId }: Props) {
           No hay cambios de estado registrados para esta reserva.
         </p>
         <p className="text-xs text-muted-foreground/70">
-          Los eventos de reactivación automática aparecerán aquí.
+          Los cambios de estado (manuales, sincronizaciones y reactivaciones) aparecerán aquí.
         </p>
       </div>
     );

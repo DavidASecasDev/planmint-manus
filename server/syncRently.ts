@@ -1137,6 +1137,30 @@ export async function handleSyncRently(req: Request, res: Response) {
           }
         }
 
+        // ─── LOG ALL STATUS CHANGES FROM SYNC ─────────────────────────────
+        const existingStatus = existingEntry?.estado || null;
+        if (existingStatus !== update.newStatus) {
+          // Only log if not already logged as reactivation above
+          const isReactivation = existingStatus === "Cancelada" && update.newStatus !== "Cancelada";
+          if (!isReactivation) {
+            try {
+              await serviceClient.from('reservation_status_history').insert({
+                organization_id: organizationId,
+                reservation_id: update.id,
+                external_reservation_id: update.fullData.external_reservation_id as string,
+                old_status: existingStatus,
+                new_status: update.newStatus,
+                change_type: 'sync_rently',
+                changed_by_name: 'Sistema (Sync Rently)',
+                notes: `Cambio de estado automático desde Rently: ${existingStatus || '(nuevo)'} → ${update.newStatus}`,
+              });
+            } catch (logErr) {
+              // Non-critical, don't break sync
+              console.error('[sync-rently] Failed to log status change:', logErr);
+            }
+          }
+        }
+
         await serviceClient.from("reservations").update(updateData).eq("id", update.id);
       }
 

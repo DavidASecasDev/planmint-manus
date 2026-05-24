@@ -444,6 +444,21 @@ export function ReservationsTable() {
         // Update the reservation estado to 'Completada' so it persists across refreshes
         const estadoField = row.tipoOperacion === 'Entrega' ? 'estado_entrega' : 'estado_devolucion';
         handleUpdate(row.reservationId, { [estadoField]: 'Completada' } as any);
+        // Log status change to history
+        const oldEstado = getOperationFieldValue(row, 'estado');
+        if (oldEstado !== 'Completada') {
+          apiInvoke('log-reservation-status-change', {
+            body: {
+              reservation_id: row.reservationId,
+              external_reservation_id: row.reservation.external_reservation_id || null,
+              old_status: oldEstado,
+              new_status: 'Completada',
+              change_type: 'manual',
+              changed_by_name: profile?.name || null,
+              notes: `Llegada registrada (${row.tipoOperacion}) por ${profile?.name || 'usuario'}`,
+            },
+          }).catch(() => { /* fire-and-forget */ });
+        }
         const real = resp.data.real_minutes;
         const est = resp.data.estimated_minutes;
         const comparison = est != null ? ` (estimado: ${est} min)` : '';

@@ -826,3 +826,4 @@
 - [x] Filtro/búsqueda de reservas reactivadas en el listado principal de reservas
 - [x] Filtro Reactivadas ignora el rango de fechas para mostrar todas las reactivaciones históricas
 - [x] Badge/icono visual en filas de reservas reactivadas, visible sin activar el filtro
+- [x] Registrar cambios de estado desde todos los puntos de la app (detalle, ficha, etc.) en reservation_status_history
