@@ -828,3 +828,4 @@
 - [x] Badge/icono visual en filas de reservas reactivadas, visible sin activar el filtro
 - [x] Registrar cambios de estado desde todos los puntos de la app (detalle, ficha, etc.) en reservation_status_history
 - [x] Bug: Filtros de reservas muy lentos - optimizar rendimiento (defaults ref inestable, debounce search/column filters)
+- [x] Bug: Toggle Reactivadas tarda 4-5s porque recarga TODAS las reservas sin filtro de fecha - optimizar con query separada

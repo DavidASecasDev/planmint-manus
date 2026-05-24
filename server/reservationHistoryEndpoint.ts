@@ -113,3 +113,52 @@ export async function handleGetReservationStatusHistory(req: Request, res: Respo
     return res.status(500).json({ error: "Internal server error" });
   }
 }
+
+export async function handleGetReactivatedReservations(req: Request, res: Response) {
+  try {
+    const { organizationId } = await authenticateSupabaseRequest(
+      req.headers.authorization
+    );
+    const serviceClient = getServiceClient();
+
+    // Step 1: Get reactivated reservation IDs from history
+    const { data: historyData, error: historyError } = await serviceClient
+      .from("reservation_status_history")
+      .select("reservation_id")
+      .eq("organization_id", organizationId)
+      .eq("change_type", "reactivation_auto");
+
+    if (historyError) {
+      console.error("[get-reactivated-reservations] History query error:", historyError);
+      return res.status(500).json({ error: "Failed to fetch reactivated IDs" });
+    }
+
+    const uniqueIds = Array.from(new Set((historyData || []).map(r => r.reservation_id)));
+
+    if (uniqueIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Step 2: Fetch full reservation data for those IDs
+    const { data: reservations, error: resError } = await serviceClient
+      .from("reservations")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .in("id", uniqueIds)
+      .is("archived_at", null)
+      .order("desde", { ascending: false });
+
+    if (resError) {
+      console.error("[get-reactivated-reservations] Reservations query error:", resError);
+      return res.status(500).json({ error: "Failed to fetch reactivated reservations" });
+    }
+
+    return res.json(reservations || []);
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error("[get-reactivated-reservations] Error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}

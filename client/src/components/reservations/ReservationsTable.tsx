@@ -173,14 +173,11 @@ export function ReservationsTable() {
   const [urlFilters, setUrlFilters] = usePersistedFilters(filterDefaults);
   // Pass the URL date filter to useReservations for server-side filtering
   // This reduces payload from ~857 rows to only those in the selected date window
-  // When showReactivated is active, skip date filter to load all reservations
-  const dateFilterForQuery = useMemo(() => {
-    if (urlFilters.showReactivated) return { from: undefined, to: undefined };
-    return {
-      from: urlFilters.dateFrom || undefined,
-      to: urlFilters.dateTo || undefined,
-    };
-  }, [urlFilters.dateFrom, urlFilters.dateTo, urlFilters.showReactivated]);
+  // Note: date filter is ALWAYS applied - reactivated reservations are fetched separately
+  const dateFilterForQuery = useMemo(() => ({
+    from: urlFilters.dateFrom || undefined,
+    to: urlFilters.dateTo || undefined,
+  }), [urlFilters.dateFrom, urlFilters.dateTo]);
   const { 
     reservations, 
     isLoading, 
@@ -214,7 +211,7 @@ export function ReservationsTable() {
   const showReactivated = urlFilters.showReactivated;
   const setShowReactivated = (v: boolean) => setUrlFilters(prev => ({ ...prev, showReactivated: v }));
 
-  // Fetch reactivated reservation IDs (always, for badge display + filter)
+  // Fetch reactivated reservation IDs (always, for badge display)
   const [reactivatedIds, setReactivatedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +224,26 @@ export function ReservationsTable() {
       .catch(() => { /* ignore */ });
     return () => { cancelled = true; };
   }, []);
+
+  // Fetch full reactivated reservations (only when toggle is ON)
+  const [reactivatedReservations, setReactivatedReservations] = useState<Reservation[]>([]);
+  const [reactivatedLoading, setReactivatedLoading] = useState(false);
+  useEffect(() => {
+    if (!showReactivated) {
+      setReactivatedReservations([]);
+      return;
+    }
+    let cancelled = false;
+    setReactivatedLoading(true);
+    apiInvoke<Reservation[]>('get-reactivated-reservations', { body: {} })
+      .then(resp => {
+        if (cancelled) return;
+        setReactivatedReservations(resp.data || []);
+      })
+      .catch(() => { /* ignore */ })
+      .finally(() => { if (!cancelled) setReactivatedLoading(false); });
+    return () => { cancelled = true; };
+  }, [showReactivated]);
 
   // Staff capacity data for enriching rows with travel time
   const { data: capacityData } = useStaffCapacity(urlFilters.dateFrom || null);
@@ -560,8 +577,10 @@ export function ReservationsTable() {
   // Expandir reservas a filas de operación
   const operationRows = useMemo(() => {
     const rows: OperationRow[] = [];
+    // When showReactivated is ON, use reactivated reservations exclusively
+    const sourceReservations = showReactivated ? reactivatedReservations : reservations;
     
-    reservations.forEach(r => {
+    sourceReservations.forEach(r => {
       // Si tiene tipo_actividad = Transfer, solo crear una fila
       if (r.tipo_actividad === 'Transfer') {
         rows.push({
@@ -614,7 +633,7 @@ export function ReservationsTable() {
     });
     
     return rows;
-  }, [reservations]);
+  }, [reservations, showReactivated, reactivatedReservations]);
 
   // Enrich operation rows with travel time from capacity data
   const enrichedOperationRows = useMemo(() => {
@@ -753,10 +772,8 @@ export function ReservationsTable() {
       });
     }
 
-    // Filter to show only reactivated reservations
-    if (showReactivated && reactivatedIds.size > 0) {
-      result = result.filter(row => reactivatedIds.has(row.reservationId));
-    }
+    // Note: When showReactivated is ON, operationRows already uses reactivatedReservations as source
+    // so no additional filtering is needed here
     // Note: Old "terminadas" (>10 days) are now filtered at database level via archived_at
 
     // Helper: extract YYYY-MM-DD from an ISO string without timezone conversion.
@@ -911,7 +928,7 @@ export function ReservationsTable() {
     });
 
     return result;
-  }, [enrichedOperationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled, showReactivated, reactivatedIds]);
+  }, [enrichedOperationRows, search, sortKey, sortDir, columnFilters, dateRange, confirmedDateRange, showCancelled, showReactivated]);
 
   // Count cancelled reservations for info display
   const cancelledCount = useMemo(() => {
@@ -1395,8 +1412,17 @@ export function ReservationsTable() {
               htmlFor="show-reactivated" 
               className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap flex items-center gap-1"
             >
-              <RotateCcw className="h-3 w-3" />
+              {reactivatedLoading ? (
+                <span className="h-3 w-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <RotateCcw className="h-3 w-3" />
+              )}
               Reactivadas
+              {reactivatedIds.size > 0 && (
+                <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1 rounded">
+                  {reactivatedIds.size}
+                </span>
+              )}
             </Label>
           </div>
         </div>
