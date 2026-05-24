@@ -148,10 +148,14 @@ export function ReservationsTable() {
   });
   // Pass the URL date filter to useReservations for server-side filtering
   // This reduces payload from ~857 rows to only those in the selected date window
-  const dateFilterForQuery = useMemo(() => ({
-    from: urlFilters.dateFrom || undefined,
-    to: urlFilters.dateTo || undefined,
-  }), [urlFilters.dateFrom, urlFilters.dateTo]);
+  // When showReactivated is active, skip date filter to load all reservations
+  const dateFilterForQuery = useMemo(() => {
+    if (urlFilters.showReactivated) return { from: undefined, to: undefined };
+    return {
+      from: urlFilters.dateFrom || undefined,
+      to: urlFilters.dateTo || undefined,
+    };
+  }, [urlFilters.dateFrom, urlFilters.dateTo, urlFilters.showReactivated]);
   const { 
     reservations, 
     isLoading, 
@@ -172,13 +176,9 @@ export function ReservationsTable() {
   const showReactivated = urlFilters.showReactivated;
   const setShowReactivated = (v: boolean) => setUrlFilters(prev => ({ ...prev, showReactivated: v }));
 
-  // Fetch reactivated reservation IDs when filter is active
+  // Fetch reactivated reservation IDs (always, for badge display + filter)
   const [reactivatedIds, setReactivatedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
-    if (!showReactivated) {
-      setReactivatedIds(new Set());
-      return;
-    }
     let cancelled = false;
     apiInvoke<{ reservation_id: string }[]>('get-reactivated-reservation-ids', { body: {} })
       .then(resp => {
@@ -188,7 +188,7 @@ export function ReservationsTable() {
       })
       .catch(() => { /* ignore */ });
     return () => { cancelled = true; };
-  }, [showReactivated]);
+  }, []);
 
   // Staff capacity data for enriching rows with travel time
   const { data: capacityData } = useStaffCapacity(urlFilters.dateFrom || null);
@@ -723,8 +723,8 @@ export function ReservationsTable() {
       return `${y}-${m}-${day}`;
     };
 
-    // Date range filter
-    if (dateRange?.from) {
+    // Date range filter (skip when showing reactivated to show all historical reactivations)
+    if (dateRange?.from && !showReactivated) {
       const fromKey = dateToKey(dateRange.from);
       const toKey = dateRange.to ? dateToKey(dateRange.to) : fromKey;
       
@@ -743,8 +743,8 @@ export function ReservationsTable() {
       });
     }
 
-    // Confirmed date range filter
-    if (confirmedDateRange?.from) {
+    // Confirmed date range filter (skip when showing reactivated)
+    if (confirmedDateRange?.from && !showReactivated) {
       const fromKey = dateToKey(confirmedDateRange.from);
       const toKey = confirmedDateRange.to ? dateToKey(confirmedDateRange.to) : fromKey;
       
@@ -1656,10 +1656,22 @@ export function ReservationsTable() {
                           )}
                           {col.type === 'readonly' && col.key !== 'cliente' && col.key !== 'tiempo_desplazamiento' && (
                             <span className={cn(
-                              "text-xs px-1 truncate",
+                              "text-xs px-1 truncate flex items-center gap-1",
                               row.isCompleted && "line-through text-muted-foreground"
                             )}>
                               {getCellValue(row, col)}
+                              {col.key === 'external_reservation_id' && reactivatedIds.has(row.reservationId) && (
+                                <TooltipProvider delayDuration={200}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <RotateCcw className="h-3 w-3 text-amber-500 shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                      Reserva reactivada
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </span>
                           )}
                           {col.key === 'tiempo_desplazamiento' && (() => {

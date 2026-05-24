@@ -824,3 +824,5 @@
 - [x] Bug: Dashboard crash "Cannot read properties of undefined (reading 'sucio')" en carga inicial (race condition)
 - [x] Registrar cancelaciones manuales en reservation_status_history para trazabilidad completa
 - [x] Filtro/búsqueda de reservas reactivadas en el listado principal de reservas
+- [x] Filtro Reactivadas ignora el rango de fechas para mostrar todas las reactivaciones históricas
+- [x] Badge/icono visual en filas de reservas reactivadas, visible sin activar el filtro
