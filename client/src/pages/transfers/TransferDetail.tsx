@@ -614,6 +614,8 @@ export default function TransferDetail() {
             clientTotal={existingRequest.client_total}
             internalMargin={existingRequest.internal_margin}
             isExternalProvider={existingRequest.is_external_provider}
+            clientType={existingRequest.client_type as 'external_client' | 'broker_client'}
+            externalProviderName={existingRequest.external_provider_name || undefined}
             items={items}
           />
         )}

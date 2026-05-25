@@ -302,8 +302,11 @@ export default function InternalNewTransferWizard() {
       const serializedItems = serializeItems(items);
       for (let i = 0; i < serializedItems.length; i++) {
         const item = serializedItems[i];
+        // Price to store: external_client → clientNet, broker_client+external → clientNet, broker_client+internal → providerNet
         const estimPrice = pricingBreakdown
-          ? (clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet)
+          ? (clientType === 'broker_client' && !isExternalProvider
+              ? pricingBreakdown.providerNet
+              : pricingBreakdown.clientNet)
           : (estimatedPrice ?? null);
 
         await supabaseQuery
@@ -696,31 +699,57 @@ export default function InternalNewTransferWizard() {
                 )}
                 <div className="border-t border-border" />
 
-                {/* Internal: show FULL breakdown */}
+                {/* Pricing breakdown: branches by client type + operator */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Coste proveedor (sin IVA)</span>
-                    <span className="text-foreground">{pricingBreakdown.providerNet} €</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">IVA proveedor (10%)</span>
-                    <span className="text-foreground">{pricingBreakdown.providerVat} €</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Comisión Azul Cars</span>
-                    <span className="text-emerald-600 font-medium">{pricingBreakdown.commissionAmount} €</span>
-                  </div>
-                  <div className="border-t border-border" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {clientType === 'external_client' ? 'Precio cliente (sin IVA)' : 'Precio B2B (sin IVA)'}
-                    </span>
-                    <span className="text-xl font-bold text-foreground">
-                      {clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet} €
-                    </span>
-                  </div>
-                  {clientType === 'external_client' && (
+                  {clientType === 'broker_client' && !isExternalProvider ? (
+                    /* broker_client + Azul Cars operates: simple tariff only */
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Tarifa por trayecto</span>
+                      <span className="text-xl font-bold text-foreground">
+                        {pricingBreakdown.providerNet} €
+                      </span>
+                    </div>
+                  ) : clientType === 'broker_client' && isExternalProvider ? (
+                    /* broker_client + LimoMallorca operates: full breakdown */
                     <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Coste {externalProviderName || 'proveedor'}</span>
+                        <span className="text-foreground">{pricingBreakdown.providerNet} €</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-emerald-600">Comisión Azul Cars</span>
+                        <span className="text-emerald-600 font-medium">{pricingBreakdown.commissionAmount} €</span>
+                      </div>
+                      <div className="border-t border-border" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Total a cobrar a Isle of Mallorca</span>
+                        <span className="text-xl font-bold text-foreground">
+                          {pricingBreakdown.clientNet} €
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    /* external_client: full breakdown with IVA 21% */
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Coste proveedor (sin IVA)</span>
+                        <span className="text-foreground">{pricingBreakdown.providerNet} €</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">IVA proveedor (10%)</span>
+                        <span className="text-foreground">{pricingBreakdown.providerVat} €</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Comisión Azul Cars</span>
+                        <span className="text-emerald-600 font-medium">{pricingBreakdown.commissionAmount} €</span>
+                      </div>
+                      <div className="border-t border-border" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Precio cliente (sin IVA)</span>
+                        <span className="text-xl font-bold text-foreground">
+                          {pricingBreakdown.clientNet} €
+                        </span>
+                      </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">IVA 21%</span>
                         <span className="text-foreground">{pricingBreakdown.clientVat} €</span>
@@ -991,57 +1020,107 @@ export default function InternalNewTransferWizard() {
               {/* Pricing breakdown (internal full view) */}
               {pricingBreakdown && (
                 <div className="pt-3 mt-2 border-t border-border space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Tarifa base</span>
-                    <span className="text-foreground">{pricingBreakdown.basePrice} €</span>
-                  </div>
-                  {pricingBreakdown.airportPickupFee > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">+ Recogida aeropuerto</span>
-                      <span className="text-foreground">{pricingBreakdown.airportPickupFee} €</span>
-                    </div>
-                  )}
-                  {pricingBreakdown.nightFee > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">+ Nocturno ({nightHours}h)</span>
-                      <span className="text-foreground">{pricingBreakdown.nightFee} €</span>
-                    </div>
-                  )}
-                  <div className="border-t border-border my-1" />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Coste proveedor</span>
-                    <span className="text-foreground">{pricingBreakdown.providerNet} €</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-emerald-600">Comisión</span>
-                    <span className="text-emerald-600 font-medium">{pricingBreakdown.commissionAmount} €</span>
-                  </div>
-                  <div className="border-t border-border my-1" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {clientType === 'external_client' ? 'Precio por trayecto (sin IVA)' : 'Precio B2B por trayecto'}
-                    </span>
-                    <span className="text-lg font-bold text-foreground">
-                      {clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet} €
-                    </span>
-                  </div>
-                  {items.length > 1 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Total estimado ({items.length} trayectos, sin IVA)
-                      </span>
-                      <span className="text-lg font-bold text-foreground">
-                        {((clientType === 'external_client' ? pricingBreakdown.clientNet : pricingBreakdown.providerNet) * items.length).toFixed(2)} €
-                      </span>
-                    </div>
-                  )}
-                  {clientType === 'external_client' && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Total con IVA 21%</span>
-                      <span className="text-foreground font-semibold">
-                        {(pricingBreakdown.clientTotal * items.length).toFixed(2)} €
-                      </span>
-                    </div>
+                  {clientType === 'broker_client' && !isExternalProvider ? (
+                    /* broker_client + Azul Cars operates: simple */
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Tarifa por trayecto</span>
+                        <span className="text-lg font-bold text-foreground">
+                          {pricingBreakdown.providerNet} €
+                        </span>
+                      </div>
+                      {items.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Total ({items.length} trayectos)
+                          </span>
+                          <span className="text-lg font-bold text-foreground">
+                            {(pricingBreakdown.providerNet * items.length).toFixed(2)} €
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : clientType === 'broker_client' && isExternalProvider ? (
+                    /* broker_client + LimoMallorca operates */
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Coste {externalProviderName || 'proveedor'}</span>
+                        <span className="text-foreground">{pricingBreakdown.providerNet} €</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-emerald-600">Comisión Azul Cars</span>
+                        <span className="text-emerald-600 font-medium">{pricingBreakdown.commissionAmount} €</span>
+                      </div>
+                      <div className="border-t border-border my-1" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Total a cobrar por trayecto</span>
+                        <span className="text-lg font-bold text-foreground">
+                          {pricingBreakdown.clientNet} €
+                        </span>
+                      </div>
+                      {items.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Total ({items.length} trayectos)
+                          </span>
+                          <span className="text-lg font-bold text-foreground">
+                            {(pricingBreakdown.clientNet * items.length).toFixed(2)} €
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* external_client: full breakdown with IVA */
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Tarifa base</span>
+                        <span className="text-foreground">{pricingBreakdown.basePrice} €</span>
+                      </div>
+                      {pricingBreakdown.airportPickupFee > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">+ Recogida aeropuerto</span>
+                          <span className="text-foreground">{pricingBreakdown.airportPickupFee} €</span>
+                        </div>
+                      )}
+                      {pricingBreakdown.nightFee > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">+ Nocturno ({nightHours}h)</span>
+                          <span className="text-foreground">{pricingBreakdown.nightFee} €</span>
+                        </div>
+                      )}
+                      <div className="border-t border-border my-1" />
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Coste proveedor</span>
+                        <span className="text-foreground">{pricingBreakdown.providerNet} €</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-emerald-600">Comisión</span>
+                        <span className="text-emerald-600 font-medium">{pricingBreakdown.commissionAmount} €</span>
+                      </div>
+                      <div className="border-t border-border my-1" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Precio por trayecto (sin IVA)</span>
+                        <span className="text-lg font-bold text-foreground">
+                          {pricingBreakdown.clientNet} €
+                        </span>
+                      </div>
+                      {items.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Total estimado ({items.length} trayectos, sin IVA)
+                          </span>
+                          <span className="text-lg font-bold text-foreground">
+                            {(pricingBreakdown.clientNet * items.length).toFixed(2)} €
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Total con IVA 21%</span>
+                        <span className="text-foreground font-semibold">
+                          {(pricingBreakdown.clientTotal * items.length).toFixed(2)} €
+                        </span>
+                      </div>
+                    </>
                   )}
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Info className="h-3 w-3" />

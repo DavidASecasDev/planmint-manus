@@ -829,3 +829,10 @@
 - [x] Registrar cambios de estado desde todos los puntos de la app (detalle, ficha, etc.) en reservation_status_history
 - [x] Bug: Filtros de reservas muy lentos - optimizar rendimiento (defaults ref inestable, debounce search/column filters)
 - [x] Bug: Toggle Reactivadas tarda 4-5s porque recarga TODAS las reservas sin filtro de fecha - optimizar con query separada
+- [ ] Transfer wizard: Ajustar resumen de precios según quién opera (Azul Cars sin comisión vs LimoMallorca con comisión)
+- [ ] Transfer wizard: Mostrar precio total correcto en resumen y detalle de solicitud
+- [x] Fix transfer wizard pricing for broker_client (Isle of Mallorca): branch on isExternalProvider — when Azul Cars operates show only "Tarifa por trayecto" (providerNet), when LimoMallorca operates show full breakdown (coste + comisión + total clientNet)
+- [x] Fix InternalNewTransferWizard.tsx: step 2 pricing display, step 4 summary, and saved price per item
+- [x] Fix InternalEditTransferWizard.tsx: same pricing logic mirrored (step 2, step 4, saved price)
+- [x] Fix TransferFinancialSummary.tsx: branch on clientType + isExternalProvider for detail view (added clientType and externalProviderName props)
+- [x] Update TransferDetail.tsx to pass clientType and externalProviderName to TransferFinancialSummary

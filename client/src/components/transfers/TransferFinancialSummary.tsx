@@ -15,6 +15,8 @@ interface TransferFinancialSummaryProps {
   clientTotal: number | null;
   internalMargin: number | null;
   isExternalProvider: boolean;
+  clientType?: 'external_client' | 'broker_client';
+  externalProviderName?: string;
   items?: TransferItem[];
 }
 
@@ -23,6 +25,8 @@ export function TransferFinancialSummary({
   clientTotal, 
   internalMargin,
   isExternalProvider,
+  clientType = 'external_client',
+  externalProviderName,
   items = [],
 }: TransferFinancialSummaryProps) {
   const [open, setOpen] = useState(true);
@@ -99,97 +103,217 @@ export function TransferFinancialSummary({
               </div>
             ) : (
               <div className="space-y-1">
-                {/* ── PROVEEDOR (lo que pagamos a LimoMallorca) ── */}
-                <div className="pb-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Coste proveedor
-                  </p>
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-muted-foreground">
-                      Tarifa zona (neto)
-                    </span>
-                    <span className="text-sm font-medium">{formatCurrency(providerNet)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-muted-foreground">IVA 10% (transporte)</span>
-                    <span className="text-sm">{formatCurrency(providerVat)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
-                    <span className="text-sm font-medium">Total proveedor</span>
-                    <span className="font-semibold">{formatCurrency(providerTotal)}</span>
-                  </div>
-                </div>
+                {clientType === 'broker_client' && !isExternalProvider ? (
+                  /* ── BROKER + AZUL CARS OPERA: tarifa directa, sin comisión ── */
+                  <>
+                    <div className="pb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Ingreso directo (Azul Cars opera)
+                      </p>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">Tarifa por trayecto</span>
+                        <span className="text-sm font-medium">{formatCurrency(providerNet)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                        <span className="font-medium">Total cobrado a Isle of Mallorca</span>
+                        <span className="font-bold text-lg">{formatCurrency(effectiveClientTotal || providerNet)}</span>
+                      </div>
+                    </div>
 
-                {/* ── COMISIÓN ── */}
-                <div className="py-3 border-t border-border">
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-muted-foreground">Comisión Azul Cars (50%)</span>
-                    <span className="text-sm font-medium text-primary">{formatCurrency(commissionAmount)}</span>
-                  </div>
-                </div>
-
-                {/* ── CLIENTE (lo que facturamos) ── */}
-                <div className="py-3 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Factura cliente
-                  </p>
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-muted-foreground">Servicio (sin IVA)</span>
-                    <span className="text-sm font-medium">{formatCurrency(clientNet)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-muted-foreground">IVA 21% (intermediación)</span>
-                    <span className="text-sm">{formatCurrency(clientVat)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
-                    <span className="font-medium">Total cliente</span>
-                    <span className="font-bold text-lg">{formatCurrency(clientTotalWithVat)}</span>
-                  </div>
-                </div>
-
-                {/* ── MARGEN ── */}
-                <div className={cn(
-                  'flex items-center justify-between py-3 rounded-lg px-3 -mx-3 mt-2 border-t border-border',
-                  alert.level === 'danger' ? 'bg-red-500/10' :
-                  alert.level === 'warning' ? 'bg-amber-500/10' :
-                  'bg-primary/5'
-                )}>
-                  <span className={cn(
-                    'font-medium flex items-center gap-2',
-                    alert.level === 'danger' ? 'text-red-600 dark:text-red-400' :
-                    alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
-                    ''
-                  )}>
-                    {alert.level === 'danger' ? (
-                      <ShieldAlert className="h-4 w-4" />
-                    ) : alert.level === 'warning' ? (
-                      <AlertTriangle className="h-4 w-4" />
-                    ) : (
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                    )}
-                    Beneficio neto
-                  </span>
-                  <div className="text-right">
-                    <span className={cn(
-                      'font-semibold',
-                      alert.level === 'danger' ? 'text-red-600 dark:text-red-400' :
-                      alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
-                      'text-primary'
+                    {/* ── BENEFICIO = tarifa completa ── */}
+                    <div className={cn(
+                      'flex items-center justify-between py-3 rounded-lg px-3 -mx-3 mt-2 border-t border-border',
+                      'bg-primary/5'
                     )}>
-                      {formatCurrency(profit)}
-                    </span>
-                    {effectiveProviderCost > 0 && (
-                      <span className={cn(
-                        'text-sm ml-2',
-                        alert.level === 'danger' ? 'text-red-500' :
-                        alert.level === 'warning' ? 'text-amber-500' :
-                        'text-muted-foreground'
-                      )}>
-                        ({marginPercent}%)
+                      <span className="font-medium flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        Beneficio neto (100%)
                       </span>
-                    )}
-                  </div>
-                </div>
+                      <span className="font-semibold text-primary">
+                        {formatCurrency(effectiveClientTotal || providerNet)}
+                      </span>
+                    </div>
+                  </>
+                ) : clientType === 'broker_client' && isExternalProvider ? (
+                  /* ── BROKER + LIMOMALLORCA OPERA: coste proveedor + comisión ── */
+                  <>
+                    <div className="pb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Coste {externalProviderName || 'proveedor externo'}
+                      </p>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">Tarifa zona (neto)</span>
+                        <span className="text-sm font-medium">{formatCurrency(providerNet)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">IVA 10% (transporte)</span>
+                        <span className="text-sm">{formatCurrency(providerVat)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                        <span className="text-sm font-medium">Total a pagar a {externalProviderName || 'proveedor'}</span>
+                        <span className="font-semibold">{formatCurrency(providerTotal)}</span>
+                      </div>
+                    </div>
+
+                    {/* ── COMISIÓN ── */}
+                    <div className="py-3 border-t border-border">
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">Comisión Azul Cars (50%)</span>
+                        <span className="text-sm font-medium text-primary">{formatCurrency(commissionAmount)}</span>
+                      </div>
+                    </div>
+
+                    {/* ── TOTAL A COBRAR A ISLE OF MALLORCA ── */}
+                    <div className="py-3 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Cobro a Isle of Mallorca
+                      </p>
+                      <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                        <span className="font-medium">Total a cobrar</span>
+                        <span className="font-bold text-lg">{formatCurrency(clientNet)}</span>
+                      </div>
+                    </div>
+
+                    {/* ── MARGEN ── */}
+                    <div className={cn(
+                      'flex items-center justify-between py-3 rounded-lg px-3 -mx-3 mt-2 border-t border-border',
+                      alert.level === 'danger' ? 'bg-red-500/10' :
+                      alert.level === 'warning' ? 'bg-amber-500/10' :
+                      'bg-primary/5'
+                    )}>
+                      <span className={cn(
+                        'font-medium flex items-center gap-2',
+                        alert.level === 'danger' ? 'text-red-600 dark:text-red-400' :
+                        alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+                        ''
+                      )}>
+                        {alert.level === 'danger' ? (
+                          <ShieldAlert className="h-4 w-4" />
+                        ) : alert.level === 'warning' ? (
+                          <AlertTriangle className="h-4 w-4" />
+                        ) : (
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                        )}
+                        Beneficio neto
+                      </span>
+                      <div className="text-right">
+                        <span className={cn(
+                          'font-semibold',
+                          alert.level === 'danger' ? 'text-red-600 dark:text-red-400' :
+                          alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+                          'text-primary'
+                        )}>
+                          {formatCurrency(profit)}
+                        </span>
+                        {effectiveProviderCost > 0 && (
+                          <span className={cn(
+                            'text-sm ml-2',
+                            alert.level === 'danger' ? 'text-red-500' :
+                            alert.level === 'warning' ? 'text-amber-500' :
+                            'text-muted-foreground'
+                          )}>
+                            ({marginPercent}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* ── EXTERNAL_CLIENT: full breakdown with IVA 21% ── */
+                  <>
+                    {/* ── PROVEEDOR (lo que pagamos a LimoMallorca) ── */}
+                    <div className="pb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Coste proveedor
+                      </p>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">
+                          Tarifa zona (neto)
+                        </span>
+                        <span className="text-sm font-medium">{formatCurrency(providerNet)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">IVA 10% (transporte)</span>
+                        <span className="text-sm">{formatCurrency(providerVat)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                        <span className="text-sm font-medium">Total proveedor</span>
+                        <span className="font-semibold">{formatCurrency(providerTotal)}</span>
+                      </div>
+                    </div>
+
+                    {/* ── COMISIÓN ── */}
+                    <div className="py-3 border-t border-border">
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">Comisión Azul Cars (50%)</span>
+                        <span className="text-sm font-medium text-primary">{formatCurrency(commissionAmount)}</span>
+                      </div>
+                    </div>
+
+                    {/* ── CLIENTE (lo que facturamos) ── */}
+                    <div className="py-3 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Factura cliente
+                      </p>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">Servicio (sin IVA)</span>
+                        <span className="text-sm font-medium">{formatCurrency(clientNet)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-muted-foreground">IVA 21% (intermediación)</span>
+                        <span className="text-sm">{formatCurrency(clientVat)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 border-t border-dashed border-border/60">
+                        <span className="font-medium">Total cliente</span>
+                        <span className="font-bold text-lg">{formatCurrency(clientTotalWithVat)}</span>
+                      </div>
+                    </div>
+
+                    {/* ── MARGEN ── */}
+                    <div className={cn(
+                      'flex items-center justify-between py-3 rounded-lg px-3 -mx-3 mt-2 border-t border-border',
+                      alert.level === 'danger' ? 'bg-red-500/10' :
+                      alert.level === 'warning' ? 'bg-amber-500/10' :
+                      'bg-primary/5'
+                    )}>
+                      <span className={cn(
+                        'font-medium flex items-center gap-2',
+                        alert.level === 'danger' ? 'text-red-600 dark:text-red-400' :
+                        alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+                        ''
+                      )}>
+                        {alert.level === 'danger' ? (
+                          <ShieldAlert className="h-4 w-4" />
+                        ) : alert.level === 'warning' ? (
+                          <AlertTriangle className="h-4 w-4" />
+                        ) : (
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                        )}
+                        Beneficio neto
+                      </span>
+                      <div className="text-right">
+                        <span className={cn(
+                          'font-semibold',
+                          alert.level === 'danger' ? 'text-red-600 dark:text-red-400' :
+                          alert.level === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+                          'text-primary'
+                        )}>
+                          {formatCurrency(profit)}
+                        </span>
+                        {effectiveProviderCost > 0 && (
+                          <span className={cn(
+                            'text-sm ml-2',
+                            alert.level === 'danger' ? 'text-red-500' :
+                            alert.level === 'warning' ? 'text-amber-500' :
+                            'text-muted-foreground'
+                          )}>
+                            ({marginPercent}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Alert messages */}
                 {alert.level === 'danger' && (
