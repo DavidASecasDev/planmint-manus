@@ -848,3 +848,4 @@
 - [x] LOST & FOUND MODULE: Add sidebar entry as independent section
 - [x] LOST & FOUND MODULE: Add routes to App.tsx
 - [x] LOST & FOUND MODULE: Permission-based access control (all can view/create, only permitted can update)
+- [x] LOST & FOUND MODULE: Scheduled job - auto-mark items as 'unclaimed' after 30 days (Heartbeat cron)

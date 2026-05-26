@@ -131,6 +131,7 @@ import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
+import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
 import {
   handleGetPreparationList,
@@ -319,6 +320,9 @@ async function startServer() {
   app.post("/api/log-reservation-status-change", handleLogReservationStatusChange);
   app.post("/api/get-reactivated-reservation-ids", handleGetReactivatedReservationIds);
   app.post("/api/get-reactivated-reservations", handleGetReactivatedReservations);
+
+  // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
+  app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);
 
   // tRPC API
   app.use(
