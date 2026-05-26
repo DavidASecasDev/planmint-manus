@@ -30,7 +30,7 @@ const ROLE_EDITOR_CATEGORIES: {
 import {
   ListTodo, FolderOpen, Tag, FileText, ArrowLeftRight, Wrench, Car,
   CalendarDays, Clock, BarChart3, Layout, Zap, Users, CreditCard,
-  Shield as ShieldIcon, Route, ClipboardCheck, Truck, type LucideIcon,
+  Shield as ShieldIcon, Route, ClipboardCheck, Truck, PackageSearch, type LucideIcon,
 } from 'lucide-react';
 
 const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; description: Record<string, string> }> = {
@@ -237,6 +237,16 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       view_directiva: 'Permite ver los horarios del equipo Directiva',
       manage_notes: 'Permite crear, ver y eliminar notas internas en horarios',
       manage: 'Acceso completo a horarios',
+    },
+  },
+  lost_found: {
+    label: 'Objetos Perdidos',
+    icon: PackageSearch,
+    description: {
+      view: 'Permite ver el listado de objetos perdidos',
+      create: 'Permite registrar nuevos objetos encontrados',
+      update: 'Permite editar datos y cambiar estado de objetos',
+      manage: 'Acceso completo: eliminar y gestionar todos los objetos',
     },
   },
 };

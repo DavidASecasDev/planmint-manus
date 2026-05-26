@@ -849,3 +849,7 @@
 - [x] LOST & FOUND MODULE: Add routes to App.tsx
 - [x] LOST & FOUND MODULE: Permission-based access control (all can view/create, only permitted can update)
 - [x] LOST & FOUND MODULE: Scheduled job - auto-mark items as 'unclaimed' after 30 days (Heartbeat cron)
+- [x] LOST & FOUND MODULE: Heartbeat cron (daily 03:00 UTC) to auto-mark items as unclaimed after 30 days
+- [x] LOST & FOUND MODULE: Add lost_found category to RoleEditor for custom roles
+- [x] LOST & FOUND MODULE: Add lost_found to shared/permissionDefaults.ts (ALL_PERMISSION_KEYS, BASE_VIEW, ROLE_DEFAULTS, flattenCustomRole)
+- [x] LOST & FOUND MODULE: Add lost_found to enterprise.ts (RolePermissions interface, DEFAULT_ROLE_PERMISSIONS, PERMISSION_LABELS)

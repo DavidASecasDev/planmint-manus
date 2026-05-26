@@ -60,6 +60,8 @@ export interface RolePermissions {
   fleet: { view: boolean; manage: boolean; import: boolean };
   // Schedules (Horarios)
   schedules: { view: boolean; assign: boolean; manage_templates: boolean; view_directiva: boolean; manage_notes: boolean; manage: boolean };
+  // Lost & Found (Objetos Perdidos)
+  lost_found: { view: boolean; create: boolean; update: boolean; manage: boolean };
 }
 
 export interface UserRoleAssignment {
@@ -377,6 +379,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
   daily_tasks: { view: true, view_other_days: false, complete: false, manage: false },
   fleet: { view: true, manage: false, import: false },
   schedules: { view: true, assign: false, manage_templates: false, view_directiva: false, manage_notes: false, manage: false },
+  lost_found: { view: true, create: true, update: false, manage: false },
 };
 
 export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
@@ -535,5 +538,11 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     view_directiva: 'Ver horarios de Directiva',
     manage_notes: 'Gestionar notas de horarios',
     manage: 'Gestionar todo (Horarios)',
+  },
+  lost_found: {
+    view: 'Ver objetos perdidos',
+    create: 'Registrar objetos encontrados',
+    update: 'Editar y cambiar estado',
+    manage: 'Gestionar todo (Objetos Perdidos)',
   },
 };
