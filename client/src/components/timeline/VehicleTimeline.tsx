@@ -1,22 +1,17 @@
 /**
- * VehicleTimeline — Gantt-style horizontal timeline for vehicle reservations.
+ * VehicleTimeline — Professional Gantt-style horizontal timeline for vehicle reservations.
  *
- * Inspired by Rently's timeline view:
- * - Y-axis: vehicles grouped by category
- * - X-axis: days (scrollable)
- * - Bars: colored by reservation status
- * - Hover: tooltip with reservation info
- * - Click: navigates to reservation detail (when interactive=true)
- *
- * Props:
- * - data: TimelineData from the API
- * - interactive: if true, bars are clickable and show full info on hover
- * - onReservationClick: callback when a bar is clicked (interactive mode)
+ * Inspired by Rently's timeline view with premium visual treatment:
+ * - Sticky vehicle labels column with category separators
+ * - Month/day header with blue tint and day-of-week letters
+ * - Vibrant rounded bars with $ icon for paid reservations
+ * - Today marker (green vertical line)
+ * - Elegant floating tooltip card on hover
+ * - Click navigates to reservation detail (interactive mode)
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -70,10 +65,9 @@ export interface VehicleTimelineProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAY_WIDTH = 32; // px per day column
-const ROW_HEIGHT = 28; // px per vehicle row
-const HEADER_HEIGHT = 50; // px for the date header
-const LABEL_WIDTH = 140; // px for vehicle labels column
+const DAY_WIDTH = 34;
+const ROW_HEIGHT = 32;
+const LABEL_WIDTH = 155;
 const DAY_NAMES_ES = ["D", "L", "M", "X", "J", "V", "S"];
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -114,6 +108,7 @@ export function VehicleTimeline({
   onCategoryFilterChange,
 }: VehicleTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const labelsRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{
     reservation: TimelineReservation;
     x: number;
@@ -145,10 +140,17 @@ export function VehicleTimeline({
     if (!data || !scrollRef.current || days.length === 0) return;
     const todayIdx = dayIndex(data.today, days);
     if (todayIdx > 0) {
-      const scrollTo = Math.max(0, (todayIdx - 3) * DAY_WIDTH);
+      const scrollTo = Math.max(0, (todayIdx - 4) * DAY_WIDTH);
       scrollRef.current.scrollLeft = scrollTo;
     }
   }, [data, days]);
+
+  // Sync vertical scroll between labels and grid
+  const handleGridScroll = useCallback(() => {
+    if (scrollRef.current && labelsRef.current) {
+      labelsRef.current.scrollTop = scrollRef.current.scrollTop;
+    }
+  }, []);
 
   // Scroll navigation
   const scrollBy = useCallback((direction: "left" | "right") => {
@@ -160,6 +162,15 @@ export function VehicleTimeline({
     });
   }, []);
 
+  const scrollToToday = useCallback(() => {
+    if (!data || !scrollRef.current || days.length === 0) return;
+    const todayIdx = dayIndex(data.today, days);
+    if (todayIdx >= 0) {
+      const scrollTo = Math.max(0, (todayIdx - 4) * DAY_WIDTH);
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
+    }
+  }, [data, days]);
+
   // Tooltip handlers
   const handleBarMouseEnter = useCallback((e: React.MouseEvent, reservation: TimelineReservation) => {
     if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
@@ -167,12 +178,12 @@ export function VehicleTimeline({
     setTooltip({
       reservation,
       x: rect.left + rect.width / 2,
-      y: rect.top - 10,
+      y: rect.top - 8,
     });
   }, []);
 
   const handleBarMouseLeave = useCallback(() => {
-    tooltipTimeout.current = setTimeout(() => setTooltip(null), 200);
+    tooltipTimeout.current = setTimeout(() => setTooltip(null), 250);
   }, []);
 
   const handleBarClick = useCallback((reservation: TimelineReservation) => {
@@ -181,29 +192,38 @@ export function VehicleTimeline({
     }
   }, [interactive, onReservationClick]);
 
+  // ─── Loading state ──────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 bg-card rounded-lg border">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <CalendarDays className="h-8 w-8 animate-pulse" />
-          <span className="text-sm">Cargando timeline...</span>
+      <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden">
+        <div className="flex items-center justify-center h-72">
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+              <Calendar className="relative h-8 w-8 text-primary" />
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">Cargando timeline...</span>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ─── Empty state ────────────────────────────────────────────────────────────
   if (!data || filteredGroups.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 bg-card rounded-lg border">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <CalendarDays className="h-8 w-8" />
-          <span className="text-sm">No hay datos para mostrar</span>
+      <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden">
+        <div className="flex items-center justify-center h-72">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <Calendar className="h-10 w-10 opacity-40" />
+            <span className="text-sm">No hay datos para mostrar</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Build month headers
+  // ─── Build month headers ────────────────────────────────────────────────────
   const monthHeaders: Array<{ label: string; startIdx: number; span: number }> = [];
   let currentMonth = "";
   let currentStart = 0;
@@ -229,19 +249,50 @@ export function VehicleTimeline({
   const totalWidth = days.length * DAY_WIDTH;
   const todayIdx = dayIndex(data.today, days);
 
+  // Count total vehicles for height calculation
+  const totalVehicles = filteredGroups.reduce((sum, g) => sum + g.vehicles.length, 0);
+  const totalCategoryHeaders = filteredGroups.length;
+  const gridHeight = Math.min(
+    (totalVehicles * ROW_HEIGHT) + (totalCategoryHeaders * 28) + 56,
+    600
+  );
+
   return (
-    <div className="flex flex-col bg-card rounded-lg border overflow-hidden">
-      {/* Controls */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/30">
-        <Button variant="outline" size="sm" onClick={() => scrollBy("left")}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => scrollBy("right")}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+    <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
+      {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30">
+        {/* Navigation */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0 rounded-md"
+            onClick={() => scrollBy("left")}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 rounded-md text-xs font-medium"
+            onClick={scrollToToday}
+          >
+            Hoy
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0 rounded-md"
+            onClick={() => scrollBy("right")}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        {/* Category filter */}
         {categories.length > 1 && onCategoryFilterChange && (
           <Select value={categoryFilter || "all"} onValueChange={onCategoryFilterChange}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectTrigger className="w-[160px] h-7 text-xs rounded-md border-border">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -252,72 +303,101 @@ export function VehicleTimeline({
             </SelectContent>
           </Select>
         )}
-        <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
+
+        {/* Legend */}
+        <div className="ml-auto flex items-center gap-3 flex-wrap">
           {Object.entries(data.statusColors).map(([status, color]) => (
-            <div key={status} className="flex items-center gap-1">
-              <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />
-              <span>{status}</span>
+            <div key={status} className="flex items-center gap-1.5">
+              <div
+                className="h-2.5 w-5 rounded-full"
+                style={{ backgroundColor: color, opacity: status === "Completada" ? 0.5 : 0.9 }}
+              />
+              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{status}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Timeline grid */}
-      <div className="flex overflow-hidden">
-        {/* Left labels column */}
-        <div className="flex-shrink-0 border-r bg-muted/20" style={{ width: LABEL_WIDTH }}>
+      {/* ─── Timeline Grid ────────────────────────────────────────────────── */}
+      <div className="flex" style={{ height: gridHeight }}>
+        {/* ─── Left: Vehicle Labels (sticky) ──────────────────────────────── */}
+        <div
+          ref={labelsRef}
+          className="flex-shrink-0 border-r border-border bg-gray-50/50 dark:bg-gray-800/20 overflow-hidden"
+          style={{ width: LABEL_WIDTH }}
+        >
           {/* Header spacer */}
-          <div style={{ height: HEADER_HEIGHT }} className="border-b flex items-end px-2 pb-1">
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Vehículo</span>
+          <div className="h-[56px] border-b border-border flex items-end px-3 pb-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[1.5px] font-[var(--font-heading)]">
+              Vehículo
+            </span>
           </div>
           {/* Vehicle labels */}
-          {filteredGroups.map(group => (
-            <div key={group.category}>
-              {/* Category header */}
-              <div
-                className="flex items-center px-2 bg-muted/40 border-b border-t"
-                style={{ height: ROW_HEIGHT }}
-              >
-                <span className="text-[10px] font-bold text-foreground uppercase tracking-wider truncate">
-                  {group.category}
-                </span>
-              </div>
-              {/* Vehicle rows */}
-              {group.vehicles.map(vehicle => (
+          <div className="overflow-hidden">
+            {filteredGroups.map(group => (
+              <div key={group.category}>
+                {/* Category header */}
                 <div
-                  key={vehicle.plate}
-                  className="flex items-center px-2 border-b hover:bg-muted/30 transition-colors"
-                  style={{ height: ROW_HEIGHT }}
+                  className="flex items-center px-3 bg-blue-50/80 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900/30"
+                  style={{ height: 28 }}
                 >
-                  <span className="text-[11px] font-medium text-foreground truncate" title={vehicle.model || vehicle.plate}>
-                    {vehicle.plate}
+                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-[1px] truncate">
+                    {group.category}
+                  </span>
+                  <span className="ml-auto text-[9px] text-blue-500/70 dark:text-blue-400/50 font-medium">
+                    {group.vehicles.length}
                   </span>
                 </div>
-              ))}
-            </div>
-          ))}
+                {/* Vehicle rows */}
+                {group.vehicles.map((vehicle, vIdx) => (
+                  <div
+                    key={vehicle.plate}
+                    className={cn(
+                      "flex items-center px-3 border-b border-border/50 transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-700/20",
+                      vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/30 dark:bg-gray-800/10"
+                    )}
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    <span className="text-[11px] font-mono font-semibold text-foreground tracking-wide">
+                      {vehicle.plate}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Scrollable timeline area */}
-        <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div style={{ width: totalWidth, position: "relative" }}>
-            {/* Date header */}
-            <div style={{ height: HEADER_HEIGHT }} className="border-b sticky top-0 bg-card z-10">
+        {/* ─── Right: Scrollable Timeline ─────────────────────────────────── */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-auto"
+          onScroll={handleGridScroll}
+        >
+          <div style={{ width: totalWidth, position: "relative", minHeight: "100%" }}>
+            {/* ─── Date Header (sticky top) ─────────────────────────────────── */}
+            <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-border" style={{ height: 56 }}>
               {/* Month row */}
-              <div className="flex" style={{ height: 22 }}>
+              <div className="flex" style={{ height: 24 }}>
                 {monthHeaders.map((mh, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-center text-[11px] font-semibold text-foreground border-r"
-                    style={{ width: mh.span * DAY_WIDTH, marginLeft: i === 0 ? mh.startIdx * DAY_WIDTH : 0 }}
+                    className="flex items-center justify-center text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/30"
+                    style={{
+                      width: mh.span * DAY_WIDTH,
+                      position: "absolute",
+                      left: mh.startIdx * DAY_WIDTH,
+                      top: 0,
+                      height: 24,
+                    }}
                   >
                     {mh.label}
                   </div>
                 ))}
               </div>
               {/* Day row */}
-              <div className="flex" style={{ height: 28 }}>
-                {days.map((day, i) => {
+              <div className="flex" style={{ height: 32, marginTop: 24 }}>
+                {days.map((day) => {
                   const d = new Date(day + "T00:00:00");
                   const dayOfWeek = d.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -326,21 +406,25 @@ export function VehicleTimeline({
                     <div
                       key={day}
                       className={cn(
-                        "flex flex-col items-center justify-center border-r text-[9px]",
-                        isWeekend && "bg-muted/40",
-                        isToday && "bg-emerald-100 dark:bg-emerald-900/30"
+                        "flex flex-col items-center justify-center border-r border-border/30",
+                        isWeekend && "bg-gray-100/60 dark:bg-gray-800/30",
+                        isToday && "bg-emerald-50 dark:bg-emerald-950/30"
                       )}
-                      style={{ width: DAY_WIDTH }}
+                      style={{ width: DAY_WIDTH, minWidth: DAY_WIDTH }}
                     >
                       <span className={cn(
-                        "font-medium",
-                        isToday ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"
+                        "text-[9px] font-semibold leading-none",
+                        isToday ? "text-emerald-600 dark:text-emerald-400" :
+                        isWeekend ? "text-rose-400 dark:text-rose-500" :
+                        "text-muted-foreground"
                       )}>
                         {DAY_NAMES_ES[dayOfWeek]}
                       </span>
                       <span className={cn(
-                        "font-bold",
-                        isToday ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"
+                        "text-[11px] font-bold leading-none mt-0.5",
+                        isToday ? "text-emerald-700 dark:text-emerald-300 bg-emerald-200 dark:bg-emerald-800/50 rounded-full w-5 h-5 flex items-center justify-center" :
+                        isWeekend ? "text-rose-500/80 dark:text-rose-400/60" :
+                        "text-foreground/80"
                       )}>
                         {d.getDate()}
                       </span>
@@ -350,148 +434,201 @@ export function VehicleTimeline({
               </div>
             </div>
 
-            {/* Vehicle rows with bars */}
-            {filteredGroups.map(group => (
-              <div key={group.category}>
-                {/* Category separator */}
-                <div
-                  className="bg-muted/40 border-b border-t"
-                  style={{ height: ROW_HEIGHT, width: totalWidth }}
-                />
-                {/* Vehicle rows */}
-                {group.vehicles.map(vehicle => (
+            {/* ─── Vehicle Rows with Bars ────────────────────────────────────── */}
+            <div className="relative">
+              {filteredGroups.map(group => (
+                <div key={group.category}>
+                  {/* Category separator row */}
                   <div
-                    key={vehicle.plate}
-                    className="relative border-b"
-                    style={{ height: ROW_HEIGHT, width: totalWidth }}
-                  >
-                    {/* Weekend background stripes */}
-                    {days.map((day, i) => {
-                      const d = new Date(day + "T00:00:00");
-                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                      if (!isWeekend) return null;
-                      return (
-                        <div
-                          key={day}
-                          className="absolute top-0 bottom-0 bg-muted/20"
-                          style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
-                        />
-                      );
-                    })}
-                    {/* Today line */}
-                    {todayIdx >= 0 && (
-                      <div
-                        className="absolute top-0 bottom-0 w-[2px] bg-emerald-500/60 z-[5]"
-                        style={{ left: todayIdx * DAY_WIDTH + DAY_WIDTH / 2 }}
-                      />
-                    )}
-                    {/* Reservation bars */}
-                    {vehicle.reservations.map(reservation => {
-                      const startIdx = Math.max(0, dayIndex(reservation.startDate, days));
-                      const endIdx = Math.min(days.length - 1, dayIndex(reservation.endDate, days));
-                      if (startIdx < 0 && endIdx < 0) return null;
-                      const left = startIdx * DAY_WIDTH + 2;
-                      const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 8);
+                    className="bg-blue-50/50 dark:bg-blue-950/10 border-b border-blue-100 dark:border-blue-900/20"
+                    style={{ height: 28, width: totalWidth }}
+                  />
+                  {/* Vehicle rows */}
+                  {group.vehicles.map((vehicle, vIdx) => (
+                    <div
+                      key={vehicle.plate}
+                      className={cn(
+                        "relative border-b border-border/30",
+                        vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
+                      )}
+                      style={{ height: ROW_HEIGHT, width: totalWidth }}
+                    >
+                      {/* Weekend column stripes */}
+                      {days.map((day, i) => {
+                        const d = new Date(day + "T00:00:00");
+                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                        if (!isWeekend) return null;
+                        return (
+                          <div
+                            key={day}
+                            className="absolute top-0 bottom-0 bg-gray-100/40 dark:bg-gray-800/20"
+                            style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
+                          />
+                        );
+                      })}
 
-                      return (
+                      {/* Today marker line */}
+                      {todayIdx >= 0 && (
                         <div
-                          key={reservation.id}
-                          className={cn(
-                            "absolute top-[3px] rounded-full z-[3] transition-all",
-                            interactive && "cursor-pointer hover:brightness-110 hover:shadow-md"
-                          )}
-                          style={{
-                            left,
-                            width,
-                            height: ROW_HEIGHT - 6,
-                            backgroundColor: reservation.color,
-                            opacity: reservation.status === "Completada" ? 0.6 : 0.9,
-                          }}
-                          onMouseEnter={(e) => handleBarMouseEnter(e, reservation)}
-                          onMouseLeave={handleBarMouseLeave}
-                          onClick={() => handleBarClick(reservation)}
+                          className="absolute top-0 bottom-0 z-[5]"
+                          style={{ left: todayIdx * DAY_WIDTH + DAY_WIDTH / 2 - 1, width: 2 }}
                         >
-                          {/* Show $ icon for paid reservations */}
-                          {reservation.paid && reservation.paid !== "No" && reservation.paid !== "no" && width > 24 && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="text-[9px] font-bold text-white/90">$</span>
-                            </div>
-                          )}
+                          <div className="w-full h-full bg-emerald-400/50 dark:bg-emerald-500/40" />
                         </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            ))}
+                      )}
+
+                      {/* Reservation bars */}
+                      {vehicle.reservations.map(reservation => {
+                        const startIdx = Math.max(0, dayIndex(reservation.startDate, days));
+                        const endIdx = Math.min(days.length - 1, dayIndex(reservation.endDate, days));
+                        if (startIdx < 0 && endIdx < 0) return null;
+                        const left = startIdx * DAY_WIDTH + 2;
+                        const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
+                        const isPast = reservation.status === "Completada";
+                        const isCancelled = reservation.status === "Cancelada";
+
+                        return (
+                          <div
+                            key={reservation.id}
+                            className={cn(
+                              "absolute top-[4px] rounded-full z-[3] transition-all duration-150",
+                              interactive && "cursor-pointer hover:brightness-110 hover:scale-y-110 hover:shadow-lg",
+                              isCancelled && "opacity-70"
+                            )}
+                            style={{
+                              left,
+                              width,
+                              height: ROW_HEIGHT - 8,
+                              backgroundColor: reservation.color,
+                              opacity: isPast ? 0.45 : isCancelled ? 0.6 : 0.88,
+                              backgroundImage: isCancelled
+                                ? "repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)"
+                                : undefined,
+                              boxShadow: !isPast && !isCancelled
+                                ? `0 1px 3px ${reservation.color}40`
+                                : undefined,
+                            }}
+                            onMouseEnter={(e) => handleBarMouseEnter(e, reservation)}
+                            onMouseLeave={handleBarMouseLeave}
+                            onClick={() => handleBarClick(reservation)}
+                          >
+                            {/* $ icon for paid reservations */}
+                            {reservation.paid && reservation.paid !== "No" && reservation.paid !== "no" && width > 28 && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-[10px] font-black text-white/90 drop-shadow-sm">$</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tooltip */}
+      {/* ─── Tooltip ──────────────────────────────────────────────────────── */}
       {tooltip && (
         <div
-          className="fixed z-[9999] pointer-events-none"
+          className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150"
           style={{
-            left: tooltip.x,
+            left: Math.min(tooltip.x, window.innerWidth - 340),
             top: tooltip.y,
             transform: "translate(-50%, -100%)",
           }}
         >
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl border p-3 min-w-[240px] max-w-[320px]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {tooltip.reservation.clientName || "Sin cliente"}
-                </p>
-                {tooltip.reservation.externalId && (
-                  <p className="text-xs text-muted-foreground">
-                    Reserva #{tooltip.reservation.externalId}
+          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-border/60 overflow-hidden min-w-[280px] max-w-[340px]">
+            {/* Tooltip header */}
+            <div className="px-4 py-3 bg-gray-50/80 dark:bg-zinc-700/30 border-b border-border/40">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">
+                    {tooltip.reservation.clientName || "Sin cliente"}
                   </p>
-                )}
-                <div className="flex items-center gap-1 mt-0.5">
-                  <div
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: tooltip.reservation.color }}
-                  />
-                  <span className="text-xs text-muted-foreground">{tooltip.reservation.status}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {tooltip.reservation.externalId && (
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        Reserva #{tooltip.reservation.externalId}
+                      </span>
+                    )}
+                    <span
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white"
+                      style={{ backgroundColor: tooltip.reservation.color }}
+                    >
+                      {tooltip.reservation.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="flex items-center gap-1 text-xs text-foreground font-semibold">
+                    <Car className="h-3 w-3 text-muted-foreground" />
+                    {tooltip.reservation.vehiclePlate}
+                  </div>
+                  {tooltip.reservation.model && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 italic">
+                      {tooltip.reservation.model}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="text-right text-xs text-muted-foreground">
-                {tooltip.reservation.model && (
-                  <p className="font-medium text-foreground">{tooltip.reservation.vehiclePlate}</p>
-                )}
-                {tooltip.reservation.model && (
-                  <p>{tooltip.reservation.model}</p>
-                )}
-              </div>
             </div>
-            <div className="mt-2 pt-2 border-t grid grid-cols-2 gap-1 text-xs">
-              <div>
-                <span className="text-emerald-600">→</span>{" "}
-                {formatDateShort(tooltip.reservation.startDate)}
-                {tooltip.reservation.pickupLocation && (
-                  <p className="text-muted-foreground truncate">{tooltip.reservation.pickupLocation}</p>
+
+            {/* Tooltip body */}
+            <div className="px-4 py-3 space-y-2.5">
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-emerald-500 text-sm font-bold mt-px">→</span>
+                  <div>
+                    <p className="text-[11px] font-semibold text-foreground">
+                      {formatDateShort(tooltip.reservation.startDate)}
+                    </p>
+                    {tooltip.reservation.pickupLocation && (
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                        {tooltip.reservation.pickupLocation}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-red-400 text-sm font-bold mt-px">←</span>
+                  <div>
+                    <p className="text-[11px] font-semibold text-foreground">
+                      {formatDateShort(tooltip.reservation.endDate)}
+                    </p>
+                    {tooltip.reservation.dropoffLocation && (
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                        {tooltip.reservation.dropoffLocation}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Meta row */}
+              <div className="flex items-center justify-between pt-1 border-t border-border/30">
+                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span className="font-medium">
+                    {tooltip.reservation.durationDays} día{tooltip.reservation.durationDays !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                {tooltip.reservation.paid && tooltip.reservation.paid !== "No" && tooltip.reservation.paid !== "no" && (
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <CreditCard className="h-3 w-3" />
+                    Pagado
+                  </div>
+                )}
+                {tooltip.reservation.origin && (
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <ExternalLink className="h-2.5 w-2.5" />
+                    <span className="font-medium">{tooltip.reservation.origin}</span>
+                  </div>
                 )}
               </div>
-              <div>
-                <span className="text-red-500">←</span>{" "}
-                {formatDateShort(tooltip.reservation.endDate)}
-                {tooltip.reservation.dropoffLocation && (
-                  <p className="text-muted-foreground truncate">{tooltip.reservation.dropoffLocation}</p>
-                )}
-              </div>
-            </div>
-            <div className="mt-1.5 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                ⏱ {tooltip.reservation.durationDays} día{tooltip.reservation.durationDays !== 1 ? "s" : ""}
-              </span>
-              {tooltip.reservation.paid && tooltip.reservation.paid !== "No" && tooltip.reservation.paid !== "no" && (
-                <span className="text-emerald-600 font-medium">✓ Pagado</span>
-              )}
-              {tooltip.reservation.origin && (
-                <span className="text-muted-foreground">{tooltip.reservation.origin}</span>
-              )}
             </div>
           </div>
         </div>

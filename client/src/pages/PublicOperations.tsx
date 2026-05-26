@@ -704,8 +704,8 @@ function PublicTimelineSection({ slug }: { slug: string }) {
     setTimelineError(null);
     try {
       const params = new URLSearchParams({
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
+        from: startDate.toISOString().split("T")[0],
+        to: endDate.toISOString().split("T")[0],
       });
       const res = await fetch(`/api/public/operations/${slug}/timeline?${params}`);
       if (!res.ok) throw new Error("Error al cargar timeline");
