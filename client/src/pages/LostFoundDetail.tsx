@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
 import {
   ArrowLeft,
   Edit2,
@@ -138,7 +139,8 @@ export default function LostFoundDetail() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-4xl mx-auto">
+    <AppLayout title="Detalle Objeto Perdido">
+    <div className="space-y-5 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/lost-found')}>
@@ -481,5 +483,6 @@ export default function LostFoundDetail() {
         </Dialog>
       )}
     </div>
+    </AppLayout>
   );
 }

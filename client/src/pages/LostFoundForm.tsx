@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, X, Search } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -208,7 +209,8 @@ export default function LostFoundForm() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-3xl mx-auto">
+    <AppLayout title={isEditing ? 'Editar Objeto' : 'Registrar Objeto'}>
+    <div className="space-y-5 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(isEditing ? `/lost-found/${id}` : '/lost-found')}>
@@ -446,5 +448,6 @@ export default function LostFoundForm() {
         </div>
       </div>
     </div>
+    </AppLayout>
   );
 }
