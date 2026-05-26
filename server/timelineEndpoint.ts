@@ -62,6 +62,23 @@ interface TimelineGroup {
   }>;
 }
 
+/**
+ * Resolve a meaningful category name from the raw `categoria` field.
+ * Some vehicles have numeric Rently category IDs instead of names.
+ * When that happens, fall back to marca (brand) or "Otros".
+ */
+function resolveCategory(rawCategoria: string | null, marca: string): string {
+  if (!rawCategoria || /^\d+$/.test(rawCategoria.trim())) {
+    // Numeric ID or empty → use marca as category
+    return marca || "Otros";
+  }
+  // Normalize case: "LUXURY ELITE" → "Luxury Elite"
+  return rawCategoria
+    .split(" ")
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function getInitials(nombre: string | null, apellido: string | null): string {
   const n = nombre?.trim().charAt(0).toUpperCase() || "";
   const a = apellido?.trim().charAt(0).toUpperCase() || "";
@@ -196,7 +213,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
     const categoryMap = new Map<string, TimelineGroup>();
     for (const v of vehicles || []) {
       const marca = v.fleet_vehicle_id ? (fleetMarcaMap.get(v.fleet_vehicle_id) || "") : "";
-      const category = v.categoria || (marca ? marca : "Otros");
+      const category = resolveCategory(v.categoria, marca);
       const plate = v.matricula;
 
       if (!categoryMap.has(category)) {
@@ -377,7 +394,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
     const categoryMap = new Map<string, TimelineGroup>();
     for (const v of vehicles || []) {
       const marca = v.fleet_vehicle_id ? (fleetMarcaMap.get(v.fleet_vehicle_id) || "") : "";
-      const category = v.categoria || (marca ? marca : "Otros");
+      const category = resolveCategory(v.categoria, marca);
       const plate = v.matricula;
 
       if (!categoryMap.has(category)) {

@@ -859,3 +859,6 @@
 - [x] TIMELINE: Add click-to-open in PlanMint version (navigates to reservation detail)
 - [x] TIMELINE: Add new Timeline section in PlanMint sidebar
 - [x] TIMELINE: Integrate informational-only timeline into existing Azul Ops page
+- [x] TIMELINE: Fix category separators showing numeric IDs (2, 3, 4, 5) instead of category names - resolved by falling back to marca when categoria is a number
+- [x] TIMELINE: Add vehicle model display above plate number in timeline labels
+- [x] TIMELINE: Normalize category name casing (e.g. "LUXURY ELITE" → "Luxury Elite")

@@ -66,8 +66,8 @@ export interface VehicleTimelineProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DAY_WIDTH = 34;
-const ROW_HEIGHT = 32;
-const LABEL_WIDTH = 155;
+const ROW_HEIGHT = 40;
+const LABEL_WIDTH = 170;
 const DAY_NAMES_ES = ["D", "L", "M", "X", "J", "V", "S"];
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -254,7 +254,7 @@ export function VehicleTimeline({
   const totalCategoryHeaders = filteredGroups.length;
   const gridHeight = Math.min(
     (totalVehicles * ROW_HEIGHT) + (totalCategoryHeaders * 28) + 56,
-    600
+    700
   );
 
   return (
@@ -338,13 +338,13 @@ export function VehicleTimeline({
               <div key={group.category}>
                 {/* Category header */}
                 <div
-                  className="flex items-center px-3 bg-blue-50/80 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900/30"
+                  className="flex items-center px-3 bg-blue-100/80 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800/40"
                   style={{ height: 28 }}
                 >
-                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-[1px] truncate">
+                  <span className="text-[11px] font-bold text-blue-800 dark:text-blue-200 uppercase tracking-[0.5px] truncate">
                     {group.category}
                   </span>
-                  <span className="ml-auto text-[9px] text-blue-500/70 dark:text-blue-400/50 font-medium">
+                  <span className="ml-auto text-[9px] bg-blue-200/80 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 font-semibold px-1.5 py-0.5 rounded-full">
                     {group.vehicles.length}
                   </span>
                 </div>
@@ -353,12 +353,17 @@ export function VehicleTimeline({
                   <div
                     key={vehicle.plate}
                     className={cn(
-                      "flex items-center px-3 border-b border-border/50 transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-700/20",
+                      "flex flex-col justify-center px-3 border-b border-border/50 transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-700/20",
                       vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/30 dark:bg-gray-800/10"
                     )}
                     style={{ height: ROW_HEIGHT }}
                   >
-                    <span className="text-[11px] font-mono font-semibold text-foreground tracking-wide">
+                    {vehicle.model && (
+                      <span className="text-[9px] text-muted-foreground truncate leading-tight">
+                        {vehicle.model}
+                      </span>
+                    )}
+                    <span className="text-[11px] font-mono font-semibold text-foreground tracking-wide leading-tight">
                       {vehicle.plate}
                     </span>
                   </div>
@@ -491,14 +496,14 @@ export function VehicleTimeline({
                           <div
                             key={reservation.id}
                             className={cn(
-                              "absolute top-[4px] rounded-full z-[3] transition-all duration-150",
+                              "absolute top-[6px] rounded-full z-[3] transition-all duration-150",
                               interactive && "cursor-pointer hover:brightness-110 hover:scale-y-110 hover:shadow-lg",
                               isCancelled && "opacity-70"
                             )}
                             style={{
                               left,
                               width,
-                              height: ROW_HEIGHT - 8,
+                              height: ROW_HEIGHT - 12,
                               backgroundColor: reservation.color,
                               opacity: isPast ? 0.45 : isCancelled ? 0.6 : 0.88,
                               backgroundImage: isCancelled
