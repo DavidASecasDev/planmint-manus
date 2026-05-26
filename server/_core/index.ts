@@ -132,6 +132,7 @@ import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
+import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
 import {
   handleGetPreparationList,
@@ -212,6 +213,8 @@ async function startServer() {
 
   // ─── Public endpoints (no auth required) ───────────────────────────────────
   app.get("/api/public/operations/:orgSlug", handlePublicOperations);
+  app.get("/api/public/operations/:orgSlug/timeline", handlePublicTimeline);
+  app.post("/api/timeline", handleAuthenticatedTimeline);
 
   // ─── Broker registration endpoints ────────────────────────────────────────
   app.post("/api/validate-broker-invite", handleValidateBrokerInvite); // Public (no auth)

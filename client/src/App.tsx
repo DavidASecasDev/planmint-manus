@@ -149,6 +149,9 @@ const LostFoundList = lazy(() => import("./pages/LostFoundList"));
 const LostFoundDetail = lazy(() => import("./pages/LostFoundDetail"));
 const LostFoundForm = lazy(() => import("./pages/LostFoundForm"));
 
+// Timeline
+const TimelinePage = lazy(() => import("./pages/TimelinePage"));
+
 // Service Requests (cross-org)
 const ServiceRequests = lazy(() => import("./pages/ServiceRequests"));
 const ServiceRequestDetail = lazy(() => import("./pages/ServiceRequestDetail"));
@@ -1040,6 +1043,22 @@ function QueryRecovery() {
                     moduleDescription="El módulo de Transfers no está habilitado para tu organización."
                   >
                     <TransferDetail />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Timeline */}
+            <Route 
+              path="/timeline" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="reservations" 
+                    moduleName="Timeline"
+                    moduleDescription="El módulo de Timeline requiere el módulo de Reservas habilitado."
+                  >
+                    <TimelinePage />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

@@ -853,3 +853,9 @@
 - [x] LOST & FOUND MODULE: Add lost_found category to RoleEditor for custom roles
 - [x] LOST & FOUND MODULE: Add lost_found to shared/permissionDefaults.ts (ALL_PERMISSION_KEYS, BASE_VIEW, ROLE_DEFAULTS, flattenCustomRole)
 - [x] LOST & FOUND MODULE: Add lost_found to enterprise.ts (RolePermissions interface, DEFAULT_ROLE_PERMISSIONS, PERMISSION_LABELS)
+- [x] TIMELINE: Create server endpoint /api/public/operations/:orgSlug/timeline for date-range reservations
+- [x] TIMELINE: Create reusable VehicleTimeline component (Gantt-style horizontal chart)
+- [x] TIMELINE: Add tooltip on hover showing reservation info (client, vehicle, dates, status, payment, origin)
+- [x] TIMELINE: Add click-to-open in PlanMint version (navigates to reservation detail)
+- [x] TIMELINE: Add new Timeline section in PlanMint sidebar
+- [x] TIMELINE: Integrate informational-only timeline into existing Azul Ops page

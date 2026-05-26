@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { usePublicOperations, OperationRow, ModelAvailability } from "@/hooks/usePublicOperations";
+import { VehicleTimeline, TimelineData } from "@/components/timeline/VehicleTimeline";
 import {
   Select,
   SelectContent,
@@ -659,6 +660,11 @@ export default function PublicOperations() {
         ) : null}
       </main>
 
+      {/* ─── Timeline Section ──────────────────────────────────────────── */}
+      <section className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+        <PublicTimelineSection slug={slug || ""} />
+      </section>
+
       {/* ─── Footer ─────────────────────────────────────────────────────── */}
       <footer className="mt-12 py-6 border-t" style={{ borderColor: COLORS.beigeDark }}>
         <div className="max-w-[1600px] mx-auto px-6 flex items-center justify-between">
@@ -671,6 +677,115 @@ export default function PublicOperations() {
           </p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ─── Public Timeline Section (informational only) ───────────────────────────
+function PublicTimelineSection({ slug }: { slug: string }) {
+  const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(true);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d;
+  });
+
+  const endDate = useMemo(() => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + 35); // 5 weeks view
+    return d;
+  }, [startDate]);
+
+  const fetchTimeline = useCallback(async () => {
+    if (!slug) return;
+    setTimelineLoading(true);
+    setTimelineError(null);
+    try {
+      const params = new URLSearchParams({
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+      });
+      const res = await fetch(`/api/public/operations/${slug}/timeline?${params}`);
+      if (!res.ok) throw new Error("Error al cargar timeline");
+      const data = await res.json();
+      setTimelineData(data);
+    } catch (e: any) {
+      setTimelineError(e.message || "Error desconocido");
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, [slug, startDate, endDate]);
+
+  useEffect(() => {
+    fetchTimeline();
+  }, [fetchTimeline]);
+
+  const handleNavigate = (direction: "prev" | "next") => {
+    setStartDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
+      return d;
+    });
+  };
+
+  if (timelineError) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+        <AlertTriangle className="w-8 h-8 mx-auto mb-2" style={{ color: COLORS.gold }} />
+        <p className="text-sm" style={{ color: COLORS.textLight }}>{timelineError}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Car className="w-4 h-4" style={{ color: COLORS.gold }} />
+          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.navy }}>
+            Timeline de Reservas
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleNavigate("prev")}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              const d = new Date();
+              d.setDate(d.getDate() - 7);
+              setStartDate(d);
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
+            style={{ color: COLORS.navy }}
+          >
+            Hoy
+          </button>
+          <button
+            onClick={() => handleNavigate("next")}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div className="p-4">
+        {timelineLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: COLORS.gold }} />
+          </div>
+        ) : timelineData ? (
+          <VehicleTimeline
+            data={timelineData}
+            interactive={false}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
