@@ -836,3 +836,15 @@
 - [x] Fix InternalEditTransferWizard.tsx: same pricing logic mirrored (step 2, step 4, saved price)
 - [x] Fix TransferFinancialSummary.tsx: branch on clientType + isExternalProvider for detail view (added clientType and externalProviderName props)
 - [x] Update TransferDetail.tsx to pass clientType and externalProviderName to TransferFinancialSummary
+- [x] LOST & FOUND MODULE: Create useLostFound.ts hook (CRUD operations via supabaseQuery)
+- [x] LOST & FOUND MODULE: Add permission keys (lost_found.view, lost_found.create, lost_found.update, lost_found.manage)
+- [x] LOST & FOUND MODULE: Add permission category to permissionDefinitions.ts
+- [x] LOST & FOUND MODULE: Add ModuleKey 'lost_found' to useOrganizationModules
+- [x] LOST & FOUND MODULE: Create LostFoundList.tsx page (table with filters by status, category, date)
+- [x] LOST & FOUND MODULE: Create LostFoundDetail.tsx page (view/edit with timeline)
+- [x] LOST & FOUND MODULE: Create LostFoundForm.tsx component (create/edit form with photo gallery upload)
+- [x] LOST & FOUND MODULE: Photo gallery upload to S3 (multiple photos per item)
+- [x] LOST & FOUND MODULE: Transfer association selector (search by reference/client/date)
+- [x] LOST & FOUND MODULE: Add sidebar entry as independent section
+- [x] LOST & FOUND MODULE: Add routes to App.tsx
+- [x] LOST & FOUND MODULE: Permission-based access control (all can view/create, only permitted can update)

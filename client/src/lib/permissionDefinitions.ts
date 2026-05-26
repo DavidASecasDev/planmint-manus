@@ -20,6 +20,7 @@ import {
   Camera,
   Receipt,
   CalendarClock,
+  PackageSearch,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/hooks/usePermissions';
@@ -258,6 +259,17 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'schedules.view_directiva', label: 'Ver horarios de Directiva', description: 'Permite ver los turnos del equipo Directiva (si está desactivado, el equipo Directiva queda oculto)' },
       { key: 'schedules.manage_notes', label: 'Gestionar notas de horarios', description: 'Permite crear, ver y eliminar notas internas en la cuadrícula de horarios' },
       { key: 'schedules.manage', label: 'Gestionar todo (Horarios)', description: 'Acceso completo: copiar semanas, gestionar plantillas y asignar turnos' },
+    ],
+  },
+  {
+    id: 'lost_found',
+    label: 'Objetos Perdidos',
+    icon: PackageSearch,
+    permissions: [
+      { key: 'lost_found.view', label: 'Ver objetos perdidos', description: 'Permite ver el listado de objetos perdidos' },
+      { key: 'lost_found.create', label: 'Registrar objetos', description: 'Permite registrar nuevos objetos encontrados' },
+      { key: 'lost_found.update', label: 'Editar objetos', description: 'Permite modificar datos y cambiar estado de objetos perdidos' },
+      { key: 'lost_found.manage', label: 'Gestionar todo (Objetos Perdidos)', description: 'Acceso completo para gestionar objetos perdidos' },
     ],
   },
   {

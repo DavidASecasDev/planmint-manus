@@ -144,6 +144,11 @@ const TransferPricing = lazy(() => import("./pages/transfers/TransferPricing"));
 const InternalNewTransferWizard = lazy(() => import("./pages/transfers/InternalNewTransferWizard"));
 const InternalEditTransferWizard = lazy(() => import("./pages/transfers/InternalEditTransferWizard"));
 
+// Lost & Found
+const LostFoundList = lazy(() => import("./pages/LostFoundList"));
+const LostFoundDetail = lazy(() => import("./pages/LostFoundDetail"));
+const LostFoundForm = lazy(() => import("./pages/LostFoundForm"));
+
 // Service Requests (cross-org)
 const ServiceRequests = lazy(() => import("./pages/ServiceRequests"));
 const ServiceRequestDetail = lazy(() => import("./pages/ServiceRequestDetail"));
@@ -1035,6 +1040,52 @@ function QueryRecovery() {
                     moduleDescription="El módulo de Transfers no está habilitado para tu organización."
                   >
                     <TransferDetail />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Lost & Found */}
+            <Route 
+              path="/lost-found" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="lost_found" 
+                    moduleName="Objetos Perdidos"
+                    moduleDescription="El módulo de Objetos Perdidos no está habilitado para tu organización."
+                  >
+                    <LostFoundList />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/lost-found/new" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="lost_found" moduleName="Objetos Perdidos">
+                    <LostFoundForm />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/lost-found/:id/edit" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="lost_found" moduleName="Objetos Perdidos">
+                    <LostFoundForm />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/lost-found/:id" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="lost_found" moduleName="Objetos Perdidos">
+                    <LostFoundDetail />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

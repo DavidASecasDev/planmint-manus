@@ -127,7 +127,12 @@ export type PermissionKey =
   | 'schedules.manage'
   // Preparation
   | 'preparation.view'
-  | 'preparation.manage';
+  | 'preparation.manage'
+  // Lost & Found
+  | 'lost_found.view'
+  | 'lost_found.create'
+  | 'lost_found.update'
+  | 'lost_found.manage';
 
 export interface PermissionsData {
   success: boolean;

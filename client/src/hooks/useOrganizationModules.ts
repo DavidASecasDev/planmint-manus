@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiInvoke, AuthExpiredError } from '@/lib/apiClient';
 
-export type ModuleKey = 'reservations' | 'automations' | 'reports' | 'teams' | 'templates' | 'reminders' | 'calendar' | 'time_tracking' | 'forms' | 'vehicle_status' | 'daily_tasks' | 'garatech' | 'transfers' | 'movements' | 'fleet' | 'schedules';
+export type ModuleKey = 'reservations' | 'automations' | 'reports' | 'teams' | 'templates' | 'reminders' | 'calendar' | 'time_tracking' | 'forms' | 'vehicle_status' | 'daily_tasks' | 'garatech' | 'transfers' | 'movements' | 'fleet' | 'schedules' | 'lost_found';
 
 // Modules that can be toggled per organization (non-core)
 // form_builder is now integrated into transfers module
-export const OPTIONAL_MODULES: ModuleKey[] = ['reservations', 'automations', 'reports', 'templates', 'teams', 'time_tracking', 'forms', 'vehicle_status', 'daily_tasks', 'garatech', 'transfers', 'movements', 'fleet', 'schedules'];
+export const OPTIONAL_MODULES: ModuleKey[] = ['reservations', 'automations', 'reports', 'templates', 'teams', 'time_tracking', 'forms', 'vehicle_status', 'daily_tasks', 'garatech', 'transfers', 'movements', 'fleet', 'schedules', 'lost_found'];
 
 // Core modules are always enabled (not in OPTIONAL_MODULES)
 // reminders and calendar are core modules
@@ -36,6 +36,7 @@ const DEFAULT_MODULES: OrganizationModules = {
   movements: true,
   fleet: false,
   schedules: false,
+  lost_found: true,
 };
 
 export function useOrganizationModules() {

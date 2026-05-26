@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -71,6 +71,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/fleet/equipment': 'fleet',
   '/fleet/damages': 'garatech',
   '/garatech/damages': 'garatech',
+  '/lost-found': 'lost_found',
 };
 
 // Garatech submenu items with permission gates
@@ -125,6 +126,7 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/tasks/daily': 'daily_tasks.view',
   '/fleet': 'fleet.view',
   '/schedules': 'schedules.view',
+  '/lost-found': 'lost_found.view',
 };
 
 const menuItems = [
@@ -142,6 +144,7 @@ const menuItems = [
   { title: 'Reportes', url: '/reports', icon: BarChart3 },
   { title: 'Teams', url: '/teams', icon: Users },
   { title: 'Horarios', url: '/schedules', icon: CalendarClock },
+  { title: 'Objetos Perdidos', url: '/lost-found', icon: PackageSearch },
   { title: 'Solicitudes Servicio', url: '/service-requests', icon: ArrowLeftRight },
   { title: 'Ajustes', url: '/settings', icon: Settings },
 ];
