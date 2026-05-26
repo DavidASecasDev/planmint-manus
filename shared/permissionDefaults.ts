@@ -62,6 +62,8 @@ export const ALL_PERMISSION_KEYS = [
   "schedules.view", "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
   // Preparation (Lista de preparación)
   "preparation.view", "preparation.manage",
+  // Lost & Found (Objetos Perdidos)
+  "lost_found.view", "lost_found.create", "lost_found.update", "lost_found.manage",
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
@@ -88,6 +90,7 @@ export const BASE_VIEW_PERMISSIONS: PermissionKey[] = [
   "time_tracking.view",
   "schedules.view",
   "preparation.view",
+  "lost_found.view",
 ];
 
 /**
@@ -117,6 +120,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "fleet.manage", "fleet.import",
     "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
     "preparation.manage",
+    "lost_found.create", "lost_found.update", "lost_found.manage",
   ],
   manager: [
     "tasks.create", "tasks.update", "tasks.assign", "tasks.change_status",
@@ -135,6 +139,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "schedules.assign",
     "preparation.manage",
+    "lost_found.create", "lost_found.update",
   ],
   member: [
     "tasks.create", "tasks.update",
@@ -142,6 +147,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "movements.create", "movements.upload_receipt",
     "daily_tasks.complete",
     "time_tracking.create",
+    "lost_found.create",
   ],
   read_only: [],
 };
@@ -307,6 +313,11 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["schedules.view_directiva"] = pj?.schedules?.view_directiva ?? pj?.schedules?.manage ?? false;
   flat["schedules.manage_notes"] = pj?.schedules?.manage_notes ?? pj?.schedules?.manage ?? false;
   flat["schedules.manage"] = pj?.schedules?.manage ?? false;
+  // Lost & Found (Objetos Perdidos)
+  flat["lost_found.view"] = pj?.lost_found?.view ?? false;
+  flat["lost_found.create"] = pj?.lost_found?.create ?? pj?.lost_found?.manage ?? false;
+  flat["lost_found.update"] = pj?.lost_found?.update ?? pj?.lost_found?.manage ?? false;
+  flat["lost_found.manage"] = pj?.lost_found?.manage ?? false;
 
   return flat;
 }
