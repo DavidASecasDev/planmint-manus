@@ -902,3 +902,5 @@
 - [x] RESERVAS: Hacer layout responsive para móvil (3 columnas → apilado vertical)
 - [x] Bug: Bookings list - todos los estados aparecen como "Desconocido", clientes como "Sin cliente" - RESUELTO: API devuelve Results[] wrapper, Customer/Car/Origin son objetos anidados, CurrentStatus es número 0-5
 - [x] Bug: BookingDetail - falta info del cliente, matrícula, botones de acción - RESUELTO: reescrito con mapeo correcto de campos reales de Rently API verificados via debug endpoint
+- [x] RESERVAS: Conectar botón "Editar" a formulario para modificar fechas/vehículo/lugar via Rently PUT
+- [x] RESERVAS: Conectar botón "Pagos" a diálogo para registrar cobros desde el detalle de reserva

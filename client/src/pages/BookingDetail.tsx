@@ -38,6 +38,8 @@ import {
   XCircle, AlertCircle, AlertTriangle, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EditBookingDialog } from "@/components/reservations/EditBookingDialog";
+import { BookingPaymentsDialog } from "@/components/reservations/BookingPaymentsDialog";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -193,6 +195,8 @@ export default function BookingDetail() {
   const [drivers, setDrivers] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
 
   const fetchBooking = useCallback(async () => {
     if (!id) return;
@@ -389,10 +393,10 @@ export default function BookingDetail() {
             <div className="flex items-center gap-2 shrink-0">
               {/* Desktop buttons */}
               <div className="hidden sm:flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => toast.info("Editar reserva: pr\u00f3ximamente")}>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" />Editar
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => toast.info("Pagos: pr\u00f3ximamente")}>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setPaymentsOpen(true)}>
                   <CreditCard className="h-3.5 w-3.5" />Pagos
                 </Button>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs hidden lg:flex" onClick={() => toast.info("Generar contrato: pr\u00f3ximamente")}>
@@ -411,10 +415,10 @@ export default function BookingDetail() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => toast.info("Editar reserva: pr\u00f3ximamente")} className="sm:hidden">
+                  <DropdownMenuItem onClick={() => setEditOpen(true)} className="sm:hidden">
                     <Pencil className="h-4 w-4 mr-2" />Editar
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.info("Pagos: pr\u00f3ximamente")} className="sm:hidden">
+                  <DropdownMenuItem onClick={() => setPaymentsOpen(true)} className="sm:hidden">
                     <CreditCard className="h-4 w-4 mr-2" />Pagos
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => toast.info("Generar contrato: pr\u00f3ximamente")}>
@@ -836,6 +840,23 @@ export default function BookingDetail() {
           </div>
         </div>
       </div>
+      {/* ── Dialogs ── */}
+      {booking && (
+        <>
+          <EditBookingDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            booking={booking}
+            onSuccess={fetchBooking}
+          />
+          <BookingPaymentsDialog
+            open={paymentsOpen}
+            onOpenChange={setPaymentsOpen}
+            booking={booking}
+            onSuccess={fetchBooking}
+          />
+        </>
+      )}
     </AppLayout>
   );
 }

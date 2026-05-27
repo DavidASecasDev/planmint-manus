@@ -132,6 +132,13 @@ const ACTION_MAP: Record<string, ActionConfig> = {
     label: "Transferir vehículo",
     forwardBody: true,
   },
+  "booking.add_payment": {
+    permissionKey: "rently.booking_update",
+    rentlyMethod: "POST",
+    rentlyPath: "/api/booking/payment",
+    label: "Registrar pago",
+    forwardBody: true,
+  },
 };
 
 // ─── Rently API helpers ─────────────────────────────────────────────────────
