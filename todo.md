@@ -898,3 +898,5 @@
 - [x] RESERVAS: Hacer que al clic en una fila del listado se navegue a /bookings/:id
 - [x] RESERVAS: Registrar ruta /bookings/:id en App.tsx
 - [x] RESERVAS: Rediseñar BookingDetail inspirado en Rently con layout 3 columnas (vehículo+cliente, tabs detalles, orden de compra)
+- [x] RESERVAS: Añadir botones de acción rápida en header (Editar, Pagos, Generar Contrato, Enviar Notificación)
+- [x] RESERVAS: Hacer layout responsive para móvil (3 columnas → apilado vertical)

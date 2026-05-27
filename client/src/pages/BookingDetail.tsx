@@ -23,12 +23,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft, Calendar, Car, Clock, Copy, CreditCard, FileText,
-  Fuel, Gauge, Globe, IdCard, MapPin, Navigation, Package, Phone,
-  RefreshCw, User, Users, CheckCircle2, XCircle, AlertCircle, Info,
-  AlertTriangle, Mail,
+  ArrowLeft, Bell, Calendar, Car, Clock, Copy, CreditCard, FileText,
+  Fuel, Gauge, Globe, IdCard, MapPin, MoreVertical, Navigation, Package,
+  Pencil, Phone, RefreshCw, ScrollText, User, Users, CheckCircle2,
+  XCircle, AlertCircle, Info, AlertTriangle, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -151,7 +152,7 @@ function BookingDetailSkeleton() {
         <Skeleton className="h-9 w-9 rounded-lg" />
         <div className="space-y-2 flex-1"><Skeleton className="h-7 w-72" /><Skeleton className="h-4 w-48" /></div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><Skeleton className="h-40 rounded-2xl" /><Skeleton className="h-40 rounded-2xl" /></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Skeleton className="h-40 rounded-2xl" /><Skeleton className="h-40 rounded-2xl" /></div>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4"><Skeleton className="h-96 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>
     </div>
   );
@@ -266,33 +267,68 @@ export default function BookingDetail() {
       <div className="max-w-[1400px] mx-auto space-y-5">
 
         {/* ═══ HEADER ═══ */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 mt-0.5 rounded-lg hover:bg-muted" onClick={() => navigate("/bookings")}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl font-bold font-heading tracking-tight text-primary">Reserva #{code}</h1>
-                <span className="text-base text-muted-foreground font-medium">({durationDays} D\u00edas){unlimitedKm ? " - Km Ilimitados" : ""}</span>
-                <Badge className={cn("border text-xs font-semibold px-2.5 py-0.5 gap-1", status.color)}>
-                  <StatusIcon className="h-3 w-3" />{status.label}
-                </Badge>
-                {isQuotation && <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">Cotizaci\u00f3n</Badge>}
+        <div className="flex flex-col gap-3">
+          {/* Row 1: Back + Title + Status */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 mt-0.5 rounded-lg hover:bg-muted" onClick={() => navigate("/bookings")}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl font-bold font-heading tracking-tight text-primary">Reserva #{code}</h1>
+                  <span className="text-base text-muted-foreground font-medium">({durationDays} D\u00edas){unlimitedKm ? " - Km Ilimitados" : ""}</span>
+                  <Badge className={cn("border text-xs font-semibold px-2.5 py-0.5 gap-1", status.color)}>
+                    <StatusIcon className="h-3 w-3" />{status.label}
+                  </Badge>
+                  {isQuotation && <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">Cotizaci\u00f3n</Badge>}
+                </div>
+                {createdDate && (
+                  <p className="text-xs text-muted-foreground mt-1">creado por <strong>{source || "SISTEMA"}</strong> el {formatDate(createdDate)}</p>
+                )}
               </div>
-              {createdDate && (
-                <p className="text-xs text-muted-foreground mt-1">creado por <strong>{source || "SISTEMA"}</strong> el {formatDate(createdDate)}</p>
-              )}
             </div>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="hidden lg:flex items-center gap-4 text-xs text-muted-foreground mr-2">
+            {/* Metadata (desktop only) */}
+            <div className="hidden lg:flex items-center gap-4 text-xs text-muted-foreground shrink-0">
               {billingData && <div><span className="block text-[10px] uppercase tracking-wider font-semibold">Facturaci\u00f3n</span><span className="text-primary font-medium">{billingData}</span></div>}
               {agencyName && <div><span className="block text-[10px] uppercase tracking-wider font-semibold">Agencia</span><span className="font-medium">{agencyName}</span></div>}
               {priceAgreement && <div><span className="block text-[10px] uppercase tracking-wider font-semibold">Acuerdo</span><span className="font-medium">{priceAgreement}</span></div>}
               {source && <div><span className="block text-[10px] uppercase tracking-wider font-semibold">Origen</span><span className="font-medium">{source}</span></div>}
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={fetchBooking} disabled={hubLoading}>
+          </div>
+
+          {/* Row 2: Quick Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-12">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => toast.info("Funcionalidad de edici\u00f3n pr\u00f3ximamente")}>
+              <Pencil className="h-3.5 w-3.5" />Editar
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => toast.info("Funcionalidad de pagos pr\u00f3ximamente")}>
+              <CreditCard className="h-3.5 w-3.5" />Pagos
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs hidden sm:inline-flex" onClick={() => toast.info("Generaci\u00f3n de contrato pr\u00f3ximamente")}>
+              <ScrollText className="h-3.5 w-3.5" />Generar Contrato
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs hidden sm:inline-flex" onClick={() => toast.info("Env\u00edo de notificaci\u00f3n pr\u00f3ximamente")}>
+              <Bell className="h-3.5 w-3.5" />Enviar Notificaci\u00f3n
+            </Button>
+            {/* Mobile overflow menu for hidden actions */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1 text-xs sm:hidden">
+                  <MoreVertical className="h-3.5 w-3.5" />M\u00e1s
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => toast.info("Generaci\u00f3n de contrato pr\u00f3ximamente")}>
+                  <ScrollText className="h-4 w-4 mr-2" />Generar Contrato
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => toast.info("Env\u00edo de notificaci\u00f3n pr\u00f3ximamente")}>
+                  <Bell className="h-4 w-4 mr-2" />Enviar Notificaci\u00f3n
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="flex-1" />
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={fetchBooking} disabled={hubLoading}>
               <RefreshCw className={cn("h-3.5 w-3.5", hubLoading && "animate-spin")} />Actualizar
             </Button>
           </div>
@@ -318,7 +354,7 @@ export default function BookingDetail() {
         )}
 
         {/* ═══ TOP ROW — Vehicle + Customer ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Vehicle */}
           <Card className="rounded-2xl border-border/50 shadow-sm">
             <CardContent className="p-5">
