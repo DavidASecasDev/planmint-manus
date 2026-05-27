@@ -99,7 +99,6 @@ interface RentlyBooking {
   CreatedDate?: string;
   IsQuotation?: boolean;
   Notes?: string;
-  Source?: string;
   // Additional fields from Rently API
   Firstname?: string;
   Lastname?: string;
@@ -111,9 +110,30 @@ interface RentlyBooking {
   Price?: number;
   Status?: string;
   StatusCode?: number;
-  DeliveryPlace?: string;
-  ReturnPlace?: string;
-  Category?: string;
+  DeliveryPlace?: string | { Name?: string; BranchOfficeName?: string; Address?: string; [k: string]: unknown };
+  ReturnPlace?: string | { Name?: string; BranchOfficeName?: string; Address?: string; [k: string]: unknown };
+  Category?: string | { Name?: string; [k: string]: unknown };
+  Source?: string | { Name?: string; [k: string]: unknown };
+}
+
+/** Safely extract a display string from a Rently field that may be a string or an object */
+function safeStr(val: unknown): string {
+  if (val == null) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") {
+    const obj = val as Record<string, unknown>;
+    // Try common Rently name fields
+    if (typeof obj.Name === "string" && obj.Name) return obj.Name;
+    if (typeof obj.BranchOfficeName === "string" && obj.BranchOfficeName) return obj.BranchOfficeName;
+    if (typeof obj.Address === "string" && obj.Address) return obj.Address;
+    if (typeof obj.City === "string" && obj.City) return obj.City;
+    // Fallback: first string value
+    for (const v of Object.values(obj)) {
+      if (typeof v === "string" && v) return v;
+    }
+  }
+  return "";
 }
 
 type DatePreset = "today" | "tomorrow" | "week" | "month" | "all" | "custom";
@@ -138,15 +158,15 @@ function getStatusInfo(booking: RentlyBooking) {
 }
 
 function getCustomerName(b: RentlyBooking): string {
-  const first = b.CustomerFirstname || b.Firstname || "";
-  const last = b.CustomerLastname || b.Lastname || "";
+  const first = safeStr(b.CustomerFirstname) || safeStr(b.Firstname);
+  const last = safeStr(b.CustomerLastname) || safeStr(b.Lastname);
   return `${first} ${last}`.trim() || "Sin cliente";
 }
 
 function getCarInfo(b: RentlyBooking): string {
-  const brand = b.CarBrand || b.Brand || "";
-  const model = b.CarModel || b.Model || "";
-  const plate = b.CarPlate || b.Plate || "";
+  const brand = safeStr(b.CarBrand) || safeStr(b.Brand);
+  const model = safeStr(b.CarModel) || safeStr(b.Model);
+  const plate = safeStr(b.CarPlate) || safeStr(b.Plate);
   const carName = `${brand} ${model}`.trim();
   if (carName && plate) return `${carName} (${plate})`;
   if (carName) return carName;
@@ -588,9 +608,9 @@ export default function Bookings() {
                               {getCustomerName(booking)}
                             </span>
                           </div>
-                          {(booking.CustomerEmail || booking.Email) && (
+                          {(safeStr(booking.CustomerEmail) || safeStr(booking.Email)) && (
                             <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[150px]">
-                              {booking.CustomerEmail || booking.Email}
+                              {safeStr(booking.CustomerEmail) || safeStr(booking.Email)}
                             </p>
                           )}
                         </TableCell>
@@ -603,9 +623,9 @@ export default function Bookings() {
                               {getCarInfo(booking)}
                             </span>
                           </div>
-                          {(booking.CategoryName || booking.Category) && (
+                          {(safeStr(booking.CategoryName) || safeStr(booking.Category)) && (
                             <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {booking.CategoryName || booking.Category}
+                              {safeStr(booking.CategoryName) || safeStr(booking.Category)}
                             </p>
                           )}
                         </TableCell>
@@ -625,7 +645,7 @@ export default function Bookings() {
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                             <span className="text-xs truncate max-w-[120px]">
-                              {booking.DeliveryPlaceName || booking.DeliveryPlace || "-"}
+                              {safeStr(booking.DeliveryPlaceName) || safeStr(booking.DeliveryPlace) || "-"}
                             </span>
                           </div>
                         </TableCell>
@@ -635,7 +655,7 @@ export default function Bookings() {
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                             <span className="text-xs truncate max-w-[120px]">
-                              {booking.ReturnPlaceName || booking.ReturnPlace || "-"}
+                              {safeStr(booking.ReturnPlaceName) || safeStr(booking.ReturnPlace) || "-"}
                             </span>
                           </div>
                         </TableCell>
@@ -669,9 +689,9 @@ export default function Bookings() {
 
                         {/* Source */}
                         <TableCell>
-                          {booking.Source ? (
+                          {safeStr(booking.Source) ? (
                             <Badge variant="outline" className="text-[10px] font-normal">
-                              {booking.Source}
+                              {safeStr(booking.Source)}
                             </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
