@@ -897,3 +897,4 @@
 - [x] RESERVAS: Crear página de detalle de reserva /bookings/:id con datos completos de Rently
 - [x] RESERVAS: Hacer que al clic en una fila del listado se navegue a /bookings/:id
 - [x] RESERVAS: Registrar ruta /bookings/:id en App.tsx
+- [x] RESERVAS: Rediseñar BookingDetail inspirado en Rently con layout 3 columnas (vehículo+cliente, tabs detalles, orden de compra)
