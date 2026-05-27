@@ -21,6 +21,7 @@ import {
   Receipt,
   CalendarClock,
   PackageSearch,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/hooks/usePermissions';
@@ -270,6 +271,23 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'lost_found.create', label: 'Registrar objetos', description: 'Permite registrar nuevos objetos encontrados' },
       { key: 'lost_found.update', label: 'Editar objetos', description: 'Permite modificar datos y cambiar estado de objetos perdidos' },
       { key: 'lost_found.manage', label: 'Gestionar todo (Objetos Perdidos)', description: 'Acceso completo para gestionar objetos perdidos' },
+    ],
+  },
+  {
+    id: 'rently',
+    label: 'Rently (Acciones)',
+    icon: RefreshCw,
+    permissions: [
+      { key: 'rently.booking_confirm', label: 'Confirmar reservas', description: 'Permite confirmar reservas en Rently desde PlanMint' },
+      { key: 'rently.booking_cancel', label: 'Cancelar reservas', description: 'Permite cancelar reservas en Rently desde PlanMint' },
+      { key: 'rently.booking_uncancel', label: 'Reactivar reservas', description: 'Permite reactivar reservas canceladas en Rently desde PlanMint' },
+      { key: 'rently.booking_update', label: 'Actualizar reservas', description: 'Permite modificar datos de reservas en Rently (fechas, vehículo, ubicaciones)' },
+      { key: 'rently.booking_create', label: 'Crear reservas', description: 'Permite crear nuevas reservas directamente en Rently desde PlanMint' },
+      { key: 'rently.operations_delivery', label: 'Procesar entregas', description: 'Permite registrar la entrega de vehículos en Rently' },
+      { key: 'rently.operations_return', label: 'Procesar devoluciones', description: 'Permite registrar la devolución de vehículos en Rently' },
+      { key: 'rently.customer_manage', label: 'Gestionar clientes', description: 'Permite crear y actualizar datos de clientes en Rently' },
+      { key: 'rently.cars_relocate', label: 'Reubicar vehículos', description: 'Permite reubicar vehículos entre sucursales en Rently' },
+      { key: 'rently.manage', label: 'Gestionar todo (Rently)', description: 'Acceso completo a todas las acciones de escritura en Rently' },
     ],
   },
   {

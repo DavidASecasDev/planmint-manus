@@ -40,6 +40,7 @@ import {
 import { Reservation, RentlyExtra, RentlyPriceItem, RentlyDriver } from '@/types/reservations';
 import { ReservationEquipmentSection } from './ReservationEquipmentSection';
 import { ReservationStatusHistory } from './ReservationStatusHistory';
+import { RentlyActionsBar } from './RentlyActionsBar';
 
 interface ReservationDetailSheetProps {
   reservation: Reservation | null;
@@ -141,7 +142,7 @@ function safeParseJsonArray<T>(value: unknown): T[] {
   return [];
 }
 
-export function ReservationDetailSheet({ reservation, open, onOpenChange }: ReservationDetailSheetProps) {
+export function ReservationDetailSheet({ reservation, open, onOpenChange, onActionComplete }: ReservationDetailSheetProps & { onActionComplete?: () => void }) {
   if (!reservation) return null;
 
   const r = reservation;
@@ -576,6 +577,11 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange }: Rese
             </TabsContent>
           </Tabs>
         </ScrollArea>
+
+        {/* Rently bidirectional action bar (permission-gated) */}
+        {reservation && (
+          <RentlyActionsBar reservation={reservation} onActionComplete={onActionComplete} />
+        )}
       </SheetContent>
     </Sheet>
   );

@@ -139,6 +139,25 @@ function mapCustomRoleToFlatPermissions(permissionsJson: Record<string, any>): R
   flat['schedules.view_directiva'] = permissionsJson?.schedules?.view_directiva ?? permissionsJson?.schedules?.manage ?? false;
   flat['schedules.manage_notes'] = permissionsJson?.schedules?.manage_notes ?? permissionsJson?.schedules?.manage ?? false;
   flat['schedules.manage'] = permissionsJson?.schedules?.manage ?? false;
+  // Preparation
+  flat['preparation.view'] = permissionsJson?.preparation?.view ?? false;
+  flat['preparation.manage'] = permissionsJson?.preparation?.manage ?? false;
+  // Lost & Found
+  flat['lost_found.view'] = permissionsJson?.lost_found?.view ?? false;
+  flat['lost_found.create'] = permissionsJson?.lost_found?.create ?? permissionsJson?.lost_found?.manage ?? false;
+  flat['lost_found.update'] = permissionsJson?.lost_found?.update ?? permissionsJson?.lost_found?.manage ?? false;
+  flat['lost_found.manage'] = permissionsJson?.lost_found?.manage ?? false;
+  // Rently (Bidirectional Sync)
+  flat['rently.booking_confirm'] = permissionsJson?.rently?.booking_confirm ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.booking_cancel'] = permissionsJson?.rently?.booking_cancel ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.booking_uncancel'] = permissionsJson?.rently?.booking_uncancel ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.booking_update'] = permissionsJson?.rently?.booking_update ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.booking_create'] = permissionsJson?.rently?.booking_create ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.operations_delivery'] = permissionsJson?.rently?.operations_delivery ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.operations_return'] = permissionsJson?.rently?.operations_return ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.customer_manage'] = permissionsJson?.rently?.customer_manage ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.cars_relocate'] = permissionsJson?.rently?.cars_relocate ?? permissionsJson?.rently?.manage ?? false;
+  flat['rently.manage'] = permissionsJson?.rently?.manage ?? false;
 
   return flat;
 }

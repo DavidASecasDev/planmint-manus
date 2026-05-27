@@ -132,7 +132,18 @@ export type PermissionKey =
   | 'lost_found.view'
   | 'lost_found.create'
   | 'lost_found.update'
-  | 'lost_found.manage';
+  | 'lost_found.manage'
+  // Rently (Bidirectional Sync)
+  | 'rently.booking_confirm'
+  | 'rently.booking_cancel'
+  | 'rently.booking_uncancel'
+  | 'rently.booking_update'
+  | 'rently.booking_create'
+  | 'rently.operations_delivery'
+  | 'rently.operations_return'
+  | 'rently.customer_manage'
+  | 'rently.cars_relocate'
+  | 'rently.manage';
 
 export interface PermissionsData {
   success: boolean;

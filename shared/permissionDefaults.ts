@@ -64,6 +64,9 @@ export const ALL_PERMISSION_KEYS = [
   "preparation.view", "preparation.manage",
   // Lost & Found (Objetos Perdidos)
   "lost_found.view", "lost_found.create", "lost_found.update", "lost_found.manage",
+  // Rently (Bidirectional Sync)
+  "rently.booking_confirm", "rently.booking_cancel", "rently.booking_uncancel", "rently.booking_update", "rently.booking_create",
+  "rently.operations_delivery", "rently.operations_return", "rently.customer_manage", "rently.cars_relocate", "rently.manage",
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
@@ -121,6 +124,9 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
     "preparation.manage",
     "lost_found.create", "lost_found.update", "lost_found.manage",
+    // Rently
+    "rently.booking_confirm", "rently.booking_cancel", "rently.booking_uncancel", "rently.booking_update", "rently.booking_create",
+    "rently.operations_delivery", "rently.operations_return", "rently.customer_manage", "rently.cars_relocate", "rently.manage",
   ],
   manager: [
     "tasks.create", "tasks.update", "tasks.assign", "tasks.change_status",
@@ -140,6 +146,9 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "schedules.assign",
     "preparation.manage",
     "lost_found.create", "lost_found.update",
+    // Rently (limited)
+    "rently.booking_confirm", "rently.booking_cancel", "rently.booking_update",
+    "rently.operations_delivery", "rently.operations_return", "rently.customer_manage",
   ],
   member: [
     "tasks.create", "tasks.update",
@@ -318,6 +327,17 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["lost_found.create"] = pj?.lost_found?.create ?? pj?.lost_found?.manage ?? false;
   flat["lost_found.update"] = pj?.lost_found?.update ?? pj?.lost_found?.manage ?? false;
   flat["lost_found.manage"] = pj?.lost_found?.manage ?? false;
+  // Rently (Bidirectional Sync)
+  flat["rently.booking_confirm"] = pj?.rently?.booking_confirm ?? pj?.rently?.manage ?? false;
+  flat["rently.booking_cancel"] = pj?.rently?.booking_cancel ?? pj?.rently?.manage ?? false;
+  flat["rently.booking_uncancel"] = pj?.rently?.booking_uncancel ?? pj?.rently?.manage ?? false;
+  flat["rently.booking_update"] = pj?.rently?.booking_update ?? pj?.rently?.manage ?? false;
+  flat["rently.booking_create"] = pj?.rently?.booking_create ?? pj?.rently?.manage ?? false;
+  flat["rently.operations_delivery"] = pj?.rently?.operations_delivery ?? pj?.rently?.manage ?? false;
+  flat["rently.operations_return"] = pj?.rently?.operations_return ?? pj?.rently?.manage ?? false;
+  flat["rently.customer_manage"] = pj?.rently?.customer_manage ?? pj?.rently?.manage ?? false;
+  flat["rently.cars_relocate"] = pj?.rently?.cars_relocate ?? pj?.rently?.manage ?? false;
+  flat["rently.manage"] = pj?.rently?.manage ?? false;
 
   return flat;
 }

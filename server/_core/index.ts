@@ -11,6 +11,7 @@ import { handleOcrPlate } from "../ocrPlate";
 import { handleSyncRently } from "../syncRently";
 import { handleAiAssistant } from "../aiAssistant";
 import { handleRentlyHub } from "../rentlyHub";
+import { handleRentlyActions } from "../rentlyActions";
 import { handleParseTransferDocument } from "../parseTransferDocument";
 import { handleCreateMovementsFromTransfer } from "../createMovementsFromTransfer";
 import { handleSignupWithInvitation } from "../signupWithInvitation";
@@ -176,6 +177,7 @@ async function startServer() {
   app.post("/api/sync-rently", handleSyncRently);
   app.post("/api/ai-assistant", handleAiAssistant);
   app.post("/api/rently-hub", handleRentlyHub);
+  app.post("/api/rently-actions", handleRentlyActions);
   app.post("/api/parse-transfer-document", handleParseTransferDocument);
   app.post("/api/create-movements-from-transfer", handleCreateMovementsFromTransfer);
   app.post("/api/signup-with-invitation", handleSignupWithInvitation);

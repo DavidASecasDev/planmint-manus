@@ -872,3 +872,9 @@
 - [x] TIMELINE: Indicador de % ocupación por categoría junto al nombre
 - [x] TIMELINE: Persistir estado colapsado de categorías en localStorage
 - [x] BUG: Ruta /reservations/:id da 404 al hacer clic en barra del timeline — creada página ReservationDetail.tsx
+- [x] RENTLY: Añadir permission keys para acciones de escritura en Rently (rently.booking_confirm, rently.booking_cancel, etc.)
+- [x] RENTLY: Insertar permisos por defecto en role_permissions para cada rol
+- [x] RENTLY: Crear endpoint /api/rently-actions con verificación de permisos y audit log
+- [x] RENTLY: Añadir categoría Rently al panel de administración de permisos + MemberPermissionsEditor mapper
+- [x] RENTLY: Integrar acciones de Rently en la UI de detalle de reserva (RentlyActionsBar component)
+- [x] RENTLY: Crear hook useRentlyActions en el frontend para consumir el endpoint
