@@ -491,7 +491,13 @@ export async function handleRentlyActions(req: Request, res: Response) {
     // ─── POST-ACTION SYNC ────────────────────────────────────────────────
     // After a successful Rently write, re-fetch the booking detail and update PlanMint
     let syncResult: { synced: boolean; newStatus?: string } = { synced: false };
-    const bookingId = actionData?.Id || actionData?.BookingId || params?.bookingId;
+    // For booking.create, the new booking ID comes from the Rently response
+    let bookingId = actionData?.Id || actionData?.BookingId || params?.bookingId;
+    if (!bookingId && action === "booking.create" && result.data) {
+      // Rently returns the new booking ID in the response (could be .Id, .BookingId, or the data itself if numeric)
+      const rd = result.data as any;
+      bookingId = rd?.Id || rd?.BookingId || (typeof rd === "number" ? rd : null);
+    }
     if (bookingId) {
       try {
         syncResult = await syncSingleBooking(

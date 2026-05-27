@@ -180,6 +180,62 @@ export async function handleRentlyHub(req: Request, res: Response) {
         return res.json({ success: true, data, domain, method, elapsed });
       }
 
+      case "places": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const places = await callRentlyApi(creds.host, token, "/api/places");
+        return res.json({ success: true, data: places });
+      }
+
+      case "categories": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const categories = await callRentlyApi(creds.host, token, "/api/categories");
+        return res.json({ success: true, data: categories });
+      }
+
+      case "search_availability": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const { fromDate, toDate, categoryId, deliveryPlaceId, returnPlaceId } = params || {};
+        if (!fromDate || !toDate) return res.json({ success: false, error: "fromDate y toDate son requeridos" });
+        const qp = new URLSearchParams({
+          fromDate: String(fromDate),
+          toDate: String(toDate),
+          ...(categoryId ? { categoryId: String(categoryId) } : {}),
+          ...(deliveryPlaceId ? { deliveryPlaceId: String(deliveryPlaceId) } : {}),
+          ...(returnPlaceId ? { returnPlaceId: String(returnPlaceId) } : {}),
+        });
+        const data = await callRentlyApi(creds.host, token, `/api/search?${qp.toString()}`);
+        return res.json({ success: true, data });
+      }
+
+      case "search_customers": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const { query: searchQuery } = params || {};
+        if (!searchQuery) return res.json({ success: false, error: "query es requerido" });
+        const data = await callRentlyApi(creds.host, token, `/api/customers?search=${encodeURIComponent(String(searchQuery))}`);
+        return res.json({ success: true, data });
+      }
+
+      case "booking_price": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const { fromDate, toDate, categoryId, deliveryPlaceId, returnPlaceId, carId } = params || {};
+        if (!fromDate || !toDate || !categoryId) return res.json({ success: false, error: "fromDate, toDate y categoryId son requeridos" });
+        const qp = new URLSearchParams({
+          fromDate: String(fromDate),
+          toDate: String(toDate),
+          categoryId: String(categoryId),
+          ...(deliveryPlaceId ? { deliveryPlaceId: String(deliveryPlaceId) } : {}),
+          ...(returnPlaceId ? { returnPlaceId: String(returnPlaceId) } : {}),
+          ...(carId ? { carId: String(carId) } : {}),
+        });
+        const data = await callRentlyApi(creds.host, token, `/api/booking/price?${qp.toString()}`);
+        return res.json({ success: true, data });
+      }
+
       case "explore": {
         const creds = await getRentlyCredentials(organizationId);
         const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);

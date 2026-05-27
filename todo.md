@@ -880,3 +880,8 @@
 - [x] RENTLY: Crear hook useRentlyActions en el frontend para consumir el endpoint
 - [x] RENTLY: Sync post-acción — sincronizar reserva automáticamente tras ejecutar acción en Rently (syncSingleBooking en rentlyActions.ts)
 - [x] RENTLY: Historial de acciones Rently — pestaña 'Rently' en ficha de reserva con log de auditoría (RentlyActionHistory component)
+- [x] RENTLY: Investigar POST /api/booking de Rently — campos requeridos y estructura
+- [x] RENTLY: Crear endpoint /api/rently-actions booking.create con validación y sync a PlanMint
+- [x] RENTLY: Crear formulario de nueva reserva (CreateRentlyBookingDialog) con búsqueda de disponibilidad, cliente, fechas, precio
+- [x] RENTLY: Integrar formulario en la UI de reservas (botón "Reservar en Rently")
+- [ ] RENTLY: Verificar flujo completo sin conflictos con sync existente
