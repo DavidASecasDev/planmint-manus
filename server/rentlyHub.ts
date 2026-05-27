@@ -236,6 +236,22 @@ export async function handleRentlyHub(req: Request, res: Response) {
         return res.json({ success: true, data });
       }
 
+      case "additionals_price": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const { fromDate, toDate, categoryId, deliveryPlaceId, returnPlaceId } = params || {};
+        if (!fromDate || !toDate || !categoryId) return res.json({ success: false, error: "fromDate, toDate y categoryId son requeridos" });
+        const qp = new URLSearchParams({
+          "request.fromDate": String(fromDate),
+          "request.toDate": String(toDate),
+          "request.categoryId": String(categoryId),
+          ...(deliveryPlaceId ? { "request.deliveryPlaceId": String(deliveryPlaceId) } : {}),
+          ...(returnPlaceId ? { "request.returnPlaceId": String(returnPlaceId) } : {}),
+        });
+        const data = await callRentlyApi(creds.host, token, `/api/booking/additionals-price?${qp.toString()}`);
+        return res.json({ success: true, data });
+      }
+
       case "explore": {
         const creds = await getRentlyCredentials(organizationId);
         const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);

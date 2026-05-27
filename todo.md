@@ -885,3 +885,5 @@
 - [x] RENTLY: Crear formulario de nueva reserva (CreateRentlyBookingDialog) con búsqueda de disponibilidad, cliente, fechas, precio
 - [x] RENTLY: Integrar formulario en la UI de reservas (botón "Reservar en Rently")
 - [ ] RENTLY: Verificar flujo completo sin conflictos con sync existente
+- [x] RENTLY: Formulario de nuevo cliente inline en CreateRentlyBookingDialog (POST /api/customer)
+- [x] RENTLY: Selector de extras/accesorios en CreateRentlyBookingDialog con precios desde API
