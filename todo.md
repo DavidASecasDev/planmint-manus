@@ -904,3 +904,8 @@
 - [x] Bug: BookingDetail - falta info del cliente, matrícula, botones de acción - RESUELTO: reescrito con mapeo correcto de campos reales de Rently API verificados via debug endpoint
 - [x] RESERVAS: Conectar botón "Editar" a formulario para modificar fechas/vehículo/lugar via Rently PUT
 - [x] RESERVAS: Conectar botón "Pagos" a diálogo para registrar cobros desde el detalle de reserva
+- [x] RESERVAS: Reescribir BookingDetail como réplica fiel de Rently (header, vehículo+cliente, tabs con Detalles/Adicionales/Historial/Facturas/Archivos/Infracción, sidebar Orden de Compra con pagos inline)
+- [x] RESERVAS: Mostrar pagos directamente en la sidebar de Orden de Compra (fecha, método, importe) sin necesidad de abrir diálogo
+- [x] RESERVAS: Conectar botón "Generar Contrato" a la API de Rently para descargar contrato PDF (/api/booking/{id}/contract)
+- [x] RESERVAS: Mostrar Depósito en Garantía (franquicias) y Gastos como tarjetas separadas en sidebar
+- [x] RESERVAS: Todos los textos en español (Entrega, Devolución, Orden de Compra, etc.)
