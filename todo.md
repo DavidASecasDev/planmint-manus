@@ -900,3 +900,5 @@
 - [x] RESERVAS: Rediseñar BookingDetail inspirado en Rently con layout 3 columnas (vehículo+cliente, tabs detalles, orden de compra)
 - [x] RESERVAS: Añadir botones de acción rápida en header (Editar, Pagos, Generar Contrato, Enviar Notificación)
 - [x] RESERVAS: Hacer layout responsive para móvil (3 columnas → apilado vertical)
+- [x] Bug: Bookings list - todos los estados aparecen como "Desconocido", clientes como "Sin cliente" - RESUELTO: API devuelve Results[] wrapper, Customer/Car/Origin son objetos anidados, CurrentStatus es número 0-5
+- [x] Bug: BookingDetail - falta info del cliente, matrícula, botones de acción - RESUELTO: reescrito con mapeo correcto de campos reales de Rently API verificados via debug endpoint

@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, parseISO, isToday, isTomorrow, isPast, isFuture, startOfDay, endOfDay, addDays, subDays } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import {
@@ -17,27 +17,21 @@ import {
   Car,
   User,
   MapPin,
-  Euro,
   Clock,
-  Filter,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
   CheckCircle2,
   XCircle,
-  Loader2,
   FileText,
-  ExternalLink,
   Plus,
-  ArrowUpDown,
-  Eye,
+  Loader2,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -71,116 +65,133 @@ import { cn } from "@/lib/utils";
 import { apiInvoke } from "@/lib/apiClient";
 import { useIntegrationFlags } from "@/hooks/useIntegrationFlags";
 import { CreateRentlyBookingDialog } from "@/components/reservations/CreateRentlyBookingDialog";
-import { toast } from "sonner";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types (matching REAL Rently API response) ─────────────────────────────
+
+interface RentlyCustomer {
+  Id?: number;
+  GlobalId?: string;
+  Name?: string;
+  Firstname?: string;
+  Lastname?: string;
+  DocumentId?: string;
+  DocumentTypeId?: number;
+  Email?: string;
+  Phone?: string;
+}
+
+interface RentlyCarModel {
+  Description?: string;
+  ImagePath?: string;
+}
+
+interface RentlyCar {
+  Id?: string; // This is the PLATE (e.g. "1892MSD")
+  Model?: RentlyCarModel;
+}
+
+interface RentlyPlace {
+  Id?: number;
+  Price?: number;
+  Name?: string;
+  Category?: string;
+  Address?: string;
+  City?: string;
+  Country?: string;
+}
+
+interface RentlyCategory {
+  Id?: number;
+  Name?: string;
+}
+
+interface RentlyOrigin {
+  Id?: number;
+  Name?: string;
+}
 
 interface RentlyBooking {
   Id: number;
-  Code?: string;
-  StatusId?: number;
-  StatusName?: string;
-  StatusColor?: string;
+  Code?: string | null;
+  Customer?: RentlyCustomer | null;
+  IsCustomerBlocked?: boolean;
+  Car?: RentlyCar | null;
+  Model?: RentlyCarModel | null;
+  Category?: RentlyCategory | null;
   FromDate?: string;
   ToDate?: string;
-  CustomerFirstname?: string;
-  CustomerLastname?: string;
-  CustomerEmail?: string;
-  CustomerPhone?: string;
-  CustomerId?: number;
-  CarPlate?: string;
-  CarBrand?: string;
-  CarModel?: string;
-  CategoryName?: string;
-  DeliveryPlaceName?: string;
-  ReturnPlaceName?: string;
-  TotalPrice?: number;
-  Balance?: number;
-  Currency?: string;
-  CreatedDate?: string;
-  IsQuotation?: boolean;
-  Notes?: string;
-  // Additional fields from Rently API
-  Firstname?: string;
-  Lastname?: string;
-  Email?: string;
-  Phone?: string;
-  Plate?: string;
-  Brand?: string;
-  Model?: string;
+  DeliveryPlace?: RentlyPlace | null;
+  ReturnPlace?: RentlyPlace | null;
+  TotalDaysString?: string;
+  TotalDays?: number;
   Price?: number;
-  Status?: string;
-  StatusCode?: number;
-  DeliveryPlace?: string | { Name?: string; BranchOfficeName?: string; Address?: string; [k: string]: unknown };
-  ReturnPlace?: string | { Name?: string; BranchOfficeName?: string; Address?: string; [k: string]: unknown };
-  Category?: string | { Name?: string; [k: string]: unknown };
-  Source?: string | { Name?: string; [k: string]: unknown };
-}
-
-/** Safely extract a display string from a Rently field that may be a string or an object */
-function safeStr(val: unknown): string {
-  if (val == null) return "";
-  if (typeof val === "string") return val;
-  if (typeof val === "number" || typeof val === "boolean") return String(val);
-  if (typeof val === "object") {
-    const obj = val as Record<string, unknown>;
-    // Try common Rently name fields
-    if (typeof obj.Name === "string" && obj.Name) return obj.Name;
-    if (typeof obj.BranchOfficeName === "string" && obj.BranchOfficeName) return obj.BranchOfficeName;
-    if (typeof obj.Address === "string" && obj.Address) return obj.Address;
-    if (typeof obj.City === "string" && obj.City) return obj.City;
-    // Fallback: first string value
-    for (const v of Object.values(obj)) {
-      if (typeof v === "string" && v) return v;
-    }
-  }
-  return "";
+  CustomerPrice?: number;
+  AgencyPrice?: number;
+  Currency?: string;
+  IlimitedKm?: boolean;
+  AverageDayPrice?: number;
+  DailyRate?: number;
+  CurrentStatus?: number;
+  CurrentStatusDate?: string;
+  Origin?: RentlyOrigin | null;
+  CreationDate?: string;
+  PayedByCustomer?: number;
+  PayedByAgency?: number;
+  IsQuotation?: boolean;
+  IsTransfer?: boolean;
+  Agency?: { Name?: string } | null;
+  PriceDetails?: { Price?: number; CustomerPrice?: number; AgencyPrice?: number; Currency?: string } | null;
 }
 
 type DatePreset = "today" | "tomorrow" | "week" | "month" | "all" | "custom";
 
-// ─── Status mapping ─────────────────────────────────────────────────────────
+// ─── Status mapping (CurrentStatus is a number in Rently) ──────────────────
 
 const STATUS_MAP: Record<number, { label: string; color: string; icon: typeof CheckCircle2 }> = {
+  0: { label: "Borrador", color: "bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300", icon: FileText },
   1: { label: "Pendiente", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300", icon: Clock },
   2: { label: "Confirmada", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: CheckCircle2 },
-  3: { label: "En curso", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300", icon: Car },
+  3: { label: "Entregado", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300", icon: Car },
   4: { label: "Completada", color: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300", icon: CheckCircle2 },
   5: { label: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", icon: XCircle },
   6: { label: "No-show", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", icon: AlertCircle },
 };
 
-function getStatusInfo(booking: RentlyBooking) {
-  const statusId = booking.StatusId ?? booking.StatusCode ?? 0;
-  const statusName = booking.StatusName ?? booking.Status ?? "Desconocido";
-  const mapped = STATUS_MAP[statusId];
-  if (mapped) return mapped;
-  return { label: statusName, color: "bg-gray-100 text-gray-700", icon: FileText };
+function getStatusInfo(b: RentlyBooking) {
+  const statusId = b.CurrentStatus ?? 0;
+  return STATUS_MAP[statusId] ?? { label: `Estado ${statusId}`, color: "bg-gray-100 text-gray-700", icon: FileText };
 }
 
 function getCustomerName(b: RentlyBooking): string {
-  const first = safeStr(b.CustomerFirstname) || safeStr(b.Firstname);
-  const last = safeStr(b.CustomerLastname) || safeStr(b.Lastname);
-  return `${first} ${last}`.trim() || "Sin cliente";
+  if (!b.Customer) return "Sin cliente";
+  const c = b.Customer;
+  const first = c.Firstname || "";
+  const last = c.Lastname || "";
+  const full = `${first} ${last}`.trim();
+  return full || c.Name || "Sin cliente";
 }
 
-function getCarInfo(b: RentlyBooking): string {
-  const brand = safeStr(b.CarBrand) || safeStr(b.Brand);
-  const model = safeStr(b.CarModel) || safeStr(b.Model);
-  const plate = safeStr(b.CarPlate) || safeStr(b.Plate);
-  const carName = `${brand} ${model}`.trim();
-  if (carName && plate) return `${carName} (${plate})`;
-  if (carName) return carName;
-  if (plate) return plate;
-  return "Sin asignar";
+function getCarDisplay(b: RentlyBooking): { plate: string; model: string; category: string } {
+  const plate = b.Car?.Id || "";
+  const model = b.Car?.Model?.Description || b.Model?.Description || "";
+  const category = b.Category?.Name || "";
+  return { plate, model, category };
 }
 
-function getPrice(b: RentlyBooking): number | null {
-  return b.TotalPrice ?? b.Price ?? null;
+function getPlaceName(place?: RentlyPlace | null): string {
+  if (!place) return "-";
+  return place.Name || place.Address || place.City || "-";
 }
 
-function getCurrency(b: RentlyBooking): string {
-  return b.Currency || "EUR";
+function getOriginName(b: RentlyBooking): string {
+  if (!b.Origin) return "-";
+  return b.Origin.Name || "-";
+}
+
+function getBalance(b: RentlyBooking): number {
+  const price = b.Price ?? b.CustomerPrice ?? 0;
+  const paid = (b.PayedByCustomer ?? 0) + (b.PayedByAgency ?? 0);
+  return paid - price; // negative = owes money, positive = overpaid
 }
 
 function formatPrice(amount: number, currency: string = "EUR"): string {
@@ -191,30 +202,13 @@ function formatPrice(amount: number, currency: string = "EUR"): string {
   }).format(amount);
 }
 
-function formatDateShort(dateStr?: string): string {
-  if (!dateStr) return "-";
-  try {
-    return format(parseISO(dateStr), "dd MMM yyyy", { locale: es });
-  } catch {
-    // Try other formats
-    try {
-      return format(new Date(dateStr), "dd MMM yyyy", { locale: es });
-    } catch {
-      return dateStr;
-    }
-  }
-}
-
 function formatDateTimeFull(dateStr?: string): string {
   if (!dateStr) return "-";
   try {
-    return format(parseISO(dateStr), "dd/MM/yyyy HH:mm", { locale: es });
+    const d = new Date(dateStr);
+    return format(d, "dd/MM/yyyy\nHH:mm", { locale: es });
   } catch {
-    try {
-      return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: es });
-    } catch {
-      return dateStr;
-    }
+    return dateStr;
   }
 }
 
@@ -235,7 +229,6 @@ export default function Bookings() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
-  const [showFilters, setShowFilters] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -278,43 +271,49 @@ export default function Bookings() {
         params.search = searchQuery.trim();
       }
 
-      const result = await apiInvoke<{ success: boolean; data: RentlyBooking[] | Record<string, RentlyBooking[]> }>(
-        "rently-hub",
-        {
-          body: {
-            action: "query",
-            domain: "bookings",
-            method: "list",
-            params,
-          },
-        }
-      );
+      const result = await apiInvoke<{
+        success: boolean;
+        data: unknown;
+      }>("rently-hub", {
+        body: {
+          action: "query",
+          domain: "bookings",
+          method: "list",
+          params,
+        },
+      });
 
       if (result.error) {
         setError(result.error.message);
         return;
       }
 
-      // The API may return an array or an object with arrays
+      // Rently API returns { Offset, Limit, Total, Results: [...], NextOffset }
       let bookingsList: RentlyBooking[] = [];
-      const rawData = result.data?.data;
+      const rawData = result.data?.data as any;
 
       if (Array.isArray(rawData)) {
+        // Direct array
         bookingsList = rawData;
       } else if (rawData && typeof rawData === "object") {
-        // Some Rently APIs return { Items: [...] } or similar structures
-        const values = Object.values(rawData);
-        for (const val of values) {
-          if (Array.isArray(val)) {
-            bookingsList = [...bookingsList, ...val];
+        // Paginated response: { Results: [...] }
+        if (Array.isArray(rawData.Results)) {
+          bookingsList = rawData.Results;
+        } else {
+          // Fallback: try to find any array in the response
+          for (const val of Object.values(rawData)) {
+            if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object" && val[0]?.Id != null) {
+              bookingsList = val as RentlyBooking[];
+              break;
+            }
           }
         }
       }
 
-      // Sort by date descending (newest first)
+      // Sort by FromDate descending (newest first)
       bookingsList.sort((a, b) => {
-        const dateA = a.FromDate || a.CreatedDate || "";
-        const dateB = b.FromDate || b.CreatedDate || "";
+        const dateA = a.FromDate || a.CreationDate || "";
+        const dateB = b.FromDate || b.CreationDate || "";
         return dateB.localeCompare(dateA);
       });
 
@@ -341,7 +340,7 @@ export default function Bookings() {
     // Status filter
     if (statusFilter !== "all") {
       const statusId = parseInt(statusFilter, 10);
-      filtered = filtered.filter((b) => (b.StatusId ?? b.StatusCode) === statusId);
+      filtered = filtered.filter((b) => (b.CurrentStatus ?? 0) === statusId);
     }
 
     // Text search (client-side for already loaded data)
@@ -349,9 +348,10 @@ export default function Bookings() {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((b) => {
         const name = getCustomerName(b).toLowerCase();
-        const car = getCarInfo(b).toLowerCase();
+        const car = getCarDisplay(b);
+        const carStr = `${car.plate} ${car.model} ${car.category}`.toLowerCase();
         const code = (b.Code || String(b.Id)).toLowerCase();
-        return name.includes(q) || car.includes(q) || code.includes(q);
+        return name.includes(q) || carStr.includes(q) || code.includes(q);
       });
     }
 
@@ -365,7 +365,7 @@ export default function Bookings() {
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: bookings.length };
     for (const b of bookings) {
-      const sid = String(b.StatusId ?? b.StatusCode ?? 0);
+      const sid = String(b.CurrentStatus ?? 0);
       counts[sid] = (counts[sid] || 0) + 1;
     }
     return counts;
@@ -381,7 +381,6 @@ export default function Bookings() {
           <h2 className="text-lg font-semibold text-foreground">Rently no configurado</h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
             Para ver las reservas necesitas tener la integración con Rently configurada.
-            Contacta con el administrador para activarla.
           </p>
         </div>
       </AppLayout>
@@ -416,7 +415,6 @@ export default function Bookings() {
 
         {/* Filters bar */}
         <div className="shrink-0 mt-5 space-y-3">
-          {/* Date presets + search */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Date preset pills */}
             <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
@@ -543,7 +541,7 @@ export default function Bookings() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="w-[90px] text-[11px] font-semibold uppercase tracking-wider">Código</TableHead>
+                    <TableHead className="w-[80px] text-[11px] font-semibold uppercase tracking-wider">Código</TableHead>
                     <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
                     <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Cliente</TableHead>
                     <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Vehículo</TableHead>
@@ -560,8 +558,10 @@ export default function Bookings() {
                   {paginatedBookings.map((booking) => {
                     const status = getStatusInfo(booking);
                     const StatusIcon = status.icon;
-                    const price = getPrice(booking);
-                    const currency = getCurrency(booking);
+                    const car = getCarDisplay(booking);
+                    const price = booking.Price ?? booking.CustomerPrice ?? null;
+                    const currency = booking.Currency || "EUR";
+                    const balance = getBalance(booking);
 
                     return (
                       <TableRow
@@ -571,25 +571,9 @@ export default function Bookings() {
                       >
                         {/* Code */}
                         <TableCell className="font-mono text-xs font-medium">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="text-primary hover:underline cursor-pointer">
-                                  {booking.Code || `#${booking.Id}`}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>ID: {booking.Id}</p>
-                                {booking.Code && <p>Código: {booking.Code}</p>}
-                                {booking.IsQuotation && <p className="text-amber-500">Cotización</p>}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          {booking.IsQuotation && (
-                            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">
-                              COT
-                            </Badge>
-                          )}
+                          <span className="text-primary hover:underline">
+                            #{booking.Id}
+                          </span>
                         </TableCell>
 
                         {/* Status */}
@@ -611,35 +595,40 @@ export default function Bookings() {
                               {getCustomerName(booking)}
                             </span>
                           </div>
-                          {(safeStr(booking.CustomerEmail) || safeStr(booking.Email)) && (
-                            <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[150px]">
-                              {safeStr(booking.CustomerEmail) || safeStr(booking.Email)}
-                            </p>
-                          )}
                         </TableCell>
 
                         {/* Vehicle */}
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             <Car className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-xs truncate max-w-[140px]">
-                              {getCarInfo(booking)}
-                            </span>
+                            <div className="min-w-0">
+                              {car.plate && (
+                                <span className="text-xs font-semibold font-mono">{car.plate}</span>
+                              )}
+                              {car.model && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  {car.plate ? "- " : ""}{car.model}
+                                </span>
+                              )}
+                              {!car.plate && !car.model && (
+                                <span className="text-xs text-muted-foreground">Sin asignar</span>
+                              )}
+                            </div>
                           </div>
-                          {(safeStr(booking.CategoryName) || safeStr(booking.Category)) && (
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {safeStr(booking.CategoryName) || safeStr(booking.Category)}
+                          {car.category && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">
+                              {car.category}
                             </p>
                           )}
                         </TableCell>
 
                         {/* From Date */}
-                        <TableCell className="text-xs">
+                        <TableCell className="text-xs whitespace-pre-line">
                           {formatDateTimeFull(booking.FromDate)}
                         </TableCell>
 
                         {/* To Date */}
-                        <TableCell className="text-xs">
+                        <TableCell className="text-xs whitespace-pre-line">
                           {formatDateTimeFull(booking.ToDate)}
                         </TableCell>
 
@@ -647,8 +636,8 @@ export default function Bookings() {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <span className="text-xs truncate max-w-[120px]">
-                              {safeStr(booking.DeliveryPlaceName) || safeStr(booking.DeliveryPlace) || "-"}
+                            <span className="text-xs truncate max-w-[140px]">
+                              {getPlaceName(booking.DeliveryPlace)}
                             </span>
                           </div>
                         </TableCell>
@@ -657,8 +646,8 @@ export default function Bookings() {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <span className="text-xs truncate max-w-[120px]">
-                              {safeStr(booking.ReturnPlaceName) || safeStr(booking.ReturnPlace) || "-"}
+                            <span className="text-xs truncate max-w-[140px]">
+                              {getPlaceName(booking.ReturnPlace)}
                             </span>
                           </div>
                         </TableCell>
@@ -676,25 +665,21 @@ export default function Bookings() {
 
                         {/* Balance */}
                         <TableCell className="text-right">
-                          {booking.Balance != null ? (
-                            <span
-                              className={cn(
-                                "text-xs font-medium",
-                                booking.Balance > 0 ? "text-amber-600" : "text-emerald-600"
-                              )}
-                            >
-                              {formatPrice(booking.Balance, currency)}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
+                          <span
+                            className={cn(
+                              "text-xs font-medium",
+                              balance < 0 ? "text-red-600" : balance > 0 ? "text-emerald-600" : "text-muted-foreground"
+                            )}
+                          >
+                            {formatPrice(balance, currency)}
+                          </span>
                         </TableCell>
 
                         {/* Source */}
                         <TableCell>
-                          {safeStr(booking.Source) ? (
+                          {getOriginName(booking) !== "-" ? (
                             <Badge variant="outline" className="text-[10px] font-normal">
-                              {safeStr(booking.Source)}
+                              {getOriginName(booking)}
                             </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
