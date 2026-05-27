@@ -123,9 +123,10 @@ export function VehicleTimeline({
   }, [data]);
 
   // Get categories for filter
+  // Preserve server-defined category order (custom business order)
   const categories = useMemo(() => {
     if (!data) return [];
-    return data.groups.map(g => g.category).sort();
+    return data.groups.map(g => g.category);
   }, [data]);
 
   // Filter groups by category

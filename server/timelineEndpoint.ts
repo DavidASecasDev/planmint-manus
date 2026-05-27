@@ -18,6 +18,29 @@ const ORG_SLUG_MAP: Record<string, string> = {
 };
 
 // Color mapping for reservation statuses (matching Rently)
+// Custom category display order (as defined by the business)
+const CATEGORY_ORDER: string[] = [
+  "Mini Convertibles",
+  "Familiar",
+  "Compact Premium",
+  "Cabrio Premium",
+  "SUV",
+  "SUV Premium",
+  "Luxury Van",
+  "Aventura",
+  "Luxury Elite",
+];
+
+function categorySort(a: string, b: string): number {
+  const idxA = CATEGORY_ORDER.indexOf(a);
+  const idxB = CATEGORY_ORDER.indexOf(b);
+  // Categories not in the list go to the end, sorted alphabetically
+  if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+  if (idxA === -1) return 1;
+  if (idxB === -1) return -1;
+  return idxA - idxB;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   Pendiente: "#93c5fd",    // Light blue
   Confirmada: "#fb923c",   // Orange
@@ -231,9 +254,9 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       });
     }
 
-    // Sort categories and vehicles within
+    // Sort categories by custom business order and vehicles within
     const groups = Array.from(categoryMap.values()).sort((a, b) =>
-      a.category.localeCompare(b.category)
+      categorySort(a.category, b.category)
     );
     for (const g of groups) {
       g.vehicles.sort((a, b) => a.plate.localeCompare(b.plate));
@@ -413,7 +436,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
     }
 
     const groups = Array.from(categoryMap.values()).sort((a, b) =>
-      a.category.localeCompare(b.category)
+      categorySort(a.category, b.category)
     );
     for (const g of groups) {
       g.vehicles.sort((a, b) => a.plate.localeCompare(b.plate));

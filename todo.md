@@ -866,3 +866,4 @@
 - [x] TIMELINE: Asignar categorías a los ~34 vehículos con categoria NULL usando datos de Rently (0 NULL remaining)
 - [x] TIMELINE: Añadir filtro/dropdown por categoría en el timeline para mostrar/ocultar categorías
 - [x] TIMELINE: Optimizar layout para aprovechar todo el ancho de página (fullWidth en AppLayout, reducir padding, eliminar max-w-[1600px])
+- [x] TIMELINE: Ordenar categorías según orden de negocio personalizado (Mini Convertibles, Familiar, Compact Premium, Cabrio Premium, SUV, SUV Premium, Luxury Van, Aventura, Luxury Elite)
