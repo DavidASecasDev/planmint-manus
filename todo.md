@@ -870,3 +870,5 @@
 - [x] TIMELINE: Colapsar/expandir categorías haciendo clic en la cabecera
 - [x] TIMELINE: Tooltip mejorado con cliente, teléfono, notas en versión interna
 - [x] TIMELINE: Indicador de % ocupación por categoría junto al nombre
+- [x] TIMELINE: Persistir estado colapsado de categorías en localStorage
+- [x] BUG: Ruta /reservations/:id da 404 al hacer clic en barra del timeline — creada página ReservationDetail.tsx

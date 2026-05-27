@@ -143,7 +143,13 @@ export function VehicleTimeline({
     y: number;
   } | null>(null);
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("timeline-collapsed-categories");
+      if (stored) return new Set(JSON.parse(stored));
+    } catch { /* ignore */ }
+    return new Set();
+  });
 
   // Toggle category collapse
   const toggleCategory = useCallback((category: string) => {
@@ -157,6 +163,13 @@ export function VehicleTimeline({
       return next;
     });
   }, []);
+
+  // Persist collapsed state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("timeline-collapsed-categories", JSON.stringify(Array.from(collapsedCategories)));
+    } catch { /* ignore */ }
+  }, [collapsedCategories]);
 
   // Compute days array
   const days = useMemo(() => {

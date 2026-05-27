@@ -101,6 +101,7 @@ const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 
 // Reservations
 const Reservations = lazy(() => import("./pages/Reservations"));
+const ReservationDetail = lazy(() => import("./pages/ReservationDetail"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
 
 // Garatech Module
@@ -291,6 +292,14 @@ function QueryRecovery() {
                   >
                     <Reservations />
                   </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/reservations/:id" 
+              element={
+                <ProtectedRoute>
+                  <ReservationDetail />
                 </ProtectedRoute>
               } 
             />
