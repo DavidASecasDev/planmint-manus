@@ -862,3 +862,6 @@
 - [x] TIMELINE: Fix category separators showing numeric IDs (2, 3, 4, 5) instead of category names - resolved by falling back to marca when categoria is a number
 - [x] TIMELINE: Add vehicle model display above plate number in timeline labels
 - [x] TIMELINE: Normalize category name casing (e.g. "LUXURY ELITE" → "Luxury Elite")
+- [x] TIMELINE: Corregir categorías numéricas en BD - consultar Rently API para obtener nombres reales y actualizar 83 vehículos + 7 manuales
+- [x] TIMELINE: Asignar categorías a los ~34 vehículos con categoria NULL usando datos de Rently (0 NULL remaining)
+- [x] TIMELINE: Añadir filtro/dropdown por categoría en el timeline para mostrar/ocultar categorías

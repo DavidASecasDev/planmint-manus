@@ -686,6 +686,7 @@ function PublicTimelineSection({ slug }: { slug: string }) {
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [timelineCategoryFilter, setTimelineCategoryFilter] = useState("all");
   const [startDate, setStartDate] = useState<Date>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -783,6 +784,8 @@ function PublicTimelineSection({ slug }: { slug: string }) {
           <VehicleTimeline
             data={timelineData}
             interactive={false}
+            categoryFilter={timelineCategoryFilter}
+            onCategoryFilterChange={setTimelineCategoryFilter}
           />
         ) : null}
       </div>

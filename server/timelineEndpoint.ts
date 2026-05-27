@@ -72,10 +72,14 @@ function resolveCategory(rawCategoria: string | null, marca: string): string {
     // Numeric ID or empty → use marca as category
     return marca || "Otros";
   }
-  // Normalize case: "LUXURY ELITE" → "Luxury Elite"
+  // Normalize case: "LUXURY ELITE" → "Luxury Elite", but preserve short acronyms like "SUV"
   return rawCategoria
     .split(" ")
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .map(w => {
+      // Preserve short uppercase words (likely acronyms: SUV, BMW, etc.)
+      if (w.length <= 3 && w === w.toUpperCase()) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
     .join(" ");
 }
 
