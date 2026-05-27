@@ -64,7 +64,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { apiInvoke } from "@/lib/apiClient";
 import { useIntegrationFlags } from "@/hooks/useIntegrationFlags";
-import { CreateRentlyBookingDialog } from "@/components/reservations/CreateRentlyBookingDialog";
+// CreateRentlyBookingDialog replaced by /bookings/new page
 
 // ─── Types (matching REAL Rently API response) ─────────────────────────────
 
@@ -397,7 +397,14 @@ export default function Bookings() {
             description="Gestión de reservas desde Rently"
             actions={
               <div className="flex items-center gap-2">
-                <CreateRentlyBookingDialog />
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => navigate("/bookings/new")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Nueva Reserva
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

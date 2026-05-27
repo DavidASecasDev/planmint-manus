@@ -33,7 +33,21 @@ import {
 import { toast } from "sonner";
 import { EditBookingDialog } from "@/components/reservations/EditBookingDialog";
 import { BookingPaymentsDialog } from "@/components/reservations/BookingPaymentsDialog";
+import { RentlyActionHistory } from "@/components/reservations/RentlyActionHistory";
 import { apiInvoke } from "@/lib/apiClient";
+import { useRentlyActions } from "@/hooks/useRentlyActions";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ShieldCheck, Loader2, RotateCcw, ArrowDownToLine } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -271,6 +285,29 @@ export default function BookingDetail() {
   const [paymentsOpen, setPaymentsOpen] = useState(false);
   const [contractLoading, setContractLoading] = useState(false);
 
+  // State-change actions
+  const { hasPermission } = usePermissions();
+  const {
+    isLoading: actionLoading,
+    confirmBooking,
+    cancelBooking,
+    uncancelBooking,
+    processDelivery,
+    processReturn,
+  } = useRentlyActions();
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean; title: string; description: string;
+    action: (() => Promise<void>) | null; variant: "default" | "destructive";
+  }>({ open: false, title: "", description: "", action: null, variant: "default" });
+
+  const openConfirmDialog = (title: string, description: string, action: () => Promise<void>, variant: "default" | "destructive" = "default") => {
+    setConfirmDialog({ open: true, title, description, action, variant });
+  };
+  const executeAndClose = async () => {
+    if (confirmDialog.action) { await confirmDialog.action(); fetchBooking(); }
+    setConfirmDialog((prev) => ({ ...prev, open: false }));
+  };
+
   const fetchBooking = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -498,6 +535,49 @@ export default function BookingDetail() {
               </Button>
             </div>
           </div>
+
+          {/* ═══ CONTEXTUAL STATE-CHANGE BUTTONS ═══ */}
+          {(() => {
+            const statusNum = b.CurrentStatus as number;
+            const hasManage = hasPermission("rently.manage");
+            const showConfirm = (hasManage || hasPermission("rently.booking_confirm")) && statusNum === 1;
+            const showCancel = (hasManage || hasPermission("rently.booking_cancel")) && (statusNum === 1 || statusNum === 2);
+            const showUncancel = (hasManage || hasPermission("rently.booking_uncancel")) && statusNum === 5;
+            const showDelivery = (hasManage || hasPermission("rently.operations_delivery")) && statusNum === 2;
+            const showReturn = (hasManage || hasPermission("rently.operations_return")) && statusNum === 3;
+            const hasAny = showConfirm || showCancel || showUncancel || showDelivery || showReturn;
+            if (!hasAny) return null;
+            return (
+              <div className="flex items-center gap-2 ml-11 flex-wrap">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Acciones:</span>
+                {showConfirm && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-green-300 text-green-700 hover:bg-green-50 gap-1" disabled={actionLoading}
+                    onClick={() => openConfirmDialog("Confirmar reserva", `¿Confirmar la reserva #${bookingId}? Esto cambiará el estado en Rently a "Confirmada".`, () => confirmBooking(bookingId).then(() => {}))}
+                  ><CheckCircle2 className="h-3 w-3" />Confirmar</Button>
+                )}
+                {showDelivery && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-blue-300 text-blue-700 hover:bg-blue-50 gap-1" disabled={actionLoading}
+                    onClick={() => openConfirmDialog("Registrar entrega", `¿Registrar la entrega del vehículo para la reserva #${bookingId}?`, () => processDelivery({ BookingId: bookingId }).then(() => {}))}
+                  ><Truck className="h-3 w-3" />Registrar Entrega</Button>
+                )}
+                {showReturn && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-indigo-300 text-indigo-700 hover:bg-indigo-50 gap-1" disabled={actionLoading}
+                    onClick={() => openConfirmDialog("Registrar devolución", `¿Registrar la devolución del vehículo para la reserva #${bookingId}?`, () => processReturn({ BookingId: bookingId }).then(() => {}))}
+                  ><ArrowDownToLine className="h-3 w-3" />Registrar Devolución</Button>
+                )}
+                {showCancel && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-red-300 text-red-700 hover:bg-red-50 gap-1" disabled={actionLoading}
+                    onClick={() => openConfirmDialog("Cancelar reserva", `¿Cancelar la reserva #${bookingId}? Podrás reactivarla después.`, () => cancelBooking(bookingId).then(() => {}), "destructive")}
+                  ><XCircle className="h-3 w-3" />Cancelar</Button>
+                )}
+                {showUncancel && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-amber-300 text-amber-700 hover:bg-amber-50 gap-1" disabled={actionLoading}
+                    onClick={() => openConfirmDialog("Reactivar reserva", `¿Reactivar la reserva cancelada #${bookingId}?`, () => uncancelBooking(bookingId).then(() => {}))}
+                  ><RotateCcw className="h-3 w-3" />Reactivar</Button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Subline: creation info */}
           <p className="text-xs text-muted-foreground ml-11">
@@ -736,12 +816,12 @@ export default function BookingDetail() {
                 )}
               </TabsContent>
 
-              {/* ── History Tab ── */}
+              {/* ── History Tab (Acciones PlanMint→Rently) ── */}
               <TabsContent value="history" className="p-5 mt-0">
-                <div className="text-center py-8">
-                  <Clock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Historial de cambios no disponible desde la API</p>
-                </div>
+                <RentlyActionHistory
+                  reservationId={bookingId}
+                  externalReservationId={bookingId}
+                />
               </TabsContent>
 
               {/* ── Invoices Tab ── */}
@@ -947,6 +1027,33 @@ export default function BookingDetail() {
           />
         </>
       )}
+
+      {/* ═══ Confirm Action Dialog ═══ */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              {confirmDialog.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+            <strong>Importante:</strong> Esta acción se ejecutará directamente en Rently y se registrará en el historial.
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeAndClose}
+              disabled={actionLoading}
+              className={confirmDialog.variant === "destructive" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}
+            >
+              {actionLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirmar acción
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

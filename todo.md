@@ -909,3 +909,7 @@
 - [x] RESERVAS: Conectar botón "Generar Contrato" a la API de Rently para descargar contrato PDF (/api/booking/{id}/contract)
 - [x] RESERVAS: Mostrar Depósito en Garantía (franquicias) y Gastos como tarjetas separadas en sidebar
 - [x] RESERVAS: Todos los textos en español (Entrega, Devolución, Orden de Compra, etc.)
+- [x] RESERVAS: Crear página dedicada /bookings/new con flujo paso a paso (fechas→categoría→vehículo→cliente→extras→resumen) como pantalla completa
+- [x] RESERVAS: Registrar ruta /bookings/new en App.tsx y enlazar desde botón "Nueva Reserva" en listado
+- [x] RESERVAS: Añadir tab "Historial de Acciones" en BookingDetail con log de acciones PlanMint→Rently (quién, cuándo, qué acción)
+- [x] RESERVAS: Implementar botones de cambio de estado contextuales en header de BookingDetail (Confirmar, Cancelar, Entrega, Devolución según estado actual)
