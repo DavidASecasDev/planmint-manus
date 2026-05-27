@@ -20,6 +20,13 @@
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 import { requirePermission } from "./permissionHelper";
+import {
+  fetchBookingDetail,
+  fetchBookingDrivers,
+  mapBookingToReservation,
+  enrichReservationWithDetail,
+  STATUS_MAP,
+} from "./syncRently";
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -260,6 +267,106 @@ async function logRentlyAction(
   }
 }
 
+// ─── Post-action single-booking sync ────────────────────────────────────────
+
+/**
+ * Re-fetch a single booking from Rently and update the corresponding reservation
+ * in PlanMint. This runs after a successful write action so the UI reflects
+ * the new state immediately without waiting for the 5-minute sync cycle.
+ */
+async function syncSingleBooking(
+  host: string,
+  token: string,
+  bookingId: number,
+  organizationId: string,
+  userId: string
+): Promise<{ synced: boolean; newStatus?: string }> {
+  // 1. Fetch the updated booking detail from Rently
+  const detail = await fetchBookingDetail(host, token, bookingId);
+  if (!detail) {
+    return { synced: false };
+  }
+
+  const drivers = await fetchBookingDrivers(host, token, bookingId);
+
+  // 2. Map to our reservation format
+  const baseReservation = mapBookingToReservation(detail, organizationId, userId);
+  const enriched = enrichReservationWithDetail(baseReservation, detail, drivers);
+  const newStatus = STATUS_MAP[detail.CurrentStatus] || `Status ${detail.CurrentStatus}`;
+
+  // 3. Check if the reservation exists in our DB
+  const serviceClient = getServiceClient();
+  const extId = String(bookingId);
+  const { data: existing } = await serviceClient
+    .from("reservations")
+    .select("id, estado")
+    .eq("organization_id", organizationId)
+    .eq("external_reservation_id", extId)
+    .single();
+
+  if (!existing) {
+    // Reservation doesn't exist yet — insert it
+    await serviceClient.from("reservations").insert(enriched);
+    return { synced: true, newStatus };
+  }
+
+  // 4. Build update payload (protect user-editable fields, same as full sync)
+  const updateData: Record<string, unknown> = { ...enriched, estado: newStatus };
+  delete updateData.organization_id;
+  delete updateData.imported_by;
+  delete updateData.external_reservation_id;
+  delete updateData.confirmed_entrega_datetime;
+  delete updateData.confirmed_devolucion_datetime;
+
+  // Protect user-editable location fields (same as full sync)
+  updateData.rently_lugar_entrega = updateData.lugar_entrega ?? null;
+  updateData.rently_lugar_devolucion = updateData.lugar_devolucion ?? null;
+  updateData.rently_lugar_entrega_direccion = updateData.lugar_entrega_direccion ?? null;
+  updateData.rently_lugar_devolucion_direccion = updateData.lugar_devolucion_direccion ?? null;
+  delete updateData.lugar_entrega;
+  delete updateData.lugar_devolucion;
+  delete updateData.lugar_entrega_direccion;
+  delete updateData.lugar_devolucion_direccion;
+  delete updateData.lugar_entrega_ciudad;
+  delete updateData.lugar_devolucion_ciudad;
+
+  if (newStatus === "Completada") {
+    updateData.estado_terminada_at = new Date().toISOString();
+  }
+  if (newStatus === "Cancelada") {
+    updateData.estado_entrega = "Cancelada";
+    updateData.estado_devolucion = "Cancelada";
+  }
+  // Undo cancellation side-effects when reactivated
+  if (existing.estado === "Cancelada" && newStatus !== "Cancelada") {
+    updateData.estado_entrega = null;
+    updateData.estado_devolucion = null;
+  }
+
+  // 5. Log status change if it changed
+  if (existing.estado !== newStatus) {
+    try {
+      await serviceClient.from("reservation_status_history").insert({
+        organization_id: organizationId,
+        reservation_id: existing.id,
+        external_reservation_id: extId,
+        old_status: existing.estado,
+        new_status: newStatus,
+        change_type: "sync_rently",
+        changed_by_name: "Sistema (Post-Action Sync)",
+        notes: `Sync inmediato tras acción en Rently: ${existing.estado || "(nuevo)"} → ${newStatus}`,
+      });
+    } catch (logErr) {
+      console.error("[rently-actions] Failed to log status change:", logErr);
+    }
+  }
+
+  // 6. Apply update
+  await serviceClient.from("reservations").update(updateData).eq("id", existing.id);
+
+  return { synced: true, newStatus };
+}
+
 // ─── Main handler ───────────────────────────────────────────────────────────
 
 export async function handleRentlyActions(req: Request, res: Response) {
@@ -381,12 +488,33 @@ export async function handleRentlyActions(req: Request, res: Response) {
       });
     }
 
+    // ─── POST-ACTION SYNC ────────────────────────────────────────────────
+    // After a successful Rently write, re-fetch the booking detail and update PlanMint
+    let syncResult: { synced: boolean; newStatus?: string } = { synced: false };
+    const bookingId = actionData?.Id || actionData?.BookingId || params?.bookingId;
+    if (bookingId) {
+      try {
+        syncResult = await syncSingleBooking(
+          creds.host,
+          token,
+          Number(bookingId),
+          organizationId,
+          userId
+        );
+        console.log(`[rently-actions] Post-action sync for booking ${bookingId}: ${syncResult.synced ? 'OK' : 'skipped'}`);
+      } catch (syncErr: any) {
+        console.error(`[rently-actions] Post-action sync error for booking ${bookingId}:`, syncErr?.message);
+        // Non-blocking — the Rently action itself succeeded
+      }
+    }
+
     return res.json({
       success: true,
       data: result.data,
       action,
       label: config.label,
       elapsed,
+      sync: syncResult,
     });
   } catch (error: any) {
     console.error("[rently-actions] Error:", error);

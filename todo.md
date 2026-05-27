@@ -878,3 +878,5 @@
 - [x] RENTLY: Añadir categoría Rently al panel de administración de permisos + MemberPermissionsEditor mapper
 - [x] RENTLY: Integrar acciones de Rently en la UI de detalle de reserva (RentlyActionsBar component)
 - [x] RENTLY: Crear hook useRentlyActions en el frontend para consumir el endpoint
+- [x] RENTLY: Sync post-acción — sincronizar reserva automáticamente tras ejecutar acción en Rently (syncSingleBooking en rentlyActions.ts)
+- [x] RENTLY: Historial de acciones Rently — pestaña 'Rently' en ficha de reserva con log de auditoría (RentlyActionHistory component)

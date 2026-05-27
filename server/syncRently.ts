@@ -136,7 +136,7 @@ interface SyncStatus {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_MAP: Record<number, string> = {
+export const STATUS_MAP: Record<number, string> = {
   0: "Pendiente",
   1: "Confirmada",
   2: "En curso",
@@ -179,7 +179,7 @@ const REQUEST_DEADLINE_MS = 75_000;
 
 // ─── Rently API helpers ──────────────────────────────────────────────────────
 
-async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
+export async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
   console.log(`[sync-rently] Getting Rently token from ${host}...`);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -254,7 +254,7 @@ async function fetchSinglePage(
   }
 }
 
-async function fetchBookingDetail(host: string, token: string, bookingId: number): Promise<RentlyBookingDetail | null> {
+export async function fetchBookingDetail(host: string, token: string, bookingId: number): Promise<RentlyBookingDetail | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), DETAIL_TIMEOUT_MS);
 
@@ -277,7 +277,7 @@ async function fetchBookingDetail(host: string, token: string, bookingId: number
   }
 }
 
-async function fetchBookingDrivers(
+export async function fetchBookingDrivers(
   host: string,
   token: string,
   bookingId: number
@@ -337,7 +337,7 @@ async function fetchDetailsInParallel(
 
 // ─── Mapping helpers ─────────────────────────────────────────────────────────
 
-function mapBookingToReservation(
+export function mapBookingToReservation(
   booking: RentlyBooking,
   organizationId: string,
   userId: string
@@ -386,7 +386,7 @@ function mapBookingToReservation(
   };
 }
 
-function enrichReservationWithDetail(
+export function enrichReservationWithDetail(
   reservation: Record<string, unknown>,
   detail: RentlyBookingDetail,
   drivers: Array<{ Name?: string; Document?: string; License?: string }>

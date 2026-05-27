@@ -41,6 +41,7 @@ import { Reservation, RentlyExtra, RentlyPriceItem, RentlyDriver } from '@/types
 import { ReservationEquipmentSection } from './ReservationEquipmentSection';
 import { ReservationStatusHistory } from './ReservationStatusHistory';
 import { RentlyActionsBar } from './RentlyActionsBar';
+import { RentlyActionHistory } from './RentlyActionHistory';
 
 interface ReservationDetailSheetProps {
   reservation: Reservation | null;
@@ -207,6 +208,11 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange, onActi
               <TabsTrigger value="historial" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
                 Historial
               </TabsTrigger>
+              {r.external_reservation_id && (
+                <TabsTrigger value="rently" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">
+                  Rently
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* === TAB: General === */}
@@ -575,6 +581,16 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange, onActi
             <TabsContent value="historial" className="px-6 py-4 space-y-4 mt-0">
               <ReservationStatusHistory reservationId={r.id} />
             </TabsContent>
+
+            {/* === TAB: Rently Actions === */}
+            {r.external_reservation_id && (
+              <TabsContent value="rently" className="px-6 py-4 space-y-4 mt-0">
+                <RentlyActionHistory
+                  reservationId={r.id}
+                  externalReservationId={r.external_reservation_id}
+                />
+              </TabsContent>
+            )}
           </Tabs>
         </ScrollArea>
 
