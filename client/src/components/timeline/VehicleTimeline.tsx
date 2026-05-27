@@ -1,17 +1,19 @@
 /**
  * VehicleTimeline — Professional Gantt-style horizontal timeline for vehicle reservations.
  *
- * Inspired by Rently's timeline view with premium visual treatment:
+ * Features:
+ * - Collapsible category sections (click header to toggle)
+ * - Occupancy % indicator per category
+ * - Enhanced tooltip with full client info (phone, locations) in interactive mode
  * - Sticky vehicle labels column with category separators
  * - Month/day header with blue tint and day-of-week letters
  * - Vibrant rounded bars with $ icon for paid reservations
  * - Today marker (green vertical line)
- * - Elegant floating tooltip card on hover
  * - Click navigates to reservation detail (interactive mode)
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -68,6 +70,7 @@ export interface VehicleTimelineProps {
 const DAY_WIDTH = 34;
 const ROW_HEIGHT = 40;
 const LABEL_WIDTH = 170;
+const CATEGORY_HEADER_HEIGHT = 32;
 const DAY_NAMES_ES = ["D", "L", "M", "X", "J", "V", "S"];
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -97,6 +100,31 @@ function formatDateShort(dateStr: string): string {
   return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+/**
+ * Calculate occupancy % for a category group within the visible date range.
+ * Occupancy = (total reserved vehicle-days) / (total available vehicle-days) * 100
+ */
+function calculateOccupancy(group: TimelineGroup, fromDate: string, toDate: string): number {
+  const from = new Date(fromDate + "T00:00:00");
+  const to = new Date(toDate + "T00:00:00");
+  const totalDays = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const totalVehicleDays = group.vehicles.length * totalDays;
+  if (totalVehicleDays === 0) return 0;
+
+  let reservedDays = 0;
+  for (const vehicle of group.vehicles) {
+    for (const res of vehicle.reservations) {
+      if (res.status === "Cancelada") continue;
+      const resStart = new Date(Math.max(new Date(res.startDate + "T00:00:00").getTime(), from.getTime()));
+      const resEnd = new Date(Math.min(new Date(res.endDate + "T00:00:00").getTime(), to.getTime()));
+      const days = Math.max(0, Math.ceil((resEnd.getTime() - resStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      reservedDays += days;
+    }
+  }
+
+  return Math.min(100, Math.round((reservedDays / totalVehicleDays) * 100));
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function VehicleTimeline({
@@ -115,6 +143,20 @@ export function VehicleTimeline({
     y: number;
   } | null>(null);
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+  // Toggle category collapse
+  const toggleCategory = useCallback((category: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }, []);
 
   // Compute days array
   const days = useMemo(() => {
@@ -250,11 +292,17 @@ export function VehicleTimeline({
   const totalWidth = days.length * DAY_WIDTH;
   const todayIdx = dayIndex(data.today, days);
 
-  // Count total vehicles for height calculation
-  const totalVehicles = filteredGroups.reduce((sum, g) => sum + g.vehicles.length, 0);
-  const totalCategoryHeaders = filteredGroups.length;
+  // Count total visible vehicles for height calculation (accounting for collapsed)
+  let totalVisibleVehicles = 0;
+  let totalCategoryHeaders = 0;
+  for (const g of filteredGroups) {
+    totalCategoryHeaders++;
+    if (!collapsedCategories.has(g.category)) {
+      totalVisibleVehicles += g.vehicles.length;
+    }
+  }
   const gridHeight = Math.min(
-    (totalVehicles * ROW_HEIGHT) + (totalCategoryHeaders * 28) + 56,
+    (totalVisibleVehicles * ROW_HEIGHT) + (totalCategoryHeaders * CATEGORY_HEADER_HEIGHT) + 56,
     900
   );
 
@@ -335,42 +383,66 @@ export function VehicleTimeline({
           </div>
           {/* Vehicle labels */}
           <div className="overflow-hidden">
-            {filteredGroups.map(group => (
-              <div key={group.category}>
-                {/* Category header */}
-                <div
-                  className="flex items-center px-3 bg-blue-100/80 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800/40"
-                  style={{ height: 28 }}
-                >
-                  <span className="text-[11px] font-bold text-blue-800 dark:text-blue-200 uppercase tracking-[0.5px] truncate">
-                    {group.category}
-                  </span>
-                  <span className="ml-auto text-[9px] bg-blue-200/80 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 font-semibold px-1.5 py-0.5 rounded-full">
-                    {group.vehicles.length}
-                  </span>
-                </div>
-                {/* Vehicle rows */}
-                {group.vehicles.map((vehicle, vIdx) => (
+            {filteredGroups.map(group => {
+              const isCollapsed = collapsedCategories.has(group.category);
+              const occupancy = calculateOccupancy(group, data.fromDate, data.toDate);
+              return (
+                <div key={group.category}>
+                  {/* Category header - clickable to collapse */}
                   <div
-                    key={vehicle.plate}
-                    className={cn(
-                      "flex flex-col justify-center px-3 border-b border-border/50 transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-700/20",
-                      vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/30 dark:bg-gray-800/10"
-                    )}
-                    style={{ height: ROW_HEIGHT }}
+                    className="flex items-center px-2 bg-blue-100/80 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800/40 cursor-pointer hover:bg-blue-200/80 dark:hover:bg-blue-900/40 transition-colors select-none"
+                    style={{ height: CATEGORY_HEADER_HEIGHT }}
+                    onClick={() => toggleCategory(group.category)}
                   >
-                    {vehicle.model && (
-                      <span className="text-[9px] text-muted-foreground truncate leading-tight">
-                        {vehicle.model}
-                      </span>
+                    {/* Collapse icon */}
+                    {isCollapsed ? (
+                      <ChevronRight className="h-3 w-3 text-blue-600 dark:text-blue-300 shrink-0" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3 text-blue-600 dark:text-blue-300 shrink-0" />
                     )}
-                    <span className="text-[11px] font-mono font-semibold text-foreground tracking-wide leading-tight">
-                      {vehicle.plate}
+                    <span className="text-[10px] font-bold text-blue-800 dark:text-blue-200 uppercase tracking-[0.5px] truncate ml-1">
+                      {group.category}
+                    </span>
+                    {/* Occupancy badge */}
+                    <span
+                      className={cn(
+                        "ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0",
+                        occupancy >= 80
+                          ? "bg-red-200/80 text-red-700 dark:bg-red-800/50 dark:text-red-300"
+                          : occupancy >= 50
+                          ? "bg-amber-200/80 text-amber-700 dark:bg-amber-800/50 dark:text-amber-300"
+                          : "bg-blue-200/80 text-blue-700 dark:bg-blue-800/50 dark:text-blue-300"
+                      )}
+                    >
+                      {occupancy}%
+                    </span>
+                    <span className="text-[9px] bg-blue-200/60 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400 font-medium px-1 py-0.5 rounded-full ml-1 shrink-0">
+                      {group.vehicles.length}
                     </span>
                   </div>
-                ))}
-              </div>
-            ))}
+                  {/* Vehicle rows (hidden when collapsed) */}
+                  {!isCollapsed && group.vehicles.map((vehicle, vIdx) => (
+                    <div
+                      key={vehicle.plate}
+                      className={cn(
+                        "flex flex-col justify-center px-3 border-b border-border/50 transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-700/20",
+                        vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/30 dark:bg-gray-800/10"
+                      )}
+                      style={{ height: ROW_HEIGHT }}
+                    >
+                      {vehicle.model && (
+                        <span className="text-[9px] text-muted-foreground truncate leading-tight">
+                          {vehicle.model}
+                        </span>
+                      )}
+                      <span className="text-[11px] font-mono font-semibold text-foreground tracking-wide leading-tight">
+                        {vehicle.plate}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -442,122 +514,137 @@ export function VehicleTimeline({
 
             {/* ─── Vehicle Rows with Bars ────────────────────────────────────── */}
             <div className="relative">
-              {filteredGroups.map(group => (
-                <div key={group.category}>
-                  {/* Category separator row */}
-                  <div
-                    className="bg-blue-50/50 dark:bg-blue-950/10 border-b border-blue-100 dark:border-blue-900/20"
-                    style={{ height: 28, width: totalWidth }}
-                  />
-                  {/* Vehicle rows */}
-                  {group.vehicles.map((vehicle, vIdx) => (
+              {filteredGroups.map(group => {
+                const isCollapsed = collapsedCategories.has(group.category);
+                return (
+                  <div key={group.category}>
+                    {/* Category separator row */}
                     <div
-                      key={vehicle.plate}
-                      className={cn(
-                        "relative border-b border-border/30",
-                        vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
-                      )}
-                      style={{ height: ROW_HEIGHT, width: totalWidth }}
-                    >
-                      {/* Weekend column stripes */}
-                      {days.map((day, i) => {
-                        const d = new Date(day + "T00:00:00");
-                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                        if (!isWeekend) return null;
-                        return (
+                      className="bg-blue-50/50 dark:bg-blue-950/10 border-b border-blue-100 dark:border-blue-900/20"
+                      style={{ height: CATEGORY_HEADER_HEIGHT, width: totalWidth }}
+                    />
+                    {/* Vehicle rows (hidden when collapsed) */}
+                    {!isCollapsed && group.vehicles.map((vehicle, vIdx) => (
+                      <div
+                        key={vehicle.plate}
+                        className={cn(
+                          "relative border-b border-border/30",
+                          vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
+                        )}
+                        style={{ height: ROW_HEIGHT, width: totalWidth }}
+                      >
+                        {/* Weekend column stripes */}
+                        {days.map((day, i) => {
+                          const d = new Date(day + "T00:00:00");
+                          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                          if (!isWeekend) return null;
+                          return (
+                            <div
+                              key={day}
+                              className="absolute top-0 bottom-0 bg-gray-100/40 dark:bg-gray-800/20"
+                              style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
+                            />
+                          );
+                        })}
+
+                        {/* Today marker line */}
+                        {todayIdx >= 0 && (
                           <div
-                            key={day}
-                            className="absolute top-0 bottom-0 bg-gray-100/40 dark:bg-gray-800/20"
-                            style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
-                          />
-                        );
-                      })}
-
-                      {/* Today marker line */}
-                      {todayIdx >= 0 && (
-                        <div
-                          className="absolute top-0 bottom-0 z-[5]"
-                          style={{ left: todayIdx * DAY_WIDTH + DAY_WIDTH / 2 - 1, width: 2 }}
-                        >
-                          <div className="w-full h-full bg-emerald-400/50 dark:bg-emerald-500/40" />
-                        </div>
-                      )}
-
-                      {/* Reservation bars */}
-                      {vehicle.reservations.map(reservation => {
-                        const startIdx = Math.max(0, dayIndex(reservation.startDate, days));
-                        const endIdx = Math.min(days.length - 1, dayIndex(reservation.endDate, days));
-                        if (startIdx < 0 && endIdx < 0) return null;
-                        const left = startIdx * DAY_WIDTH + 2;
-                        const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
-                        const isPast = reservation.status === "Completada";
-                        const isCancelled = reservation.status === "Cancelada";
-
-                        return (
-                          <div
-                            key={reservation.id}
-                            className={cn(
-                              "absolute top-[6px] rounded-full z-[3] transition-all duration-150",
-                              interactive && "cursor-pointer hover:brightness-110 hover:scale-y-110 hover:shadow-lg",
-                              isCancelled && "opacity-70"
-                            )}
-                            style={{
-                              left,
-                              width,
-                              height: ROW_HEIGHT - 12,
-                              backgroundColor: reservation.color,
-                              opacity: isPast ? 0.45 : isCancelled ? 0.6 : 0.88,
-                              backgroundImage: isCancelled
-                                ? "repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)"
-                                : undefined,
-                              boxShadow: !isPast && !isCancelled
-                                ? `0 1px 3px ${reservation.color}40`
-                                : undefined,
-                            }}
-                            onMouseEnter={(e) => handleBarMouseEnter(e, reservation)}
-                            onMouseLeave={handleBarMouseLeave}
-                            onClick={() => handleBarClick(reservation)}
+                            className="absolute top-0 bottom-0 z-[5]"
+                            style={{ left: todayIdx * DAY_WIDTH + DAY_WIDTH / 2 - 1, width: 2 }}
                           >
-                            {/* $ icon for paid reservations */}
-                            {reservation.paid && reservation.paid !== "No" && reservation.paid !== "no" && width > 28 && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-[10px] font-black text-white/90 drop-shadow-sm">$</span>
-                              </div>
-                            )}
+                            <div className="w-full h-full bg-emerald-400/50 dark:bg-emerald-500/40" />
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              ))}
+                        )}
+
+                        {/* Reservation bars */}
+                        {vehicle.reservations.map(reservation => {
+                          const startIdx = Math.max(0, dayIndex(reservation.startDate, days));
+                          const endIdx = Math.min(days.length - 1, dayIndex(reservation.endDate, days));
+                          if (startIdx < 0 && endIdx < 0) return null;
+                          const left = startIdx * DAY_WIDTH + 2;
+                          const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
+                          const isPast = reservation.status === "Completada";
+                          const isCancelled = reservation.status === "Cancelada";
+
+                          return (
+                            <div
+                              key={reservation.id}
+                              className={cn(
+                                "absolute top-[6px] rounded-full z-[3] transition-all duration-150",
+                                interactive && "cursor-pointer hover:brightness-110 hover:scale-y-110 hover:shadow-lg",
+                                isCancelled && "opacity-70"
+                              )}
+                              style={{
+                                left,
+                                width,
+                                height: ROW_HEIGHT - 12,
+                                backgroundColor: reservation.color,
+                                opacity: isPast ? 0.45 : isCancelled ? 0.6 : 0.88,
+                                backgroundImage: isCancelled
+                                  ? "repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)"
+                                  : undefined,
+                                boxShadow: !isPast && !isCancelled
+                                  ? `0 1px 3px ${reservation.color}40`
+                                  : undefined,
+                              }}
+                              onMouseEnter={(e) => handleBarMouseEnter(e, reservation)}
+                              onMouseLeave={handleBarMouseLeave}
+                              onClick={() => handleBarClick(reservation)}
+                            >
+                              {/* $ icon for paid reservations */}
+                              {reservation.paid && reservation.paid !== "No" && reservation.paid !== "no" && width > 28 && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[10px] font-black text-white/90 drop-shadow-sm">$</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── Tooltip ──────────────────────────────────────────────────────── */}
+      {/* ─── Enhanced Tooltip ─────────────────────────────────────────────── */}
       {tooltip && (
         <div
           className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150"
           style={{
-            left: Math.min(tooltip.x, window.innerWidth - 340),
+            left: Math.min(tooltip.x, window.innerWidth - 360),
             top: tooltip.y,
             transform: "translate(-50%, -100%)",
           }}
         >
-          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-border/60 overflow-hidden min-w-[280px] max-w-[340px]">
+          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-border/60 overflow-hidden min-w-[300px] max-w-[380px]">
             {/* Tooltip header */}
             <div className="px-4 py-3 bg-gray-50/80 dark:bg-zinc-700/30 border-b border-border/40">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">
-                    {tooltip.reservation.clientName || "Sin cliente"}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <p className="text-sm font-bold text-foreground truncate">
+                      {tooltip.reservation.clientName || "Sin cliente"}
+                    </p>
+                  </div>
+                  {/* Phone - only shown in interactive (internal) mode */}
+                  {interactive && tooltip.reservation.clientPhone && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        {tooltip.reservation.clientPhone}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
                     {tooltip.reservation.externalId && (
                       <span className="text-[11px] font-mono text-muted-foreground">
-                        Reserva #{tooltip.reservation.externalId}
+                        #{tooltip.reservation.externalId}
                       </span>
                     )}
                     <span
@@ -584,7 +671,7 @@ export function VehicleTimeline({
 
             {/* Tooltip body */}
             <div className="px-4 py-3 space-y-2.5">
-              {/* Dates */}
+              {/* Dates & Locations */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-start gap-1.5">
                   <span className="text-emerald-500 text-sm font-bold mt-px">→</span>
@@ -593,9 +680,12 @@ export function VehicleTimeline({
                       {formatDateShort(tooltip.reservation.startDate)}
                     </p>
                     {tooltip.reservation.pickupLocation && (
-                      <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
-                        {tooltip.reservation.pickupLocation}
-                      </p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">
+                          {tooltip.reservation.pickupLocation}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -606,16 +696,19 @@ export function VehicleTimeline({
                       {formatDateShort(tooltip.reservation.endDate)}
                     </p>
                     {tooltip.reservation.dropoffLocation && (
-                      <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
-                        {tooltip.reservation.dropoffLocation}
-                      </p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">
+                          {tooltip.reservation.dropoffLocation}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Meta row */}
-              <div className="flex items-center justify-between pt-1 border-t border-border/30">
+              <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   <span className="font-medium">
@@ -635,6 +728,15 @@ export function VehicleTimeline({
                   </div>
                 )}
               </div>
+
+              {/* Interactive mode hint */}
+              {interactive && (
+                <div className="pt-1 border-t border-border/20">
+                  <p className="text-[9px] text-muted-foreground/60 text-center italic">
+                    Clic para ver detalle de reserva
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
