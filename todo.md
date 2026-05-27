@@ -889,3 +889,7 @@
 - [x] RENTLY: Selector de extras/accesorios en CreateRentlyBookingDialog con precios desde API
 - [x] RENTLY: Validación de email (formato) y teléfono (prefijo internacional) en formulario de nuevo cliente
 - [x] RENTLY: Mostrar imágenes de extras/accesorios desde ImagePath de la API en el selector
+- [x] NAVEGACIÓN: Renombrar sección actual 'Reservas' del sidebar a 'Programación' (operaciones del día)
+- [x] NAVEGACIÓN: Crear nueva página 'Reservas' (/bookings) con listado de reservas desde Rently (estilo Rently)
+- [x] NAVEGACIÓN: Añadir 'Reservas' al sidebar apuntando a /bookings
+- [x] NAVEGACIÓN: Registrar ruta /bookings en App.tsx con permisos

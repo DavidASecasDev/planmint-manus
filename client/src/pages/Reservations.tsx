@@ -17,12 +17,12 @@ export default function Reservations() {
   };
 
   return (
-    <AppLayout title="Reservas" fullWidth>
+    <AppLayout title="Programación" fullWidth>
       <div className="flex flex-col h-full">
         <div className="shrink-0">
           <PageHeader
-            title="Reservas / Operaciones"
-            description="Gestiona las reservas importadas y sus operaciones"
+            title="Programación"
+            description="Gestiona las operaciones del día: entregas, devoluciones y transfers"
           />
         </div>
 

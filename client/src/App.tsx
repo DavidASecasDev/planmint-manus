@@ -99,7 +99,10 @@ const PublicForm = lazy(() => import("./pages/PublicForm"));
 const PublicTransferForm = lazy(() => import("./pages/PublicTransferForm"));
 const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 
-// Reservations
+// Reservas (Rently bookings)
+const Bookings = lazy(() => import("./pages/Bookings"));
+
+// Programación (operations / scheduling)
 const Reservations = lazy(() => import("./pages/Reservations"));
 const ReservationDetail = lazy(() => import("./pages/ReservationDetail"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
@@ -282,13 +285,27 @@ function QueryRecovery() {
               } 
             />
             <Route 
-              path="/reservations" 
+              path="/bookings" 
               element={
                 <ProtectedRoute>
                   <ModuleRoute 
                     moduleKey="reservations" 
                     moduleName="Reservas"
                     moduleDescription="El módulo de Reservas no está habilitado para tu organización. Contacta con soporte si necesitas esta funcionalidad."
+                  >
+                    <Bookings />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/reservations" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="reservations" 
+                    moduleName="Programación"
+                    moduleDescription="El módulo de Programación no está habilitado para tu organización. Contacta con soporte si necesitas esta funcionalidad."
                   >
                     <Reservations />
                   </ModuleRoute>
