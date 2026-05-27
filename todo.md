@@ -865,3 +865,4 @@
 - [x] TIMELINE: Corregir categorías numéricas en BD - consultar Rently API para obtener nombres reales y actualizar 83 vehículos + 7 manuales
 - [x] TIMELINE: Asignar categorías a los ~34 vehículos con categoria NULL usando datos de Rently (0 NULL remaining)
 - [x] TIMELINE: Añadir filtro/dropdown por categoría en el timeline para mostrar/ocultar categorías
+- [x] TIMELINE: Optimizar layout para aprovechar todo el ancho de página (fullWidth en AppLayout, reducir padding, eliminar max-w-[1600px])

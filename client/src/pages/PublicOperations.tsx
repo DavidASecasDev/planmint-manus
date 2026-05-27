@@ -340,7 +340,7 @@ export default function PublicOperations() {
         </div>
       </header>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="mx-auto px-2 sm:px-4 py-4 space-y-6">
         {/* ─── Date & Filters ───────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -775,7 +775,7 @@ function PublicTimelineSection({ slug }: { slug: string }) {
           </button>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-2">
         {timelineLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin" style={{ color: COLORS.gold }} />

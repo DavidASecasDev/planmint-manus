@@ -254,7 +254,7 @@ export function VehicleTimeline({
   const totalCategoryHeaders = filteredGroups.length;
   const gridHeight = Math.min(
     (totalVehicles * ROW_HEIGHT) + (totalCategoryHeaders * 28) + 56,
-    700
+    900
   );
 
   return (
