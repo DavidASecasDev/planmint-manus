@@ -101,6 +101,7 @@ const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 
 // Reservas (Rently bookings)
 const Bookings = lazy(() => import("./pages/Bookings"));
+const BookingDetail = lazy(() => import("./pages/BookingDetail"));
 
 // Programación (operations / scheduling)
 const Reservations = lazy(() => import("./pages/Reservations"));
@@ -294,6 +295,20 @@ function QueryRecovery() {
                     moduleDescription="El módulo de Reservas no está habilitado para tu organización. Contacta con soporte si necesitas esta funcionalidad."
                   >
                     <Bookings />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bookings/:id" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="reservations" 
+                    moduleName="Reservas"
+                    moduleDescription="El módulo de Reservas no está habilitado para tu organización."
+                  >
+                    <BookingDetail />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

@@ -6,6 +6,7 @@
  * directamente desde PlanMint.
  */
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO, isToday, isTomorrow, isPast, isFuture, startOfDay, endOfDay, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
@@ -221,6 +222,7 @@ function formatDateTimeFull(dateStr?: string): string {
 
 export default function Bookings() {
   const { hasRently } = useIntegrationFlags();
+  const navigate = useNavigate();
 
   // Data
   const [bookings, setBookings] = useState<RentlyBooking[]>([]);
@@ -564,7 +566,8 @@ export default function Bookings() {
                     return (
                       <TableRow
                         key={booking.Id}
-                        className="group hover:bg-muted/20 transition-colors cursor-default"
+                        className="group hover:bg-muted/20 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/bookings/${booking.Id}`)}
                       >
                         {/* Code */}
                         <TableCell className="font-mono text-xs font-medium">

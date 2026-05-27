@@ -894,3 +894,6 @@
 - [x] NAVEGACIÓN: Añadir 'Reservas' al sidebar apuntando a /bookings
 - [x] NAVEGACIÓN: Registrar ruta /bookings en App.tsx con permisos
 - [x] Bug: Bookings page crash "Objects are not valid as React child" - Rently API returns DeliveryPlace/ReturnPlace/Category/Source as objects, not strings. Added safeStr() helper to safely extract display strings from any field type.
+- [x] RESERVAS: Crear página de detalle de reserva /bookings/:id con datos completos de Rently
+- [x] RESERVAS: Hacer que al clic en una fila del listado se navegue a /bookings/:id
+- [x] RESERVAS: Registrar ruta /bookings/:id en App.tsx
