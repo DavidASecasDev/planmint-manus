@@ -159,6 +159,28 @@ const DOCUMENT_TYPES: { id: number; label: string }[] = [
   { id: 5, label: "Otro" },
 ];
 
+// ─── Validation helpers ─────────────────────────────────────────────────────
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_REGEX = /^\+?\d[\d\s\-().]{6,18}$/;
+
+function validateEmail(email: string): string | null {
+  if (!email.trim()) return null; // optional field
+  if (!EMAIL_REGEX.test(email.trim())) return "Formato de email no válido";
+  return null;
+}
+
+function validatePhone(phone: string): string | null {
+  if (!phone.trim()) return null; // optional field
+  const cleaned = phone.trim();
+  if (!cleaned.startsWith("+")) return "El teléfono debe incluir prefijo internacional (ej. +34)";
+  if (!PHONE_REGEX.test(cleaned)) return "Formato de teléfono no válido";
+  return null;
+}
+
+/** Rently API base URL for extra images */
+const RENTLY_IMG_BASE = "https://app.rfrently.com";
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function CreateRentlyBookingDialog() {
@@ -197,6 +219,7 @@ export function CreateRentlyBookingDialog() {
   const [custDocument, setCustDocument] = useState("");
   const [custDocumentTypeId, setCustDocumentTypeId] = useState<string>("1");
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [custErrors, setCustErrors] = useState<{ email?: string; phone?: string }>({});
 
   // Step 2 — Availability
   const [availableCars, setAvailableCars] = useState<AvailableCar[]>([]);
@@ -275,6 +298,15 @@ export function CreateRentlyBookingDialog() {
       toast.error("Nombre y apellido son obligatorios");
       return;
     }
+
+    // Validate email & phone before creating
+    const emailErr = validateEmail(custEmail);
+    const phoneErr = validatePhone(custPhone);
+    if (emailErr || phoneErr) {
+      setCustErrors({ email: emailErr || undefined, phone: phoneErr || undefined });
+      return;
+    }
+    setCustErrors({});
 
     setCreatingCustomer(true);
     try {
@@ -550,6 +582,7 @@ export function CreateRentlyBookingDialog() {
     setCustDocument("");
     setCustDocumentTypeId("1");
     setCreatingCustomer(false);
+    setCustErrors({});
     setAvailableCars([]);
     setSelectedCar("");
     setPriceData(null);
@@ -906,11 +939,12 @@ export function CreateRentlyBookingDialog() {
                               setCustEmail("");
                               setCustPhone("");
                               setCustDocument("");
-                              setCustDocumentTypeId("1");
-                            }}
-                          >
-                            Cancelar
-                          </Button>
+              setCustDocumentTypeId("1");
+              setCustErrors({});
+            }}
+          >
+            Cancelar
+          </Button>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
@@ -942,10 +976,16 @@ export function CreateRentlyBookingDialog() {
                             <Input
                               type="email"
                               value={custEmail}
-                              onChange={(e) => setCustEmail(e.target.value)}
+                              onChange={(e) => {
+                                setCustEmail(e.target.value);
+                                if (custErrors.email) setCustErrors((prev) => ({ ...prev, email: undefined }));
+                              }}
                               placeholder="email@ejemplo.com"
-                              className="text-sm h-8"
+                              className={cn("text-sm h-8", custErrors.email && "border-destructive focus-visible:ring-destructive")}
                             />
+                            {custErrors.email && (
+                              <p className="text-[11px] text-destructive">{custErrors.email}</p>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs flex items-center gap-1">
@@ -953,10 +993,16 @@ export function CreateRentlyBookingDialog() {
                             </Label>
                             <Input
                               value={custPhone}
-                              onChange={(e) => setCustPhone(e.target.value)}
-                              placeholder="+34..."
-                              className="text-sm h-8"
+                              onChange={(e) => {
+                                setCustPhone(e.target.value);
+                                if (custErrors.phone) setCustErrors((prev) => ({ ...prev, phone: undefined }));
+                              }}
+                              placeholder="+34 612 345 678"
+                              className={cn("text-sm h-8", custErrors.phone && "border-destructive focus-visible:ring-destructive")}
                             />
+                            {custErrors.phone && (
+                              <p className="text-[11px] text-destructive">{custErrors.phone}</p>
+                            )}
                           </div>
                         </div>
 
@@ -1224,6 +1270,18 @@ export function CreateRentlyBookingDialog() {
                                       className="rounded"
                                     />
                                   </div>
+
+                                  {/* Image thumbnail */}
+                                  {item.ImagePath && (
+                                    <div className="shrink-0 w-12 h-12 rounded-md overflow-hidden border bg-muted">
+                                      <img
+                                        src={item.ImagePath.startsWith("http") ? item.ImagePath : `${RENTLY_IMG_BASE}${item.ImagePath}`}
+                                        alt={item.Name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                      />
+                                    </div>
+                                  )}
 
                                   {/* Info */}
                                   <div className="flex-1 min-w-0">

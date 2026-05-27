@@ -887,3 +887,5 @@
 - [ ] RENTLY: Verificar flujo completo sin conflictos con sync existente
 - [x] RENTLY: Formulario de nuevo cliente inline en CreateRentlyBookingDialog (POST /api/customer)
 - [x] RENTLY: Selector de extras/accesorios en CreateRentlyBookingDialog con precios desde API
+- [x] RENTLY: Validación de email (formato) y teléfono (prefijo internacional) en formulario de nuevo cliente
+- [x] RENTLY: Mostrar imágenes de extras/accesorios desde ImagePath de la API en el selector
