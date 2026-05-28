@@ -598,12 +598,16 @@ export function VehicleTimeline({
                           const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
                           const isPast = reservation.status === "Completada";
                           const isCancelled = reservation.status === "Cancelada";
+                          // Detect overflow: bar extends beyond visible range
+                          const overflowsRight = rawEndIdx === -1;
+                          const overflowsLeft = rawStartIdx === -1;
 
                           return (
                             <div
                               key={reservation.id}
                               className={cn(
-                                "absolute top-[6px] rounded-full z-[3] transition-all duration-150",
+                                "absolute top-[6px] z-[3] transition-all duration-150",
+                                overflowsRight ? "rounded-l-full rounded-r-none" : overflowsLeft ? "rounded-r-full rounded-l-none" : "rounded-full",
                                 interactive && "cursor-pointer hover:brightness-110 hover:scale-y-110 hover:shadow-lg",
                                 isCancelled && "opacity-70"
                               )}
@@ -628,6 +632,21 @@ export function VehicleTimeline({
                               {reservation.paid && reservation.paid !== "No" && reservation.paid !== "no" && width > 28 && (
                                 <div className="absolute inset-0 flex items-center justify-center">
                                   <span className="text-[10px] font-black text-white/90 drop-shadow-sm">$</span>
+                                </div>
+                              )}
+                              {/* Arrow indicator for bars extending beyond visible range */}
+                              {overflowsRight && (
+                                <div className="absolute right-0 top-0 bottom-0 flex items-center pr-0.5">
+                                  <svg width="8" height="12" viewBox="0 0 8 12" className="text-white/90 drop-shadow-sm">
+                                    <path d="M1 1 L6 6 L1 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </div>
+                              )}
+                              {overflowsLeft && (
+                                <div className="absolute left-0 top-0 bottom-0 flex items-center pl-0.5">
+                                  <svg width="8" height="12" viewBox="0 0 8 12" className="text-white/90 drop-shadow-sm">
+                                    <path d="M7 1 L2 6 L7 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
                                 </div>
                               )}
                             </div>
