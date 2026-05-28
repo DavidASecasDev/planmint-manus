@@ -2,7 +2,9 @@
  * VehicleTimeline — Professional Gantt-style horizontal timeline for vehicle reservations.
  *
  * Features:
- * - 3-month scrollable view with visible horizontal scrollbar
+ * - Dynamic zoom: 1M / 3M / 6M toggle buttons
+ * - Mini-map overview bar showing full range with viewport indicator
+ * - Scrollable view with visible horizontal scrollbar
  * - Month selector to jump to any month in the range
  * - Collapsible category sections (click header to toggle)
  * - Occupancy % indicator per category
@@ -15,7 +17,7 @@
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -59,6 +61,8 @@ export interface TimelineData {
   statusColors: Record<string, string>;
 }
 
+export type ZoomLevel = "1M" | "3M" | "6M";
+
 export interface VehicleTimelineProps {
   data: TimelineData | null;
   isLoading?: boolean;
@@ -68,6 +72,10 @@ export interface VehicleTimelineProps {
   onCategoryFilterChange?: (value: string) => void;
   /** Called when the month selector changes — parent should update the date range */
   onMonthChange?: (year: number, month: number) => void;
+  /** Called when zoom level changes — parent should update the date range */
+  onZoomChange?: (zoom: ZoomLevel) => void;
+  /** Current zoom level */
+  zoomLevel?: ZoomLevel;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -76,6 +84,7 @@ const DAY_WIDTH = 34;
 const ROW_HEIGHT = 40;
 const LABEL_WIDTH = 170;
 const CATEGORY_HEADER_HEIGHT = 32;
+const MINIMAP_HEIGHT = 28;
 const DAY_NAMES_ES = ["D", "L", "M", "X", "J", "V", "S"];
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -133,6 +142,169 @@ function calculateOccupancy(group: TimelineGroup, fromDate: string, toDate: stri
   return Math.min(100, Math.round((reservedDays / totalVehicleDays) * 100));
 }
 
+// ─── Mini-map Component ──────────────────────────────────────────────────────
+
+interface MiniMapProps {
+  days: string[];
+  groups: TimelineGroup[];
+  statusColors: Record<string, string>;
+  today: string;
+  scrollLeft: number;
+  viewportWidth: number;
+  totalWidth: number;
+  onScrollTo: (scrollLeft: number) => void;
+}
+
+function MiniMap({ days, groups, statusColors, today, scrollLeft, viewportWidth, totalWidth, onScrollTo }: MiniMapProps) {
+  const miniMapRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const miniMapWidth = useMemo(() => {
+    if (!miniMapRef.current) return 0;
+    return miniMapRef.current.clientWidth;
+  }, []);
+
+  // Collect all reservations for the mini-map
+  const allReservations = useMemo(() => {
+    const result: Array<{ startIdx: number; endIdx: number; color: string }> = [];
+    for (const group of groups) {
+      for (const vehicle of group.vehicles) {
+        for (const res of vehicle.reservations) {
+          if (res.status === "Cancelada") continue;
+          const rawStartIdx = dayIndex(res.startDate, days);
+          const rawEndIdx = dayIndex(res.endDate, days);
+          const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
+          const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
+          if (startIdx <= days.length - 1 && endIdx >= 0) {
+            result.push({ startIdx, endIdx, color: res.color });
+          }
+        }
+      }
+    }
+    return result;
+  }, [groups, days]);
+
+  // Today position as fraction
+  const todayIdx = dayIndex(today, days);
+  const todayFraction = todayIdx >= 0 ? todayIdx / days.length : -1;
+
+  // Viewport indicator as fraction of total
+  const viewportStartFraction = totalWidth > 0 ? scrollLeft / totalWidth : 0;
+  const viewportWidthFraction = totalWidth > 0 ? Math.min(viewportWidth / totalWidth, 1) : 1;
+
+  // Month boundaries for mini-map labels
+  const monthBoundaries = useMemo(() => {
+    const boundaries: Array<{ label: string; fraction: number }> = [];
+    let lastMonth = -1;
+    for (let i = 0; i < days.length; i++) {
+      const d = new Date(days[i] + "T00:00:00");
+      const month = d.getMonth();
+      if (month !== lastMonth) {
+        boundaries.push({
+          label: MONTH_NAMES_SHORT_ES[month],
+          fraction: i / days.length,
+        });
+        lastMonth = month;
+      }
+    }
+    return boundaries;
+  }, [days]);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!miniMapRef.current) return;
+    const rect = miniMapRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const fraction = clickX / rect.width;
+    const targetScroll = fraction * totalWidth - viewportWidth / 2;
+    onScrollTo(Math.max(0, Math.min(targetScroll, totalWidth - viewportWidth)));
+  }, [totalWidth, viewportWidth, onScrollTo]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    isDragging.current = true;
+    handleClick(e);
+  }, [handleClick]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || !miniMapRef.current) return;
+      const rect = miniMapRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const fraction = Math.max(0, Math.min(1, clickX / rect.width));
+      const targetScroll = fraction * totalWidth - viewportWidth / 2;
+      onScrollTo(Math.max(0, Math.min(targetScroll, totalWidth - viewportWidth)));
+    };
+    const handleMouseUp = () => { isDragging.current = false; };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [totalWidth, viewportWidth, onScrollTo]);
+
+  return (
+    <div
+      ref={miniMapRef}
+      className="relative cursor-pointer select-none border-b border-border bg-gray-50/80 dark:bg-gray-800/40"
+      style={{ height: MINIMAP_HEIGHT, marginLeft: LABEL_WIDTH }}
+      onMouseDown={handleMouseDown}
+    >
+      {/* Month labels */}
+      {monthBoundaries.map((mb, i) => (
+        <div
+          key={i}
+          className="absolute top-0 text-[8px] font-semibold text-muted-foreground/60 uppercase tracking-wider"
+          style={{ left: `${mb.fraction * 100}%`, paddingLeft: 3, paddingTop: 1 }}
+        >
+          {mb.label}
+        </div>
+      ))}
+
+      {/* Reservation density bars */}
+      <svg className="absolute inset-0 w-full" style={{ height: MINIMAP_HEIGHT }}>
+        {allReservations.map((res, i) => {
+          const x1 = (res.startIdx / days.length) * 100;
+          const x2 = ((res.endIdx + 1) / days.length) * 100;
+          return (
+            <rect
+              key={i}
+              x={`${x1}%`}
+              y={MINIMAP_HEIGHT - 8}
+              width={`${Math.max(x2 - x1, 0.3)}%`}
+              height={5}
+              rx={1.5}
+              fill={res.color}
+              opacity={0.6}
+            />
+          );
+        })}
+        {/* Today marker */}
+        {todayFraction >= 0 && (
+          <line
+            x1={`${todayFraction * 100}%`}
+            y1={0}
+            x2={`${todayFraction * 100}%`}
+            y2={MINIMAP_HEIGHT}
+            stroke="#10b981"
+            strokeWidth={1.5}
+            opacity={0.7}
+          />
+        )}
+      </svg>
+
+      {/* Viewport indicator */}
+      <div
+        className="absolute top-0 bottom-0 border border-primary/60 bg-primary/10 rounded-sm transition-[left,width] duration-75"
+        style={{
+          left: `${viewportStartFraction * 100}%`,
+          width: `${viewportWidthFraction * 100}%`,
+          minWidth: 8,
+        }}
+      />
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function VehicleTimeline({
@@ -143,6 +315,8 @@ export function VehicleTimeline({
   categoryFilter,
   onCategoryFilterChange,
   onMonthChange,
+  onZoomChange,
+  zoomLevel = "3M",
 }: VehicleTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
@@ -160,6 +334,9 @@ export function VehicleTimeline({
     } catch { /* ignore */ }
     return new Set();
   });
+
+  // Scroll tracking for mini-map
+  const [scrollState, setScrollState] = useState({ scrollLeft: 0, viewportWidth: 0 });
 
   // Toggle category collapse
   const toggleCategory = useCallback((category: string) => {
@@ -246,16 +423,30 @@ export function VehicleTimeline({
       const scrollTo = Math.max(0, (todayIdx - 4) * DAY_WIDTH);
       scrollRef.current.scrollLeft = scrollTo;
     }
-    // Initialize current month indicator
-    setTimeout(updateCurrentMonth, 50);
+    // Initialize current month indicator and scroll state
+    setTimeout(() => {
+      updateCurrentMonth();
+      if (scrollRef.current) {
+        setScrollState({
+          scrollLeft: scrollRef.current.scrollLeft,
+          viewportWidth: scrollRef.current.clientWidth,
+        });
+      }
+    }, 50);
   }, [data, days]);
 
-  // Sync vertical scroll between labels and grid + track current month
+  // Sync vertical scroll between labels and grid + track current month + update minimap
   const handleGridScroll = useCallback(() => {
     if (scrollRef.current && labelsRef.current) {
       labelsRef.current.scrollTop = scrollRef.current.scrollTop;
     }
     updateCurrentMonth();
+    if (scrollRef.current) {
+      setScrollState({
+        scrollLeft: scrollRef.current.scrollLeft,
+        viewportWidth: scrollRef.current.clientWidth,
+      });
+    }
   }, [updateCurrentMonth]);
 
   // Scroll to a specific month
@@ -290,6 +481,12 @@ export function VehicleTimeline({
       onMonthChange(year, month);
     }
   }, [scrollToMonth, onMonthChange]);
+
+  // Handle mini-map scroll
+  const handleMiniMapScroll = useCallback((targetScrollLeft: number) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({ left: targetScrollLeft, behavior: "smooth" });
+  }, []);
 
   // Tooltip handlers
   const handleBarMouseEnter = useCallback((e: React.MouseEvent, reservation: TimelineReservation) => {
@@ -386,7 +583,31 @@ export function VehicleTimeline({
   return (
     <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
       {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30 flex-wrap">
+        {/* Zoom controls */}
+        <div className="flex items-center gap-0.5 bg-gray-200/60 dark:bg-gray-700/40 rounded-lg p-0.5">
+          <ZoomIn className="h-3 w-3 text-muted-foreground ml-1.5 mr-0.5" />
+          {(["1M", "3M", "6M"] as ZoomLevel[]).map(level => (
+            <Button
+              key={level}
+              variant={zoomLevel === level ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-6 px-2.5 rounded-md text-[10px] font-bold tracking-wide transition-all",
+                zoomLevel === level
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-gray-300/50 dark:hover:bg-gray-600/40"
+              )}
+              onClick={() => onZoomChange?.(level)}
+            >
+              {level}
+            </Button>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-border/60" />
+
         {/* Month selector */}
         <div className="flex items-center gap-1.5">
           <Select value={currentMonthKey} onValueChange={handleMonthSelect}>
@@ -411,6 +632,9 @@ export function VehicleTimeline({
             Hoy
           </Button>
         </div>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-border/60" />
 
         {/* Category filter */}
         {categories.length > 1 && onCategoryFilterChange && (
@@ -440,6 +664,18 @@ export function VehicleTimeline({
           ))}
         </div>
       </div>
+
+      {/* ─── Mini-map Overview Bar ────────────────────────────────────────── */}
+      <MiniMap
+        days={days}
+        groups={data.groups}
+        statusColors={data.statusColors}
+        today={data.today}
+        scrollLeft={scrollState.scrollLeft}
+        viewportWidth={scrollState.viewportWidth}
+        totalWidth={totalWidth}
+        onScrollTo={handleMiniMapScroll}
+      />
 
       {/* ─── Timeline Grid ────────────────────────────────────────────────── */}
       <div className="flex" style={{ height: gridHeight }}>

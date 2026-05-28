@@ -1,7 +1,8 @@
 /**
  * TimelinePage — PlanMint internal timeline view.
  * Shows Gantt-style vehicle reservation timeline with full interactivity.
- * - 3-month scrollable view with horizontal scrollbar
+ * - Dynamic zoom: 1M / 3M / 6M
+ * - Mini-map overview bar
  * - Month selector to jump to any month
  * - Hover shows full client info
  * - Click navigates to reservation detail
@@ -11,24 +12,32 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { apiInvoke } from "@/lib/apiClient";
-import { VehicleTimeline, TimelineData } from "@/components/timeline/VehicleTimeline";
+import { VehicleTimeline, TimelineData, ZoomLevel } from "@/components/timeline/VehicleTimeline";
 import { AppLayout } from "@/components/layout/AppLayout";
+
+const ZOOM_DAYS: Record<ZoomLevel, number> = {
+  "1M": 37,  // ~1 month + 1 week before
+  "3M": 97,  // ~3 months + 1 week before
+  "6M": 187, // ~6 months + 1 week before
+};
 
 export default function TimelinePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("3M");
 
-  // 3-month window: 1 week before today → ~13 weeks after
-  const [startDate] = useState<Date>(() => {
+  // Start date: 1 week before today (fixed)
+  const startDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
     return d;
-  });
+  }, []);
 
+  // End date depends on zoom level
   const endDate = useMemo(() => {
     const d = new Date(startDate);
-    d.setDate(d.getDate() + 90); // ~3 months view
+    d.setDate(d.getDate() + ZOOM_DAYS[zoomLevel]);
     return d;
-  }, [startDate]);
+  }, [startDate, zoomLevel]);
 
   const fromStr = startDate.toISOString().split("T")[0];
   const toStr = endDate.toISOString().split("T")[0];
@@ -47,6 +56,10 @@ export default function TimelinePage() {
 
   const handleReservationClick = useCallback((reservationId: string) => {
     window.open(`/reservations/${reservationId}`, '_blank');
+  }, []);
+
+  const handleZoomChange = useCallback((zoom: ZoomLevel) => {
+    setZoomLevel(zoom);
   }, []);
 
   return (
@@ -78,6 +91,8 @@ export default function TimelinePage() {
           onReservationClick={handleReservationClick}
           categoryFilter={categoryFilter}
           onCategoryFilterChange={setCategoryFilter}
+          zoomLevel={zoomLevel}
+          onZoomChange={handleZoomChange}
         />
       </div>
     </AppLayout>

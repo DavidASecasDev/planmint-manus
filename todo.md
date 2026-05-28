@@ -935,3 +935,5 @@
 - [x] TIMELINE: Fix interno PlanMint — el grid no aprovecha todo el ancho disponible dentro del layout con sidebar, dejando espacio en blanco a la derecha (causa real: ResizeObserver con [] deps no re-medía scrollRef tras loading state, containerWidth quedaba en 0)
 - [x] TIMELINE: Ampliar rango a 3 meses (90 días) con barra de desplazamiento horizontal inferior para navegar libremente
 - [x] TIMELINE: Reemplazar botones < Hoy > por selector/filtro de mes arriba para saltar directamente a un mes concreto
+- [x] TIMELINE: Zoom dinámico con botones 1M / 3M / 6M en la barra de controles
+- [x] TIMELINE: Mini-mapa/overview bar encima del timeline que muestra la posición actual del viewport dentro del rango total

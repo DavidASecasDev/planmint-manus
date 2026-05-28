@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { usePublicOperations, OperationRow, ModelAvailability } from "@/hooks/usePublicOperations";
-import { VehicleTimeline, TimelineData } from "@/components/timeline/VehicleTimeline";
+import { VehicleTimeline, TimelineData, ZoomLevel } from "@/components/timeline/VehicleTimeline";
 import {
   Select,
   SelectContent,
@@ -687,17 +687,19 @@ function PublicTimelineSection({ slug }: { slug: string }) {
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [timelineCategoryFilter, setTimelineCategoryFilter] = useState("all");
-  const [startDate] = useState<Date>(() => {
+  const [timelineZoom, setTimelineZoom] = useState<ZoomLevel>("3M");
+  const ZOOM_DAYS: Record<ZoomLevel, number> = { "1M": 37, "3M": 97, "6M": 187 };
+  const startDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
     return d;
-  });
+  }, []);
 
   const endDate = useMemo(() => {
     const d = new Date(startDate);
-    d.setDate(d.getDate() + 90); // ~3 months view
+    d.setDate(d.getDate() + ZOOM_DAYS[timelineZoom]);
     return d;
-  }, [startDate]);
+  }, [startDate, timelineZoom]);
 
   const fetchTimeline = useCallback(async () => {
     if (!slug) return;
@@ -753,6 +755,8 @@ function PublicTimelineSection({ slug }: { slug: string }) {
             interactive={false}
             categoryFilter={timelineCategoryFilter}
             onCategoryFilterChange={setTimelineCategoryFilter}
+            zoomLevel={timelineZoom}
+            onZoomChange={setTimelineZoom}
           />
         ) : null}
       </div>
