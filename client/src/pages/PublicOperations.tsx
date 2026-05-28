@@ -661,7 +661,7 @@ export default function PublicOperations() {
       </main>
 
       {/* ─── Timeline Section ──────────────────────────────────────────── */}
-      <section className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+      <section className="px-4 sm:px-6 py-6">
         <PublicTimelineSection slug={slug || ""} />
       </section>
 

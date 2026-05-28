@@ -68,7 +68,7 @@ export interface VehicleTimelineProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAY_WIDTH = 34;
+const MIN_DAY_WIDTH = 34;
 const ROW_HEIGHT = 40;
 const LABEL_WIDTH = 170;
 const CATEGORY_HEADER_HEIGHT = 32;
@@ -138,6 +138,22 @@ export function VehicleTimeline({
 }: VehicleTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Measure container width to compute dynamic DAY_WIDTH
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth - LABEL_WIDTH;
+      if (w > 0) setContainerWidth(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [tooltip, setTooltip] = useState<{
     reservation: TimelineReservation;
     x: number;
@@ -177,6 +193,13 @@ export function VehicleTimeline({
     if (!data) return [];
     return getDaysBetween(data.fromDate, data.toDate);
   }, [data]);
+
+  // Dynamic DAY_WIDTH: stretch columns to fill container, with a minimum
+  const DAY_WIDTH = useMemo(() => {
+    if (days.length === 0 || containerWidth === 0) return MIN_DAY_WIDTH;
+    const computed = Math.floor(containerWidth / days.length);
+    return Math.max(MIN_DAY_WIDTH, computed);
+  }, [days.length, containerWidth]);
 
   // Get categories for filter
   // Preserve server-defined category order (custom business order)
@@ -321,7 +344,7 @@ export function VehicleTimeline({
   );
 
   return (
-    <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
+    <div ref={containerRef} className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
       {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30">
         {/* Navigation */}
