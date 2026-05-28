@@ -198,9 +198,10 @@ export function VehicleTimeline({
   }, [data]);
 
   // Dynamic DAY_WIDTH: stretch columns to fill container, with a minimum
+  // Use exact division (no Math.floor) to avoid rounding gaps at the right edge
   const DAY_WIDTH = useMemo(() => {
     if (days.length === 0 || containerWidth === 0) return MIN_DAY_WIDTH;
-    const computed = Math.floor(containerWidth / days.length);
+    const computed = containerWidth / days.length;
     return Math.max(MIN_DAY_WIDTH, computed);
   }, [days.length, containerWidth]);
 
@@ -509,7 +510,7 @@ export function VehicleTimeline({
           className="flex-1 overflow-auto"
           onScroll={handleGridScroll}
         >
-          <div style={{ width: totalWidth, position: "relative", minHeight: "100%" }}>
+          <div style={{ width: Math.max(totalWidth, containerWidth), minWidth: "100%", position: "relative", minHeight: "100%" }}>
             {/* ─── Date Header (sticky top) ─────────────────────────────────── */}
             <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-border" style={{ height: 56 }}>
               {/* Month row */}
@@ -578,7 +579,7 @@ export function VehicleTimeline({
                     {/* Category separator row */}
                     <div
                       className="bg-blue-50/50 dark:bg-blue-950/10 border-b border-blue-100 dark:border-blue-900/20"
-                      style={{ height: CATEGORY_HEADER_HEIGHT, width: totalWidth }}
+                      style={{ height: CATEGORY_HEADER_HEIGHT }}
                     />
                     {/* Vehicle rows (hidden when collapsed) */}
                     {!isCollapsed && group.vehicles.map((vehicle, vIdx) => (
@@ -588,7 +589,7 @@ export function VehicleTimeline({
                           "relative border-b border-border/30",
                           vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
                         )}
-                        style={{ height: ROW_HEIGHT, width: totalWidth }}
+                        style={{ height: ROW_HEIGHT }}
                       >
                         {/* Weekend column stripes */}
                         {days.map((day, i) => {
