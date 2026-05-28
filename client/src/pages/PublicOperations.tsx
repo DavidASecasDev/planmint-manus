@@ -687,7 +687,7 @@ function PublicTimelineSection({ slug }: { slug: string }) {
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [timelineCategoryFilter, setTimelineCategoryFilter] = useState("all");
-  const [startDate, setStartDate] = useState<Date>(() => {
+  const [startDate] = useState<Date>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
     return d;
@@ -695,7 +695,7 @@ function PublicTimelineSection({ slug }: { slug: string }) {
 
   const endDate = useMemo(() => {
     const d = new Date(startDate);
-    d.setDate(d.getDate() + 35); // 5 weeks view
+    d.setDate(d.getDate() + 90); // ~3 months view
     return d;
   }, [startDate]);
 
@@ -723,13 +723,7 @@ function PublicTimelineSection({ slug }: { slug: string }) {
     fetchTimeline();
   }, [fetchTimeline]);
 
-  const handleNavigate = (direction: "prev" | "next") => {
-    setStartDate((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
-      return d;
-    });
-  };
+
 
   if (timelineError) {
     return (
@@ -759,15 +753,6 @@ function PublicTimelineSection({ slug }: { slug: string }) {
             interactive={false}
             categoryFilter={timelineCategoryFilter}
             onCategoryFilterChange={setTimelineCategoryFilter}
-            onNavigate={(direction) => {
-              if (direction === "today") {
-                const d = new Date();
-                d.setDate(d.getDate() - 7);
-                setStartDate(d);
-              } else {
-                handleNavigate(direction);
-              }
-            }}
           />
         ) : null}
       </div>

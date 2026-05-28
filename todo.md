@@ -933,3 +933,5 @@
 - [x] TIMELINE: Eliminar controles de navegación temporal duplicados del componente VehicleTimeline — mantener solo los de la página padre que realmente cambian el rango de datos
 - [x] TIMELINE: Añadir navegación temporal a TimelinePage (interno) para que también pueda cambiar el rango de fechas
 - [x] TIMELINE: Fix interno PlanMint — el grid no aprovecha todo el ancho disponible dentro del layout con sidebar, dejando espacio en blanco a la derecha (causa real: ResizeObserver con [] deps no re-medía scrollRef tras loading state, containerWidth quedaba en 0)
+- [x] TIMELINE: Ampliar rango a 3 meses (90 días) con barra de desplazamiento horizontal inferior para navegar libremente
+- [x] TIMELINE: Reemplazar botones < Hoy > por selector/filtro de mes arriba para saltar directamente a un mes concreto

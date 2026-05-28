@@ -1,10 +1,11 @@
 /**
  * TimelinePage — PlanMint internal timeline view.
  * Shows Gantt-style vehicle reservation timeline with full interactivity.
+ * - 3-month scrollable view with horizontal scrollbar
+ * - Month selector to jump to any month
  * - Hover shows full client info
  * - Click navigates to reservation detail
  * - Filter by category
- * - Navigate through time with < Hoy > controls
  */
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +16,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function TimelinePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [startDate, setStartDate] = useState<Date>(() => {
+
+  // 3-month window: 1 week before today → ~13 weeks after
+  const [startDate] = useState<Date>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
     return d;
@@ -23,7 +26,7 @@ export default function TimelinePage() {
 
   const endDate = useMemo(() => {
     const d = new Date(startDate);
-    d.setDate(d.getDate() + 35); // 5 weeks view
+    d.setDate(d.getDate() + 90); // ~3 months view
     return d;
   }, [startDate]);
 
@@ -44,20 +47,6 @@ export default function TimelinePage() {
 
   const handleReservationClick = useCallback((reservationId: string) => {
     window.open(`/reservations/${reservationId}`, '_blank');
-  }, []);
-
-  const handleNavigate = useCallback((direction: "prev" | "next" | "today") => {
-    if (direction === "today") {
-      const d = new Date();
-      d.setDate(d.getDate() - 7);
-      setStartDate(d);
-    } else {
-      setStartDate((prev) => {
-        const d = new Date(prev);
-        d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
-        return d;
-      });
-    }
   }, []);
 
   return (
@@ -89,7 +78,6 @@ export default function TimelinePage() {
           onReservationClick={handleReservationClick}
           categoryFilter={categoryFilter}
           onCategoryFilterChange={setCategoryFilter}
-          onNavigate={handleNavigate}
         />
       </div>
     </AppLayout>

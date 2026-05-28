@@ -2,6 +2,8 @@
  * VehicleTimeline — Professional Gantt-style horizontal timeline for vehicle reservations.
  *
  * Features:
+ * - 3-month scrollable view with visible horizontal scrollbar
+ * - Month selector to jump to any month in the range
  * - Collapsible category sections (click header to toggle)
  * - Occupancy % indicator per category
  * - Enhanced tooltip with full client info (phone, locations) in interactive mode
@@ -13,7 +15,7 @@
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -64,13 +66,13 @@ export interface VehicleTimelineProps {
   onReservationClick?: (reservationId: string) => void;
   categoryFilter?: string;
   onCategoryFilterChange?: (value: string) => void;
-  /** Called when user clicks prev/next/today to navigate the date range */
-  onNavigate?: (direction: "prev" | "next" | "today") => void;
+  /** Called when the month selector changes — parent should update the date range */
+  onMonthChange?: (year: number, month: number) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MIN_DAY_WIDTH = 34;
+const DAY_WIDTH = 34;
 const ROW_HEIGHT = 40;
 const LABEL_WIDTH = 170;
 const CATEGORY_HEADER_HEIGHT = 32;
@@ -78,6 +80,10 @@ const DAY_NAMES_ES = ["D", "L", "M", "X", "J", "V", "S"];
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+const MONTH_NAMES_SHORT_ES = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -105,7 +111,6 @@ function formatDateShort(dateStr: string): string {
 
 /**
  * Calculate occupancy % for a category group within the visible date range.
- * Occupancy = (total reserved vehicle-days) / (total available vehicle-days) * 100
  */
 function calculateOccupancy(group: TimelineGroup, fromDate: string, toDate: string): number {
   const from = new Date(fromDate + "T00:00:00");
@@ -137,29 +142,11 @@ export function VehicleTimeline({
   onReservationClick,
   categoryFilter,
   onCategoryFilterChange,
-  onNavigate,
+  onMonthChange,
 }: VehicleTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
 
-  // Measure the scrollable grid area width directly (accounts for vertical scrollbar).
-  // Re-run when isLoading/data changes because the loading state returns early
-  // and scrollRef is not mounted until data arrives.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const measure = () => {
-      // clientWidth excludes scrollbar width, giving us the actual visible area
-      const w = el.clientWidth;
-      if (w > 0) setContainerWidth(w);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [isLoading, data]);
   const [tooltip, setTooltip] = useState<{
     reservation: TimelineReservation;
     x: number;
@@ -200,16 +187,7 @@ export function VehicleTimeline({
     return getDaysBetween(data.fromDate, data.toDate);
   }, [data]);
 
-  // Dynamic DAY_WIDTH: stretch columns to fill container, with a minimum
-  // Use exact division (no Math.floor) to avoid rounding gaps at the right edge
-  const DAY_WIDTH = useMemo(() => {
-    if (days.length === 0 || containerWidth === 0) return MIN_DAY_WIDTH;
-    const computed = containerWidth / days.length;
-    return Math.max(MIN_DAY_WIDTH, computed);
-  }, [days.length, containerWidth]);
-
   // Get categories for filter
-  // Preserve server-defined category order (custom business order)
   const categories = useMemo(() => {
     if (!data) return [];
     return data.groups.map(g => g.category);
@@ -222,6 +200,44 @@ export function VehicleTimeline({
     return data.groups.filter(g => g.category === categoryFilter);
   }, [data, categoryFilter]);
 
+  // Build list of months available in the range for the month selector
+  const availableMonths = useMemo(() => {
+    if (!data) return [];
+    const months: Array<{ year: number; month: number; label: string; dayIdx: number }> = [];
+    let lastKey = "";
+    for (let i = 0; i < days.length; i++) {
+      const d = new Date(days[i] + "T00:00:00");
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (key !== lastKey) {
+        months.push({
+          year: d.getFullYear(),
+          month: d.getMonth(),
+          label: `${MONTH_NAMES_SHORT_ES[d.getMonth()]} ${d.getFullYear()}`,
+          dayIdx: i,
+        });
+        lastKey = key;
+      }
+    }
+    return months;
+  }, [data, days]);
+
+  // Determine which month is currently visible (based on scroll position)
+  const [currentMonthKey, setCurrentMonthKey] = useState<string>("");
+
+  const updateCurrentMonth = useCallback(() => {
+    if (!scrollRef.current || availableMonths.length === 0) return;
+    const scrollLeft = scrollRef.current.scrollLeft;
+    const centerX = scrollLeft + scrollRef.current.clientWidth / 3;
+    const dayAtCenter = Math.floor(centerX / DAY_WIDTH);
+    // Find which month this day belongs to
+    let found = availableMonths[0];
+    for (const m of availableMonths) {
+      if (m.dayIdx <= dayAtCenter) found = m;
+      else break;
+    }
+    setCurrentMonthKey(`${found.year}-${found.month}`);
+  }, [availableMonths]);
+
   // Scroll to today on mount
   useEffect(() => {
     if (!data || !scrollRef.current || days.length === 0) return;
@@ -230,25 +246,31 @@ export function VehicleTimeline({
       const scrollTo = Math.max(0, (todayIdx - 4) * DAY_WIDTH);
       scrollRef.current.scrollLeft = scrollTo;
     }
+    // Initialize current month indicator
+    setTimeout(updateCurrentMonth, 50);
   }, [data, days]);
 
-  // Sync vertical scroll between labels and grid
+  // Sync vertical scroll between labels and grid + track current month
   const handleGridScroll = useCallback(() => {
     if (scrollRef.current && labelsRef.current) {
       labelsRef.current.scrollTop = scrollRef.current.scrollTop;
     }
-  }, []);
+    updateCurrentMonth();
+  }, [updateCurrentMonth]);
 
-  // Scroll navigation
-  const scrollBy = useCallback((direction: "left" | "right") => {
+  // Scroll to a specific month
+  const scrollToMonth = useCallback((year: number, month: number) => {
     if (!scrollRef.current) return;
-    const amount = DAY_WIDTH * 7;
-    scrollRef.current.scrollBy({
-      left: direction === "right" ? amount : -amount,
-      behavior: "smooth",
-    });
-  }, []);
+    const target = availableMonths.find(m => m.year === year && m.month === month);
+    if (target) {
+      scrollRef.current.scrollTo({
+        left: target.dayIdx * DAY_WIDTH,
+        behavior: "smooth",
+      });
+    }
+  }, [availableMonths]);
 
+  // Scroll to today
   const scrollToToday = useCallback(() => {
     if (!data || !scrollRef.current || days.length === 0) return;
     const todayIdx = dayIndex(data.today, days);
@@ -257,6 +279,17 @@ export function VehicleTimeline({
       scrollRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
     }
   }, [data, days]);
+
+  // Handle month selector change
+  const handleMonthSelect = useCallback((value: string) => {
+    const [yearStr, monthStr] = value.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    scrollToMonth(year, month);
+    if (onMonthChange) {
+      onMonthChange(year, month);
+    }
+  }, [scrollToMonth, onMonthChange]);
 
   // Tooltip handlers
   const handleBarMouseEnter = useCallback((e: React.MouseEvent, reservation: TimelineReservation) => {
@@ -336,7 +369,7 @@ export function VehicleTimeline({
   const totalWidth = days.length * DAY_WIDTH;
   const todayIdx = dayIndex(data.today, days);
 
-  // Count total visible vehicles for height calculation (accounting for collapsed)
+  // Count total visible vehicles for height calculation
   let totalVisibleVehicles = 0;
   let totalCategoryHeaders = 0;
   for (const g of filteredGroups) {
@@ -351,37 +384,31 @@ export function VehicleTimeline({
   );
 
   return (
-    <div ref={containerRef} className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
+    <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
       {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30">
-        {/* Navigation — shifts date range if onNavigate provided, otherwise scrolls */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0 rounded-md"
-            onClick={() => onNavigate ? onNavigate("prev") : scrollBy("left")}
-            title="Semana anterior"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Button>
+        {/* Month selector */}
+        <div className="flex items-center gap-1.5">
+          <Select value={currentMonthKey} onValueChange={handleMonthSelect}>
+            <SelectTrigger className="w-[130px] h-7 text-xs rounded-md border-border font-medium">
+              <SelectValue placeholder="Mes" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMonths.map(m => (
+                <SelectItem key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="sm"
             className="h-7 px-2.5 rounded-md text-xs font-medium"
-            onClick={() => onNavigate ? onNavigate("today") : scrollToToday()}
+            onClick={scrollToToday}
             title="Ir a hoy"
           >
             Hoy
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0 rounded-md"
-            onClick={() => onNavigate ? onNavigate("next") : scrollBy("right")}
-            title="Semana siguiente"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -441,7 +468,6 @@ export function VehicleTimeline({
                     style={{ height: CATEGORY_HEADER_HEIGHT }}
                     onClick={() => toggleCategory(group.category)}
                   >
-                    {/* Collapse icon */}
                     {isCollapsed ? (
                       <ChevronRight className="h-3 w-3 text-blue-600 dark:text-blue-300 shrink-0" />
                     ) : (
@@ -450,7 +476,6 @@ export function VehicleTimeline({
                     <span className="text-[10px] font-bold text-blue-800 dark:text-blue-200 uppercase tracking-[0.5px] truncate ml-1">
                       {group.category}
                     </span>
-                    {/* Occupancy badge */}
                     <span
                       className={cn(
                         "ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0",
@@ -510,10 +535,15 @@ export function VehicleTimeline({
         {/* ─── Right: Scrollable Timeline ─────────────────────────────────── */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-auto"
+          className="flex-1 overflow-auto timeline-scroll"
           onScroll={handleGridScroll}
+          style={{
+            /* Make scrollbar always visible */
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(156,163,175,0.5) transparent",
+          }}
         >
-          <div style={{ width: Math.max(totalWidth, containerWidth), minWidth: "100%", position: "relative", minHeight: "100%" }}>
+          <div style={{ width: totalWidth, position: "relative", minHeight: "100%" }}>
             {/* ─── Date Header (sticky top) ─────────────────────────────────── */}
             <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-border" style={{ height: 56 }}>
               {/* Month row */}
@@ -622,16 +652,13 @@ export function VehicleTimeline({
                         {vehicle.reservations.map(reservation => {
                           const rawStartIdx = dayIndex(reservation.startDate, days);
                           const rawEndIdx = dayIndex(reservation.endDate, days);
-                          // If endDate is beyond visible range, dayIndex returns -1; clamp to last day
                           const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
                           const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
-                          // Skip if both are before visible range (startDate after range end is impossible due to server filter)
                           if (startIdx > days.length - 1 || endIdx < 0) return null;
                           const left = startIdx * DAY_WIDTH + 2;
                           const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
                           const isPast = reservation.status === "Completada";
                           const isCancelled = reservation.status === "Cancelada";
-                          // Detect overflow: bar extends beyond visible range
                           const overflowsRight = rawEndIdx === -1;
                           const overflowsLeft = rawStartIdx === -1;
 
@@ -716,7 +743,6 @@ export function VehicleTimeline({
                       {tooltip.reservation.clientName || "Sin cliente"}
                     </p>
                   </div>
-                  {/* Phone - only shown in interactive (internal) mode */}
                   {interactive && tooltip.reservation.clientPhone && (
                     <div className="flex items-center gap-1.5 mt-1">
                       <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -755,7 +781,6 @@ export function VehicleTimeline({
 
             {/* Tooltip body */}
             <div className="px-4 py-3 space-y-2.5">
-              {/* Dates & Locations */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-start gap-1.5">
                   <span className="text-emerald-500 text-sm font-bold mt-px">→</span>
@@ -791,7 +816,6 @@ export function VehicleTimeline({
                 </div>
               </div>
 
-              {/* Meta row */}
               <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Clock className="h-3 w-3" />
@@ -813,7 +837,6 @@ export function VehicleTimeline({
                 )}
               </div>
 
-              {/* Interactive mode hint */}
               {interactive && (
                 <div className="pt-1 border-t border-border/20">
                   <p className="text-[9px] text-muted-foreground/60 text-center italic">
