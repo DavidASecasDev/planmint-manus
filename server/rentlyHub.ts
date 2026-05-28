@@ -158,21 +158,67 @@ export async function handleRentlyHub(req: Request, res: Response) {
         if (!endpointInfo) return res.json({ success: false, error: `Método no encontrado: ${method}` });
 
         let path = endpointInfo.path;
+        const queryParams = new URLSearchParams();
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
             path = path.replace(`{${key}}`, String(value));
           });
           // Add query params
-          const queryParams = new URLSearchParams();
           Object.entries(params).forEach(([key, value]) => {
             if (!endpointInfo.path.includes(`{${key}}`)) {
               queryParams.set(key, String(value));
             }
           });
-          const qs = queryParams.toString();
-          if (qs) path += `?${qs}`;
         }
 
+        // For list endpoints, auto-paginate to get all results (up to MAX_PAGES pages)
+        const isListEndpoint = method === "list";
+        const MAX_PAGES = 10; // Max 10 pages x 100 = 1000 results
+        const PAGE_SIZE = 100;
+
+        if (isListEndpoint) {
+          queryParams.set("Limit", String(PAGE_SIZE));
+          let allResults: unknown[] = [];
+          let offset = 0;
+          let total = 0;
+          const startTime = Date.now();
+
+          for (let page = 0; page < MAX_PAGES; page++) {
+            queryParams.set("Offset", String(offset));
+            const qs = queryParams.toString();
+            const fullPath = qs ? `${path}?${qs}` : path;
+            const pageData = await callRentlyApi(creds.host, token, fullPath, endpointInfo.type) as any;
+
+            if (pageData?.Results && Array.isArray(pageData.Results)) {
+              allResults = allResults.concat(pageData.Results);
+              total = pageData.Total || allResults.length;
+              // If no more pages, stop
+              if (!pageData.NextOffset || pageData.Results.length < PAGE_SIZE) break;
+              offset = pageData.NextOffset;
+            } else if (Array.isArray(pageData)) {
+              allResults = pageData;
+              total = pageData.length;
+              break;
+            } else {
+              // Unknown format, return as-is
+              const elapsed = Date.now() - startTime;
+              return res.json({ success: true, data: pageData, domain, method, elapsed });
+            }
+          }
+
+          const elapsed = Date.now() - startTime;
+          return res.json({
+            success: true,
+            data: { Results: allResults, Total: total, Limit: allResults.length, Offset: 0 },
+            domain,
+            method,
+            elapsed,
+          });
+        }
+
+        // Non-list endpoints: single request
+        const qs = queryParams.toString();
+        if (qs) path += `?${qs}`;
         const startTime = Date.now();
         const data = await callRentlyApi(creds.host, token, path, endpointInfo.type);
         const elapsed = Date.now() - startTime;

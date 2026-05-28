@@ -921,3 +921,4 @@
 - [x] FIX: search_availability ahora devuelve precio embebido por vehículo, no necesita llamada separada a booking_price
 - [x] FIX: Mostrar valores reales de franquicias en sidebar Depósito en Garantía
 - [x] FIX: Requerir lugar de entrega antes de consultar disponibilidad
+- [x] FIX: Paginación automática en listado de reservas - Rently limita a 30 por defecto (max 100/página). Ahora el servidor itera hasta 10 páginas x 100 = 1000 reservas automáticamente
