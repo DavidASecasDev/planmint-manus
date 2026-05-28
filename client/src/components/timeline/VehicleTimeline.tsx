@@ -144,12 +144,13 @@ export function VehicleTimeline({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Measure container width to compute dynamic DAY_WIDTH
+  // Measure the scrollable grid area width directly (accounts for vertical scrollbar)
   useEffect(() => {
-    const el = containerRef.current;
+    const el = scrollRef.current;
     if (!el) return;
     const measure = () => {
-      const w = el.clientWidth - LABEL_WIDTH;
+      // clientWidth excludes scrollbar width, giving us the actual visible area
+      const w = el.clientWidth;
       if (w > 0) setContainerWidth(w);
     };
     measure();
