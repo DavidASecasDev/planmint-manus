@@ -944,3 +944,4 @@
 - [x] Eliminar módulo de reservas del sidebar y rutas (NO tocar Programación) — eliminado /bookings de sidebar, rutas e imports
 - [x] FIX TIMELINE: Barra de servicio/taller debe mostrar solo los días específicos (no toda la fila) — usa started_at/completed_at de repairs + clamp a rango visible
 - [x] FIX TIMELINE: Renderizar barra de servicio como barra independiente con fechas inicio/fin (similar a reservas pero con patrón rayado ámbar + icono llave)
+- [x] TIMELINE: Vista 1M se estira para llenar todo el ancho disponible (dayWidth dinámico con ResizeObserver, mín 34px)

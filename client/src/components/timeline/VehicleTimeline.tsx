@@ -92,7 +92,8 @@ export interface VehicleTimelineProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAY_WIDTH = 34;
+const DAY_WIDTH_DEFAULT = 34; // Fixed width for 3M/6M (scrollable)
+const DAY_WIDTH_MIN = 34;     // Minimum day width even in stretch mode
 const ROW_HEIGHT = 40;
 const LABEL_WIDTH = 170;
 const CATEGORY_HEADER_HEIGHT = 32;
@@ -375,6 +376,8 @@ export function VehicleTimeline({
 }: VehicleTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const [tooltip, setTooltip] = useState<{
     reservation: TimelineReservation;
@@ -392,6 +395,28 @@ export function VehicleTimeline({
 
   // Scroll tracking for mini-map
   const [scrollState, setScrollState] = useState({ scrollLeft: 0, viewportWidth: 0 });
+
+  // Measure container width for stretch mode (1M)
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    setContainerWidth(containerRef.current.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+
+  // Compute effective day width: stretch to fill for 1M, fixed for 3M/6M
+  const dayWidth = useMemo(() => {
+    if (zoomLevel !== "1M" || !data || containerWidth === 0) return DAY_WIDTH_DEFAULT;
+    const days = getDaysBetween(data.fromDate, data.toDate);
+    const availableWidth = containerWidth - LABEL_WIDTH;
+    const computed = Math.floor(availableWidth / days.length);
+    return Math.max(DAY_WIDTH_MIN, computed);
+  }, [zoomLevel, data, containerWidth]);
 
   // Toggle category collapse
   const toggleCategory = useCallback((category: string) => {
@@ -460,7 +485,7 @@ export function VehicleTimeline({
     if (!scrollRef.current || availableMonths.length === 0) return;
     const scrollLeft = scrollRef.current.scrollLeft;
     const centerX = scrollLeft + scrollRef.current.clientWidth / 3;
-    const dayAtCenter = Math.floor(centerX / DAY_WIDTH);
+    const dayAtCenter = Math.floor(centerX / dayWidth);
     // Find which month this day belongs to
     let found = availableMonths[0];
     for (const m of availableMonths) {
@@ -468,14 +493,14 @@ export function VehicleTimeline({
       else break;
     }
     setCurrentMonthKey(`${found.year}-${found.month}`);
-  }, [availableMonths]);
+  }, [availableMonths, dayWidth]);
 
   // Scroll to today on mount
   useEffect(() => {
     if (!data || !scrollRef.current || days.length === 0) return;
     const todayIdx = dayIndex(data.today, days);
     if (todayIdx > 0) {
-      const scrollTo = Math.max(0, (todayIdx - 4) * DAY_WIDTH);
+      const scrollTo = Math.max(0, (todayIdx - 4) * dayWidth);
       scrollRef.current.scrollLeft = scrollTo;
     }
     // Initialize current month indicator and scroll state
@@ -510,21 +535,21 @@ export function VehicleTimeline({
     const target = availableMonths.find(m => m.year === year && m.month === month);
     if (target) {
       scrollRef.current.scrollTo({
-        left: target.dayIdx * DAY_WIDTH,
+        left: target.dayIdx * dayWidth,
         behavior: "smooth",
       });
     }
-  }, [availableMonths]);
+  }, [availableMonths, dayWidth]);
 
   // Scroll to today
   const scrollToToday = useCallback(() => {
     if (!data || !scrollRef.current || days.length === 0) return;
     const todayIdx = dayIndex(data.today, days);
     if (todayIdx >= 0) {
-      const scrollTo = Math.max(0, (todayIdx - 4) * DAY_WIDTH);
+      const scrollTo = Math.max(0, (todayIdx - 4) * dayWidth);
       scrollRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
     }
-  }, [data, days]);
+  }, [data, days, dayWidth]);
 
   // Handle month selector change
   const handleMonthSelect = useCallback((value: string) => {
@@ -618,7 +643,7 @@ export function VehicleTimeline({
     monthHeaders.push({ label: currentMonth, startIdx: currentStart, span: currentSpan });
   }
 
-  const totalWidth = days.length * DAY_WIDTH;
+  const totalWidth = days.length * dayWidth;
   const todayIdx = dayIndex(data.today, days);
 
   // Count total visible vehicles for height calculation
@@ -639,7 +664,7 @@ export function VehicleTimeline({
   const inServiceCount = data.groups.reduce((acc, g) => acc + g.vehicles.filter(v => (v.servicePeriods?.length || 0) > 0).length, 0);
 
   return (
-    <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
+    <div ref={containerRef} className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
       {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30 flex-wrap">
         {/* Zoom controls */}
@@ -869,9 +894,9 @@ export function VehicleTimeline({
                     key={i}
                     className="flex items-center justify-center text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/30"
                     style={{
-                      width: mh.span * DAY_WIDTH,
+                      width: mh.span * dayWidth,
                       position: "absolute",
-                      left: mh.startIdx * DAY_WIDTH,
+                      left: mh.startIdx * dayWidth,
                       top: 0,
                       height: 24,
                     }}
@@ -895,7 +920,7 @@ export function VehicleTimeline({
                         isWeekend && "bg-gray-100/60 dark:bg-gray-800/30",
                         isToday && "bg-emerald-50 dark:bg-emerald-950/30"
                       )}
-                      style={{ width: DAY_WIDTH, minWidth: DAY_WIDTH }}
+                      style={{ width: dayWidth, minWidth: dayWidth }}
                     >
                       <span className={cn(
                         "text-[9px] font-semibold leading-none",
@@ -949,7 +974,7 @@ export function VehicleTimeline({
                             <div
                               key={day}
                               className="absolute top-0 bottom-0 bg-gray-100/40 dark:bg-gray-800/20"
-                              style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
+                              style={{ left: i * dayWidth, width: dayWidth }}
                             />
                           );
                         })}
@@ -961,8 +986,8 @@ export function VehicleTimeline({
                           const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
                           const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
                           if (startIdx > days.length - 1 || endIdx < 0) return null;
-                          const left = startIdx * DAY_WIDTH;
-                          const width = (endIdx - startIdx + 1) * DAY_WIDTH;
+                          const left = startIdx * dayWidth;
+                          const width = (endIdx - startIdx + 1) * dayWidth;
                           return (
                             <div
                               key={sp.id}
@@ -990,7 +1015,7 @@ export function VehicleTimeline({
                         {todayIdx >= 0 && (
                           <div
                             className="absolute top-0 bottom-0 z-[5]"
-                            style={{ left: todayIdx * DAY_WIDTH + DAY_WIDTH / 2 - 1, width: 2 }}
+                            style={{ left: todayIdx * dayWidth + dayWidth / 2 - 1, width: 2 }}
                           >
                             <div className="w-full h-full bg-emerald-400/50 dark:bg-emerald-500/40" />
                           </div>
@@ -1003,8 +1028,8 @@ export function VehicleTimeline({
                           const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
                           const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
                           if (startIdx > days.length - 1 || endIdx < 0) return null;
-                          const left = startIdx * DAY_WIDTH + 2;
-                          const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
+                          const left = startIdx * dayWidth + 2;
+                          const width = Math.max((endIdx - startIdx + 1) * dayWidth - 4, 10);
                           const isPast = reservation.status === "Completada";
                           const isCancelled = reservation.status === "Cancelada";
                           const overflowsRight = rawEndIdx === -1;
