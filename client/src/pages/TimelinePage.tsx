@@ -4,8 +4,9 @@
  * - Hover shows full client info
  * - Click navigates to reservation detail
  * - Filter by category
+ * - Navigate through time with < Hoy > controls
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { apiInvoke } from "@/lib/apiClient";
@@ -14,12 +15,26 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function TimelinePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d;
+  });
 
-  // Fetch timeline data from authenticated endpoint
+  const endDate = useMemo(() => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + 35); // 5 weeks view
+    return d;
+  }, [startDate]);
+
+  const fromStr = startDate.toISOString().split("T")[0];
+  const toStr = endDate.toISOString().split("T")[0];
+
+  // Fetch timeline data from authenticated endpoint with date range
   const { data, isLoading, error } = useQuery<TimelineData>({
-    queryKey: ["timeline"],
+    queryKey: ["timeline", fromStr, toStr],
     queryFn: async () => {
-      const result = await apiInvoke<TimelineData>("timeline");
+      const result = await apiInvoke<TimelineData>(`timeline?from=${fromStr}&to=${toStr}`);
       if (result.error) throw new Error(result.error.message);
       return result.data!;
     },
@@ -29,6 +44,20 @@ export default function TimelinePage() {
 
   const handleReservationClick = useCallback((reservationId: string) => {
     window.open(`/reservations/${reservationId}`, '_blank');
+  }, []);
+
+  const handleNavigate = useCallback((direction: "prev" | "next" | "today") => {
+    if (direction === "today") {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      setStartDate(d);
+    } else {
+      setStartDate((prev) => {
+        const d = new Date(prev);
+        d.setDate(d.getDate() + (direction === "next" ? 7 : -7));
+        return d;
+      });
+    }
   }, []);
 
   return (
@@ -60,6 +89,7 @@ export default function TimelinePage() {
           onReservationClick={handleReservationClick}
           categoryFilter={categoryFilter}
           onCategoryFilterChange={setCategoryFilter}
+          onNavigate={handleNavigate}
         />
       </div>
     </AppLayout>

@@ -742,38 +742,11 @@ function PublicTimelineSection({ slug }: { slug: string }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Car className="w-4 h-4" style={{ color: COLORS.gold }} />
-          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.navy }}>
-            Timeline de Reservas
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleNavigate("prev")}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              const d = new Date();
-              d.setDate(d.getDate() - 7);
-              setStartDate(d);
-            }}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
-            style={{ color: COLORS.navy }}
-          >
-            Hoy
-          </button>
-          <button
-            onClick={() => handleNavigate("next")}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+        <Car className="w-4 h-4" style={{ color: COLORS.gold }} />
+        <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: COLORS.navy }}>
+          Timeline de Reservas
+        </h2>
       </div>
       <div className="p-2">
         {timelineLoading ? (
@@ -786,6 +759,15 @@ function PublicTimelineSection({ slug }: { slug: string }) {
             interactive={false}
             categoryFilter={timelineCategoryFilter}
             onCategoryFilterChange={setTimelineCategoryFilter}
+            onNavigate={(direction) => {
+              if (direction === "today") {
+                const d = new Date();
+                d.setDate(d.getDate() - 7);
+                setStartDate(d);
+              } else {
+                handleNavigate(direction);
+              }
+            }}
           />
         ) : null}
       </div>

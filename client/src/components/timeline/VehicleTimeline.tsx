@@ -64,6 +64,8 @@ export interface VehicleTimelineProps {
   onReservationClick?: (reservationId: string) => void;
   categoryFilter?: string;
   onCategoryFilterChange?: (value: string) => void;
+  /** Called when user clicks prev/next/today to navigate the date range */
+  onNavigate?: (direction: "prev" | "next" | "today") => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -135,6 +137,7 @@ export function VehicleTimeline({
   onReservationClick,
   categoryFilter,
   onCategoryFilterChange,
+  onNavigate,
 }: VehicleTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
@@ -347,13 +350,14 @@ export function VehicleTimeline({
     <div ref={containerRef} className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
       {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gray-50/80 dark:bg-gray-800/30">
-        {/* Navigation */}
+        {/* Navigation — shifts date range if onNavigate provided, otherwise scrolls */}
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="sm"
             className="h-7 w-7 p-0 rounded-md"
-            onClick={() => scrollBy("left")}
+            onClick={() => onNavigate ? onNavigate("prev") : scrollBy("left")}
+            title="Semana anterior"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </Button>
@@ -361,7 +365,8 @@ export function VehicleTimeline({
             variant="outline"
             size="sm"
             className="h-7 px-2.5 rounded-md text-xs font-medium"
-            onClick={scrollToToday}
+            onClick={() => onNavigate ? onNavigate("today") : scrollToToday()}
+            title="Ir a hoy"
           >
             Hoy
           </Button>
@@ -369,7 +374,8 @@ export function VehicleTimeline({
             variant="outline"
             size="sm"
             className="h-7 w-7 p-0 rounded-md"
-            onClick={() => scrollBy("right")}
+            onClick={() => onNavigate ? onNavigate("next") : scrollBy("right")}
+            title="Semana siguiente"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>

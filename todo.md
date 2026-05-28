@@ -930,3 +930,5 @@
 - [x] FIX: Barras de reservas que se extienden más allá del rango visible del timeline ahora llegan hasta el borde derecho (dayIndex devolvía -1 para fechas fuera del rango)
 - [x] TIMELINE: Indicador visual (flecha ›) en borde derecho de barras que continúan más allá del rango visible + borde recto (sin rounded) en el lado que desborda
 - [x] TIMELINE: Eliminar espacio en blanco a la derecha — columnas dinámicas que se estiran al 100% del contenedor (ResizeObserver + DAY_WIDTH calculado)
+- [x] TIMELINE: Eliminar controles de navegación temporal duplicados del componente VehicleTimeline — mantener solo los de la página padre que realmente cambian el rango de datos
+- [x] TIMELINE: Añadir navegación temporal a TimelinePage (interno) para que también pueda cambiar el rango de fechas
