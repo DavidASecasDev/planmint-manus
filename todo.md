@@ -927,3 +927,4 @@
 - [x] TIMELINE: Click en reserva abre detalle de la reserva en nueva pestaña (window.open _blank)
 - [x] FIX: Ferrari Portofino y Lamborghini Huracán no aparecen en el timeline — RESUELTO: ahora el timeline consulta /api/cars de Rently directamente para incluir todos los vehículos activos (no solo los que tienen reservas o están en tabla local)
 - [x] TIMELINE: Agrupar vehículos por modelo dentro de cada categoría (Carrera juntos, Cayenne juntos, etc.) — sort por model name + plate
+- [x] FIX: Barras de reservas que se extienden más allá del rango visible del timeline ahora llegan hasta el borde derecho (dayIndex devolvía -1 para fechas fuera del rango)

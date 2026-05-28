@@ -587,9 +587,13 @@ export function VehicleTimeline({
 
                         {/* Reservation bars */}
                         {vehicle.reservations.map(reservation => {
-                          const startIdx = Math.max(0, dayIndex(reservation.startDate, days));
-                          const endIdx = Math.min(days.length - 1, dayIndex(reservation.endDate, days));
-                          if (startIdx < 0 && endIdx < 0) return null;
+                          const rawStartIdx = dayIndex(reservation.startDate, days);
+                          const rawEndIdx = dayIndex(reservation.endDate, days);
+                          // If endDate is beyond visible range, dayIndex returns -1; clamp to last day
+                          const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
+                          const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
+                          // Skip if both are before visible range (startDate after range end is impossible due to server filter)
+                          if (startIdx > days.length - 1 || endIdx < 0) return null;
                           const left = startIdx * DAY_WIDTH + 2;
                           const width = Math.max((endIdx - startIdx + 1) * DAY_WIDTH - 4, 10);
                           const isPast = reservation.status === "Completada";
