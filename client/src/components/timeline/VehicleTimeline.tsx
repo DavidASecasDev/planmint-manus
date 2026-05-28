@@ -3,11 +3,12 @@
  *
  * Features:
  * - Dynamic zoom: 1M / 3M / 6M toggle buttons
- * - Mini-map overview bar showing full range with viewport indicator
+ * - Mini-map overview bar with occupancy density heatmap
  * - Scrollable view with visible horizontal scrollbar
  * - Month selector to jump to any month in the range
  * - Collapsible category sections (click header to toggle)
  * - Occupancy % indicator per category
+ * - In-service vehicle indicator (wrench icon + striped background)
  * - Enhanced tooltip with full client info (phone, locations) in interactive mode
  * - Sticky vehicle labels column with category separators
  * - Month/day header with blue tint and day-of-week letters
@@ -17,7 +18,7 @@
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User, ZoomIn } from "lucide-react";
+import { ChevronDown, ChevronRight, Calendar, Car, MapPin, Clock, CreditCard, ExternalLink, Phone, User, ZoomIn, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -45,6 +46,9 @@ export interface TimelineVehicle {
   plate: string;
   model: string | null;
   isCollaborator?: boolean;
+  inService?: boolean;
+  serviceType?: string | null;
+  serviceNotes?: string | null;
   reservations: TimelineReservation[];
 }
 
@@ -84,7 +88,7 @@ const DAY_WIDTH = 34;
 const ROW_HEIGHT = 40;
 const LABEL_WIDTH = 170;
 const CATEGORY_HEADER_HEIGHT = 32;
-const MINIMAP_HEIGHT = 28;
+const MINIMAP_HEIGHT = 36;
 const DAY_NAMES_ES = ["D", "L", "M", "X", "J", "V", "S"];
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -142,6 +146,57 @@ function calculateOccupancy(group: TimelineGroup, fromDate: string, toDate: stri
   return Math.min(100, Math.round((reservedDays / totalVehicleDays) * 100));
 }
 
+/**
+ * Compute per-day occupancy density: how many vehicles have a reservation on each day.
+ * Returns an array of numbers (one per day) representing the count.
+ */
+function computeDailyOccupancy(groups: TimelineGroup[], days: string[]): number[] {
+  const counts = new Array(days.length).fill(0);
+  const daySet = new Map<string, number>();
+  for (let i = 0; i < days.length; i++) {
+    daySet.set(days[i], i);
+  }
+
+  for (const group of groups) {
+    for (const vehicle of group.vehicles) {
+      for (const res of vehicle.reservations) {
+        if (res.status === "Cancelada") continue;
+        const startDate = new Date(res.startDate + "T00:00:00");
+        const endDate = new Date(res.endDate + "T00:00:00");
+        const rangeStart = new Date(days[0] + "T00:00:00");
+        const rangeEnd = new Date(days[days.length - 1] + "T00:00:00");
+
+        const effectiveStart = new Date(Math.max(startDate.getTime(), rangeStart.getTime()));
+        const effectiveEnd = new Date(Math.min(endDate.getTime(), rangeEnd.getTime()));
+
+        const current = new Date(effectiveStart);
+        while (current <= effectiveEnd) {
+          const key = current.toISOString().split("T")[0];
+          const idx = daySet.get(key);
+          if (idx !== undefined) {
+            counts[idx]++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    }
+  }
+  return counts;
+}
+
+/**
+ * Get color for occupancy density level.
+ * Uses a green → yellow → orange → red gradient.
+ */
+function densityColor(count: number, maxCount: number): string {
+  if (maxCount === 0 || count === 0) return "transparent";
+  const ratio = count / maxCount;
+  if (ratio <= 0.25) return "rgba(74, 222, 128, 0.5)";   // green
+  if (ratio <= 0.50) return "rgba(250, 204, 21, 0.5)";   // yellow
+  if (ratio <= 0.75) return "rgba(251, 146, 60, 0.55)";  // orange
+  return "rgba(248, 113, 113, 0.6)";                      // red
+}
+
 // ─── Mini-map Component ──────────────────────────────────────────────────────
 
 interface MiniMapProps {
@@ -155,34 +210,20 @@ interface MiniMapProps {
   onScrollTo: (scrollLeft: number) => void;
 }
 
-function MiniMap({ days, groups, statusColors, today, scrollLeft, viewportWidth, totalWidth, onScrollTo }: MiniMapProps) {
+function MiniMap({ days, groups, today, scrollLeft, viewportWidth, totalWidth, onScrollTo }: MiniMapProps) {
   const miniMapRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
-  const miniMapWidth = useMemo(() => {
-    if (!miniMapRef.current) return 0;
-    return miniMapRef.current.clientWidth;
-  }, []);
+  // Compute per-day occupancy density for the heatmap
+  const dailyOccupancy = useMemo(() => computeDailyOccupancy(groups, days), [groups, days]);
+  const maxOccupancy = useMemo(() => Math.max(...dailyOccupancy, 1), [dailyOccupancy]);
 
-  // Collect all reservations for the mini-map
-  const allReservations = useMemo(() => {
-    const result: Array<{ startIdx: number; endIdx: number; color: string }> = [];
-    for (const group of groups) {
-      for (const vehicle of group.vehicles) {
-        for (const res of vehicle.reservations) {
-          if (res.status === "Cancelada") continue;
-          const rawStartIdx = dayIndex(res.startDate, days);
-          const rawEndIdx = dayIndex(res.endDate, days);
-          const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
-          const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
-          if (startIdx <= days.length - 1 && endIdx >= 0) {
-            result.push({ startIdx, endIdx, color: res.color });
-          }
-        }
-      }
-    }
-    return result;
-  }, [groups, days]);
+  // Count total vehicles for percentage display
+  const totalVehicles = useMemo(() => {
+    let count = 0;
+    for (const g of groups) count += g.vehicles.length;
+    return count;
+  }, [groups]);
 
   // Today position as fraction
   const todayIdx = dayIndex(today, days);
@@ -260,21 +301,22 @@ function MiniMap({ days, groups, statusColors, today, scrollLeft, viewportWidth,
         </div>
       ))}
 
-      {/* Reservation density bars */}
+      {/* Occupancy density heatmap */}
       <svg className="absolute inset-0 w-full" style={{ height: MINIMAP_HEIGHT }}>
-        {allReservations.map((res, i) => {
-          const x1 = (res.startIdx / days.length) * 100;
-          const x2 = ((res.endIdx + 1) / days.length) * 100;
+        {dailyOccupancy.map((count, i) => {
+          if (count === 0) return null;
+          const x = (i / days.length) * 100;
+          const w = (1 / days.length) * 100;
+          const barHeight = Math.max(4, (count / maxOccupancy) * (MINIMAP_HEIGHT - 14));
           return (
             <rect
               key={i}
-              x={`${x1}%`}
-              y={MINIMAP_HEIGHT - 8}
-              width={`${Math.max(x2 - x1, 0.3)}%`}
-              height={5}
-              rx={1.5}
-              fill={res.color}
-              opacity={0.6}
+              x={`${x}%`}
+              y={MINIMAP_HEIGHT - barHeight - 2}
+              width={`${Math.max(w, 0.2)}%`}
+              height={barHeight}
+              fill={densityColor(count, maxOccupancy)}
+              rx={1}
             />
           );
         })}
@@ -291,6 +333,11 @@ function MiniMap({ days, groups, statusColors, today, scrollLeft, viewportWidth,
           />
         )}
       </svg>
+
+      {/* Density legend (small text on the right) */}
+      <div className="absolute top-0 right-1 text-[7px] font-semibold text-muted-foreground/50 leading-none" style={{ paddingTop: 2 }}>
+        max: {maxOccupancy}/{totalVehicles}
+      </div>
 
       {/* Viewport indicator */}
       <div
@@ -580,6 +627,9 @@ export function VehicleTimeline({
     900
   );
 
+  // Count in-service vehicles for the legend
+  const inServiceCount = data.groups.reduce((acc, g) => acc + g.vehicles.filter(v => v.inService).length, 0);
+
   return (
     <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
       {/* ─── Top Controls Bar ─────────────────────────────────────────────── */}
@@ -662,10 +712,21 @@ export function VehicleTimeline({
               <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{status}</span>
             </div>
           ))}
+          {/* In-service legend item */}
+          {inServiceCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="h-2.5 w-5 rounded-full bg-amber-500/80 flex items-center justify-center">
+                <Wrench className="h-2 w-2 text-white" />
+              </div>
+              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                En servicio ({inServiceCount})
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ─── Mini-map Overview Bar ────────────────────────────────────────── */}
+      {/* ─── Mini-map Overview Bar with Density Heatmap ──────────────────── */}
       <MiniMap
         days={days}
         groups={data.groups}
@@ -734,13 +795,16 @@ export function VehicleTimeline({
                       key={vehicle.plate}
                       className={cn(
                         "flex flex-col justify-center px-3 border-b border-border/50 transition-colors",
-                        vehicle.isCollaborator
+                        vehicle.inService
+                          ? "bg-amber-50/80 dark:bg-amber-950/20 hover:bg-amber-100/80 dark:hover:bg-amber-900/30"
+                          : vehicle.isCollaborator
                           ? "bg-purple-50/60 dark:bg-purple-950/20 hover:bg-purple-100/80 dark:hover:bg-purple-900/30"
                           : vIdx % 2 === 0
                             ? "bg-white dark:bg-transparent hover:bg-gray-100/60 dark:hover:bg-gray-700/20"
                             : "bg-gray-50/30 dark:bg-gray-800/10 hover:bg-gray-100/60 dark:hover:bg-gray-700/20"
                       )}
                       style={{ height: ROW_HEIGHT }}
+                      title={vehicle.inService ? `En servicio: ${vehicle.serviceNotes || "Sin detalles"}` : undefined}
                     >
                       <div className="flex items-center gap-1">
                         {vehicle.model && (
@@ -748,7 +812,13 @@ export function VehicleTimeline({
                             {vehicle.model}
                           </span>
                         )}
-                        {vehicle.isCollaborator && (
+                        {vehicle.inService && (
+                          <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 px-1 py-0.5 rounded leading-none whitespace-nowrap" title={vehicle.serviceNotes || "En servicio"}>
+                            <Wrench className="h-2 w-2" />
+                            Taller
+                          </span>
+                        )}
+                        {vehicle.isCollaborator && !vehicle.inService && (
                           <span className="text-[8px] font-semibold bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-200 px-1 py-0.5 rounded leading-none whitespace-nowrap">
                             Colab.
                           </span>
@@ -756,6 +826,7 @@ export function VehicleTimeline({
                       </div>
                       <span className={cn(
                         "text-[11px] font-mono font-semibold tracking-wide leading-tight",
+                        vehicle.inService ? "text-amber-700 dark:text-amber-300" :
                         vehicle.isCollaborator ? "text-purple-700 dark:text-purple-300" : "text-foreground"
                       )}>
                         {vehicle.plate}
@@ -856,9 +927,16 @@ export function VehicleTimeline({
                         key={vehicle.plate}
                         className={cn(
                           "relative border-b border-border/30",
-                          vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
+                          vehicle.inService
+                            ? "bg-amber-50/40 dark:bg-amber-950/10"
+                            : vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
                         )}
-                        style={{ height: ROW_HEIGHT }}
+                        style={{
+                          height: ROW_HEIGHT,
+                          backgroundImage: vehicle.inService
+                            ? "repeating-linear-gradient(135deg, transparent, transparent 8px, rgba(245,158,11,0.06) 8px, rgba(245,158,11,0.06) 16px)"
+                            : undefined,
+                        }}
                       >
                         {/* Weekend column stripes */}
                         {days.map((day, i) => {

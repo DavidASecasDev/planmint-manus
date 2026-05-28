@@ -937,3 +937,8 @@
 - [x] TIMELINE: Reemplazar botones < Hoy > por selector/filtro de mes arriba para saltar directamente a un mes concreto
 - [x] TIMELINE: Zoom dinámico con botones 1M / 3M / 6M en la barra de controles
 - [x] TIMELINE: Mini-mapa/overview bar encima del timeline que muestra la posición actual del viewport dentro del rango total
+- [x] TIMELINE: Quitar DummyCar (6513MFG) del timeline — no es un coche real (filtrado en EXCLUDED_PLATES)
+- [x] TIMELINE: Investigar y resolver las 3 V Class que faltan en el timeline — RESUELTO: movidas 3 V Class (9806MSG, 9849MSG, 9786MSG) de Familiar a Luxury Van en la BD
+- [x] TIMELINE: Mostrar coches en servicio (taller/reparación) en el timeline con indicador visual diferenciado (detección automática por reparaciones activas + override manual status='en_servicio')
+- [x] TIMELINE: Añadir indicador de ocupación global (%) en la barra del mini-mapa con colores de densidad (heatmap por día verde→rojo)
+- [x] Eliminar módulo de reservas del sidebar y rutas (NO tocar Programación) — eliminado /bookings de sidebar, rutas e imports

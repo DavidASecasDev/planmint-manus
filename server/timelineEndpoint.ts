@@ -18,6 +18,9 @@ const ORG_SLUG_MAP: Record<string, string> = {
   "azul-ops": "a23a0d42-5af7-4cda-9955-569c10cc6714",
 };
 
+// Plates to exclude from Rently auto-discovery (archived/dummy vehicles)
+const EXCLUDED_PLATES = new Set(["6513MFG"]);
+
 // Color mapping for reservation statuses (matching Rently)
 // Custom category display order (as defined by the business)
 const CATEGORY_ORDER: string[] = [
@@ -52,6 +55,15 @@ const STATUS_COLORS: Record<string, string> = {
   "No Show": "#f472b6",   // Pink
 };
 
+// Repair statuses that indicate the vehicle is actively in service/workshop
+const ACTIVE_REPAIR_STATUSES = [
+  "pendiente_aprobacion",
+  "en_taller",
+  "listo_entregar_taller",
+  "esperando_piezas",
+  "listo_recoger",
+];
+
 interface TimelineVehicle {
   id: string;
   plate: string;
@@ -77,14 +89,26 @@ interface TimelineReservation {
   durationDays: number;
 }
 
+interface TimelineGroupVehicle {
+  plate: string;
+  model: string | null;
+  isCollaborator: boolean;
+  inService: boolean;
+  serviceType: string | null;
+  serviceNotes: string | null;
+  reservations: TimelineReservation[];
+}
+
 interface TimelineGroup {
   category: string;
-  vehicles: Array<{
-    plate: string;
-    model: string | null;
-    isCollaborator: boolean;
-    reservations: TimelineReservation[];
-  }>;
+  vehicles: TimelineGroupVehicle[];
+}
+
+/** In-service info for a vehicle */
+interface InServiceInfo {
+  inService: boolean;
+  serviceType: string | null;
+  serviceNotes: string | null;
 }
 
 /**
@@ -161,6 +185,69 @@ async function fetchAllRentlyCars(host: string, token: string): Promise<any[]> {
   return allCars;
 }
 
+/**
+ * Build a Map<vehicleId, InServiceInfo> from two sources:
+ * 1. vehicles.status = 'en_servicio' (manual override)
+ * 2. Active repairs (status NOT IN 'finalizado') linked to a vehicle
+ *
+ * Returns a map keyed by vehicle plate.
+ */
+async function buildInServiceMap(
+  serviceClient: any,
+  organizationId: string,
+  vehicleIds: string[],
+  vehiclePlateById: Map<string, string>
+): Promise<Map<string, InServiceInfo>> {
+  const inServiceMap = new Map<string, InServiceInfo>();
+
+  if (vehicleIds.length === 0) return inServiceMap;
+
+  // Source 1: vehicles with status = 'en_servicio' (manual override)
+  const { data: enServicioVehicles } = await serviceClient
+    .from("vehicles")
+    .select("id, matricula, notas_servicio")
+    .eq("organization_id", organizationId)
+    .eq("status", "en_servicio");
+
+  if (enServicioVehicles) {
+    for (const v of enServicioVehicles) {
+      inServiceMap.set(v.matricula, {
+        inService: true,
+        serviceType: "manual",
+        serviceNotes: v.notas_servicio || "En servicio (estado manual)",
+      });
+    }
+  }
+
+  // Source 2: Active repairs (not finalizado)
+  const { data: activeRepairs } = await serviceClient
+    .from("repairs")
+    .select("id, vehicle_id, status, description, repair_type")
+    .eq("organization_id", organizationId)
+    .in("status", ACTIVE_REPAIR_STATUSES);
+
+  if (activeRepairs) {
+    for (const repair of activeRepairs) {
+      const plate = vehiclePlateById.get(repair.vehicle_id);
+      if (!plate) continue;
+
+      // Don't overwrite manual override if already set
+      if (inServiceMap.has(plate)) continue;
+
+      const repairTypeLabel = repair.repair_type || "reparación";
+      const statusLabel = repair.status?.replace(/_/g, " ") || "en taller";
+
+      inServiceMap.set(plate, {
+        inService: true,
+        serviceType: repair.status || "en_taller",
+        serviceNotes: repair.description || `${repairTypeLabel} (${statusLabel})`,
+      });
+    }
+  }
+
+  return inServiceMap;
+}
+
 export async function handlePublicTimeline(req: Request, res: Response) {
   try {
     const { orgSlug } = req.params;
@@ -201,7 +288,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
     // 1. Fetch all active vehicles with their fleet info (for marca/category)
     const { data: vehicles, error: vehError } = await serviceClient
       .from("vehicles")
-      .select("id, matricula, modelo, categoria, fleet_vehicle_id")
+      .select("id, matricula, modelo, categoria, fleet_vehicle_id, status")
       .eq("organization_id", organizationId)
       .eq("is_archived", false)
       .order("matricula", { ascending: true });
@@ -227,6 +314,17 @@ export async function handlePublicTimeline(req: Request, res: Response) {
         }
       }
     }
+
+    // Build vehicle ID → plate map for in-service lookup
+    const vehiclePlateById = new Map<string, string>();
+    const vehicleIds: string[] = [];
+    for (const v of vehicles || []) {
+      vehiclePlateById.set(v.id, v.matricula);
+      vehicleIds.push(v.id);
+    }
+
+    // Fetch in-service data (manual override + active repairs)
+    const inServiceMap = await buildInServiceMap(serviceClient, organizationId, vehicleIds, vehiclePlateById);
 
     // 2. Fetch reservations that overlap with the date range
     // A reservation overlaps if: desde <= toDate AND hasta >= fromDate
@@ -290,10 +388,15 @@ export async function handlePublicTimeline(req: Request, res: Response) {
         categoryMap.set(category, { category, vehicles: [] });
       }
 
+      const serviceInfo = inServiceMap.get(plate);
+
       categoryMap.get(category)!.vehicles.push({
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
         isCollaborator: false,
+        inService: serviceInfo?.inService || false,
+        serviceType: serviceInfo?.serviceType || null,
+        serviceNotes: serviceInfo?.serviceNotes || null,
         reservations: reservationsByPlate.get(plate) || [],
       });
     }
@@ -316,6 +419,9 @@ export async function handlePublicTimeline(req: Request, res: Response) {
         plate,
         model: rawRes?.modelo || plateReservations[0]?.model || null,
         isCollaborator: true,
+        inService: false,
+        serviceType: null,
+        serviceNotes: null,
         reservations: plateReservations,
       });
     }
@@ -329,6 +435,9 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       for (const car of allRentlyCars) {
         const plate = car.Id; // Rently uses Id as plate identifier
         if (!plate || knownPlates.has(plate) || reservationsByPlate.has(plate)) continue;
+
+        // Filter out excluded plates (DummyCar, archived vehicles, etc.)
+        if (EXCLUDED_PLATES.has(plate)) continue;
         
         const catName = car.Model?.Category?.Name || "Otros";
         const normalizedCategory = resolveCategory(catName, "");
@@ -344,6 +453,9 @@ export async function handlePublicTimeline(req: Request, res: Response) {
           plate,
           model: fullModel || null,
           isCollaborator: !car.InactiveDate && car.FriendlyName?.includes("CLICK") ? true : false,
+          inService: false,
+          serviceType: null,
+          serviceNotes: null,
           reservations: [],
         });
       }
@@ -446,7 +558,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
     // 1. Fetch all active vehicles
     const { data: vehicles, error: vehError } = await serviceClient
       .from("vehicles")
-      .select("id, matricula, modelo, categoria, fleet_vehicle_id")
+      .select("id, matricula, modelo, categoria, fleet_vehicle_id, status")
       .eq("organization_id", organizationId)
       .eq("is_archived", false)
       .order("matricula", { ascending: true });
@@ -471,6 +583,17 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
         }
       }
     }
+
+    // Build vehicle ID → plate map for in-service lookup
+    const vehiclePlateById = new Map<string, string>();
+    const vehicleIds: string[] = [];
+    for (const v of vehicles || []) {
+      vehiclePlateById.set(v.id, v.matricula);
+      vehicleIds.push(v.id);
+    }
+
+    // Fetch in-service data (manual override + active repairs)
+    const inServiceMap = await buildInServiceMap(serviceClient, organizationId, vehicleIds, vehiclePlateById);
 
     // 2. Fetch reservations overlapping the date range (full data)
     const { data: reservations, error: resError } = await serviceClient
@@ -534,10 +657,15 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
         categoryMap.set(category, { category, vehicles: [] });
       }
 
+      const serviceInfo = inServiceMap.get(plate);
+
       categoryMap.get(category)!.vehicles.push({
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
         isCollaborator: false,
+        inService: serviceInfo?.inService || false,
+        serviceType: serviceInfo?.serviceType || null,
+        serviceNotes: serviceInfo?.serviceNotes || null,
         reservations: reservationsByPlate.get(plate) || [],
       });
     }
@@ -558,6 +686,9 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
         plate,
         model: rawRes?.modelo || plateReservations[0].model || null,
         isCollaborator: true,
+        inService: false,
+        serviceType: null,
+        serviceNotes: null,
         reservations: plateReservations,
       });
     }
@@ -571,6 +702,9 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
       for (const car of allRentlyCars) {
         const plate = car.Id;
         if (!plate || knownPlates.has(plate) || reservationsByPlate.has(plate)) continue;
+
+        // Filter out excluded plates (DummyCar, archived vehicles, etc.)
+        if (EXCLUDED_PLATES.has(plate)) continue;
         
         const catName = car.Model?.Category?.Name || "Otros";
         const normalizedCategory = resolveCategory(catName, "");
@@ -586,6 +720,9 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
           plate,
           model: fullModel || null,
           isCollaborator: !car.InactiveDate && car.FriendlyName?.includes("CLICK") ? true : false,
+          inService: false,
+          serviceType: null,
+          serviceNotes: null,
           reservations: [],
         });
       }

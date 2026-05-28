@@ -99,11 +99,6 @@ const PublicForm = lazy(() => import("./pages/PublicForm"));
 const PublicTransferForm = lazy(() => import("./pages/PublicTransferForm"));
 const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 
-// Reservas (Rently bookings)
-const Bookings = lazy(() => import("./pages/Bookings"));
-const BookingDetail = lazy(() => import("./pages/BookingDetail"));
-const BookingNew = lazy(() => import("./pages/BookingNew"));
-
 // Programación (operations / scheduling)
 const Reservations = lazy(() => import("./pages/Reservations"));
 const ReservationDetail = lazy(() => import("./pages/ReservationDetail"));
@@ -286,48 +281,7 @@ function QueryRecovery() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/bookings" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute 
-                    moduleKey="reservations" 
-                    moduleName="Reservas"
-                    moduleDescription="El módulo de Reservas no está habilitado para tu organización. Contacta con soporte si necesitas esta funcionalidad."
-                  >
-                    <Bookings />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/bookings/new" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute 
-                    moduleKey="reservations" 
-                    moduleName="Reservas"
-                    moduleDescription="El módulo de Reservas no está habilitado para tu organización."
-                  >
-                    <BookingNew />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/bookings/:id" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute 
-                    moduleKey="reservations" 
-                    moduleName="Reservas"
-                    moduleDescription="El módulo de Reservas no está habilitado para tu organización."
-                  >
-                    <BookingDetail />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/reservations" 
               element={

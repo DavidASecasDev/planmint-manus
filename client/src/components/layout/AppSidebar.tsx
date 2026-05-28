@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, BookOpenCheck, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -46,7 +46,6 @@ import { PermissionKey } from '@/hooks/usePermissions';
 // Map menu items to their module keys (only for optional modules)
 const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/reservations': 'reservations',
-  '/bookings': 'reservations',
   '/automations': 'automations',
   '/reports': 'reports',
   '/templates': 'templates',
@@ -123,7 +122,6 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/vehicles': 'vehicles.view',
   '/reports': 'reports.view',
   '/reservations': 'reservations.view',
-  '/bookings': 'reservations.view',
   '/reminders': 'tasks.view',
   '/movements': 'movements.view',
   '/tasks/daily': 'daily_tasks.view',
@@ -136,7 +134,6 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
 const menuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Tiempo', url: '/time-tracking', icon: Timer },
-  { title: 'Reservas', url: '/bookings', icon: BookOpenCheck },
   { title: 'Programación', url: '/reservations', icon: CarFront },
   { title: 'Mapa En Camino', url: '/live-map', icon: MapPin },
   { title: 'Estado Coches', url: '/vehicles', icon: Car },
