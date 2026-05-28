@@ -925,3 +925,5 @@
 - [x] FIX: Timeline auto-discovery — vehículos de colaboradores (ej: ClickRent WRANG-CLICK1) que tienen reservas pero no están en la tabla vehicles ahora aparecen automáticamente en el timeline agrupados por su categoría
 - [x] TIMELINE: Distinguir visualmente vehículos de colaboradores con badge "Colab." y fondo púrpura diferenciado
 - [x] TIMELINE: Click en reserva abre detalle de la reserva en nueva pestaña (window.open _blank)
+- [x] FIX: Ferrari Portofino y Lamborghini Huracán no aparecen en el timeline — RESUELTO: ahora el timeline consulta /api/cars de Rently directamente para incluir todos los vehículos activos (no solo los que tienen reservas o están en tabla local)
+- [x] TIMELINE: Agrupar vehículos por modelo dentro de cada categoría (Carrera juntos, Cayenne juntos, etc.) — sort por model name + plate

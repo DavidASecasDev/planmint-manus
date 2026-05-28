@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getServiceClient } from "./supabaseAdmin";
+import { getRentlyCredentials, getRentlyToken } from "./rentlyHub";
 
 /**
  * Timeline Endpoint
@@ -119,6 +120,45 @@ function calculateDays(from: string | null, to: string | null): number {
   const end = new Date(to.substring(0, 10));
   const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(diff, 1);
+}
+
+/**
+ * Fetch all active cars from Rently API (paginated, up to 500).
+ * Returns the raw Rently car objects with Model, Brand, Category info.
+ */
+async function fetchAllRentlyCars(host: string, token: string): Promise<any[]> {
+  const allCars: any[] = [];
+  const limit = 100;
+  let offset = 0;
+  const maxPages = 5;
+
+  for (let page = 0; page < maxPages; page++) {
+    const url = `https://${host}/api/cars?Limit=${limit}&Offset=${offset}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) break;
+      const body = await resp.json() as { Results?: any[]; NextOffset?: number };
+      const results = body.Results || [];
+      // Filter only active cars (no InactiveDate)
+      allCars.push(...results.filter((c: any) => !c.InactiveDate));
+
+      if (!body.NextOffset || results.length < limit) break;
+      offset = body.NextOffset;
+    } catch {
+      clearTimeout(timeoutId);
+      break;
+    }
+  }
+
+  return allCars;
 }
 
 export async function handlePublicTimeline(req: Request, res: Response) {
@@ -280,12 +320,50 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       });
     }
 
-    // Sort categories by custom business order and vehicles within
+    // 4c. Fetch ALL active cars from Rently API and add any missing ones
+    try {
+      const creds = await getRentlyCredentials(organizationId);
+      const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+      const allRentlyCars = await fetchAllRentlyCars(creds.host, token);
+      
+      for (const car of allRentlyCars) {
+        const plate = car.Id; // Rently uses Id as plate identifier
+        if (!plate || knownPlates.has(plate) || reservationsByPlate.has(plate)) continue;
+        
+        const catName = car.Model?.Category?.Name || "Otros";
+        const normalizedCategory = resolveCategory(catName, "");
+        const brandName = car.Model?.Brand?.Name || "";
+        const modelName = car.Model?.Name || "";
+        const fullModel = brandName ? `${brandName} ${modelName}` : modelName;
+        
+        if (!categoryMap.has(normalizedCategory)) {
+          categoryMap.set(normalizedCategory, { category: normalizedCategory, vehicles: [] });
+        }
+        
+        categoryMap.get(normalizedCategory)!.vehicles.push({
+          plate,
+          model: fullModel || null,
+          isCollaborator: !car.InactiveDate && car.FriendlyName?.includes("CLICK") ? true : false,
+          reservations: [],
+        });
+      }
+    } catch (e) {
+      // Non-critical: if Rently API fails, we still show local data
+      console.warn("[timeline] Could not fetch Rently cars:", (e as Error).message);
+    }
+
+    // Sort categories by custom business order and vehicles within (grouped by model)
     const groups = Array.from(categoryMap.values()).sort((a, b) =>
       categorySort(a.category, b.category)
     );
     for (const g of groups) {
-      g.vehicles.sort((a, b) => a.plate.localeCompare(b.plate));
+      // Sort by model name first (group same models together), then by plate
+      g.vehicles.sort((a, b) => {
+        const modelA = (a.model || "").toLowerCase();
+        const modelB = (b.model || "").toLowerCase();
+        if (modelA !== modelB) return modelA.localeCompare(modelB);
+        return a.plate.localeCompare(b.plate);
+      });
     }
 
     return res.json({
@@ -484,11 +562,48 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
       });
     }
 
+    // 4c. Fetch ALL active cars from Rently API and add any missing ones
+    try {
+      const creds = await getRentlyCredentials(organizationId);
+      const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+      const allRentlyCars = await fetchAllRentlyCars(creds.host, token);
+      
+      for (const car of allRentlyCars) {
+        const plate = car.Id;
+        if (!plate || knownPlates.has(plate) || reservationsByPlate.has(plate)) continue;
+        
+        const catName = car.Model?.Category?.Name || "Otros";
+        const normalizedCategory = resolveCategory(catName, "");
+        const brandName = car.Model?.Brand?.Name || "";
+        const modelName = car.Model?.Name || "";
+        const fullModel = brandName ? `${brandName} ${modelName}` : modelName;
+        
+        if (!categoryMap.has(normalizedCategory)) {
+          categoryMap.set(normalizedCategory, { category: normalizedCategory, vehicles: [] });
+        }
+        
+        categoryMap.get(normalizedCategory)!.vehicles.push({
+          plate,
+          model: fullModel || null,
+          isCollaborator: !car.InactiveDate && car.FriendlyName?.includes("CLICK") ? true : false,
+          reservations: [],
+        });
+      }
+    } catch (e) {
+      console.warn("[timeline-auth] Could not fetch Rently cars:", (e as Error).message);
+    }
+
+    // Sort by model (group same models together), then by plate
     const groups = Array.from(categoryMap.values()).sort((a, b) =>
       categorySort(a.category, b.category)
     );
     for (const g of groups) {
-      g.vehicles.sort((a, b) => a.plate.localeCompare(b.plate));
+      g.vehicles.sort((a, b) => {
+        const modelA = (a.model || "").toLowerCase();
+        const modelB = (b.model || "").toLowerCase();
+        if (modelA !== modelB) return modelA.localeCompare(modelB);
+        return a.plate.localeCompare(b.plate);
+      });
     }
 
     return res.json({

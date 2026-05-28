@@ -46,7 +46,7 @@ const DOMAIN_REGISTRY = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function getRentlyCredentials(organizationId: string) {
+export async function getRentlyCredentials(organizationId: string) {
   const serviceClient = getServiceClient();
   const { data: settings, error } = await serviceClient
     .from("integration_settings")
@@ -65,7 +65,7 @@ async function getRentlyCredentials(organizationId: string) {
   };
 }
 
-async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
+export async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
