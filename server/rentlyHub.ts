@@ -200,12 +200,14 @@ export async function handleRentlyHub(req: Request, res: Response) {
         const { fromDate, toDate, categoryId, deliveryPlaceId, returnPlaceId } = params || {};
         if (!fromDate || !toDate) return res.json({ success: false, error: "fromDate y toDate son requeridos" });
         const qp = new URLSearchParams({
-          fromDate: String(fromDate),
-          toDate: String(toDate),
-          ...(categoryId ? { categoryId: String(categoryId) } : {}),
-          ...(deliveryPlaceId ? { deliveryPlaceId: String(deliveryPlaceId) } : {}),
-          ...(returnPlaceId ? { returnPlaceId: String(returnPlaceId) } : {}),
+          From: String(fromDate),
+          To: String(toDate),
+          ...(categoryId ? { CategoryId: String(categoryId) } : {}),
+          ...(deliveryPlaceId ? { FromPlace: String(deliveryPlaceId) } : {}),
+          ...(returnPlaceId ? { ToPlace: String(returnPlaceId) } : {}),
         });
+        // If no ToPlace, default to FromPlace
+        if (!returnPlaceId && deliveryPlaceId) qp.set("ToPlace", String(deliveryPlaceId));
         const data = await callRentlyApi(creds.host, token, `/api/search?${qp.toString()}`);
         return res.json({ success: true, data });
       }
@@ -225,13 +227,14 @@ export async function handleRentlyHub(req: Request, res: Response) {
         const { fromDate, toDate, categoryId, deliveryPlaceId, returnPlaceId, carId } = params || {};
         if (!fromDate || !toDate || !categoryId) return res.json({ success: false, error: "fromDate, toDate y categoryId son requeridos" });
         const qp = new URLSearchParams({
-          fromDate: String(fromDate),
-          toDate: String(toDate),
-          categoryId: String(categoryId),
-          ...(deliveryPlaceId ? { deliveryPlaceId: String(deliveryPlaceId) } : {}),
-          ...(returnPlaceId ? { returnPlaceId: String(returnPlaceId) } : {}),
-          ...(carId ? { carId: String(carId) } : {}),
+          From: String(fromDate),
+          To: String(toDate),
+          CategoryId: String(categoryId),
+          ...(deliveryPlaceId ? { FromPlace: String(deliveryPlaceId) } : {}),
+          ...(returnPlaceId ? { ToPlace: String(returnPlaceId) } : {}),
+          ...(carId ? { CarId: String(carId) } : {}),
         });
+        if (!returnPlaceId && deliveryPlaceId) qp.set("ToPlace", String(deliveryPlaceId));
         const data = await callRentlyApi(creds.host, token, `/api/booking/price?${qp.toString()}`);
         return res.json({ success: true, data });
       }
@@ -242,12 +245,13 @@ export async function handleRentlyHub(req: Request, res: Response) {
         const { fromDate, toDate, categoryId, deliveryPlaceId, returnPlaceId } = params || {};
         if (!fromDate || !toDate || !categoryId) return res.json({ success: false, error: "fromDate, toDate y categoryId son requeridos" });
         const qp = new URLSearchParams({
-          "request.fromDate": String(fromDate),
-          "request.toDate": String(toDate),
-          "request.categoryId": String(categoryId),
-          ...(deliveryPlaceId ? { "request.deliveryPlaceId": String(deliveryPlaceId) } : {}),
-          ...(returnPlaceId ? { "request.returnPlaceId": String(returnPlaceId) } : {}),
+          "request.From": String(fromDate),
+          "request.To": String(toDate),
+          "request.CategoryId": String(categoryId),
+          ...(deliveryPlaceId ? { "request.FromPlace": String(deliveryPlaceId) } : {}),
+          ...(returnPlaceId ? { "request.ToPlace": String(returnPlaceId) } : {}),
         });
+        if (!returnPlaceId && deliveryPlaceId) qp.set("request.ToPlace", String(deliveryPlaceId));
         const data = await callRentlyApi(creds.host, token, `/api/booking/additionals-price?${qp.toString()}`);
         return res.json({ success: true, data });
       }

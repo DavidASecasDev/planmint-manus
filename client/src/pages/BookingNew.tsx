@@ -268,6 +268,10 @@ export default function BookingNew() {
       toast.error("Selecciona una categoría de vehículo");
       return;
     }
+    if (!deliveryPlaceId) {
+      toast.error("Selecciona un lugar de entrega");
+      return;
+    }
     setCheckingAvailability(true);
     setAvailableCars([]);
     setSelectedCar("");
@@ -278,28 +282,55 @@ export default function BookingNew() {
         fromDate: buildDatetime(fromDate, fromTime),
         toDate: buildDatetime(toDate, toTime),
         categoryId: Number(categoryId),
+        deliveryPlaceId: Number(deliveryPlaceId),
       };
-      if (deliveryPlaceId) params.deliveryPlaceId = Number(deliveryPlaceId);
-      if (!sameReturnPlace && returnPlaceId) params.returnPlaceId = Number(returnPlaceId);
+      if (!sameReturnPlace && returnPlaceId) {
+        params.returnPlaceId = Number(returnPlaceId);
+      } else {
+        params.returnPlaceId = Number(deliveryPlaceId);
+      }
 
-      // Fetch availability + price in parallel
-      const [availRes, priceRes] = await Promise.all([
+      // search_availability returns cars WITH price data embedded (Price, AverageDayPrice, etc.)
+      const [availRes, extrasRes] = await Promise.all([
         apiInvoke<any>("rently-hub", { body: { action: "search_availability", params } }),
-        apiInvoke<any>("rently-hub", { body: { action: "booking_price", params } }),
+        apiInvoke<any>("rently-hub", { body: { action: "additionals_price", params } }),
       ]);
 
       if (availRes.data?.data) {
-        const cars = Array.isArray(availRes.data.data) ? availRes.data.data : [];
+        const rawCars = Array.isArray(availRes.data.data) ? availRes.data.data : [];
+        // Map Rently search response to our AvailableCar interface
+        const cars: AvailableCar[] = rawCars.map((item: any) => ({
+          Id: item.Car?.Id || item.Id || "",
+          Brand: item.Car?.Model?.Brand?.Name || item.Brand || "",
+          Model: item.Car?.Model?.Name || item.Model || "",
+          CategoryName: item.Category?.Name || "",
+          Color: item.Car?.Color || "",
+          LicensePlate: item.Car?.CurrentPlateId || item.Car?.Id || "",
+        }));
         setAvailableCars(cars);
+
+        // Use price from the first car result (all same category = same price)
+        if (rawCars.length > 0) {
+          const firstResult = rawCars[0];
+          setPriceData({
+            Price: firstResult.Price,
+            AverageDayPrice: firstResult.AverageDayPrice,
+            TotalDays: firstResult.TotalDays,
+            TotalDaysString: firstResult.TotalDaysString,
+            Currency: firstResult.Currency,
+            Franchise: firstResult.Franchise,
+            FranchiseDamage: firstResult.FranchiseDamage,
+            FranchiseRollover: firstResult.FranchiseRollover,
+            FranchiseTheft: firstResult.FranchiseTheft,
+            FranchiseHail: firstResult.FranchiseHail,
+            PriceItems: firstResult.PriceItems,
+            PriceDetails: firstResult.PriceDetails,
+          });
+        }
       }
-      if (priceRes.data?.data) setPriceData(priceRes.data.data);
       setHasChecked(true);
 
-      // Also load extras
-      setLoadingExtras(true);
-      const extrasRes = await apiInvoke<any>("rently-hub", {
-        body: { action: "additionals_price", params },
-      });
+      // Process extras
       if (extrasRes.data?.data) {
         const items: AdditionalPriceItem[] = Array.isArray(extrasRes.data.data) ? extrasRes.data.data : [];
         setExtras(items);
@@ -316,8 +347,9 @@ export default function BookingNew() {
         setSelectedExtras(autoSelected);
         if (items.length > 0) setExtrasOpen(true);
       }
-    } catch {
-      toast.error("Error consultando disponibilidad");
+    } catch (err: any) {
+      console.error("Availability check error:", err);
+      toast.error(err?.message || "Error consultando disponibilidad");
     } finally {
       setCheckingAvailability(false);
       setLoadingExtras(false);
@@ -1194,13 +1226,36 @@ export default function BookingNew() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Franquicia por daños</p>
-                  <p className="text-xs text-muted-foreground">Franquicia por vuelcos</p>
-                  <p className="text-xs text-muted-foreground">Franquicia por robos</p>
-                  <p className="text-xs text-muted-foreground">Franquicia por granizo</p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-2">
-                    Los importes se calcularán según la categoría seleccionada
-                  </p>
+                  {priceData?.Franchise != null ? (
+                    <>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Franquicia por daños</span>
+                        <span className="font-medium">{formatPrice(priceData.FranchiseDamage ?? priceData.Franchise)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Franquicia por vuelcos</span>
+                        <span className="font-medium">{formatPrice(priceData.FranchiseRollover ?? priceData.Franchise)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Franquicia por robos</span>
+                        <span className="font-medium">{formatPrice(priceData.FranchiseTheft ?? priceData.Franchise)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Franquicia por granizo</span>
+                        <span className="font-medium">{formatPrice(priceData.FranchiseHail ?? priceData.Franchise)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground">Franquicia por daños</p>
+                      <p className="text-xs text-muted-foreground">Franquicia por vuelcos</p>
+                      <p className="text-xs text-muted-foreground">Franquicia por robos</p>
+                      <p className="text-xs text-muted-foreground">Franquicia por granizo</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-2">
+                        Los importes se calcularán según la categoría seleccionada
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 

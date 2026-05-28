@@ -917,3 +917,7 @@
 - [x] RESERVAS: Cliente opcional — permitir guardar cotización sin datos de cliente
 - [x] RESERVAS: Botones "Guardar Cotización" y "Guardar Reserva" en header
 - [x] RESERVAS: Sidebar derecha con Depósito en Garantía
+- [x] FIX: Corregir nombres de parámetros API Rently (PascalCase: From/To/CategoryId/FromPlace/ToPlace en vez de camelCase)
+- [x] FIX: search_availability ahora devuelve precio embebido por vehículo, no necesita llamada separada a booking_price
+- [x] FIX: Mostrar valores reales de franquicias en sidebar Depósito en Garantía
+- [x] FIX: Requerir lugar de entrega antes de consultar disponibilidad
