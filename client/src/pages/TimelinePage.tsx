@@ -5,8 +5,7 @@
  * - Click navigates to reservation detail
  * - Filter by category
  */
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { apiInvoke } from "@/lib/apiClient";
@@ -14,7 +13,6 @@ import { VehicleTimeline, TimelineData } from "@/components/timeline/VehicleTime
 import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function TimelinePage() {
-  const navigate = useNavigate();
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   // Fetch timeline data from authenticated endpoint
@@ -30,8 +28,8 @@ export default function TimelinePage() {
   });
 
   const handleReservationClick = useCallback((reservationId: string) => {
-    navigate(`/reservations/${reservationId}`);
-  }, [navigate]);
+    window.open(`/reservations/${reservationId}`, '_blank');
+  }, []);
 
   return (
     <AppLayout title="Timeline" fullWidth>

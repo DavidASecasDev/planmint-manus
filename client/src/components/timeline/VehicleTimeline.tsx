@@ -40,6 +40,7 @@ export interface TimelineReservation {
 export interface TimelineVehicle {
   plate: string;
   model: string | null;
+  isCollaborator?: boolean;
   reservations: TimelineReservation[];
 }
 
@@ -438,17 +439,31 @@ export function VehicleTimeline({
                     <div
                       key={vehicle.plate}
                       className={cn(
-                        "flex flex-col justify-center px-3 border-b border-border/50 transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-700/20",
-                        vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/30 dark:bg-gray-800/10"
+                        "flex flex-col justify-center px-3 border-b border-border/50 transition-colors",
+                        vehicle.isCollaborator
+                          ? "bg-purple-50/60 dark:bg-purple-950/20 hover:bg-purple-100/80 dark:hover:bg-purple-900/30"
+                          : vIdx % 2 === 0
+                            ? "bg-white dark:bg-transparent hover:bg-gray-100/60 dark:hover:bg-gray-700/20"
+                            : "bg-gray-50/30 dark:bg-gray-800/10 hover:bg-gray-100/60 dark:hover:bg-gray-700/20"
                       )}
                       style={{ height: ROW_HEIGHT }}
                     >
-                      {vehicle.model && (
-                        <span className="text-[9px] text-muted-foreground truncate leading-tight">
-                          {vehicle.model}
-                        </span>
-                      )}
-                      <span className="text-[11px] font-mono font-semibold text-foreground tracking-wide leading-tight">
+                      <div className="flex items-center gap-1">
+                        {vehicle.model && (
+                          <span className="text-[9px] text-muted-foreground truncate leading-tight">
+                            {vehicle.model}
+                          </span>
+                        )}
+                        {vehicle.isCollaborator && (
+                          <span className="text-[8px] font-semibold bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-200 px-1 py-0.5 rounded leading-none whitespace-nowrap">
+                            Colab.
+                          </span>
+                        )}
+                      </div>
+                      <span className={cn(
+                        "text-[11px] font-mono font-semibold tracking-wide leading-tight",
+                        vehicle.isCollaborator ? "text-purple-700 dark:text-purple-300" : "text-foreground"
+                      )}>
                         {vehicle.plate}
                       </span>
                     </div>

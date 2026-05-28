@@ -923,3 +923,5 @@
 - [x] FIX: Requerir lugar de entrega antes de consultar disponibilidad
 - [x] FIX: Paginación automática en listado de reservas - Rently limita a 30 por defecto (max 100/página). Ahora el servidor itera hasta 10 páginas x 100 = 1000 reservas automáticamente
 - [x] FIX: Timeline auto-discovery — vehículos de colaboradores (ej: ClickRent WRANG-CLICK1) que tienen reservas pero no están en la tabla vehicles ahora aparecen automáticamente en el timeline agrupados por su categoría
+- [x] TIMELINE: Distinguir visualmente vehículos de colaboradores con badge "Colab." y fondo púrpura diferenciado
+- [x] TIMELINE: Click en reserva abre detalle de la reserva en nueva pestaña (window.open _blank)

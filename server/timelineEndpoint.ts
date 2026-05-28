@@ -81,6 +81,7 @@ interface TimelineGroup {
   vehicles: Array<{
     plate: string;
     model: string | null;
+    isCollaborator: boolean;
     reservations: TimelineReservation[];
   }>;
 }
@@ -252,6 +253,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       categoryMap.get(category)!.vehicles.push({
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
+        isCollaborator: false,
         reservations: reservationsByPlate.get(plate) || [],
       });
     }
@@ -273,6 +275,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       categoryMap.get(normalizedCategory)!.vehicles.push({
         plate,
         model: rawRes?.modelo || plateReservations[0]?.model || null,
+        isCollaborator: true,
         reservations: plateReservations,
       });
     }
@@ -456,6 +459,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
       categoryMap.get(category)!.vehicles.push({
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
+        isCollaborator: false,
         reservations: reservationsByPlate.get(plate) || [],
       });
     }
@@ -475,6 +479,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
       categoryMap.get(normalizedCategory)!.vehicles.push({
         plate,
         model: rawRes?.modelo || plateReservations[0].model || null,
+        isCollaborator: true,
         reservations: plateReservations,
       });
     }
