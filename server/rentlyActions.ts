@@ -139,6 +139,27 @@ const ACTION_MAP: Record<string, ActionConfig> = {
     label: "Registrar pago",
     forwardBody: true,
   },
+  "service.create": {
+    permissionKey: "rently.service_manage",
+    rentlyMethod: "POST",
+    rentlyPath: "/api/services",
+    label: "Crear servicio (bloqueo taller)",
+    forwardBody: true,
+  },
+  "service.update": {
+    permissionKey: "rently.service_manage",
+    rentlyMethod: "PUT",
+    rentlyPath: "/api/services",
+    label: "Actualizar servicio",
+    forwardBody: true,
+  },
+  "service.finish": {
+    permissionKey: "rently.service_manage",
+    rentlyMethod: "PUT",
+    rentlyPath: "/api/services",
+    label: "Finalizar servicio",
+    forwardBody: true,
+  },
 };
 
 // ─── Rently API helpers ─────────────────────────────────────────────────────

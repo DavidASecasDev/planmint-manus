@@ -3,7 +3,59 @@ import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
+import { apiInvoke } from '@/lib/apiClient';
 import type { Repair, RepairFormData, RepairStatus } from '@/types/garatech';
+
+// ─── Rently service sync helper (best-effort, non-blocking) ─────────────────
+
+type SyncAction = 'create' | 'update' | 'finish' | 'cancel';
+
+async function syncRepairToRently(repairId: string, action: SyncAction) {
+  try {
+    const { data, error } = await apiInvoke<{ success: boolean; rentlyServiceId?: number }>(
+      'repair-service-sync',
+      { body: { repairId, action } }
+    );
+    if (error) {
+      console.warn(`[Rently Sync] ${action} failed:`, error.message);
+      toast.warning(`Rently: ${error.message}`, { duration: 5000 });
+      return false;
+    }
+    if (data?.success) {
+      toast.success(`Servicio Rently ${action === 'create' ? 'creado' : action === 'update' ? 'actualizado' : action === 'finish' ? 'finalizado' : 'cancelado'}`, { duration: 3000 });
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn('[Rently Sync] Error:', err);
+    return false;
+  }
+}
+
+/**
+ * Determine what Rently sync action (if any) should fire based on the update.
+ */
+function determineSyncAction(
+  data: Partial<RepairFormData & { status: RepairStatus }>,
+  previousStatus?: RepairStatus
+): { action: SyncAction; shouldSync: boolean } {
+  // Status transitions that trigger sync
+  if (data.status === 'en_taller' && previousStatus !== 'en_taller') {
+    return { action: 'create', shouldSync: true };
+  }
+  if (data.status === 'finalizado' || data.status === 'listo_recoger') {
+    return { action: 'finish', shouldSync: true };
+  }
+
+  // Date changes while already in taller → update service dates
+  if (!data.status && (data.scheduled_date || data.started_at || data.completed_at)) {
+    return { action: 'update', shouldSync: true };
+  }
+
+  return { action: 'update', shouldSync: false };
+}
+
+// ─── Main hook ──────────────────────────────────────────────────────────────
 
 export function useRepairs() {
   const { profile } = useAuth();
@@ -54,15 +106,19 @@ export function useRepairs() {
       if (error) throw error;
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['repairs', orgId] });
       toast.success('Reparación creada');
+      // If created directly as "en_taller", sync to Rently
+      if (result?.status === 'en_taller' && result?.id) {
+        syncRepairToRently(result.id, 'create');
+      }
     },
     onError: () => toast.error('Error al crear reparación'),
   });
 
   const updateRepair = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<RepairFormData & { status: RepairStatus }> }) => {
+    mutationFn: async ({ id, data, previousStatus }: { id: string; data: Partial<RepairFormData & { status: RepairStatus }>; previousStatus?: RepairStatus }) => {
       const updates: any = { ...data };
       if (data.status === 'en_taller' && !updates.started_at) {
         updates.started_at = new Date().toISOString();
@@ -72,10 +128,19 @@ export function useRepairs() {
       }
       const { error } = await supabaseQuery.from('repairs').update(updates).eq('id', id);
       if (error) throw error;
+      return { id, data, previousStatus };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['repairs', orgId] });
       toast.success('Reparación actualizada');
+
+      // Best-effort Rently sync (non-blocking)
+      if (result) {
+        const { action, shouldSync } = determineSyncAction(result.data, result.previousStatus);
+        if (shouldSync) {
+          syncRepairToRently(result.id, action);
+        }
+      }
     },
     onError: () => toast.error('Error al actualizar'),
   });

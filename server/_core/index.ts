@@ -134,6 +134,7 @@ import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEn
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
 import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
+import { handleRepairServiceSync } from "../repairServiceSync";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
 import {
   handleGetPreparationList,
@@ -178,6 +179,7 @@ async function startServer() {
   app.post("/api/ai-assistant", handleAiAssistant);
   app.post("/api/rently-hub", handleRentlyHub);
   app.post("/api/rently-actions", handleRentlyActions);
+  app.post("/api/repair-service-sync", handleRepairServiceSync);
   app.post("/api/parse-transfer-document", handleParseTransferDocument);
   app.post("/api/create-movements-from-transfer", handleCreateMovementsFromTransfer);
   app.post("/api/signup-with-invitation", handleSignupWithInvitation);

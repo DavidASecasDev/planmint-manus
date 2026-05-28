@@ -61,7 +61,7 @@ export default function GaratechRepairs() {
   }, [deleteTarget, deleteRepair]);
 
   const handleStatusChange = async (repair: Repair, newStatus: RepairStatus) => {
-    await updateRepair.mutateAsync({ id: repair.id, data: { status: newStatus } });
+    await updateRepair.mutateAsync({ id: repair.id, data: { status: newStatus }, previousStatus: repair.status });
   };
 
   const activeFiltersCount = [

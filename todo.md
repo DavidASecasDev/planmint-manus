@@ -945,3 +945,8 @@
 - [x] FIX TIMELINE: Barra de servicio/taller debe mostrar solo los días específicos (no toda la fila) — usa started_at/completed_at de repairs + clamp a rango visible
 - [x] FIX TIMELINE: Renderizar barra de servicio como barra independiente con fechas inicio/fin (similar a reservas pero con patrón rayado ámbar + icono llave)
 - [x] TIMELINE: Vista 1M se estira para llenar todo el ancho disponible (dayWidth dinámico con ResizeObserver, mín 34px)
+- [x] RENTLY SYNC: Añadir acciones service.create, service.update, service.finish al ACTION_MAP de rentlyActions.ts
+- [x] RENTLY SYNC: Añadir campo rently_service_id a tabla repairs (migración DB manual en Supabase)
+- [x] RENTLY SYNC: Crear endpoint POST /api/repair-service-sync con lógica de crear/actualizar/finalizar servicio en Rently
+- [x] RENTLY SYNC: Frontend - interceptar updateRepair para llamar al sync automáticamente (best-effort con toast)
+- [x] RENTLY SYNC: Tests vitest para el nuevo endpoint (1303 tests passing)

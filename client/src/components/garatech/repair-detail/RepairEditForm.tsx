@@ -42,7 +42,7 @@ export function RepairEditForm({ repair, onSave, onCancel }: RepairEditFormProps
       return;
     }
     try {
-      await updateRepair.mutateAsync({ id: repair.id, data: form });
+      await updateRepair.mutateAsync({ id: repair.id, data: form, previousStatus: repair.status });
       queryClient.invalidateQueries({ queryKey: ['repair', repair.id] });
       onSave();
     } catch (error) {

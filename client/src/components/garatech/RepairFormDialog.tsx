@@ -70,7 +70,7 @@ export function RepairFormDialog({ open, onOpenChange, repair }: RepairFormDialo
     }
     try {
       if (isEditing && repair) {
-        await updateRepair.mutateAsync({ id: repair.id, data: form });
+        await updateRepair.mutateAsync({ id: repair.id, data: form, previousStatus: repair.status });
       } else {
         await createRepair.mutateAsync(form);
       }

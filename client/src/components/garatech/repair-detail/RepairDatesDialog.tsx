@@ -63,6 +63,7 @@ export function RepairDatesDialog({ repair, open, onOpenChange }: RepairDatesDia
           completed_at: completedAt?.toISOString() || null,
           cost_final: costFinal ? parseFloat(costFinal) : null,
         },
+        previousStatus: repair.status,
       });
       toast.success('Fechas y coste actualizados');
       onOpenChange(false);
