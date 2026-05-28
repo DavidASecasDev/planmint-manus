@@ -238,10 +238,12 @@ export async function handlePublicTimeline(req: Request, res: Response) {
 
     // 4. Group vehicles by category
     const categoryMap = new Map<string, TimelineGroup>();
+    const knownPlates = new Set<string>();
     for (const v of vehicles || []) {
       const marca = v.fleet_vehicle_id ? (fleetMarcaMap.get(v.fleet_vehicle_id) || "") : "";
       const category = resolveCategory(v.categoria, marca);
       const plate = v.matricula;
+      knownPlates.add(plate);
 
       if (!categoryMap.has(category)) {
         categoryMap.set(category, { category, vehicles: [] });
@@ -251,6 +253,27 @@ export async function handlePublicTimeline(req: Request, res: Response) {
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
         reservations: reservationsByPlate.get(plate) || [],
+      });
+    }
+
+    // 4b. Auto-discovery: add vehicles from reservations that are not in the vehicles table
+    // This handles collaborator vehicles (e.g., ClickRent) that have reservations but aren't registered
+    for (const [plate, plateReservations] of Array.from(reservationsByPlate.entries())) {
+      if (knownPlates.has(plate)) continue; // Already included
+
+      // Derive category and model from the reservation data
+      const rawRes = (reservations || []).find(r => r.auto === plate);
+      const discoveredCategory = rawRes?.categoria || "Otros";
+      const normalizedCategory = resolveCategory(discoveredCategory, "");
+
+      if (!categoryMap.has(normalizedCategory)) {
+        categoryMap.set(normalizedCategory, { category: normalizedCategory, vehicles: [] });
+      }
+
+      categoryMap.get(normalizedCategory)!.vehicles.push({
+        plate,
+        model: rawRes?.modelo || plateReservations[0]?.model || null,
+        reservations: plateReservations,
       });
     }
 
@@ -419,10 +442,12 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
 
     // 4. Group vehicles by category
     const categoryMap = new Map<string, TimelineGroup>();
+    const knownPlates = new Set<string>();
     for (const v of vehicles || []) {
       const marca = v.fleet_vehicle_id ? (fleetMarcaMap.get(v.fleet_vehicle_id) || "") : "";
       const category = resolveCategory(v.categoria, marca);
       const plate = v.matricula;
+      knownPlates.add(plate);
 
       if (!categoryMap.has(category)) {
         categoryMap.set(category, { category, vehicles: [] });
@@ -432,6 +457,25 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
         reservations: reservationsByPlate.get(plate) || [],
+      });
+    }
+
+    // 4b. Auto-discovery: add vehicles from reservations not in the vehicles table
+    for (const [plate, plateReservations] of Array.from(reservationsByPlate.entries())) {
+      if (knownPlates.has(plate)) continue;
+
+      const rawRes = (reservations || []).find(r => r.auto === plate);
+      const discoveredCategory = rawRes?.categoria || "Otros";
+      const normalizedCategory = resolveCategory(discoveredCategory, "");
+
+      if (!categoryMap.has(normalizedCategory)) {
+        categoryMap.set(normalizedCategory, { category: normalizedCategory, vehicles: [] });
+      }
+
+      categoryMap.get(normalizedCategory)!.vehicles.push({
+        plate,
+        model: rawRes?.modelo || plateReservations[0].model || null,
+        reservations: plateReservations,
       });
     }
 
