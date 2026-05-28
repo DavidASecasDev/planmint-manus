@@ -913,3 +913,7 @@
 - [x] RESERVAS: Registrar ruta /bookings/new en App.tsx y enlazar desde botón "Nueva Reserva" en listado
 - [x] RESERVAS: Añadir tab "Historial de Acciones" en BookingDetail con log de acciones PlanMint→Rently (quién, cuándo, qué acción)
 - [x] RESERVAS: Implementar botones de cambio de estado contextuales en header de BookingDetail (Confirmar, Cancelar, Entrega, Devolución según estado actual)
+- [x] RESERVAS: Reescribir /bookings/new como formulario de una sola página (no wizard) replicando layout de Rently
+- [x] RESERVAS: Cliente opcional — permitir guardar cotización sin datos de cliente
+- [x] RESERVAS: Botones "Guardar Cotización" y "Guardar Reserva" en header
+- [x] RESERVAS: Sidebar derecha con Depósito en Garantía
