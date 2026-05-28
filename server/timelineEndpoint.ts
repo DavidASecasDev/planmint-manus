@@ -89,26 +89,28 @@ interface TimelineReservation {
   durationDays: number;
 }
 
+/** A specific period when a vehicle is in service/workshop */
+interface ServicePeriod {
+  id: string;
+  startDate: string;    // YYYY-MM-DD
+  endDate: string;      // YYYY-MM-DD (for ongoing repairs, clamped to timeline range end)
+  type: string;         // repair status or 'manual'
+  notes: string;        // description
+  repairId: string | null;
+  ongoing: boolean;     // true if the repair is still active (no completed_at)
+}
+
 interface TimelineGroupVehicle {
   plate: string;
   model: string | null;
   isCollaborator: boolean;
-  inService: boolean;
-  serviceType: string | null;
-  serviceNotes: string | null;
+  servicePeriods: ServicePeriod[];
   reservations: TimelineReservation[];
 }
 
 interface TimelineGroup {
   category: string;
   vehicles: TimelineGroupVehicle[];
-}
-
-/** In-service info for a vehicle */
-interface InServiceInfo {
-  inService: boolean;
-  serviceType: string | null;
-  serviceNotes: string | null;
 }
 
 /**
@@ -186,66 +188,103 @@ async function fetchAllRentlyCars(host: string, token: string): Promise<any[]> {
 }
 
 /**
- * Build a Map<vehicleId, InServiceInfo> from two sources:
- * 1. vehicles.status = 'en_servicio' (manual override)
- * 2. Active repairs (status NOT IN 'finalizado') linked to a vehicle
+ * Build a Map<plate, ServicePeriod[]> from two sources:
+ * 1. vehicles.status = 'en_servicio' (manual override) — creates a period from today spanning the full range
+ * 2. Repairs table — uses started_at/created_at → completed_at for date ranges
  *
  * Returns a map keyed by vehicle plate.
  */
-async function buildInServiceMap(
+async function buildServicePeriodsMap(
   serviceClient: any,
   organizationId: string,
   vehicleIds: string[],
-  vehiclePlateById: Map<string, string>
-): Promise<Map<string, InServiceInfo>> {
-  const inServiceMap = new Map<string, InServiceInfo>();
+  vehiclePlateById: Map<string, string>,
+  rangeFrom: string,
+  rangeTo: string,
+  todayStr: string
+): Promise<Map<string, ServicePeriod[]>> {
+  const periodsMap = new Map<string, ServicePeriod[]>();
 
-  if (vehicleIds.length === 0) return inServiceMap;
+  if (vehicleIds.length === 0) return periodsMap;
+
+  // Helper to add a period to the map
+  const addPeriod = (plate: string, period: ServicePeriod) => {
+    if (!periodsMap.has(plate)) periodsMap.set(plate, []);
+    periodsMap.get(plate)!.push(period);
+  };
 
   // Source 1: vehicles with status = 'en_servicio' (manual override)
+  // For manual overrides, we don't have exact dates, so we show from today onwards
   const { data: enServicioVehicles } = await serviceClient
     .from("vehicles")
-    .select("id, matricula, notas_servicio")
+    .select("id, matricula, notas_servicio, updated_at")
     .eq("organization_id", organizationId)
     .eq("status", "en_servicio");
 
   if (enServicioVehicles) {
     for (const v of enServicioVehicles) {
-      inServiceMap.set(v.matricula, {
-        inService: true,
-        serviceType: "manual",
-        serviceNotes: v.notas_servicio || "En servicio (estado manual)",
+      // Use updated_at as the start of the manual service period, or today
+      const manualStart = v.updated_at ? v.updated_at.substring(0, 10) : todayStr;
+      addPeriod(v.matricula, {
+        id: `manual-${v.id}`,
+        startDate: manualStart,
+        endDate: rangeTo, // ongoing until range end
+        type: "manual",
+        notes: v.notas_servicio || "En servicio (estado manual)",
+        repairId: null,
+        ongoing: true,
       });
     }
   }
 
-  // Source 2: Active repairs (not finalizado)
-  const { data: activeRepairs } = await serviceClient
+  // Source 2: Repairs — both active AND recently completed (within the date range)
+  // This way we show completed repairs that overlapped the visible timeline
+  const { data: repairs } = await serviceClient
     .from("repairs")
-    .select("id, vehicle_id, status, description, repair_type")
+    .select("id, vehicle_id, status, description, repair_type, created_at, started_at, completed_at")
     .eq("organization_id", organizationId)
-    .in("status", ACTIVE_REPAIR_STATUSES);
+    .or(
+      // Active repairs (any status in ACTIVE_REPAIR_STATUSES)
+      `status.in.(${ACTIVE_REPAIR_STATUSES.join(",")}),` +
+      // OR completed repairs that overlap the date range
+      `and(status.eq.finalizado,completed_at.gte.${rangeFrom}T00:00:00)`
+    );
 
-  if (activeRepairs) {
-    for (const repair of activeRepairs) {
+  if (repairs) {
+    for (const repair of repairs) {
       const plate = vehiclePlateById.get(repair.vehicle_id);
       if (!plate) continue;
 
-      // Don't overwrite manual override if already set
-      if (inServiceMap.has(plate)) continue;
+      // Determine start date: prefer started_at, fall back to created_at
+      const rawStart = repair.started_at || repair.created_at;
+      const startDate = rawStart ? rawStart.substring(0, 10) : todayStr;
+
+      // Determine end date: if completed, use completed_at; otherwise ongoing (use today or range end)
+      const isActive = repair.status !== "finalizado";
+      let endDate: string;
+      if (isActive) {
+        // Ongoing repair — show bar up to today (or range end if today is before range end)
+        endDate = todayStr > rangeTo ? rangeTo : todayStr;
+      } else {
+        endDate = repair.completed_at ? repair.completed_at.substring(0, 10) : todayStr;
+      }
 
       const repairTypeLabel = repair.repair_type || "reparación";
       const statusLabel = repair.status?.replace(/_/g, " ") || "en taller";
 
-      inServiceMap.set(plate, {
-        inService: true,
-        serviceType: repair.status || "en_taller",
-        serviceNotes: repair.description || `${repairTypeLabel} (${statusLabel})`,
+      addPeriod(plate, {
+        id: repair.id,
+        startDate,
+        endDate,
+        type: repair.status || "en_taller",
+        notes: repair.description || `${repairTypeLabel} (${statusLabel})`,
+        repairId: repair.id,
+        ongoing: isActive,
       });
     }
   }
 
-  return inServiceMap;
+  return periodsMap;
 }
 
 export async function handlePublicTimeline(req: Request, res: Response) {
@@ -323,8 +362,8 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       vehicleIds.push(v.id);
     }
 
-    // Fetch in-service data (manual override + active repairs)
-    const inServiceMap = await buildInServiceMap(serviceClient, organizationId, vehicleIds, vehiclePlateById);
+    // Fetch service periods (manual override + repairs with date ranges)
+    const servicePeriodsMap = await buildServicePeriodsMap(serviceClient, organizationId, vehicleIds, vehiclePlateById, fromDate, toDate, todayStr);
 
     // 2. Fetch reservations that overlap with the date range
     // A reservation overlaps if: desde <= toDate AND hasta >= fromDate
@@ -388,15 +427,11 @@ export async function handlePublicTimeline(req: Request, res: Response) {
         categoryMap.set(category, { category, vehicles: [] });
       }
 
-      const serviceInfo = inServiceMap.get(plate);
-
       categoryMap.get(category)!.vehicles.push({
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
         isCollaborator: false,
-        inService: serviceInfo?.inService || false,
-        serviceType: serviceInfo?.serviceType || null,
-        serviceNotes: serviceInfo?.serviceNotes || null,
+        servicePeriods: servicePeriodsMap.get(plate) || [],
         reservations: reservationsByPlate.get(plate) || [],
       });
     }
@@ -419,9 +454,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
         plate,
         model: rawRes?.modelo || plateReservations[0]?.model || null,
         isCollaborator: true,
-        inService: false,
-        serviceType: null,
-        serviceNotes: null,
+        servicePeriods: [],
         reservations: plateReservations,
       });
     }
@@ -453,9 +486,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
           plate,
           model: fullModel || null,
           isCollaborator: !car.InactiveDate && car.FriendlyName?.includes("CLICK") ? true : false,
-          inService: false,
-          serviceType: null,
-          serviceNotes: null,
+          servicePeriods: [],
           reservations: [],
         });
       }
@@ -592,8 +623,8 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
       vehicleIds.push(v.id);
     }
 
-    // Fetch in-service data (manual override + active repairs)
-    const inServiceMap = await buildInServiceMap(serviceClient, organizationId, vehicleIds, vehiclePlateById);
+    // Fetch service periods (manual override + repairs with date ranges)
+    const servicePeriodsMap = await buildServicePeriodsMap(serviceClient, organizationId, vehicleIds, vehiclePlateById, fromDate, toDate, todayStr);
 
     // 2. Fetch reservations overlapping the date range (full data)
     const { data: reservations, error: resError } = await serviceClient
@@ -657,15 +688,11 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
         categoryMap.set(category, { category, vehicles: [] });
       }
 
-      const serviceInfo = inServiceMap.get(plate);
-
       categoryMap.get(category)!.vehicles.push({
         plate,
         model: v.modelo ? `${marca ? marca + " " : ""}${v.modelo}` : marca || null,
         isCollaborator: false,
-        inService: serviceInfo?.inService || false,
-        serviceType: serviceInfo?.serviceType || null,
-        serviceNotes: serviceInfo?.serviceNotes || null,
+        servicePeriods: servicePeriodsMap.get(plate) || [],
         reservations: reservationsByPlate.get(plate) || [],
       });
     }
@@ -686,9 +713,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
         plate,
         model: rawRes?.modelo || plateReservations[0].model || null,
         isCollaborator: true,
-        inService: false,
-        serviceType: null,
-        serviceNotes: null,
+        servicePeriods: [],
         reservations: plateReservations,
       });
     }
@@ -720,9 +745,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
           plate,
           model: fullModel || null,
           isCollaborator: !car.InactiveDate && car.FriendlyName?.includes("CLICK") ? true : false,
-          inService: false,
-          serviceType: null,
-          serviceNotes: null,
+          servicePeriods: [],
           reservations: [],
         });
       }

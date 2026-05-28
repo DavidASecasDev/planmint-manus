@@ -42,13 +42,21 @@ export interface TimelineReservation {
   durationDays: number;
 }
 
+export interface ServicePeriod {
+  id: string;
+  startDate: string;    // YYYY-MM-DD
+  endDate: string;      // YYYY-MM-DD
+  type: string;         // repair status or 'manual'
+  notes: string;
+  repairId: string | null;
+  ongoing: boolean;
+}
+
 export interface TimelineVehicle {
   plate: string;
   model: string | null;
   isCollaborator?: boolean;
-  inService?: boolean;
-  serviceType?: string | null;
-  serviceNotes?: string | null;
+  servicePeriods?: ServicePeriod[];
   reservations: TimelineReservation[];
 }
 
@@ -627,8 +635,8 @@ export function VehicleTimeline({
     900
   );
 
-  // Count in-service vehicles for the legend
-  const inServiceCount = data.groups.reduce((acc, g) => acc + g.vehicles.filter(v => v.inService).length, 0);
+  // Count in-service vehicles for the legend (vehicles with any active service period)
+  const inServiceCount = data.groups.reduce((acc, g) => acc + g.vehicles.filter(v => (v.servicePeriods?.length || 0) > 0).length, 0);
 
   return (
     <div className="rounded-xl border border-border bg-white dark:bg-gray-900/50 overflow-hidden shadow-sm">
@@ -790,21 +798,21 @@ export function VehicleTimeline({
                     </span>
                   </div>
                   {/* Vehicle rows (hidden when collapsed) */}
-                  {!isCollapsed && group.vehicles.map((vehicle, vIdx) => (
+                  {!isCollapsed && group.vehicles.map((vehicle, vIdx) => {
+                    const hasServicePeriods = (vehicle.servicePeriods?.length || 0) > 0;
+                    return (
                     <div
                       key={vehicle.plate}
                       className={cn(
                         "flex flex-col justify-center px-3 border-b border-border/50 transition-colors",
-                        vehicle.inService
-                          ? "bg-amber-50/80 dark:bg-amber-950/20 hover:bg-amber-100/80 dark:hover:bg-amber-900/30"
-                          : vehicle.isCollaborator
+                        vehicle.isCollaborator
                           ? "bg-purple-50/60 dark:bg-purple-950/20 hover:bg-purple-100/80 dark:hover:bg-purple-900/30"
                           : vIdx % 2 === 0
                             ? "bg-white dark:bg-transparent hover:bg-gray-100/60 dark:hover:bg-gray-700/20"
                             : "bg-gray-50/30 dark:bg-gray-800/10 hover:bg-gray-100/60 dark:hover:bg-gray-700/20"
                       )}
                       style={{ height: ROW_HEIGHT }}
-                      title={vehicle.inService ? `En servicio: ${vehicle.serviceNotes || "Sin detalles"}` : undefined}
+                      title={hasServicePeriods ? `En servicio: ${vehicle.servicePeriods![0].notes}` : undefined}
                     >
                       <div className="flex items-center gap-1">
                         {vehicle.model && (
@@ -812,13 +820,13 @@ export function VehicleTimeline({
                             {vehicle.model}
                           </span>
                         )}
-                        {vehicle.inService && (
-                          <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 px-1 py-0.5 rounded leading-none whitespace-nowrap" title={vehicle.serviceNotes || "En servicio"}>
+                        {hasServicePeriods && (
+                          <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 px-1 py-0.5 rounded leading-none whitespace-nowrap" title={vehicle.servicePeriods![0].notes}>
                             <Wrench className="h-2 w-2" />
                             Taller
                           </span>
                         )}
-                        {vehicle.isCollaborator && !vehicle.inService && (
+                        {vehicle.isCollaborator && !hasServicePeriods && (
                           <span className="text-[8px] font-semibold bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-200 px-1 py-0.5 rounded leading-none whitespace-nowrap">
                             Colab.
                           </span>
@@ -826,13 +834,14 @@ export function VehicleTimeline({
                       </div>
                       <span className={cn(
                         "text-[11px] font-mono font-semibold tracking-wide leading-tight",
-                        vehicle.inService ? "text-amber-700 dark:text-amber-300" :
+                        hasServicePeriods ? "text-amber-700 dark:text-amber-300" :
                         vehicle.isCollaborator ? "text-purple-700 dark:text-purple-300" : "text-foreground"
                       )}>
                         {vehicle.plate}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })}
@@ -927,16 +936,9 @@ export function VehicleTimeline({
                         key={vehicle.plate}
                         className={cn(
                           "relative border-b border-border/30",
-                          vehicle.inService
-                            ? "bg-amber-50/40 dark:bg-amber-950/10"
-                            : vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
+                          vIdx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50/20 dark:bg-gray-800/5"
                         )}
-                        style={{
-                          height: ROW_HEIGHT,
-                          backgroundImage: vehicle.inService
-                            ? "repeating-linear-gradient(135deg, transparent, transparent 8px, rgba(245,158,11,0.06) 8px, rgba(245,158,11,0.06) 16px)"
-                            : undefined,
-                        }}
+                        style={{ height: ROW_HEIGHT }}
                       >
                         {/* Weekend column stripes */}
                         {days.map((day, i) => {
@@ -949,6 +951,38 @@ export function VehicleTimeline({
                               className="absolute top-0 bottom-0 bg-gray-100/40 dark:bg-gray-800/20"
                               style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
                             />
+                          );
+                        })}
+
+                        {/* Service period bars (striped amber/red bars for specific date ranges) */}
+                        {vehicle.servicePeriods?.map(sp => {
+                          const rawStartIdx = dayIndex(sp.startDate, days);
+                          const rawEndIdx = dayIndex(sp.endDate, days);
+                          const startIdx = rawStartIdx === -1 ? 0 : Math.max(0, rawStartIdx);
+                          const endIdx = rawEndIdx === -1 ? days.length - 1 : Math.min(days.length - 1, rawEndIdx);
+                          if (startIdx > days.length - 1 || endIdx < 0) return null;
+                          const left = startIdx * DAY_WIDTH;
+                          const width = (endIdx - startIdx + 1) * DAY_WIDTH;
+                          return (
+                            <div
+                              key={sp.id}
+                              className="absolute top-[4px] z-[2] rounded-md border border-amber-400/60 dark:border-amber-600/40"
+                              style={{
+                                left,
+                                width,
+                                height: ROW_HEIGHT - 8,
+                                backgroundColor: "rgba(245, 158, 11, 0.12)",
+                                backgroundImage: "repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(245,158,11,0.18) 4px, rgba(245,158,11,0.18) 8px)",
+                              }}
+                              title={`Taller: ${sp.notes}${sp.ongoing ? " (en curso)" : ""}`}
+                            >
+                              {/* Wrench icon at the start of the bar */}
+                              {width > 30 && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <Wrench className="h-3 w-3 text-amber-600/60 dark:text-amber-400/60" />
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
 

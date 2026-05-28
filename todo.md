@@ -942,3 +942,5 @@
 - [x] TIMELINE: Mostrar coches en servicio (taller/reparación) en el timeline con indicador visual diferenciado (detección automática por reparaciones activas + override manual status='en_servicio')
 - [x] TIMELINE: Añadir indicador de ocupación global (%) en la barra del mini-mapa con colores de densidad (heatmap por día verde→rojo)
 - [x] Eliminar módulo de reservas del sidebar y rutas (NO tocar Programación) — eliminado /bookings de sidebar, rutas e imports
+- [x] FIX TIMELINE: Barra de servicio/taller debe mostrar solo los días específicos (no toda la fila) — usa started_at/completed_at de repairs + clamp a rango visible
+- [x] FIX TIMELINE: Renderizar barra de servicio como barra independiente con fechas inicio/fin (similar a reservas pero con patrón rayado ámbar + icono llave)

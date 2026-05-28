@@ -134,86 +134,229 @@ describe("categorySort", () => {
   });
 });
 
-// ─── InServiceInfo structure ─────────────────────────────────────────────────
+// ─── ServicePeriod structure ────────────────────────────────────────────────
 
-describe("InServiceInfo structure", () => {
-  interface InServiceInfo {
-    inService: boolean;
-    serviceType: string | null;
-    serviceNotes: string | null;
+describe("ServicePeriod structure", () => {
+  interface ServicePeriod {
+    id: string;
+    startDate: string;
+    endDate: string;
+    type: string;
+    notes: string;
+    repairId: string | null;
+    ongoing: boolean;
   }
 
-  it("should represent manual override correctly", () => {
-    const info: InServiceInfo = {
-      inService: true,
-      serviceType: "manual",
-      serviceNotes: "En servicio (estado manual)",
+  it("should represent a repair-based service period with date range", () => {
+    const sp: ServicePeriod = {
+      id: "repair-abc123",
+      startDate: "2026-05-12",
+      endDate: "2026-05-30",
+      type: "en_taller",
+      notes: "Cambio de frenos (en taller)",
+      repairId: "abc123",
+      ongoing: true,
     };
-    expect(info.inService).toBe(true);
-    expect(info.serviceType).toBe("manual");
+    expect(sp.startDate).toBe("2026-05-12");
+    expect(sp.endDate).toBe("2026-05-30");
+    expect(sp.type).toBe("en_taller");
+    expect(sp.ongoing).toBe(true);
+    expect(sp.repairId).toBe("abc123");
   });
 
-  it("should represent auto-detected repair correctly", () => {
-    const info: InServiceInfo = {
-      inService: true,
-      serviceType: "en_taller",
-      serviceNotes: "reparación (en taller)",
+  it("should represent a manual override service period", () => {
+    const sp: ServicePeriod = {
+      id: "manual-vehicle-xyz",
+      startDate: "2026-06-01",
+      endDate: "2026-06-15",
+      type: "manual",
+      notes: "En servicio (estado manual)",
+      repairId: null,
+      ongoing: true,
     };
-    expect(info.inService).toBe(true);
-    expect(info.serviceType).toBe("en_taller");
-    expect(info.serviceNotes).toContain("taller");
+    expect(sp.type).toBe("manual");
+    expect(sp.repairId).toBeNull();
+    expect(sp.ongoing).toBe(true);
   });
 
-  it("should represent non-service vehicle correctly", () => {
-    const info: InServiceInfo = {
-      inService: false,
-      serviceType: null,
-      serviceNotes: null,
+  it("should represent a completed (non-ongoing) service period", () => {
+    const sp: ServicePeriod = {
+      id: "repair-def456",
+      startDate: "2026-04-01",
+      endDate: "2026-04-10",
+      type: "listo_recoger",
+      notes: "Pintura lateral (listo recoger)",
+      repairId: "def456",
+      ongoing: false,
     };
-    expect(info.inService).toBe(false);
-    expect(info.serviceType).toBeNull();
+    expect(sp.ongoing).toBe(false);
+    expect(sp.endDate).toBe("2026-04-10");
   });
 });
 
-// ─── TimelineGroupVehicle with in-service fields ─────────────────────────────
+// ─── TimelineGroupVehicle with servicePeriods ───────────────────────────────
 
-describe("TimelineGroupVehicle with in-service fields", () => {
+describe("TimelineGroupVehicle with servicePeriods", () => {
+  interface ServicePeriod {
+    id: string;
+    startDate: string;
+    endDate: string;
+    type: string;
+    notes: string;
+    repairId: string | null;
+    ongoing: boolean;
+  }
+
   interface TimelineGroupVehicle {
     plate: string;
     model: string | null;
     isCollaborator: boolean;
-    inService: boolean;
-    serviceType: string | null;
-    serviceNotes: string | null;
+    servicePeriods: ServicePeriod[];
     reservations: any[];
   }
 
-  it("should include in-service fields in vehicle data", () => {
+  it("should include service periods with date ranges in vehicle data", () => {
     const vehicle: TimelineGroupVehicle = {
-      plate: "1234ABC",
-      model: "Mercedes V Class",
+      plate: "2691MTL",
+      model: "Mercedes B 200 D DCT 150 5P",
       isCollaborator: false,
-      inService: true,
-      serviceType: "en_taller",
-      serviceNotes: "Cambio de frenos",
+      servicePeriods: [
+        {
+          id: "repair-abc",
+          startDate: "2026-05-12",
+          endDate: "2026-05-30",
+          type: "en_taller",
+          notes: "Cambio de frenos",
+          repairId: "abc",
+          ongoing: true,
+        },
+      ],
       reservations: [],
     };
-    expect(vehicle.inService).toBe(true);
-    expect(vehicle.serviceType).toBe("en_taller");
-    expect(vehicle.serviceNotes).toBe("Cambio de frenos");
+    expect(vehicle.servicePeriods).toHaveLength(1);
+    expect(vehicle.servicePeriods[0].startDate).toBe("2026-05-12");
+    expect(vehicle.servicePeriods[0].endDate).toBe("2026-05-30");
+    expect(vehicle.servicePeriods[0].type).toBe("en_taller");
   });
 
-  it("should default to not in-service", () => {
+  it("should have empty servicePeriods for vehicles not in service", () => {
     const vehicle: TimelineGroupVehicle = {
       plate: "5678DEF",
       model: "BMW X5",
       isCollaborator: false,
-      inService: false,
-      serviceType: null,
-      serviceNotes: null,
+      servicePeriods: [],
       reservations: [],
     };
-    expect(vehicle.inService).toBe(false);
+    expect(vehicle.servicePeriods).toHaveLength(0);
+  });
+
+  it("should support multiple service periods for the same vehicle", () => {
+    const vehicle: TimelineGroupVehicle = {
+      plate: "1234ABC",
+      model: "Mercedes V Class",
+      isCollaborator: false,
+      servicePeriods: [
+        {
+          id: "repair-1",
+          startDate: "2026-03-01",
+          endDate: "2026-03-10",
+          type: "en_taller",
+          notes: "Cambio de aceite",
+          repairId: "r1",
+          ongoing: false,
+        },
+        {
+          id: "repair-2",
+          startDate: "2026-05-15",
+          endDate: "2026-05-28",
+          type: "esperando_piezas",
+          notes: "Esperando piezas de motor",
+          repairId: "r2",
+          ongoing: true,
+        },
+      ],
+      reservations: [],
+    };
+    expect(vehicle.servicePeriods).toHaveLength(2);
+    expect(vehicle.servicePeriods[0].ongoing).toBe(false);
+    expect(vehicle.servicePeriods[1].ongoing).toBe(true);
+  });
+});
+
+// ─── Service period date clamping logic ─────────────────────────────────────
+
+describe("Service period date clamping", () => {
+  /**
+   * Replicates the date clamping logic from buildServicePeriodsMap:
+   * - startDate: max(started_at || created_at, fromDate)
+   * - endDate: min(completed_at || toDate, toDate)
+   * - For ongoing repairs without completed_at, endDate = toDate
+   */
+  function clampServicePeriod(
+    startedAt: string | null,
+    createdAt: string,
+    completedAt: string | null,
+    fromDate: string,
+    toDate: string,
+    todayStr: string,
+  ): { startDate: string; endDate: string; ongoing: boolean } {
+    const rawStart = startedAt || createdAt;
+    const startDate = rawStart < fromDate ? fromDate : rawStart;
+    const ongoing = !completedAt;
+    const rawEnd = completedAt || todayStr;
+    const endDate = rawEnd > toDate ? toDate : rawEnd;
+    return { startDate, endDate, ongoing };
+  }
+
+  it("should use started_at as start when available", () => {
+    const result = clampServicePeriod(
+      "2026-05-12", "2026-05-10", null,
+      "2026-05-01", "2026-06-30", "2026-05-28"
+    );
+    expect(result.startDate).toBe("2026-05-12");
+  });
+
+  it("should fall back to created_at when started_at is null", () => {
+    const result = clampServicePeriod(
+      null, "2026-05-10", null,
+      "2026-05-01", "2026-06-30", "2026-05-28"
+    );
+    expect(result.startDate).toBe("2026-05-10");
+  });
+
+  it("should clamp start to fromDate when repair started before visible range", () => {
+    const result = clampServicePeriod(
+      "2026-04-15", "2026-04-10", null,
+      "2026-05-01", "2026-06-30", "2026-05-28"
+    );
+    expect(result.startDate).toBe("2026-05-01");
+  });
+
+  it("should use completed_at as end when available", () => {
+    const result = clampServicePeriod(
+      "2026-05-12", "2026-05-10", "2026-05-25",
+      "2026-05-01", "2026-06-30", "2026-05-28"
+    );
+    expect(result.endDate).toBe("2026-05-25");
+    expect(result.ongoing).toBe(false);
+  });
+
+  it("should use todayStr as end for ongoing repairs", () => {
+    const result = clampServicePeriod(
+      "2026-05-12", "2026-05-10", null,
+      "2026-05-01", "2026-06-30", "2026-05-28"
+    );
+    expect(result.endDate).toBe("2026-05-28");
+    expect(result.ongoing).toBe(true);
+  });
+
+  it("should clamp end to toDate when repair extends beyond visible range", () => {
+    const result = clampServicePeriod(
+      "2026-05-12", "2026-05-10", "2026-07-15",
+      "2026-05-01", "2026-06-30", "2026-05-28"
+    );
+    expect(result.endDate).toBe("2026-06-30");
+    expect(result.ongoing).toBe(false);
   });
 });
 
@@ -304,7 +447,6 @@ describe("computeDailyOccupancy", () => {
       ],
     }];
     const result = computeDailyOccupancy(groups, days);
-    // Day 1: 1 vehicle, Day 2: 2 vehicles, Day 3: 1 vehicle, Day 4: 1 vehicle, Day 5: 0
     expect(result).toEqual([1, 2, 1, 1, 0]);
   });
 
@@ -329,7 +471,6 @@ describe("computeDailyOccupancy", () => {
       }],
     }];
     const result = computeDailyOccupancy(groups, days);
-    // Only days within range should be counted
     expect(result).toEqual([1, 1, 0, 0, 0]);
   });
 });
