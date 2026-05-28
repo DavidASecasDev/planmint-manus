@@ -144,7 +144,9 @@ export function VehicleTimeline({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Measure the scrollable grid area width directly (accounts for vertical scrollbar)
+  // Measure the scrollable grid area width directly (accounts for vertical scrollbar).
+  // Re-run when isLoading/data changes because the loading state returns early
+  // and scrollRef is not mounted until data arrives.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -157,7 +159,7 @@ export function VehicleTimeline({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [isLoading, data]);
   const [tooltip, setTooltip] = useState<{
     reservation: TimelineReservation;
     x: number;

@@ -932,4 +932,4 @@
 - [x] TIMELINE: Eliminar espacio en blanco a la derecha — columnas dinámicas que se estiran al 100% del contenedor (ResizeObserver + DAY_WIDTH calculado)
 - [x] TIMELINE: Eliminar controles de navegación temporal duplicados del componente VehicleTimeline — mantener solo los de la página padre que realmente cambian el rango de datos
 - [x] TIMELINE: Añadir navegación temporal a TimelinePage (interno) para que también pueda cambiar el rango de fechas
-- [x] TIMELINE: Fix interno PlanMint — el grid no aprovecha todo el ancho disponible dentro del layout con sidebar, dejando espacio en blanco a la derecha (causa: Math.floor en DAY_WIDTH causaba gap de hasta 34px)
+- [x] TIMELINE: Fix interno PlanMint — el grid no aprovecha todo el ancho disponible dentro del layout con sidebar, dejando espacio en blanco a la derecha (causa real: ResizeObserver con [] deps no re-medía scrollRef tras loading state, containerWidth quedaba en 0)
