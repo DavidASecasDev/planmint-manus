@@ -955,3 +955,5 @@
 - [x] RENTLY BIDIRECTIONAL SYNC: Detectar cancelaciones/finalizaciones/cambios de fecha en Rently y actualizar repairs
 - [x] RENTLY SYNC HISTORY: Implementar UI de historial de sincronización en la ficha de reparación (pestaña 'Sync Rently' en RepairDetail)
 - [x] RENTLY SYNC HISTORY: Registrar todas las acciones de sync (create/update/finish/cancel) con timestamps (1310 tests passing)
+- [x] RENTLY BIDIRECTIONAL SYNC: Programar polling como tarea periódica cada 15 min con Manus Heartbeat (task_uid: U4iQYreRT7wZNkv9dzASMs)
+- [x] RENTLY SYNC UI: Añadir pestaña 'Sync Rently' al RepairDetailSheet (vista lateral) para consistencia

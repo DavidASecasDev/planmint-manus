@@ -8,6 +8,7 @@ import { RepairCommentsTab } from './repair-detail/RepairCommentsTab';
 import { RepairHistoryTab } from './repair-detail/RepairHistoryTab';
 import { RepairPhotosTab } from './repair-detail/RepairPhotosTab';
 import { RepairInvoicesTab } from './repair-detail/RepairInvoicesTab';
+import { RepairSyncLogTab } from './repair-detail/RepairSyncLogTab';
 import { RepairFormDialog } from './RepairFormDialog';
 import type { Repair } from '@/types/garatech';
 
@@ -30,12 +31,13 @@ export function RepairDetailSheet({ repair, open, onOpenChange }: RepairDetailSh
           <RepairDetailHeader repair={repair} onEdit={() => setEditDialogOpen(true)} />
 
           <Tabs defaultValue="general" className="mt-6">
-            <TabsList className="grid grid-cols-5 mb-4">
+            <TabsList className="grid grid-cols-6 mb-4">
               <TabsTrigger value="general" className="text-xs sm:text-sm">General</TabsTrigger>
               <TabsTrigger value="comments" className="text-xs sm:text-sm">Comentarios</TabsTrigger>
               <TabsTrigger value="history" className="text-xs sm:text-sm">Historial</TabsTrigger>
               <TabsTrigger value="photos" className="text-xs sm:text-sm">Fotos</TabsTrigger>
               <TabsTrigger value="invoices" className="text-xs sm:text-sm">Facturas</TabsTrigger>
+              <TabsTrigger value="sync" className="text-xs sm:text-sm">Sync</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="mt-0">
@@ -56,6 +58,10 @@ export function RepairDetailSheet({ repair, open, onOpenChange }: RepairDetailSh
 
             <TabsContent value="invoices" className="mt-0">
               <RepairInvoicesTab repairId={repair.id} />
+            </TabsContent>
+
+            <TabsContent value="sync" className="mt-0">
+              <RepairSyncLogTab repairId={repair.id} />
             </TabsContent>
           </Tabs>
         </SheetContent>

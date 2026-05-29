@@ -133,6 +133,7 @@ import { handleGeocode } from "../geocodeEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
+import { handleScheduledRentlyPoll } from "../scheduledRentlyPoll";
 import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
 import { handleRepairServiceSync } from "../repairServiceSync";
 import { handleRepairRentlyPoll } from "../repairRentlyPoll";
@@ -332,6 +333,7 @@ async function startServer() {
 
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);
+  app.post("/api/scheduled/rently-poll", handleScheduledRentlyPoll);
 
   // tRPC API
   app.use(
