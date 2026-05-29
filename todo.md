@@ -950,3 +950,8 @@
 - [x] RENTLY SYNC: Crear endpoint POST /api/repair-service-sync con lógica de crear/actualizar/finalizar servicio en Rently
 - [x] RENTLY SYNC: Frontend - interceptar updateRepair para llamar al sync automáticamente (best-effort con toast)
 - [x] RENTLY SYNC: Tests vitest para el nuevo endpoint (1303 tests passing)
+- [x] RENTLY BIDIRECTIONAL SYNC: Crear tabla repair_sync_log para historial de sincronización
+- [x] RENTLY BIDIRECTIONAL SYNC: Implementar polling endpoint que detecte cambios en servicios de Rently y los refleje en Garatech
+- [x] RENTLY BIDIRECTIONAL SYNC: Detectar cancelaciones/finalizaciones/cambios de fecha en Rently y actualizar repairs
+- [x] RENTLY SYNC HISTORY: Implementar UI de historial de sincronización en la ficha de reparación (pestaña 'Sync Rently' en RepairDetail)
+- [x] RENTLY SYNC HISTORY: Registrar todas las acciones de sync (create/update/finish/cancel) con timestamps (1310 tests passing)

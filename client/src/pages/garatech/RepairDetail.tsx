@@ -15,6 +15,7 @@ import { RepairCommentsTab } from '@/components/garatech/repair-detail/RepairCom
 import { RepairHistoryTab } from '@/components/garatech/repair-detail/RepairHistoryTab';
 import { RepairPhotosTab } from '@/components/garatech/repair-detail/RepairPhotosTab';
 import { RepairInvoicesTab } from '@/components/garatech/repair-detail/RepairInvoicesTab';
+import { RepairSyncLogTab } from '@/components/garatech/repair-detail/RepairSyncLogTab';
 import { REPAIR_STATUS_LABELS, REPAIR_STATUS_COLORS, REPAIR_TYPE_LABELS } from '@/types/garatech';
 import type { Repair } from '@/types/garatech';
 
@@ -166,6 +167,7 @@ export default function RepairDetail() {
             <TabsTrigger value="history">Historial</TabsTrigger>
             <TabsTrigger value="photos">Fotos</TabsTrigger>
             <TabsTrigger value="invoices">Facturas</TabsTrigger>
+            <TabsTrigger value="sync">Sync Rently</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -187,6 +189,9 @@ export default function RepairDetail() {
           </TabsContent>
           <TabsContent value="invoices">
             <RepairInvoicesTab repairId={repair.id} />
+          </TabsContent>
+          <TabsContent value="sync">
+            <RepairSyncLogTab repairId={repair.id} />
           </TabsContent>
         </Tabs>
       </div>

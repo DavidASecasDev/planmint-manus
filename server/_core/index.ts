@@ -135,6 +135,7 @@ import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
 import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
 import { handleRepairServiceSync } from "../repairServiceSync";
+import { handleRepairRentlyPoll } from "../repairRentlyPoll";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
 import {
   handleGetPreparationList,
@@ -180,6 +181,7 @@ async function startServer() {
   app.post("/api/rently-hub", handleRentlyHub);
   app.post("/api/rently-actions", handleRentlyActions);
   app.post("/api/repair-service-sync", handleRepairServiceSync);
+  app.post("/api/repair-rently-poll", handleRepairRentlyPoll);
   app.post("/api/parse-transfer-document", handleParseTransferDocument);
   app.post("/api/create-movements-from-transfer", handleCreateMovementsFromTransfer);
   app.post("/api/signup-with-invitation", handleSignupWithInvitation);

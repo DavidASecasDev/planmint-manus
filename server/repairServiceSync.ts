@@ -15,6 +15,7 @@
  */
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
+import { logSyncEvent } from "./repairRentlyPoll";
 
 const REQUEST_TIMEOUT_MS = 30000;
 const SERVICE_TYPE_BLOQUEO = 11; // "Bloqueo Disponibilidad"
@@ -318,7 +319,7 @@ export async function handleRepairServiceSync(req: Request, res: Response) {
 
     const success = result!.status >= 200 && result!.status < 300;
 
-    // 4. Audit log
+    // 4. Audit log + Sync log
     try {
       await serviceClient.from("audit_logs").insert({
         organization_id: organizationId,
@@ -340,6 +341,24 @@ export async function handleRepairServiceSync(req: Request, res: Response) {
     } catch (auditErr) {
       console.error("[repair-service-sync] Audit log error:", auditErr);
     }
+
+    // Write to repair_sync_log
+    await logSyncEvent({
+      repairId,
+      organizationId,
+      action,
+      direction: "outbound",
+      rentlyServiceId,
+      status: repair.status,
+      details: {
+        plate,
+        rently_http_status: result!.status,
+        rently_response_id: typeof result!.data === "number" ? result!.data : result!.data?.Id,
+      },
+      error: success ? null : `Rently HTTP ${result!.status}`,
+      success,
+      createdBy: userId,
+    });
 
     if (!success) {
       console.error(`[repair-service-sync] Rently error (${result!.status}):`, result!.data);
