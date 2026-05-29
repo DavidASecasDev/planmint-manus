@@ -391,6 +391,8 @@ interface CapacityResult {
   totalPersonMinutesNeeded: number;
   totalPersonMinutesAvailable: number;
   hourSlots: HourSlot[];
+  /** All operations (including completed) with travel times — used by Programación for row enrichment */
+  allOperations: Operation[];
   deficitHours: number[];
   tightHours: number[];
   summary: string;
@@ -769,6 +771,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
           totalPersonMinutesNeeded: 0,
           totalPersonMinutesAvailable: 0,
           hourSlots: [],
+          allOperations: [],
           deficitHours: [],
           tightHours: [],
           summary: "No hay operaciones ni personal programado para este día.",
@@ -1005,6 +1008,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       totalPersonMinutesNeeded: totalNeeded,
       totalPersonMinutesAvailable: totalAvailable,
       hourSlots,
+      allOperations: operations,
       deficitHours,
       tightHours,
       summary,

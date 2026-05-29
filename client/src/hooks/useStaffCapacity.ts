@@ -55,6 +55,8 @@ export interface CapacityResult {
   totalPersonMinutesNeeded: number;
   totalPersonMinutesAvailable: number;
   hourSlots: HourSlot[];
+  /** All operations (including completed) with travel times — used for Programación row enrichment */
+  allOperations?: CapacityOperation[];
   deficitHours: number[];
   tightHours: number[];
   summary: string;

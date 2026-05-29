@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -31,7 +31,7 @@ import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
 import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
 import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
 import { PunctualitySummary } from './PunctualitySummary';
-import { useStaffCapacity } from '@/hooks/useStaffCapacity';
+import { useStaffCapacity, type CapacityOperation } from '@/hooks/useStaffCapacity';
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useAuth } from '@/contexts/AuthContext';
@@ -145,7 +145,7 @@ function DebouncedColumnInput({ value, onChange, placeholder, className }: {
 }
 
 export function ReservationsTable() {
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const filterDefaults = useMemo(() => ({
@@ -247,22 +247,103 @@ export function ReservationsTable() {
   }, [showReactivated]);
 
   // Staff capacity data for enriching rows with travel time
+  // Primary day (always fetched for StaffCapacityAlert + PunctualitySummary)
   const { data: capacityData } = useStaffCapacity(urlFilters.dateFrom || null);
 
+  // Multi-day: fetch capacity for additional days in the visible range
+  const [extraDaysOps, setExtraDaysOps] = useState<CapacityOperation[]>([]);
+
+  // Compute the list of extra dates (beyond dateFrom) that need capacity data
+  const extraDates = useMemo(() => {
+    if (!urlFilters.dateFrom || !urlFilters.dateTo) return [];
+    const from = parseISO(urlFilters.dateFrom);
+    const to = parseISO(urlFilters.dateTo);
+    if (from >= to) return [];
+    // Get all days in range except the first (already fetched by useStaffCapacity)
+    const allDays = eachDayOfInterval({ start: from, end: to });
+    return allDays.slice(1).map(d => format(d, 'yyyy-MM-dd'));
+  }, [urlFilters.dateFrom, urlFilters.dateTo]);
+
+  // Fetch capacity for extra days when the range changes
+  useEffect(() => {
+    if (extraDates.length === 0 || !session?.access_token) {
+      setExtraDaysOps([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchAll = async () => {
+      const results: CapacityOperation[] = [];
+      // Fetch in parallel (max 7 days typically)
+      const promises = extraDates.map(async (d) => {
+        try {
+          const res = await fetch('/api/get-staff-capacity', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ date: d }),
+          });
+          const json = await res.json();
+          if (res.ok && json.ok && json.data?.allOperations) {
+            return json.data.allOperations as CapacityOperation[];
+          }
+          // Fallback to hourSlots if allOperations not available
+          if (res.ok && json.ok && json.data?.hourSlots) {
+            const ops: CapacityOperation[] = [];
+            for (const slot of json.data.hourSlots) {
+              ops.push(...slot.operations);
+            }
+            return ops;
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      });
+      const allResults = await Promise.all(promises);
+      for (const ops of allResults) {
+        results.push(...ops);
+      }
+      if (!cancelled) setExtraDaysOps(results);
+    };
+    fetchAll();
+    return () => { cancelled = true; };
+  }, [extraDates, session?.access_token]);
+
   // Build a lookup map: reservationId+type -> travelMinutesOneWay
+  // Uses allOperations (includes completed ops) for full coverage across all visible days
   const travelTimeLookup = useMemo(() => {
     const map = new Map<string, number>();
-    if (!capacityData?.hourSlots) return map;
-    for (const slot of capacityData.hourSlots) {
-      for (const op of slot.operations) {
-        const key = `${op.reservationId}_${op.type}`;
-        if (!map.has(key)) {
-          map.set(key, op.travelMinutesOneWay);
+    // Primary day from useStaffCapacity
+    if (capacityData) {
+      if (capacityData.allOperations) {
+        for (const op of capacityData.allOperations) {
+          const key = `${op.reservationId}_${op.type}`;
+          if (!map.has(key)) {
+            map.set(key, op.travelMinutesOneWay);
+          }
+        }
+      } else if (capacityData.hourSlots) {
+        for (const slot of capacityData.hourSlots) {
+          for (const op of slot.operations) {
+            const key = `${op.reservationId}_${op.type}`;
+            if (!map.has(key)) {
+              map.set(key, op.travelMinutesOneWay);
+            }
+          }
         }
       }
     }
+    // Extra days
+    for (const op of extraDaysOps) {
+      const key = `${op.reservationId}_${op.type}`;
+      if (!map.has(key)) {
+        map.set(key, op.travelMinutesOneWay);
+      }
+    }
     return map;
-  }, [capacityData]);
+  }, [capacityData, extraDaysOps]);
 
   // Derive columnFilters from URL params (cf_ prefix)
   const columnFilters = useMemo<ColumnFilters>(() => {

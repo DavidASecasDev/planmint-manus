@@ -957,3 +957,4 @@
 - [x] RENTLY SYNC HISTORY: Registrar todas las acciones de sync (create/update/finish/cancel) con timestamps (1310 tests passing)
 - [x] RENTLY BIDIRECTIONAL SYNC: Programar polling como tarea periódica cada 15 min con Manus Heartbeat (task_uid: U4iQYreRT7wZNkv9dzASMs)
 - [x] RENTLY SYNC UI: Añadir pestaña 'Sync Rently' al RepairDetailSheet (vista lateral) para consistencia
+- [x] Bug: Columna "Trayecto" muestra "—" para todas las filas en Programación — dos causas: (1) operaciones completadas excluidas de hourSlots.operations, (2) solo se consulta capacidad para dateFrom pero la tabla muestra un rango de fechas
