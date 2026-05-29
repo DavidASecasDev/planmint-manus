@@ -26,7 +26,6 @@ import { AddressAutocompleteCell } from './AddressAutocompleteCell';
 import { apiInvoke } from '@/lib/apiClient';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
-import { CreateRentlyBookingDialog } from './CreateRentlyBookingDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
 import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
 import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
@@ -1399,7 +1398,6 @@ export function ReservationsTable() {
           />
         </div>
         <AddReservationDialog />
-        <CreateRentlyBookingDialog />
         <Button
           variant={showFilters ? "secondary" : "outline"}
           size="sm"
