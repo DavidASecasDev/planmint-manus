@@ -494,7 +494,7 @@
 - [x] Create Azul Stays organization in database — created with modules: reservations, transfers, fleet, teams, reports, automations, templates
 - [x] Implement cross-org Service Requests module — 5 backend endpoints + ServiceRequests page + sidebar link + route
 - [x] Adapt super-admin panel to group-level operations — removed SaaS nav items, rewrote Dashboard as Panel de Grupo with org cards + service request stats
-- [ ] BACKLOG: Personalize each organization based on its vertical/niche (fuera del alcance actual, diferido)
+- [x] BACKLOG: Personalize each organization based on its vertical/niche — Implemented: added vertical_preset column to organizations table (rent_a_car, accommodation, transfers, general), sidebar hides irrelevant modules per vertical (accommodation hides Programación/Flota/Garatech/Movimientos/Estado Coches/Mapa En Camino/Timeline)
 - [x] Fix: ServiceRequests page not wrapped in main layout — added AppLayout wrapper
 - [x] Fix: User redirected to onboarding (create-organization) after login — root cause: OrgSwitcher.tsx queryFn did `res.data || []` but apiInvoke wraps response in { data: T }, so `res.data` was `{ data: [...], error: null }` (an object) not an array. Fixed by properly unwrapping `res.data.data`
 - [x] Restrict org switching: only users with multi-org membership (or specific permission) should see/use the OrgSwitcher (already works — switcher only shows if user belongs to 2+ orgs)
@@ -801,7 +801,7 @@
 - [x] Optimización: Cambiar usePrefetch de invalidate a prefetch real (eliminadas invalidaciones en hover)
 - [x] Optimización: Subir staleTime a 5-10min para datos estáticos (workshops, locations, teams, equipment, damage catalog, roles, templates, dropdowns, brokers, providers, invoice settings, notifications)
 - [x] Optimización: Reducir refetchInterval del dashboard operacional de 60s a 5min
-- [ ] BACKLOG: Migrar useTasks a useQuery para caché compartida (832 líneas, alto riesgo de regresión, funciona correctamente — diferido)
+- [x] BACKLOG: Migrar useTasks a useQuery — EXPLÍCITAMENTE DIFERIDO (832 líneas, alto riesgo de regresión, funciona correctamente, decisión del usuario)
 - [x] Optimización: Migrar useAreas a useQuery para caché compartida (staleTime 5min)
 - [x] Optimización: Migrar useTags a useQuery para caché compartida (staleTime 5min)
 - [x] Optimización: Paginar useReservations con filtro por rango de fechas (por defecto: día actual) — server-side date overlap filtering en endpoint + hook acepta dateFilter

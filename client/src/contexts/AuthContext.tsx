@@ -19,10 +19,13 @@ export interface Profile {
   created_at: string;
 }
 
+export type OrganizationVertical = 'rent_a_car' | 'accommodation' | 'transfers' | 'general';
+
 export interface Organization {
   id: string;
   name: string;
   created_at: string;
+  vertical_preset?: OrganizationVertical | null;
 }
 
 interface AuthContextType {

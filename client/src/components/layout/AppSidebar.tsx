@@ -10,7 +10,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useOrganizationModules, ModuleKey, OPTIONAL_MODULES } from '@/hooks/useOrganizationModules';
@@ -42,6 +42,28 @@ import { useQuery } from '@tanstack/react-query';
 import { apiInvoke } from '@/lib/apiClient';
 
 import { PermissionKey } from '@/hooks/usePermissions';
+
+// ─── Vertical-based path hiding ─────────────────────────────────────────────
+// Paths that should be HIDDEN for each vertical preset.
+// 'general' shows everything (no hidden paths).
+const VERTICAL_HIDDEN_PATHS: Record<OrganizationVertical, string[]> = {
+  rent_a_car: [], // rent-a-car sees everything
+  accommodation: [
+    '/reservations', // Programación
+    '/vehicles',     // Estado Coches
+    '/movements',    // Movimientos
+    '/live-map',     // Mapa En Camino
+    '/timeline',     // Timeline
+    '/fleet',        // Flota (collapsible)
+    '/garatech',     // Garatech (collapsible)
+  ],
+  transfers: [
+    '/vehicles',     // Estado Coches
+    '/fleet',        // Flota (collapsible)
+    '/garatech',     // Garatech (collapsible)
+  ],
+  general: [], // show everything
+};
 
 // Map menu items to their module keys (only for optional modules)
 const MENU_MODULE_MAP: Record<string, ModuleKey> = {
@@ -213,10 +235,19 @@ export function AppSidebar() {
     if (location.pathname.startsWith('/fleet')) setFleetOpen(true);
   }, [location.pathname]);
 
+  // Determine which paths to hide based on the organization's vertical
+  const verticalHiddenPaths = useMemo(() => {
+    const vertical = organization?.vertical_preset;
+    if (!vertical || vertical === 'general') return [] as string[];
+    return VERTICAL_HIDDEN_PATHS[vertical] || [];
+  }, [organization?.vertical_preset]);
+
   const filteredMenuItems = useMemo(() => {
     // While data is loading, show all menu items to prevent sidebar flicker
     if (!dataReady) return menuItems;
     return menuItems.filter((item) => {
+      // Hide items based on organization vertical
+      if (verticalHiddenPaths.some(hp => item.url === hp || item.url.startsWith(hp + '/'))) return false;
       const requiredPermission = MENU_PERMISSION_MAP[item.url];
       if (requiredPermission && !hasPermission(requiredPermission)) return false;
       const moduleKey = MENU_MODULE_MAP[item.url] || 
@@ -224,7 +255,7 @@ export function AppSidebar() {
       if (moduleKey && OPTIONAL_MODULES.includes(moduleKey)) return isModuleEnabled(moduleKey);
       return true;
     });
-  }, [isModuleEnabled, hasPermission, dataReady]);
+  }, [isModuleEnabled, hasPermission, dataReady, verticalHiddenPaths]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -480,7 +511,8 @@ export function AppSidebar() {
                         }
                       )}
 
-                      {item.url === '/vehicles' && (!dataReady || (isModuleEnabled('transfers') && hasPermission('transfers.view'))) &&
+                      {/* Transfers collapsible: anchored to /vehicles normally, or /dashboard when /vehicles is hidden */}
+                      {((item.url === '/vehicles' && !verticalHiddenPaths.includes('/vehicles')) || (item.url === '/dashboard' && verticalHiddenPaths.includes('/vehicles'))) && !verticalHiddenPaths.includes('/transfers') && (!dataReady || (isModuleEnabled('transfers') && hasPermission('transfers.view'))) &&
                         renderCollapsibleMenu(
                           'Transfers', Ship, transfersOpen, setTransfersOpen, isTransfersActive,
                           transfersSubItems,
@@ -492,7 +524,8 @@ export function AppSidebar() {
                         )
                       }
 
-                      {item.url === '/vehicles' && (!dataReady || (isModuleEnabled('garatech') && hasPermission('garatech.view'))) &&
+                      {/* Garatech collapsible: anchored to /vehicles normally, or /dashboard when /vehicles is hidden */}
+                      {((item.url === '/vehicles' && !verticalHiddenPaths.includes('/vehicles')) || (item.url === '/dashboard' && verticalHiddenPaths.includes('/vehicles'))) && !verticalHiddenPaths.includes('/garatech') && (!dataReady || (isModuleEnabled('garatech') && hasPermission('garatech.view'))) &&
                         renderCollapsibleMenu(
                           'Garatech', Wrench, garatechOpen, setGaratechOpen, isGaratechActive,
                           garatechSubItems,
@@ -504,7 +537,8 @@ export function AppSidebar() {
                         )
                       }
 
-                      {item.url === '/movements' && (!dataReady || (isModuleEnabled('fleet') && hasPermission('fleet.view'))) &&
+                      {/* Fleet collapsible: anchored to /movements normally, or /dashboard when /movements is hidden */}
+                      {((item.url === '/movements' && !verticalHiddenPaths.includes('/movements')) || (item.url === '/dashboard' && verticalHiddenPaths.includes('/movements'))) && !verticalHiddenPaths.includes('/fleet') && (!dataReady || (isModuleEnabled('fleet') && hasPermission('fleet.view'))) &&
                         renderCollapsibleMenu(
                           'Flota', Warehouse, fleetOpen, setFleetOpen, isFleetActive,
                           fleetSubItems,

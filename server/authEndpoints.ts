@@ -133,7 +133,7 @@ export async function handleGetMyOrganizations(req: Request, res: Response) {
       if (profile?.organization_id) {
         const { data: org } = await serviceClient
           .from("organizations")
-          .select("id, name, created_at")
+          .select("id, name, created_at, vertical_preset")
           .eq("id", profile.organization_id)
           .maybeSingle();
 
@@ -149,7 +149,7 @@ export async function handleGetMyOrganizations(req: Request, res: Response) {
     const orgIds = memberships.map((m) => m.organization_id);
     const { data: orgs, error: orgsError } = await serviceClient
       .from("organizations")
-      .select("id, name, created_at")
+      .select("id, name, created_at, vertical_preset")
       .in("id", orgIds);
 
     if (orgsError) {
@@ -236,7 +236,7 @@ export async function handleSwitchOrganization(req: Request, res: Response) {
     // Fetch the new organization data
     const { data: org } = await serviceClient
       .from("organizations")
-      .select("id, name, created_at")
+      .select("id, name, created_at, vertical_preset")
       .eq("id", organization_id)
       .maybeSingle();
 
