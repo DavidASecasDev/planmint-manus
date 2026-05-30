@@ -975,3 +975,5 @@
 - [x] Mapa: ocultar operaciones completadas — activeOperations filtra isCompleted, toggle 'X hechas' para mostrar/ocultar, por defecto ocultas
 - [x] Mapa: leyenda clara de colores — Barra de filtros con labels: 'Entregas N', 'Devoluciones N', 'Transfers N' con círculos de color, clickables para filtrar, line-through cuando desactivado
 - [x] Mapa: diseño más profesional — Marcadores tipo pin SVG con gradiente/sombra/ícono interior por tipo. Clusters con animación pulse y color dominante. Barra de leyenda glassmorphism con separadores y contador
+- [x] Mapa: filtro por conductor — select dropdown en la barra de leyenda con lista de conductores asignados, filtra marcadores en tiempo real
+- [x] Mapa: popup mejorado — muestra hora, cliente, matrícula (estilo placa amarilla), conductor asignado, dirección, botón 'Completar' (marca la operación como hecha vía updateReservation) y 'Google Maps'

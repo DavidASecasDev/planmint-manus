@@ -32,6 +32,8 @@ export interface MapOperation {
   confirmedDatetime: string | null;
   fechaHora: string | null;
   isCompleted: boolean;
+  assignedRentalName: string | null;
+  vehiclePlate: string | null;
 }
 
 interface OperationsMapViewProps {
@@ -40,6 +42,7 @@ interface OperationsMapViewProps {
   organizationId?: string;
   fullPage?: boolean;
   dateControls?: React.ReactNode;
+  onMarkCompleted?: (reservationId: string, tipoOperacion: TipoOperacion) => void;
 }
 
 interface GeocodedOperation extends MapOperation {
@@ -344,7 +347,7 @@ function formatTime(isoStr: string | null): string {
 }
 
 // ── Main Component ──
-export function OperationsMapView({ operations, isLoading, organizationId, fullPage, dateControls }: OperationsMapViewProps) {
+export function OperationsMapView({ operations, isLoading, organizationId, fullPage, dateControls, onMarkCompleted }: OperationsMapViewProps) {
   const [geocodedOps, setGeocodedOps] = useState<GeocodedOperation[]>([]);
   const [geocodingProgress, setGeocodingProgress] = useState({ done: 0, total: 0 });
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -359,6 +362,7 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
   const [filterDevoluciones, setFilterDevoluciones] = useState(true);
   const [filterTransfers, setFilterTransfers] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(true);
+  const [filterDriver, setFilterDriver] = useState<string | null>(null);
   const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map());
   const dbCacheLoadedRef = useRef(false);
 
@@ -530,14 +534,26 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
   };
 
   // Filter geocoded operations by type
+  // Get unique drivers from all operations for the filter dropdown
+  const availableDrivers = useMemo(() => {
+    const drivers = new Map<string, string>();
+    operations.forEach(op => {
+      if (op.assignedRentalName) {
+        drivers.set(op.assignedRentalName, op.assignedRentalName);
+      }
+    });
+    return Array.from(drivers.values()).sort();
+  }, [operations]);
+
   const filteredGeocodedOps = useMemo(() => {
     return geocodedOps.filter(op => {
       if (op.tipoOperacion === 'Entrega' && !filterEntregas) return false;
-      if (op.tipoOperacion === 'Devolución' && !filterDevoluciones) return false;
+      if (op.tipoOperacion === 'Devoluci\u00f3n' && !filterDevoluciones) return false;
       if (op.tipoOperacion === 'Transfer' && !filterTransfers) return false;
+      if (filterDriver && op.assignedRentalName !== filterDriver) return false;
       return true;
     });
-  }, [geocodedOps, filterEntregas, filterDevoluciones, filterTransfers]);
+  }, [geocodedOps, filterEntregas, filterDevoluciones, filterTransfers, filterDriver]);
 
   // Cluster the filtered geocoded operations
   const clusters = useMemo(() => clusterOperations(filteredGeocodedOps), [filteredGeocodedOps]);
@@ -624,7 +640,7 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
                   <Popup maxWidth={320} minWidth={240}>
                     <div className="p-1">
                       {isSingle ? (
-                        <SingleOperationPopup op={op} />
+                        <SingleOperationPopup op={op} onMarkCompleted={onMarkCompleted} />
                       ) : (
                         <ClusterPopup cluster={cluster} />
                       )}
@@ -731,6 +747,24 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
                 </svg>
                 <span>{stats.completedCount} hechas</span>
               </button>
+
+              {/* Driver filter */}
+              {availableDrivers.length > 0 && (
+                <>
+                  <div className="w-px h-5 bg-gray-200 mx-1" />
+                  <select
+                    value={filterDriver || ''}
+                    onChange={(e) => setFilterDriver(e.target.value || null)}
+                    className="px-2 py-1 text-xs font-medium rounded-lg border border-gray-200 bg-white/90 text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/50 max-w-[120px]"
+                    title="Filtrar por conductor"
+                  >
+                    <option value="">Todos</option>
+                    {availableDrivers.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               {/* Geocoded counter */}
               <div className="px-2 py-1 text-xs text-gray-500 font-mono">
@@ -1036,7 +1070,7 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
                     <Popup maxWidth={320} minWidth={240}>
                       <div className="p-1">
                         {isSingle ? (
-                          <SingleOperationPopup op={op} />
+                          <SingleOperationPopup op={op} onMarkCompleted={onMarkCompleted} />
                         ) : (
                           <ClusterPopup cluster={cluster} />
                         )}
@@ -1054,47 +1088,81 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
 }
 
 // ── Popup for a single operation ──
-function SingleOperationPopup({ op }: { op: GeocodedOperation }) {
+function SingleOperationPopup({ op, onMarkCompleted }: { op: GeocodedOperation; onMarkCompleted?: (reservationId: string, tipo: 'Entrega' | 'Devoluci\u00f3n' | 'Transfer') => void }) {
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(op.direccion || op.lugar || '')}`;
   const color = getColorForType(op.tipoOperacion);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
+    <div className="space-y-2.5">
+      {/* Header: type badge + reservation number */}
+      <div className="flex items-center justify-between">
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white"
           style={{ background: color }}
         >
           {op.tipoOperacion === 'Entrega' && <Truck className="h-3 w-3" />}
-          {op.tipoOperacion === 'Devolución' && <RotateCcw className="h-3 w-3" />}
+          {op.tipoOperacion === 'Devoluci\u00f3n' && <RotateCcw className="h-3 w-3" />}
           {op.tipoOperacion === 'Transfer' && <Navigation className="h-3 w-3" />}
           {op.tipoOperacion}
         </span>
-        <span className="text-xs text-gray-500 font-mono">Nº {op.externalReservationId}</span>
+        <span className="text-xs text-gray-500 font-mono">N\u00ba {op.externalReservationId}</span>
       </div>
 
-      <div className="space-y-1">
+      {/* Client info */}
+      <div className="space-y-1.5">
         <p className="font-semibold text-sm text-gray-900">
           {op.clienteNombre} {op.clienteApellido}
         </p>
-        <div className="flex items-center gap-1 text-xs text-gray-600">
-          <Clock className="h-3 w-3" />
-          <span>{formatTime(op.confirmedDatetime || op.fechaHora)}</span>
+        
+        {/* Time */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+          <Clock className="h-3 w-3 text-gray-400" />
+          <span className="font-medium">{formatTime(op.confirmedDatetime || op.fechaHora)}</span>
         </div>
+
+        {/* Vehicle plate */}
+        {op.vehiclePlate && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><rect x="1" y="6" width="22" height="12" rx="2"/><line x1="1" y1="12" x2="23" y2="12"/></svg>
+            <span className="font-mono font-medium bg-yellow-50 border border-yellow-200 px-1.5 py-0.5 rounded text-[11px]">{op.vehiclePlate}</span>
+          </div>
+        )}
+
+        {/* Assigned driver */}
+        {op.assignedRentalName && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>{op.assignedRentalName}</span>
+          </div>
+        )}
+
+        {/* Address */}
         {(op.direccion || op.lugar) && (
           <p className="text-xs text-gray-500 line-clamp-2">{op.direccion || op.lugar}</p>
         )}
       </div>
 
-      <a
-        href={googleMapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-xs font-medium transition-colors"
-      >
-        <ExternalLink className="h-3 w-3" />
-        Abrir en Google Maps
-      </a>
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+        <a
+          href={googleMapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-xs font-medium transition-colors"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Google Maps
+        </a>
+        {onMarkCompleted && !op.isCompleted && (
+          <button
+            onClick={() => onMarkCompleted(op.reservationId, op.tipoOperacion as 'Entrega' | 'Devoluci\u00f3n' | 'Transfer')}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Completar
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1135,19 +1203,21 @@ function ClusterPopup({ cluster }: { cluster: ClusteredGroup }) {
       </div>
 
       {/* Individual operations list */}
-      <div className="space-y-1.5 border-t pt-2">
+      <div className="space-y-1 border-t pt-2">
         {cluster.operations.map((op, i) => {
           const color = getColorForType(op.tipoOperacion);
           return (
-            <div key={i} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-gray-50">
+            <div key={i} className="flex items-center gap-2 py-1.5 px-1.5 rounded hover:bg-gray-50">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
               <div className="flex-1 min-w-0">
                 <span className="text-xs font-medium text-gray-800 truncate block">
                   {op.clienteNombre} {op.clienteApellido}
                 </span>
+                {op.vehiclePlate && (
+                  <span className="text-[10px] font-mono text-gray-500">{op.vehiclePlate}</span>
+                )}
               </div>
-              <span className="text-xs text-gray-500 font-mono shrink-0">Nº {op.externalReservationId}</span>
-              <span className="text-xs text-gray-400 shrink-0">{formatTime(op.confirmedDatetime || op.fechaHora)}</span>
+              <span className="text-xs text-gray-400 shrink-0 font-medium">{formatTime(op.confirmedDatetime || op.fechaHora)}</span>
             </div>
           );
         })}

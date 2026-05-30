@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { OperationsMapView, type MapOperation } from '@/components/reservations/OperationsMapView';
 import { useReservations } from '@/hooks/useReservations';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
+import { useOrganizationMembers } from '@/hooks/usePermissions';
 import { format, parseISO, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -94,7 +95,28 @@ function MapTabContent() {
     to: undefined,
   }), [selectedDateStr]);
 
-  const { reservations, isLoading } = useReservations(dateFilter);
+  const { reservations, isLoading, updateReservation } = useReservations(dateFilter);
+  const { members } = useOrganizationMembers();
+
+  // Build a map from user_id to name for fast lookup
+  const memberNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach(m => {
+      if (m.user_id && m.name) map.set(m.user_id, m.name);
+      if (m.user_id && m.profile?.name) map.set(m.user_id, m.profile.name);
+    });
+    return map;
+  }, [members]);
+
+  // Callback to mark an operation as completed from the map
+  const handleMarkCompleted = (reservationId: string, tipoOperacion: 'Entrega' | 'Devoluci\u00f3n' | 'Transfer') => {
+    const fieldMap: Record<string, string> = {
+      'Entrega': 'entrega_completada',
+      'Devoluci\u00f3n': 'devolucion_completada',
+      'Transfer': 'transfer_completado',
+    };
+    updateReservation.mutate({ id: reservationId, data: { [fieldMap[tipoOperacion]]: true } as any });
+  };
 
   // Convert reservations to MapOperation format
   const mapOperations = useMemo<MapOperation[]>(() => {
@@ -105,6 +127,7 @@ function MapTabContent() {
       const clienteApellido = r.cliente_apellido || '';
 
       if (r.tipo_actividad === 'Transfer') {
+        const assigneeId = r.asignado_rental_id;
         ops.push({
           id: `${r.id}_transfer`,
           reservationId: r.id,
@@ -117,11 +140,14 @@ function MapTabContent() {
           confirmedDatetime: r.confirmed_entrega_datetime,
           fechaHora: r.desde,
           isCompleted: r.transfer_completado,
+          assignedRentalName: assigneeId ? (memberNameMap.get(assigneeId) || null) : null,
+          vehiclePlate: r.auto || null,
         });
       } else {
         // Entrega
         const entregaDateKey = r.desde ? r.desde.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] : null;
         if (entregaDateKey === selectedDateStr) {
+          const entregaAssigneeId = r.asignado_rental_entrega_id || r.asignado_rental_id;
           ops.push({
             id: `${r.id}_entrega`,
             reservationId: r.id,
@@ -134,17 +160,20 @@ function MapTabContent() {
             confirmedDatetime: r.confirmed_entrega_datetime,
             fechaHora: r.desde,
             isCompleted: r.entrega_completada,
+            assignedRentalName: entregaAssigneeId ? (memberNameMap.get(entregaAssigneeId) || null) : null,
+            vehiclePlate: r.auto || null,
           });
         }
 
         // Devolución
         const devolucionDateKey = r.hasta ? r.hasta.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] : null;
         if (devolucionDateKey === selectedDateStr) {
+          const devAssigneeId = r.asignado_rental_devolucion_id || r.asignado_rental_id;
           ops.push({
             id: `${r.id}_devolucion`,
             reservationId: r.id,
             externalReservationId: r.external_reservation_id,
-            tipoOperacion: 'Devolución',
+            tipoOperacion: 'Devoluci\u00f3n',
             clienteNombre,
             clienteApellido,
             lugar: r.lugar_devolucion,
@@ -152,13 +181,15 @@ function MapTabContent() {
             confirmedDatetime: r.confirmed_devolucion_datetime,
             fechaHora: r.hasta,
             isCompleted: r.devolucion_completada,
+            assignedRentalName: devAssigneeId ? (memberNameMap.get(devAssigneeId) || null) : null,
+            vehiclePlate: r.auto || null,
           });
         }
       }
     });
 
     return ops;
-  }, [reservations, selectedDateStr]);
+  }, [reservations, selectedDateStr, memberNameMap]);
 
   const goToPrevDay = () => setSelectedDate(d => addDays(d, -1));
   const goToNextDay = () => setSelectedDate(d => addDays(d, 1));
@@ -172,6 +203,7 @@ function MapTabContent() {
         isLoading={isLoading}
         organizationId={profile?.organization_id || undefined}
         fullPage
+        onMarkCompleted={handleMarkCompleted}
         dateControls={
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1">
