@@ -473,7 +473,7 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange, onActi
                     <InfoRow icon={CreditCard} label="Total pagado" value={formatCurrency(r.total_pagado_rently, r.moneda)} />
                     <InfoRow icon={CreditCard} label="Balance" value={
                       r.balance != null ? (
-                        <span className={r.balance > 0 ? 'text-red-600 font-semibold' : r.balance < 0 ? 'text-green-600' : ''}>
+                        <span className={r.balance < 0 ? 'text-red-600 font-semibold' : r.balance > 0 ? 'text-green-600 font-semibold' : ''}>
                           {formatCurrency(r.balance, r.moneda)}
                         </span>
                       ) : null
