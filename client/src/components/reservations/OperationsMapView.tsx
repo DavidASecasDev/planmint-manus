@@ -62,13 +62,13 @@ const CLUSTER_RADIUS_KM = 0.3; // 300m radius for clustering
 // ── Known locations with fixed coordinates (avoid geocoding) ──
 const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string }> = {
   // ── Aeropuerto ──
-  aeropuerto: { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
-  'aeropuerto de palma': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
-  'aeropuerto palma': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
-  pmi: { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
-  'parking g': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
-  'clubs to hire': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
-  'transport meeting point': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
+  aeropuerto: { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
+  'aeropuerto de palma': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
+  'aeropuerto palma': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
+  pmi: { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
+  'parking g': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
+  'clubs to hire': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
+  'transport meeting point': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
 
   // ── Terminal de Cruceros / Puerto ──
   'terminal de cruceros': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
@@ -78,11 +78,11 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'puerto de palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'puerto portals': { lat: 39.5250, lng: 2.5700, label: 'Puerto Portals' },
 
-  // ── Oficina Azul Cars ──
-  'oficina azul': { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
-  'oficina azul cars': { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
-  'oficina azul cars - pol\u00edgono son oms': { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
-  base: { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
+  // ── Oficina Azul Cars (Carrer Canal de Sant Jordi 29, local 3, 07199 Palma) ──
+  'oficina azul': { lat: 39.5392, lng: 2.7418, label: 'Oficina Azul Cars - Son Oms' },
+  'oficina azul cars': { lat: 39.5392, lng: 2.7418, label: 'Oficina Azul Cars - Son Oms' },
+  'oficina azul cars - polígono son oms': { lat: 39.5392, lng: 2.7418, label: 'Oficina Azul Cars - Son Oms' },
+  base: { lat: 39.5392, lng: 2.7418, label: 'Oficina Azul Cars - Son Oms' },
 
   // ── Zonas de Mallorca (entregas a domicilio - centro aproximado) ──
   'palma de mallorca - entrega a domicilio': { lat: 39.5696, lng: 2.6502, label: 'Palma de Mallorca' },
