@@ -313,6 +313,10 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
   const [savingManual, setSavingManual] = useState(false);
+  const [satelliteMode, setSatelliteMode] = useState(false);
+  const [filterEntregas, setFilterEntregas] = useState(true);
+  const [filterDevoluciones, setFilterDevoluciones] = useState(true);
+  const [filterTransfers, setFilterTransfers] = useState(true);
   const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map());
   const dbCacheLoadedRef = useRef(false);
 
@@ -477,8 +481,18 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
     }
   };
 
-  // Cluster the geocoded operations
-  const clusters = useMemo(() => clusterOperations(geocodedOps), [geocodedOps]);
+  // Filter geocoded operations by type
+  const filteredGeocodedOps = useMemo(() => {
+    return geocodedOps.filter(op => {
+      if (op.tipoOperacion === 'Entrega' && !filterEntregas) return false;
+      if (op.tipoOperacion === 'Devolución' && !filterDevoluciones) return false;
+      if (op.tipoOperacion === 'Transfer' && !filterTransfers) return false;
+      return true;
+    });
+  }, [geocodedOps, filterEntregas, filterDevoluciones, filterTransfers]);
+
+  // Cluster the filtered geocoded operations
+  const clusters = useMemo(() => clusterOperations(filteredGeocodedOps), [filteredGeocodedOps]);
 
   // Stats
   const stats = useMemo(() => {
@@ -529,13 +543,20 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
             className="h-full w-full absolute inset-0"
             zoomControl={false}
           >
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            />
+            {satelliteMode ? (
+              <TileLayer
+                attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              />
+            ) : (
+              <TileLayer
+                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              />
+            )}
 
-            {geocodedOps.length > 0 && (
-              <FitBounds points={geocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
+            {filteredGeocodedOps.length > 0 && (
+              <FitBounds points={filteredGeocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
             )}
 
             {clusters.map((cluster, idx) => {
@@ -568,10 +589,21 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
             })}
           </MapContainer>
 
-          {/* Zoom controls - top right */}
-          <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-1">
-            <button className="w-8 h-8 bg-white rounded shadow border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 text-lg font-bold" onClick={() => document.querySelector('.leaflet-container')?.dispatchEvent(new Event('zoomin'))}>+</button>
-            <button className="w-8 h-8 bg-white rounded shadow border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 text-lg font-bold" onClick={() => document.querySelector('.leaflet-container')?.dispatchEvent(new Event('zoomout'))}>−</button>
+          {/* Map controls - top right */}
+          <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-1.5">
+            {/* Satellite toggle */}
+            <button
+              onClick={() => setSatelliteMode(!satelliteMode)}
+              className={cn(
+                'w-8 h-8 rounded shadow border flex items-center justify-center transition-colors',
+                satelliteMode
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              )}
+              title={satelliteMode ? 'Vista mapa' : 'Vista satélite'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20"/><path d="M12 2a14.5 14.5 0 0 1 0 20"/><path d="M2 12h20"/></svg>
+            </button>
           </div>
 
           {/* Date controls - top left */}
@@ -581,21 +613,48 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
             </div>
           )}
 
-          {/* Stats bar - top center */}
+          {/* Stats bar + filters - top center */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm">
+            <button
+              onClick={() => setFilterEntregas(!filterEntregas)}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 backdrop-blur-sm border rounded-full text-xs shadow-sm transition-all cursor-pointer',
+                filterEntregas
+                  ? 'bg-white/90 border-emerald-300'
+                  : 'bg-white/50 border-gray-200 opacity-50'
+              )}
+              title={filterEntregas ? 'Ocultar entregas' : 'Mostrar entregas'}
+            >
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               <span className="font-medium text-emerald-800">{stats.entregas}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm">
+            </button>
+            <button
+              onClick={() => setFilterDevoluciones(!filterDevoluciones)}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 backdrop-blur-sm border rounded-full text-xs shadow-sm transition-all cursor-pointer',
+                filterDevoluciones
+                  ? 'bg-white/90 border-blue-300'
+                  : 'bg-white/50 border-gray-200 opacity-50'
+              )}
+              title={filterDevoluciones ? 'Ocultar devoluciones' : 'Mostrar devoluciones'}
+            >
               <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
               <span className="font-medium text-blue-800">{stats.devoluciones}</span>
-            </div>
+            </button>
             {stats.transfers > 0 && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm">
+              <button
+                onClick={() => setFilterTransfers(!filterTransfers)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 backdrop-blur-sm border rounded-full text-xs shadow-sm transition-all cursor-pointer',
+                  filterTransfers
+                    ? 'bg-white/90 border-amber-300'
+                    : 'bg-white/50 border-gray-200 opacity-50'
+                )}
+                title={filterTransfers ? 'Ocultar transfers' : 'Mostrar transfers'}
+              >
                 <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                 <span className="font-medium text-amber-800">{stats.transfers}</span>
-              </div>
+              </button>
             )}
             <div className="px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm text-muted-foreground">
               {geocodedOps.length}/{operations.length}
@@ -867,13 +926,20 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
               className="h-full w-full"
               zoomControl={true}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              />
+              {satelliteMode ? (
+                <TileLayer
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                />
+              ) : (
+                <TileLayer
+                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                />
+              )}
 
-              {geocodedOps.length > 0 && (
-                <FitBounds points={geocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
+              {filteredGeocodedOps.length > 0 && (
+                <FitBounds points={filteredGeocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
               )}
 
               {clusters.map((cluster, idx) => {
