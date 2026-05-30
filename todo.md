@@ -977,3 +977,4 @@
 - [x] Mapa: diseño más profesional — Marcadores tipo pin SVG con gradiente/sombra/ícono interior por tipo. Clusters con animación pulse y color dominante. Barra de leyenda glassmorphism con separadores y contador
 - [x] Mapa: filtro por conductor — select dropdown en la barra de leyenda con lista de conductores asignados, filtra marcadores en tiempo real
 - [x] Mapa: popup mejorado — muestra hora, cliente, matrícula (estilo placa amarilla), conductor asignado, dirección, botón 'Completar' (marca la operación como hecha vía updateReservation) y 'Google Maps'
+- [x] Tabla Programación: indicador de color en columna de balance — rojo si saldo pendiente, verde si pagado

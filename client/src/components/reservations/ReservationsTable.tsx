@@ -90,6 +90,7 @@ const COLUMNS: Column[] = [
   { key: 'asignado_rental', label: 'Rental', width: 'w-28', type: 'assignee', filterable: false },
   { key: 'asignado_escoba', label: 'Escoba', width: 'w-28', type: 'assignee', filterable: false },
   { key: 'pagado', label: 'Pagado', width: 'w-20', type: 'chip', fieldName: 'pagado', filterable: true },
+  { key: 'balance', label: 'Balance', width: 'w-24', type: 'readonly', filterable: false },
   { key: 'hosp', label: 'Hosp', width: 'w-16', type: 'chip', fieldName: 'hosp', filterable: true },
   { key: 'checkin', label: 'Check-in', width: 'w-20', type: 'chip', fieldName: 'checkin', filterable: true },
   { key: 'contacto', label: 'Contacto', width: 'w-20', type: 'chip', fieldName: 'contacto', filterable: true },
@@ -1814,7 +1815,24 @@ export function ReservationsTable() {
                               className="mx-auto"
                             />
                           )}
-                          {col.type === 'readonly' && col.key !== 'cliente' && col.key !== 'tiempo_desplazamiento' && (
+                          {col.type === 'readonly' && col.key === 'balance' && (() => {
+                            const balance = row.reservation.balance;
+                            if (balance === null || balance === undefined) return <span className="text-xs px-1 text-muted-foreground">—</span>;
+                            const isNegative = balance < 0;
+                            const isZero = balance === 0;
+                            return (
+                              <span className={cn(
+                                "text-xs px-1.5 py-0.5 rounded font-medium",
+                                isNegative && "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950/30",
+                                isZero && "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950/30",
+                                !isNegative && !isZero && "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950/30",
+                                row.isCompleted && "opacity-60"
+                              )}>
+                                {balance.toFixed(2)} €
+                              </span>
+                            );
+                          })()}
+                          {col.type === 'readonly' && col.key !== 'cliente' && col.key !== 'tiempo_desplazamiento' && col.key !== 'balance' && (
                             <span className={cn(
                               "text-xs px-1 truncate flex items-center gap-1",
                               row.isCompleted && "line-through text-muted-foreground"
