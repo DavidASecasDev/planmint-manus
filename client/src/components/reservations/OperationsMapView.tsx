@@ -116,11 +116,31 @@ function getColorForType(tipo: TipoOperacion): string {
 }
 
 // ── Geocoding ──
+/**
+ * Normalize address for geocoding: append ", Mallorca, Spain" if not already
+ * containing geographic context (same pattern as transferRouteEstimateEndpoint).
+ */
+function normalizeAddressForGeocoding(address: string): string {
+  const lower = address.toLowerCase();
+  if (
+    lower.includes('mallorca') ||
+    lower.includes('palma') ||
+    lower.includes('baleares') ||
+    lower.includes('balears') ||
+    lower.includes('spain') ||
+    lower.includes('españa')
+  ) {
+    return address;
+  }
+  return `${address}, Mallorca, Spain`;
+}
+
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
+    const normalizedAddress = normalizeAddressForGeocoding(address);
     const response = await apiInvoke<{ ok: boolean; result: { lat: number; lng: number } | null }>(
-      '/api/geocode',
-      { body: { address } }
+      'geocode',
+      { body: { address: normalizedAddress } }
     );
     if (response.data?.ok && response.data.result) {
       return { lat: response.data.result.lat, lng: response.data.result.lng };
@@ -131,13 +151,33 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   }
 }
 
+/**
+ * Match a location string against known fixed locations.
+ * Uses the `lugar` field (short place name) rather than full address.
+ * Only matches when the normalized lugar starts with or equals a known key,
+ * or when the lugar is clearly just the airport/port reference.
+ */
 function matchKnownLocation(lugar: string): { lat: number; lng: number; label: string } | null {
-  const normalized = lugar.toLowerCase().trim();
+  const normalized = lugar.toLowerCase().trim()
+    // Remove common suffixes that don't help matching
+    .replace(/\s*\(pmi\).*$/i, '')
+    .replace(/\s*\(ifpm\).*$/i, '')
+    .replace(/\s*07\d{3}.*$/i, '') // remove postal codes like 07611
+    .trim();
+
+  // Direct match (exact or starts with known key)
   for (const [key, coords] of Object.entries(KNOWN_LOCATIONS)) {
-    if (normalized.includes(key)) {
+    if (normalized === key || normalized.startsWith(key + ' ') || normalized.startsWith(key + ',')) {
       return coords;
     }
   }
+
+  // Special case: strings that are clearly the airport
+  // e.g. "Aeropuerto de Palma de Mallorca" or "Aeropuerto Palma de Mallorca"
+  if (/^aeropuerto\b/.test(normalized) && !normalized.includes('hotel')) {
+    return KNOWN_LOCATIONS['aeropuerto'];
+  }
+
   return null;
 }
 
@@ -242,25 +282,37 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
       for (let i = 0; i < operations.length; i++) {
         if (cancelled) return;
         const op = operations[i];
-        const addressKey = (op.direccion || op.lugar || '').toLowerCase().trim();
+        // Use lugar (short place name) for known-location matching
+        const lugarKey = (op.lugar || '').toLowerCase().trim();
+        // Use the best available address for geocoding (prefer full address)
+        const fullAddress = op.direccion || op.lugar || '';
+        const cacheKey = fullAddress.toLowerCase().trim();
 
-        if (!addressKey) {
+        if (!lugarKey && !cacheKey) {
           setGeocodingProgress({ done: i + 1, total });
           continue;
         }
 
-        // Check known locations first
-        const known = matchKnownLocation(addressKey);
-        if (known) {
-          results.push({ ...op, lat: known.lat, lng: known.lng });
+        // Check known locations using the short place name (lugar)
+        // Only use lugar for matching, not the full street address
+        if (lugarKey) {
+          const known = matchKnownLocation(lugarKey);
+          if (known) {
+            results.push({ ...op, lat: known.lat, lng: known.lng });
+            setGeocodingProgress({ done: i + 1, total });
+            continue;
+          }
+        }
+
+        if (!cacheKey) {
           setGeocodingProgress({ done: i + 1, total });
           continue;
         }
 
         // Check cache
         const cache = geocodeCacheRef.current;
-        if (cache.has(addressKey)) {
-          const cached = cache.get(addressKey);
+        if (cache.has(cacheKey)) {
+          const cached = cache.get(cacheKey);
           if (cached) {
             results.push({ ...op, lat: cached.lat, lng: cached.lng });
           }
@@ -268,9 +320,9 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
           continue;
         }
 
-        // Geocode via API
-        const coords = await geocodeAddress(op.direccion || op.lugar || '');
-        cache.set(addressKey, coords);
+        // Geocode via API using the full address
+        const coords = await geocodeAddress(fullAddress);
+        cache.set(cacheKey, coords);
         if (coords) {
           results.push({ ...op, lat: coords.lat, lng: coords.lng });
         }

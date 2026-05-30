@@ -965,3 +965,4 @@
   - Clustering para ubicaciones compartidas (aeropuerto, terminal) con badge de cantidad
   - Popup al click: nombre cliente, nº reserva, hora confirmada, icono para abrir en Google Maps
   - Marcadores individuales para entregas a domicilio
+- [x] Bug: Mapa de Programación solo muestra aeropuerto — Corregido: 1) URL doble '/api//api/geocode' → 'geocode', 2) matchKnownLocation usaba .includes() demasiado agresivo → ahora usa startsWith/exact match + solo compara con lugar (no dirección completa), 3) Añadido normalizeAddressForGeocoding que añade ', Mallorca, Spain' a direcciones sin contexto geográfico, 4) Mismo bug corregido en useTransferAutomation

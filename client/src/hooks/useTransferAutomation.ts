@@ -29,7 +29,7 @@ interface FireAutomationParams {
 export function useTransferAutomation() {
   const fireAutomation = useCallback(async (params: FireAutomationParams) => {
     try {
-      await apiInvoke('/api/fire-transfer-automation', { body: params as unknown as Record<string, unknown> });
+      await apiInvoke('fire-transfer-automation', { body: params as unknown as Record<string, unknown> });
     } catch (err) {
       // Automation failures should not block the user flow
       console.warn('[TransferAutomation] Failed to fire automation:', err);
