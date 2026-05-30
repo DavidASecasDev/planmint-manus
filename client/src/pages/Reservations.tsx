@@ -7,6 +7,7 @@ import { ReservationsTable } from '@/components/reservations/ReservationsTable';
 import { ImportReservations } from '@/components/reservations/ImportReservations';
 import { SyncRentlyDialog } from '@/components/reservations/SyncRentlyDialog';
 import { useRentlySyncContext } from '@/contexts/RentlySyncContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { OperationsMapView, type MapOperation } from '@/components/reservations/OperationsMapView';
 import { useReservations } from '@/hooks/useReservations';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
@@ -80,6 +81,7 @@ export default function Reservations() {
  * Uses its own date state independent of the table's filters.
  */
 function MapTabContent() {
+  const { profile } = useAuth();
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -205,7 +207,7 @@ function MapTabContent() {
       </div>
 
       {/* Map */}
-      <OperationsMapView operations={mapOperations} isLoading={isLoading} />
+      <OperationsMapView operations={mapOperations} isLoading={isLoading} organizationId={profile?.organization_id || undefined} />
     </div>
   );
 }

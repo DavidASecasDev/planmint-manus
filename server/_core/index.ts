@@ -130,6 +130,7 @@ import {
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
+import { handleGeocodeCacheLookup, handleGeocodeCacheSave, handleGeocodeCacheManualSet } from "../geocodeCacheEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
@@ -299,6 +300,9 @@ async function startServer() {
   app.post("/api/places-autocomplete", handlePlacesAutocomplete);
   app.post("/api/transfer-route-estimate", handleTransferRouteEstimate);
   app.post("/api/geocode", handleGeocode);
+  app.post("/api/geocode-cache/lookup", handleGeocodeCacheLookup);
+  app.post("/api/geocode-cache/save", handleGeocodeCacheSave);
+  app.post("/api/geocode-cache/manual-set", handleGeocodeCacheManualSet);
   app.post("/api/en-camino-tracking", handleEnCaminoTrack);
   app.post("/api/en-camino-tracking/llego", handleEnCaminoLlego);
   app.post("/api/en-camino-tracking/status", handleEnCaminoStatus);

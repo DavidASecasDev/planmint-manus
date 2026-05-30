@@ -12,7 +12,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
-import { MapPin, Loader2, ExternalLink, Navigation, Truck, RotateCcw, Clock } from 'lucide-react';
+import { MapPin, Loader2, ExternalLink, Navigation, Truck, RotateCcw, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -37,6 +37,7 @@ export interface MapOperation {
 interface OperationsMapViewProps {
   operations: MapOperation[];
   isLoading?: boolean;
+  organizationId?: string;
 }
 
 interface GeocodedOperation extends MapOperation {
@@ -58,6 +59,7 @@ const CLUSTER_RADIUS_KM = 0.3; // 300m radius for clustering
 
 // ── Known locations with fixed coordinates (avoid geocoding) ──
 const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string }> = {
+  // ── Aeropuerto ──
   aeropuerto: { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
   'aeropuerto de palma': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
   'aeropuerto palma': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
@@ -65,11 +67,52 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'parking g': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
   'clubs to hire': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
   'transport meeting point': { lat: 39.5517, lng: 2.7388, label: 'Aeropuerto de Palma' },
+
+  // ── Terminal de Cruceros / Puerto ──
   'terminal de cruceros': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'terminal de cruceros de palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'estacion maritima': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'estacion maritima palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'puerto de palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
+  'puerto portals': { lat: 39.5250, lng: 2.5700, label: 'Puerto Portals' },
+
+  // ── Oficina Azul Cars ──
+  'oficina azul': { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
+  'oficina azul cars': { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
+  'oficina azul cars - pol\u00edgono son oms': { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
+  base: { lat: 39.5440, lng: 2.7250, label: 'Oficina Azul Cars - Son Oms' },
+
+  // ── Zonas de Mallorca (entregas a domicilio - centro aproximado) ──
+  'palma de mallorca - entrega a domicilio': { lat: 39.5696, lng: 2.6502, label: 'Palma de Mallorca' },
+  'palma de mallorca - entrega a domicilio gratuita': { lat: 39.5696, lng: 2.6502, label: 'Palma de Mallorca' },
+  'playa de palma/el arenal': { lat: 39.5100, lng: 2.7500, label: 'Playa de Palma / El Arenal' },
+  'playa de palma': { lat: 39.5100, lng: 2.7500, label: 'Playa de Palma' },
+  'el arenal': { lat: 39.5050, lng: 2.7550, label: 'El Arenal' },
+  'suroeste de mallorca - entrega a domicilio': { lat: 39.5100, lng: 2.5200, label: 'Suroeste de Mallorca' },
+  'sur y este de mallorca - entrega a domicilio': { lat: 39.4500, lng: 2.9500, label: 'Sur y Este de Mallorca' },
+  'norte de mallorca - entrega a domicilio': { lat: 39.8000, lng: 3.0000, label: 'Norte de Mallorca' },
+  'centro de mallorca - entrega a domicilio': { lat: 39.6500, lng: 2.9000, label: 'Centro de Mallorca' },
+  'sierra tramuntana - entrega a domicilio': { lat: 39.7600, lng: 2.7900, label: 'Sierra de Tramuntana' },
+  'municipio de llucmajor - entrega a domicilio': { lat: 39.4900, lng: 2.8900, label: 'Llucmajor' },
+
+  // ── Localidades frecuentes ──
+  'alc\u00fadia': { lat: 39.8530, lng: 3.1210, label: 'Alc\u00fadia' },
+  paguera: { lat: 39.5350, lng: 2.4550, label: 'Paguera' },
+  'palmanova': { lat: 39.5220, lng: 2.5350, label: 'Palmanova' },
+  'magaluf': { lat: 39.5100, lng: 2.5250, label: 'Magaluf' },
+  'santa ponsa': { lat: 39.5100, lng: 2.4700, label: 'Santa Ponsa' },
+  'can picafort': { lat: 39.7650, lng: 3.1600, label: 'Can Picafort' },
+  'cala millor': { lat: 39.6050, lng: 3.3800, label: 'Cala Millor' },
+  'cala d\'or': { lat: 39.3750, lng: 3.2350, label: 'Cala d\'Or' },
+  'porto cristo': { lat: 39.5400, lng: 3.3300, label: 'Porto Cristo' },
+  'soller': { lat: 39.7650, lng: 2.7150, label: 'S\u00f3ller' },
+  'pollensa': { lat: 39.8750, lng: 3.0150, label: 'Pollensa' },
+  'inca': { lat: 39.7200, lng: 2.9100, label: 'Inca' },
+  'manacor': { lat: 39.5700, lng: 3.2100, label: 'Manacor' },
+
+  // ── Talleres / Partners ──
+  'autovidal': { lat: 39.5750, lng: 2.6600, label: 'AutoVidal' },
+  'fastech': { lat: 39.5500, lng: 2.7100, label: 'Fastech' },
 };
 
 // ── Marker icons ──
@@ -258,16 +301,60 @@ function formatTime(isoStr: string | null): string {
 }
 
 // ── Main Component ──
-export function OperationsMapView({ operations, isLoading }: OperationsMapViewProps) {
+export function OperationsMapView({ operations, isLoading, organizationId }: OperationsMapViewProps) {
   const [geocodedOps, setGeocodedOps] = useState<GeocodedOperation[]>([]);
   const [geocodingProgress, setGeocodingProgress] = useState({ done: 0, total: 0 });
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [unresolvedOps, setUnresolvedOps] = useState<MapOperation[]>([]);
+  const [showUnresolved, setShowUnresolved] = useState(false);
+  const [manualEditOp, setManualEditOp] = useState<MapOperation | null>(null);
+  const [manualLat, setManualLat] = useState('');
+  const [manualLng, setManualLng] = useState('');
+  const [savingManual, setSavingManual] = useState(false);
   const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map());
+  const dbCacheLoadedRef = useRef(false);
+
+  // Load DB cache on mount (batch lookup)
+  useEffect(() => {
+    if (!organizationId || operations.length === 0) return;
+    if (dbCacheLoadedRef.current) return;
+
+    async function loadDbCache() {
+      // Collect all unique address keys that need geocoding
+      const addressKeys: string[] = [];
+      for (const op of operations) {
+        const fullAddress = op.direccion || op.lugar || '';
+        const cacheKey = fullAddress.toLowerCase().trim();
+        if (cacheKey) addressKeys.push(cacheKey);
+      }
+      if (addressKeys.length === 0) return;
+
+      const uniqueKeys = Array.from(new Set(addressKeys));
+      try {
+        const response = await apiInvoke<{ ok: boolean; results: Record<string, { lat: number; lng: number }> }>(
+          'geocode-cache/lookup',
+          { body: { organization_id: organizationId, address_keys: uniqueKeys } }
+        );
+        if (response.data?.ok && response.data.results) {
+          const cache = geocodeCacheRef.current;
+          for (const [key, coords] of Object.entries(response.data.results)) {
+            cache.set(key, coords);
+          }
+          dbCacheLoadedRef.current = true;
+        }
+      } catch {
+        // Silently fail — will fall back to API geocoding
+      }
+    }
+
+    loadDbCache();
+  }, [organizationId, operations]);
 
   // Geocode all operations
   useEffect(() => {
     if (operations.length === 0) {
       setGeocodedOps([]);
+      setUnresolvedOps([]);
       return;
     }
 
@@ -276,6 +363,8 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
     async function geocodeAll() {
       setIsGeocoding(true);
       const results: GeocodedOperation[] = [];
+      const unresolved: MapOperation[] = [];
+      const newlyCached: Array<{ address_key: string; lat: number; lng: number }> = [];
       const total = operations.length;
       setGeocodingProgress({ done: 0, total });
 
@@ -289,12 +378,12 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
         const cacheKey = fullAddress.toLowerCase().trim();
 
         if (!lugarKey && !cacheKey) {
+          unresolved.push(op);
           setGeocodingProgress({ done: i + 1, total });
           continue;
         }
 
         // Check known locations using the short place name (lugar)
-        // Only use lugar for matching, not the full street address
         if (lugarKey) {
           const known = matchKnownLocation(lugarKey);
           if (known) {
@@ -305,16 +394,19 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
         }
 
         if (!cacheKey) {
+          unresolved.push(op);
           setGeocodingProgress({ done: i + 1, total });
           continue;
         }
 
-        // Check cache
+        // Check in-memory cache (includes DB cache loaded earlier)
         const cache = geocodeCacheRef.current;
         if (cache.has(cacheKey)) {
           const cached = cache.get(cacheKey);
           if (cached) {
             results.push({ ...op, lat: cached.lat, lng: cached.lng });
+          } else {
+            unresolved.push(op);
           }
           setGeocodingProgress({ done: i + 1, total });
           continue;
@@ -325,6 +417,9 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
         cache.set(cacheKey, coords);
         if (coords) {
           results.push({ ...op, lat: coords.lat, lng: coords.lng });
+          newlyCached.push({ address_key: cacheKey, lat: coords.lat, lng: coords.lng });
+        } else {
+          unresolved.push(op);
         }
         setGeocodingProgress({ done: i + 1, total });
 
@@ -336,13 +431,49 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
 
       if (!cancelled) {
         setGeocodedOps(results);
+        setUnresolvedOps(unresolved);
         setIsGeocoding(false);
+
+        // Save newly geocoded addresses to DB cache
+        if (newlyCached.length > 0 && organizationId) {
+          apiInvoke('geocode-cache/save', {
+            body: { organization_id: organizationId, entries: newlyCached }
+          }).catch(() => { /* silent */ });
+        }
       }
     }
 
     geocodeAll();
     return () => { cancelled = true; };
-  }, [operations]);
+  }, [operations, organizationId]);
+
+  // Handle manual coordinate save
+  const handleManualSave = async () => {
+    if (!manualEditOp || !organizationId) return;
+    const lat = parseFloat(manualLat);
+    const lng = parseFloat(manualLng);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    setSavingManual(true);
+    const addressKey = (manualEditOp.direccion || manualEditOp.lugar || '').toLowerCase().trim();
+    try {
+      await apiInvoke('geocode-cache/manual-set', {
+        body: { organization_id: organizationId, address_key: addressKey, lat, lng }
+      });
+      // Update local cache and re-geocode
+      geocodeCacheRef.current.set(addressKey, { lat, lng });
+      setManualEditOp(null);
+      setManualLat('');
+      setManualLng('');
+      // Trigger re-geocode by updating unresolved list
+      setUnresolvedOps(prev => prev.filter(o => o.id !== manualEditOp.id));
+      setGeocodedOps(prev => [...prev, { ...manualEditOp, lat, lng }]);
+    } catch {
+      // silent
+    } finally {
+      setSavingManual(false);
+    }
+  };
 
   // Cluster the geocoded operations
   const clusters = useMemo(() => clusterOperations(geocodedOps), [geocodedOps]);
@@ -413,6 +544,108 @@ export function OperationsMapView({ operations, isLoading }: OperationsMapViewPr
               style={{ width: `${geocodingProgress.total > 0 ? (geocodingProgress.done / geocodingProgress.total) * 100 : 0}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Unresolved addresses indicator */}
+      {!isGeocoding && unresolvedOps.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-medium text-amber-800">
+                {unresolvedOps.length} direcci{unresolvedOps.length === 1 ? 'ón' : 'ones'} no resuelta{unresolvedOps.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowUnresolved(!showUnresolved)}
+              className="text-xs text-amber-700 hover:text-amber-900 font-medium underline"
+            >
+              {showUnresolved ? 'Ocultar' : 'Ver detalles'}
+            </button>
+          </div>
+
+          {showUnresolved && (
+            <div className="mt-3 space-y-2 max-h-[200px] overflow-y-auto">
+              {unresolvedOps.map((op) => (
+                <div key={op.id} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-white rounded border border-amber-100">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'inline-block w-2 h-2 rounded-full shrink-0',
+                        op.tipoOperacion === 'Entrega' ? 'bg-emerald-500' :
+                        op.tipoOperacion === 'Devolución' ? 'bg-blue-500' : 'bg-amber-500'
+                      )} />
+                      <span className="text-xs font-medium text-gray-800 truncate">
+                        {op.clienteNombre} {op.clienteApellido}
+                      </span>
+                      <span className="text-xs text-gray-400 font-mono">N\u00ba {op.externalReservationId}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate mt-0.5 ml-4">
+                      {op.direccion || op.lugar || 'Sin dirección'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setManualEditOp(op);
+                      setManualLat('');
+                      setManualLng('');
+                    }}
+                    className="shrink-0 text-xs px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-medium transition-colors"
+                  >
+                    Corregir
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Manual coordinate correction dialog */}
+      {manualEditOp && (
+        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-gray-900">Corregir ubicación manualmente</h4>
+            <button onClick={() => setManualEditOp(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+          </div>
+          <p className="text-xs text-gray-600 mb-3">
+            <strong>{manualEditOp.clienteNombre} {manualEditOp.clienteApellido}</strong> — {manualEditOp.direccion || manualEditOp.lugar || 'Sin dirección'}
+          </p>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-gray-500 block mb-1">Latitud</label>
+              <input
+                type="number"
+                step="any"
+                value={manualLat}
+                onChange={e => setManualLat(e.target.value)}
+                placeholder="39.5696"
+                className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-gray-500 block mb-1">Longitud</label>
+              <input
+                type="number"
+                step="any"
+                value={manualLng}
+                onChange={e => setManualLng(e.target.value)}
+                placeholder="2.6502"
+                className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <button
+              onClick={handleManualSave}
+              disabled={savingManual || !manualLat || !manualLng}
+              className="shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {savingManual ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Puedes obtener las coordenadas desde Google Maps (clic derecho → Coordenadas)
+          </p>
         </div>
       )}
 
