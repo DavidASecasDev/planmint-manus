@@ -959,3 +959,9 @@
 - [x] RENTLY SYNC UI: Añadir pestaña 'Sync Rently' al RepairDetailSheet (vista lateral) para consistencia
 - [x] Bug: Columna "Trayecto" muestra "—" para todas las filas en Programación — dos causas: (1) operaciones completadas excluidas de hourSlots.operations, (2) solo se consulta capacidad para dateFrom pero la tabla muestra un rango de fechas
 - [x] Eliminar botón "Nueva en Rently" de la barra de acciones de Programación
+- [x] Feature: Vista de mapa en Programación — pestaña adicional junto a "Vista tabla"
+  - Mapa con marcadores de todas las entregas/devoluciones del día seleccionado
+  - Colores diferentes para entregas (verde) vs devoluciones (azul)
+  - Clustering para ubicaciones compartidas (aeropuerto, terminal) con badge de cantidad
+  - Popup al click: nombre cliente, nº reserva, hora confirmada, icono para abrir en Google Maps
+  - Marcadores individuales para entregas a domicilio
