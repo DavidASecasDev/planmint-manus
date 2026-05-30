@@ -117,32 +117,62 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'fastech': { lat: 39.5500, lng: 2.7100, label: 'Fastech' },
 };
 
-// ── Marker icons ──
-function createMarkerIcon(color: string, count?: number): L.DivIcon {
-  const size = count && count > 1 ? 36 : 28;
-  const badge = count && count > 1
-    ? `<span style="position:absolute;top:-6px;right:-6px;background:#1f2937;color:white;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3)">${count}</span>`
-    : '';
+// ── Professional marker icons (SVG pin with gradient and shadow) ──
+const COLORS = {
+  entrega: { main: '#059669', light: '#10b981', label: 'Entregas' },
+  devolucion: { main: '#2563eb', light: '#3b82f6', label: 'Devoluciones' },
+  transfer: { main: '#d97706', light: '#f59e0b', label: 'Transfers' },
+} as const;
+
+function createPinIcon(color: { main: string; light: string }, innerSvg: string): L.DivIcon {
+  const id = color.main.replace('#', '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 40" width="28" height="40">
+    <defs>
+      <filter id="ds-${id}" x="-20%" y="-10%" width="140%" height="130%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+      </filter>
+      <linearGradient id="g-${id}" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="${color.light}"/>
+        <stop offset="100%" stop-color="${color.main}"/>
+      </linearGradient>
+    </defs>
+    <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="url(#g-${id})" filter="url(#ds-${id})"/>
+    <circle cx="14" cy="13" r="6" fill="white" opacity="0.95"/>
+    <g transform="translate(8,7)">${innerSvg}</g>
+  </svg>`;
   return L.divIcon({
     className: 'custom-op-marker',
-    html: `<div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center">
-      <div style="background:${color};width:${size}px;height:${size}px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-          <circle cx="12" cy="10" r="3"/>
-        </svg>
-      </div>
-      ${badge}
-    </div>`,
-    iconSize: [size + 12, size + 12],
-    iconAnchor: [(size + 12) / 2, (size + 12) / 2],
-    popupAnchor: [0, -(size / 2 + 4)],
+    html: `<div style="display:flex;align-items:flex-end;justify-content:center">${svg}</div>`,
+    iconSize: [28, 40],
+    iconAnchor: [14, 40],
+    popupAnchor: [0, -40],
   });
 }
 
-const ENTREGA_ICON = createMarkerIcon('#10b981'); // green
-const DEVOLUCION_ICON = createMarkerIcon('#3b82f6'); // blue
-const TRANSFER_ICON = createMarkerIcon('#f59e0b'); // amber
+function createClusterIcon(color: { main: string; light: string }, count: number): L.DivIcon {
+  const size = Math.min(48, 32 + Math.log2(count) * 6);
+  return L.divIcon({
+    className: 'custom-op-cluster',
+    html: `<div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;inset:0;background:${color.light};opacity:0.2;border-radius:50%;animation:pulse 2s infinite"></div>
+      <div style="width:${size - 8}px;height:${size - 8}px;background:linear-gradient(135deg,${color.light},${color.main});border-radius:50%;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center">
+        <span style="color:white;font-size:${count > 99 ? 11 : 13}px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.3)">${count}</span>
+      </div>
+    </div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2)],
+  });
+}
+
+// Inner SVG icons for each operation type (12x12 viewBox)
+const INNER_ENTREGA = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8l3-5h6l3 5v8a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2a2 2 0 0 0 2-2v-4h-6"/><circle cx="17" cy="18" r="2"/><path d="M15 5h4l3 5"/></svg>`;
+const INNER_DEVOLUCION = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
+const INNER_TRANSFER = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>`;
+
+const ENTREGA_ICON = createPinIcon(COLORS.entrega, INNER_ENTREGA);
+const DEVOLUCION_ICON = createPinIcon(COLORS.devolucion, INNER_DEVOLUCION);
+const TRANSFER_ICON = createPinIcon(COLORS.transfer, INNER_TRANSFER);
 
 function getIconForType(tipo: TipoOperacion): L.DivIcon {
   switch (tipo) {
@@ -152,11 +182,22 @@ function getIconForType(tipo: TipoOperacion): L.DivIcon {
   }
 }
 
+function getClusterIconForOps(ops: GeocodedOperation[]): L.DivIcon {
+  const entregas = ops.filter(o => o.tipoOperacion === 'Entrega').length;
+  const devoluciones = ops.filter(o => o.tipoOperacion === 'Devolución').length;
+  const transfers = ops.filter(o => o.tipoOperacion === 'Transfer').length;
+  // Use the dominant color
+  let color: { main: string; light: string } = COLORS.entrega;
+  if (devoluciones > entregas && devoluciones >= transfers) color = COLORS.devolucion;
+  else if (transfers > entregas && transfers > devoluciones) color = COLORS.transfer;
+  return createClusterIcon(color, ops.length);
+}
+
 function getColorForType(tipo: TipoOperacion): string {
   switch (tipo) {
-    case 'Entrega': return '#10b981';
-    case 'Devolución': return '#3b82f6';
-    case 'Transfer': return '#f59e0b';
+    case 'Entrega': return COLORS.entrega.main;
+    case 'Devolución': return COLORS.devolucion.main;
+    case 'Transfer': return COLORS.transfer.main;
   }
 }
 
@@ -317,18 +358,25 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
   const [filterEntregas, setFilterEntregas] = useState(true);
   const [filterDevoluciones, setFilterDevoluciones] = useState(true);
   const [filterTransfers, setFilterTransfers] = useState(true);
+  const [hideCompleted, setHideCompleted] = useState(true);
   const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map());
   const dbCacheLoadedRef = useRef(false);
 
+  // Filter out completed operations (they are already done, not relevant on the map)
+  const activeOperations = useMemo(() => {
+    if (!hideCompleted) return operations;
+    return operations.filter(op => !op.isCompleted);
+  }, [operations, hideCompleted]);
+
   // Load DB cache on mount (batch lookup)
   useEffect(() => {
-    if (!organizationId || operations.length === 0) return;
+    if (!organizationId || activeOperations.length === 0) return;
     if (dbCacheLoadedRef.current) return;
 
     async function loadDbCache() {
       // Collect all unique address keys that need geocoding
       const addressKeys: string[] = [];
-      for (const op of operations) {
+      for (const op of activeOperations) {
         const fullAddress = op.direccion || op.lugar || '';
         const cacheKey = fullAddress.toLowerCase().trim();
         if (cacheKey) addressKeys.push(cacheKey);
@@ -354,11 +402,11 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
     }
 
     loadDbCache();
-  }, [organizationId, operations]);
+  }, [organizationId, activeOperations]);
 
-  // Geocode all operations
+  // Geocode all active operations
   useEffect(() => {
-    if (operations.length === 0) {
+    if (activeOperations.length === 0) {
       setGeocodedOps([]);
       setUnresolvedOps([]);
       return;
@@ -371,12 +419,12 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
       const results: GeocodedOperation[] = [];
       const unresolved: MapOperation[] = [];
       const newlyCached: Array<{ address_key: string; lat: number; lng: number }> = [];
-      const total = operations.length;
+      const total = activeOperations.length;
       setGeocodingProgress({ done: 0, total });
 
-      for (let i = 0; i < operations.length; i++) {
+      for (let i = 0; i < activeOperations.length; i++) {
         if (cancelled) return;
-        const op = operations[i];
+        const op = activeOperations[i];
         // Use lugar (short place name) for known-location matching
         const lugarKey = (op.lugar || '').toLowerCase().trim();
         // Use the best available address for geocoding (prefer full address)
@@ -451,7 +499,7 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
 
     geocodeAll();
     return () => { cancelled = true; };
-  }, [operations, organizationId]);
+  }, [activeOperations, organizationId]);
 
   // Handle manual coordinate save
   const handleManualSave = async () => {
@@ -494,13 +542,14 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
   // Cluster the filtered geocoded operations
   const clusters = useMemo(() => clusterOperations(filteredGeocodedOps), [filteredGeocodedOps]);
 
-  // Stats
+  // Stats (based on active operations only)
   const stats = useMemo(() => {
-    const entregas = operations.filter(o => o.tipoOperacion === 'Entrega').length;
-    const devoluciones = operations.filter(o => o.tipoOperacion === 'Devolución').length;
-    const transfers = operations.filter(o => o.tipoOperacion === 'Transfer').length;
-    return { entregas, devoluciones, transfers, total: operations.length };
-  }, [operations]);
+    const entregas = activeOperations.filter(o => o.tipoOperacion === 'Entrega').length;
+    const devoluciones = activeOperations.filter(o => o.tipoOperacion === 'Devolución').length;
+    const transfers = activeOperations.filter(o => o.tipoOperacion === 'Transfer').length;
+    const completedCount = operations.filter(o => o.isCompleted).length;
+    return { entregas, devoluciones, transfers, total: activeOperations.length, completedCount };
+  }, [activeOperations, operations]);
 
   const mapHeight = fullPage ? 'h-full' : 'h-[600px]';
   const containerClass = fullPage ? 'flex flex-col h-full' : 'flex flex-col gap-4';
@@ -564,10 +613,7 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
               const op = cluster.operations[0];
               const icon = isSingle
                 ? getIconForType(op.tipoOperacion)
-                : createMarkerIcon(
-                    cluster.operations.some(o => o.tipoOperacion === 'Entrega') ? '#10b981' : '#3b82f6',
-                    cluster.operations.length
-                  );
+                : getClusterIconForOps(cluster.operations);
 
               return (
                 <Marker
@@ -613,51 +659,83 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
             </div>
           )}
 
-          {/* Stats bar + filters - top center */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2">
-            <button
-              onClick={() => setFilterEntregas(!filterEntregas)}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 backdrop-blur-sm border rounded-full text-xs shadow-sm transition-all cursor-pointer',
-                filterEntregas
-                  ? 'bg-white/90 border-emerald-300'
-                  : 'bg-white/50 border-gray-200 opacity-50'
-              )}
-              title={filterEntregas ? 'Ocultar entregas' : 'Mostrar entregas'}
-            >
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span className="font-medium text-emerald-800">{stats.entregas}</span>
-            </button>
-            <button
-              onClick={() => setFilterDevoluciones(!filterDevoluciones)}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 backdrop-blur-sm border rounded-full text-xs shadow-sm transition-all cursor-pointer',
-                filterDevoluciones
-                  ? 'bg-white/90 border-blue-300'
-                  : 'bg-white/50 border-gray-200 opacity-50'
-              )}
-              title={filterDevoluciones ? 'Ocultar devoluciones' : 'Mostrar devoluciones'}
-            >
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-              <span className="font-medium text-blue-800">{stats.devoluciones}</span>
-            </button>
-            {stats.transfers > 0 && (
+          {/* Legend + filters - top center */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-md border border-gray-200/80 rounded-xl shadow-lg">
+              {/* Entrega filter */}
               <button
-                onClick={() => setFilterTransfers(!filterTransfers)}
+                onClick={() => setFilterEntregas(!filterEntregas)}
                 className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1 backdrop-blur-sm border rounded-full text-xs shadow-sm transition-all cursor-pointer',
-                  filterTransfers
-                    ? 'bg-white/90 border-amber-300'
-                    : 'bg-white/50 border-gray-200 opacity-50'
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                  filterEntregas
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-gray-50 text-gray-400 border border-gray-100 line-through'
                 )}
-                title={filterTransfers ? 'Ocultar transfers' : 'Mostrar transfers'}
+                title={filterEntregas ? 'Ocultar entregas' : 'Mostrar entregas'}
               >
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className="font-medium text-amber-800">{stats.transfers}</span>
+                <div className={cn('w-3 h-3 rounded-full transition-colors', filterEntregas ? 'bg-emerald-500' : 'bg-gray-300')} />
+                <span>Entregas</span>
+                <span className="font-bold">{stats.entregas}</span>
               </button>
-            )}
-            <div className="px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm text-muted-foreground">
-              {geocodedOps.length}/{operations.length}
+
+              {/* Devolucion filter */}
+              <button
+                onClick={() => setFilterDevoluciones(!filterDevoluciones)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                  filterDevoluciones
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'bg-gray-50 text-gray-400 border border-gray-100 line-through'
+                )}
+                title={filterDevoluciones ? 'Ocultar devoluciones' : 'Mostrar devoluciones'}
+              >
+                <div className={cn('w-3 h-3 rounded-full transition-colors', filterDevoluciones ? 'bg-blue-500' : 'bg-gray-300')} />
+                <span>Devoluciones</span>
+                <span className="font-bold">{stats.devoluciones}</span>
+              </button>
+
+              {/* Transfer filter */}
+              {stats.transfers > 0 && (
+                <button
+                  onClick={() => setFilterTransfers(!filterTransfers)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                    filterTransfers
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-gray-50 text-gray-400 border border-gray-100 line-through'
+                  )}
+                  title={filterTransfers ? 'Ocultar transfers' : 'Mostrar transfers'}
+                >
+                  <div className={cn('w-3 h-3 rounded-full transition-colors', filterTransfers ? 'bg-amber-500' : 'bg-gray-300')} />
+                  <span>Transfers</span>
+                  <span className="font-bold">{stats.transfers}</span>
+                </button>
+              )}
+
+              {/* Separator */}
+              <div className="w-px h-5 bg-gray-200 mx-1" />
+
+              {/* Hide completed toggle */}
+              <button
+                onClick={() => setHideCompleted(!hideCompleted)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                  hideCompleted
+                    ? 'bg-gray-50 text-gray-600 border border-gray-200'
+                    : 'bg-green-50 text-green-700 border border-green-200'
+                )}
+                title={hideCompleted ? 'Mostrar completadas' : 'Ocultar completadas'}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>{stats.completedCount} hechas</span>
+              </button>
+
+              {/* Geocoded counter */}
+              <div className="px-2 py-1 text-xs text-gray-500 font-mono">
+                {geocodedOps.length}/{activeOperations.length}
+              </div>
             </div>
           </div>
 
@@ -947,10 +1025,7 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
                 const op = cluster.operations[0];
                 const icon = isSingle
                   ? getIconForType(op.tipoOperacion)
-                  : createMarkerIcon(
-                      cluster.operations.some(o => o.tipoOperacion === 'Entrega') ? '#10b981' : '#3b82f6',
-                      cluster.operations.length
-                    );
+                  : getClusterIconForOps(cluster.operations);
 
                 return (
                   <Marker

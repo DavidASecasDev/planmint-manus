@@ -972,3 +972,6 @@
 - [x] Mapa de Programación: hacer que ocupe toda la página disponible (full height/width), controles superpuestos sobre el mapa — Implementado: modo fullPage con mapa absoluto inset-0, controles de fecha top-left, stats top-center, zoom top-right, progreso/errores bottom, corrección manual bottom-right. PageHeader oculto en modo mapa. Márgenes negativos para compensar padding del AppLayout.
 - [x] Modo satélite en el mapa — Botón globe arriba a la derecha para alternar entre CARTO Voyager y Esri World Imagery (satélite), funciona en ambos modos (fullPage y normal)
 - [x] Filtro por tipo de operación en el mapa — Los badges de stats (entregas/devoluciones/transfers) son ahora clickables como toggles: click para ocultar/mostrar cada tipo, con estilo opacity-50 cuando está desactivado
+- [x] Mapa: ocultar operaciones completadas — activeOperations filtra isCompleted, toggle 'X hechas' para mostrar/ocultar, por defecto ocultas
+- [x] Mapa: leyenda clara de colores — Barra de filtros con labels: 'Entregas N', 'Devoluciones N', 'Transfers N' con círculos de color, clickables para filtrar, line-through cuando desactivado
+- [x] Mapa: diseño más profesional — Marcadores tipo pin SVG con gradiente/sombra/ícono interior por tipo. Clusters con animación pulse y color dominante. Barra de leyenda glassmorphism con separadores y contador
