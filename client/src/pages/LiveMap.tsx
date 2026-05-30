@@ -3,6 +3,9 @@
  * Uses Leaflet with OpenStreetMap tiles (no API key needed)
  * Receives instant push updates via Supabase Realtime (< 1 second latency)
  * Falls back to polling every 60s if realtime connection drops
+ * 
+ * REDESIGN: Premium visual treatment with glassmorphism, refined typography,
+ * and brand-consistent Azul Cars styling.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -10,7 +13,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2, Eye, EyeOff, Car } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -35,7 +38,16 @@ interface GeocodedRecord extends EnCaminoRecord {
   geocodeSource: GeocodeSource;
 }
 
-// ── Constants ──
+// ── Brand Constants ──
+const brand = {
+  navy: '#001321',
+  gold: '#c9a96e',
+  goldLight: '#d4b87a',
+  warmBg: '#F5F3EF',
+  borderLight: 'rgba(0,19,33,0.08)',
+};
+
+// ── Map Constants ──
 const AZUL_CARS_BASE = { lat: 39.5361, lng: 2.7339 }; // Polígono Son Oms
 const PALMA_CENTER = { lat: 39.5696, lng: 2.6502 };
 const DEFAULT_ZOOM = 11;
@@ -83,53 +95,62 @@ function matchLocationAlias(address: string): LocationAlias | null {
   return null;
 }
 
-// ── Custom marker icons (professional SVG markers) ──
+// ── Custom marker icons (premium SVG markers with brand colors) ──
 const createIcon = (color: string, pulse: boolean = false) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="28" height="42">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="30" height="45">
     <defs>
-      <filter id="shadow-${color.replace('#','')}" x="-20%" y="-10%" width="140%" height="130%">
-        <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.25"/>
+      <filter id="shadow-${color.replace('#','')}" x="-30%" y="-10%" width="160%" height="140%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
       </filter>
+      <linearGradient id="grad-${color.replace('#','')}" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:${color};stop-opacity:1" />
+        <stop offset="100%" style="stop-color:${color};stop-opacity:0.8" />
+      </linearGradient>
     </defs>
-    <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="${color}" filter="url(#shadow-${color.replace('#','')})"/>
-    <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="url(#grad-${color.replace('#','')})" filter="url(#shadow-${color.replace('#','')})"/>
+    <circle cx="12" cy="11" r="5" fill="white" opacity="0.95"/>
   </svg>`;
   return L.divIcon({
-    html: `<div class="${pulse ? 'animate-pulse' : ''}" style="display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${svg}</div>`,
+    html: `<div class="${pulse ? 'animate-pulse' : ''}" style="display:flex;align-items:center;justify-content:center;">${svg}</div>`,
     className: 'custom-marker',
-    iconSize: [28, 42],
-    iconAnchor: [14, 42],
-    popupAnchor: [0, -42],
+    iconSize: [30, 45],
+    iconAnchor: [15, 45],
+    popupAnchor: [0, -45],
   });
 };
 
-const entregaIcon = createIcon('#2563eb', true); // blue-600
-const devolucionIcon = createIcon('#d97706', true); // amber-600
-const baseIcon = createIcon('#059669'); // emerald-600
+const entregaIcon = createIcon('#1d4ed8', true); // blue-700
+const devolucionIcon = createIcon('#b45309', true); // amber-700
+const baseIcon = createIcon('#047857'); // emerald-700
 
 // Car icon for live location tracking
 const createCarIcon = (color: string) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-    <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="2" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.3))"/>
-    <g transform="translate(8,8)" fill="white">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
+    <defs>
+      <filter id="car-shadow-${color.replace('#','')}" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
+      </filter>
+    </defs>
+    <circle cx="18" cy="18" r="15" fill="${color}" stroke="white" stroke-width="2.5" filter="url(#car-shadow-${color.replace('#','')})"/>
+    <g transform="translate(9,9)" fill="white">
       <path d="M13.5 5.5l-1.2-3.6C12 1.1 11.2 0.5 10.3 0.5H5.7C4.8 0.5 4 1.1 3.7 1.9L2.5 5.5C1.6 5.8 1 6.6 1 7.5v4c0 0.6 0.4 1 1 1h0.5c0.3 0 0.5-0.2 0.5-0.5v-0.5h10v0.5c0 0.3 0.2 0.5 0.5 0.5H14c0.6 0 1-0.4 1-1v-4c0-0.9-0.6-1.7-1.5-2zM4.5 2.5c0.1-0.3 0.4-0.5 0.7-0.5h5.6c0.3 0 0.6 0.2 0.7 0.5l1 3h-9l1-3zM4 9.5c-0.6 0-1-0.4-1-1s0.4-1 1-1 1 0.4 1 1-0.4 1-1 1zm8 0c-0.6 0-1-0.4-1-1s0.4-1 1-1 1 0.4 1 1-0.4 1-1 1z"/>
     </g>
-    <circle cx="16" cy="16" r="14" fill="none" stroke="${color}" stroke-width="1" opacity="0.4">
-      <animate attributeName="r" from="14" to="20" dur="1.5s" repeatCount="indefinite"/>
+    <circle cx="18" cy="18" r="15" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.4">
+      <animate attributeName="r" from="15" to="22" dur="1.5s" repeatCount="indefinite"/>
       <animate attributeName="opacity" from="0.4" to="0" dur="1.5s" repeatCount="indefinite"/>
     </circle>
   </svg>`;
   return L.divIcon({
     html: svg,
     className: 'live-car-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18],
   });
 };
 
-const entregaCarIcon = createCarIcon('#2563eb');
-const devolucionCarIcon = createCarIcon('#d97706');
+const entregaCarIcon = createCarIcon('#1d4ed8');
+const devolucionCarIcon = createCarIcon('#b45309');
 
 // ── Geocode result with source tracking ──
 interface GeocodeResult {
@@ -231,30 +252,30 @@ function FitBounds({ markers }: { markers: GeocodedRecord[] }) {
 
 // ── Helper: time urgency color ──
 function getUrgencyColor(minutesAgo: number) {
-  if (minutesAgo > 45) return { text: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/40', border: 'border-red-200 dark:border-red-800' };
-  if (minutesAgo > 20) return { text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-200 dark:border-amber-800' };
-  return { text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-800' };
+  if (minutesAgo > 45) return { text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-500' };
+  if (minutesAgo > 20) return { text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' };
+  return { text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500' };
 }
 
-// ── Connection Status Indicator ──
+// ── Connection Status Indicator (premium pill) ──
 function ConnectionIndicator({ status }: { status: RealtimeStatus }) {
   const config = {
     connected: {
       icon: <Wifi className="h-3 w-3" />,
-      label: 'En tiempo real',
-      className: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+      label: 'Tiempo real',
+      className: 'text-emerald-700 bg-emerald-50 border-emerald-200',
       dotClass: 'bg-emerald-500 animate-pulse',
     },
     connecting: {
       icon: <Loader2 className="h-3 w-3 animate-spin" />,
       label: 'Conectando...',
-      className: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+      className: 'text-amber-700 bg-amber-50 border-amber-200',
       dotClass: 'bg-amber-500',
     },
     disconnected: {
       icon: <WifiOff className="h-3 w-3" />,
-      label: 'Sin conexión',
-      className: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800',
+      label: 'Desconectado',
+      className: 'text-red-700 bg-red-50 border-red-200',
       dotClass: 'bg-red-500',
     },
   }[status];
@@ -264,7 +285,7 @@ function ConnectionIndicator({ status }: { status: RealtimeStatus }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={cn(
-            "flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border transition-all",
+            "flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all shadow-sm",
             config.className
           )}>
             <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", config.dotClass)} />
@@ -272,7 +293,7 @@ function ConnectionIndicator({ status }: { status: RealtimeStatus }) {
             <span className="hidden sm:inline">{config.label}</span>
           </div>
         </TooltipTrigger>
-        <TooltipContent>
+        <TooltipContent side="bottom" className="text-xs max-w-[220px]">
           {status === 'connected' && 'Conectado a Supabase Realtime. Las actualizaciones llegan al instante.'}
           {status === 'connecting' && 'Estableciendo conexión en tiempo real...'}
           {status === 'disconnected' && 'Conexión perdida. Actualizando cada 60 segundos como respaldo.'}
@@ -304,6 +325,7 @@ export default function LiveMapPage() {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [showEntregas, setShowEntregas] = useState(true);
   const [showDevoluciones, setShowDevoluciones] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Track which addresses are currently being geocoded to avoid duplicate requests
   const geocodingInProgress = useRef<Set<string>>(new Set());
 
@@ -318,8 +340,6 @@ export default function LiveMapPage() {
   };
 
   // Geocode only NEW addresses that aren't in cache yet.
-  // This runs when records change but does NOT replace the geocoded records list;
-  // it only populates the cache. The actual geocodedRecords are computed via useMemo below.
   useEffect(() => {
     let cancelled = false;
     async function geocodeNewAddresses() {
@@ -359,8 +379,6 @@ export default function LiveMapPage() {
   }, [records]);
 
   // Compute geocoded records from records + cache (instant, no async)
-  // This is the key fix: GPS updates change `records` but geocodeCache is stable,
-  // so geocodedRecords update instantly without waiting for geocoding API calls.
   const geocodedRecords = useMemo(() => {
     const results: GeocodedRecord[] = [];
     for (const rec of records) {
@@ -403,12 +421,9 @@ export default function LiveMapPage() {
   }, [geocodedRecords]);
 
   // Fetch live routes from rental's current position to destination
-  // Throttled to every 30s to avoid blocking render with OSRM calls on each GPS update.
-  // The AnimatedMarker handles smooth visual movement independently.
   const liveRouteTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveRouteFetchRef = useRef<() => void>(() => {});
 
-  // Keep the fetch function up-to-date with latest records/geocodedRecords
   liveRouteFetchRef.current = async () => {
     const liveRecords = geocodedRecords.filter(r => {
       const original = records.find(o => o.id === r.id);
@@ -434,7 +449,6 @@ export default function LiveMapPage() {
   useEffect(() => {
     const liveCount = records.filter(r => r.sharing_location && r.current_lat != null).length;
     if (liveCount > 0 && geocodedRecords.length > 0) {
-      // Fetch once immediately, then every 30s
       liveRouteFetchRef.current();
       if (!liveRouteTimerRef.current) {
         liveRouteTimerRef.current = setInterval(() => liveRouteFetchRef.current(), 30_000);
@@ -452,7 +466,6 @@ export default function LiveMapPage() {
         liveRouteTimerRef.current = null;
       }
     };
-    // Only re-run when the number of live records changes, not on every GPS update
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geocodedRecords.length, records.filter(r => r.sharing_location && r.current_lat != null).length]);
 
@@ -472,88 +485,118 @@ export default function LiveMapPage() {
     return true;
   });
 
+  const liveTrackingCount = records.filter(r => r.sharing_location && r.current_lat != null).length;
+
   return (
-    <AppLayout title="Mapa En Camino" fullWidth>
+    <AppLayout title="Mapa En Vivo" fullWidth>
       <div className="h-full flex flex-col -m-4 md:-m-6 lg:-m-8">
-        {/* ── Compact Status Bar ── */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-border">
+        {/* ── Premium Status Bar ── */}
+        <div
+          className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b"
+          style={{
+            backgroundColor: 'rgba(245,243,239,0.92)',
+            backdropFilter: 'blur(12px)',
+            borderColor: brand.borderLight,
+          }}
+        >
+          {/* Left section */}
           <div className="flex items-center gap-3">
+            {/* Live indicator */}
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Radio className="h-4 w-4 text-emerald-500" />
+              <div className="relative flex items-center justify-center h-7 w-7 rounded-lg" style={{ backgroundColor: 'rgba(0,19,33,0.06)' }}>
+                <Radio className="h-3.5 w-3.5" style={{ color: brand.navy }} />
                 {records.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
                 )}
               </div>
-              <span className="text-sm font-semibold font-[Montserrat] tracking-tight">
-                En Directo
-              </span>
+              <div className="flex flex-col">
+                <span
+                  className="text-[13px] font-bold leading-tight"
+                  style={{ fontFamily: 'Montserrat, sans-serif', color: brand.navy }}
+                >
+                  En Directo
+                </span>
+                <span className="text-[10px] leading-tight" style={{ color: brand.gold }}>
+                  {records.length} operación{records.length !== 1 ? 'es' : ''} activa{records.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
-            <div className="h-4 w-px bg-border" />
-            {/* Connection status indicator */}
+
+            {/* Separator */}
+            <div className="h-6 w-px hidden sm:block" style={{ backgroundColor: brand.borderLight }} />
+
+            {/* Connection status */}
             <ConnectionIndicator status={realtimeStatus} />
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-3 text-xs">
+
+            {/* Separator */}
+            <div className="h-6 w-px hidden md:block" style={{ backgroundColor: brand.borderLight }} />
+
+            {/* Filter toggles */}
+            <div className="hidden md:flex items-center gap-2">
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => setShowEntregas(v => !v)}
                       className={cn(
-                        "flex items-center gap-1.5 font-medium rounded-md px-2 py-1 transition-all border",
+                        "flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-3 py-1.5 transition-all border shadow-sm",
                         showEntregas
-                          ? "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
-                          : "bg-muted/50 border-transparent text-muted-foreground line-through opacity-60 hover:opacity-80"
+                          ? "bg-blue-50 border-blue-200 text-blue-700"
+                          : "bg-white/60 border-gray-200 text-gray-400 line-through"
                       )}
                     >
-                      <span className={cn(
-                        "h-2.5 w-2.5 rounded-full transition-all",
-                        showEntregas ? "bg-blue-500 ring-2 ring-blue-500/20" : "bg-muted-foreground/40"
-                      )} />
+                      <Truck className="h-3 w-3" />
                       <span>{entregas.length}</span>
-                      <span className="hidden sm:inline">entregas</span>
+                      <span className="hidden lg:inline">entregas</span>
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>{showEntregas ? 'Ocultar entregas' : 'Mostrar entregas'}</TooltipContent>
+                  <TooltipContent side="bottom">{showEntregas ? 'Ocultar entregas' : 'Mostrar entregas'}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => setShowDevoluciones(v => !v)}
                       className={cn(
-                        "flex items-center gap-1.5 font-medium rounded-md px-2 py-1 transition-all border",
+                        "flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-3 py-1.5 transition-all border shadow-sm",
                         showDevoluciones
-                          ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
-                          : "bg-muted/50 border-transparent text-muted-foreground line-through opacity-60 hover:opacity-80"
+                          ? "bg-amber-50 border-amber-200 text-amber-700"
+                          : "bg-white/60 border-gray-200 text-gray-400 line-through"
                       )}
                     >
-                      <span className={cn(
-                        "h-2.5 w-2.5 rounded-full transition-all",
-                        showDevoluciones ? "bg-amber-500 ring-2 ring-amber-500/20" : "bg-muted-foreground/40"
-                      )} />
+                      <RotateCcw className="h-3 w-3" />
                       <span>{devoluciones.length}</span>
-                      <span className="hidden sm:inline">devoluciones</span>
+                      <span className="hidden lg:inline">devoluciones</span>
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>{showDevoluciones ? 'Ocultar devoluciones' : 'Mostrar devoluciones'}</TooltipContent>
+                  <TooltipContent side="bottom">{showDevoluciones ? 'Ocultar devoluciones' : 'Mostrar devoluciones'}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+
+              {/* Live tracking count */}
+              {liveTrackingCount > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-3 py-1.5 border shadow-sm bg-emerald-50 border-emerald-200 text-emerald-700">
+                  <Car className="h-3 w-3" />
+                  <span>{liveTrackingCount}</span>
+                  <span className="hidden lg:inline">en vivo</span>
+                </div>
+              )}
+
               {failedGeocode.length > 0 && (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-3 py-1.5 border shadow-sm bg-orange-50 border-orange-200 text-orange-700">
                         <AlertTriangle className="h-3 w-3" />
-                        <span className="font-medium">{failedGeocode.length}</span>
-                        <span className="hidden sm:inline">sin ubicar</span>
-                      </span>
+                        <span>{failedGeocode.length} sin ubicar</span>
+                      </div>
                     </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="font-medium mb-1">Direcciones no geocodificadas:</p>
+                    <TooltipContent className="max-w-xs" side="bottom">
+                      <p className="font-semibold mb-1 text-xs">Direcciones no geocodificadas:</p>
                       {failedGeocode.map(r => (
-                        <p key={r.id} className="text-xs">{r.destination_address}</p>
+                        <p key={r.id} className="text-[11px] text-muted-foreground">{r.destination_address}</p>
                       ))}
                     </TooltipContent>
                   </Tooltip>
@@ -561,11 +604,15 @@ export default function LiveMapPage() {
               )}
             </div>
           </div>
+
+          {/* Right section */}
           <button
             onClick={() => fetchRecords(true)}
             className={cn(
-              "flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all rounded-md px-2 py-1 hover:bg-muted",
-              refreshing && "text-foreground"
+              "flex items-center gap-1.5 text-[11px] font-medium rounded-lg px-3 py-1.5 transition-all border shadow-sm",
+              refreshing
+                ? "bg-white border-gray-200 text-gray-700"
+                : "bg-white/80 border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-white hover:border-gray-300"
             )}
             title="Actualizar ahora"
           >
@@ -581,9 +628,17 @@ export default function LiveMapPage() {
           {/* Map Area */}
           <div className="flex-1 relative">
             {loading ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/30 gap-3">
-                <div className="h-10 w-10 rounded-full border-2 border-muted-foreground/20 border-t-emerald-500 animate-spin" />
-                <p className="text-sm text-muted-foreground">Cargando mapa...</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ backgroundColor: brand.warmBg }}>
+                <div className="relative">
+                  <div className="h-14 w-14 rounded-full border-[3px] border-gray-200 border-t-blue-600 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold" style={{ color: brand.navy }}>Cargando mapa</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Obteniendo operaciones activas...</p>
+                </div>
               </div>
             ) : filteredRecords.length === 0 ? (
               /* Empty state overlay on map */
@@ -602,7 +657,7 @@ export default function LiveMapPage() {
                   <Marker position={[AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]} icon={baseIcon}>
                     <Popup>
                       <div className="text-sm">
-                        <p className="font-semibold text-emerald-600">Base — Azul Cars</p>
+                        <p className="font-semibold text-emerald-700">Base — Azul Cars</p>
                         <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
                         <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
                       </div>
@@ -610,17 +665,24 @@ export default function LiveMapPage() {
                   </Marker>
                 </MapContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl px-8 py-6 shadow-lg text-center max-w-sm pointer-events-auto">
-                    <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                      <Navigation className="h-5 w-5 text-muted-foreground" />
+                  <div
+                    className="rounded-2xl px-10 py-8 shadow-xl text-center max-w-sm pointer-events-auto border"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.92)',
+                      backdropFilter: 'blur(16px)',
+                      borderColor: brand.borderLight,
+                    }}
+                  >
+                    <div className="mx-auto mb-4 h-14 w-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(0,19,33,0.05)' }}>
+                      <Navigation className="h-6 w-6" style={{ color: brand.navy }} />
                     </div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {records.length > 0 ? 'Operaciones ocultas por filtro' : 'Sin operaciones activas'}
+                    <p className="text-base font-bold" style={{ fontFamily: 'Montserrat, sans-serif', color: brand.navy }}>
+                      {records.length > 0 ? 'Operaciones ocultas' : 'Sin operaciones activas'}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-500 mt-2 leading-relaxed">
                       {records.length > 0
-                        ? `Hay ${records.length} operación(es) activa(s) pero están ocultas por los filtros. Activa los toggles de entregas o devoluciones para verlas.`
-                        : 'No hay vehículos en camino en este momento. Las operaciones aparecerán aquí automáticamente cuando se inicien desde Reservas.'
+                        ? `Hay ${records.length} operación(es) activa(s) pero están ocultas por los filtros. Activa los toggles para verlas.`
+                        : 'No hay vehículos en camino en este momento. Las operaciones aparecerán aquí automáticamente cuando se inicien.'
                       }
                     </p>
                   </div>
@@ -643,7 +705,7 @@ export default function LiveMapPage() {
                 <Marker position={[AZUL_CARS_BASE.lat, AZUL_CARS_BASE.lng]} icon={baseIcon}>
                   <Popup>
                     <div className="text-sm">
-                      <p className="font-semibold text-emerald-600">Base — Azul Cars</p>
+                      <p className="font-semibold text-emerald-700">Base — Azul Cars</p>
                       <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
                       <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
                     </div>
@@ -654,7 +716,7 @@ export default function LiveMapPage() {
                 {filteredGeocodedRecords.map((rec) => {
                   const routeData = routes[rec.id];
                   if (!routeData) return null;
-                  const color = rec.operation_type === 'entrega' ? '#2563eb' : '#d97706';
+                  const color = rec.operation_type === 'entrega' ? '#1d4ed8' : '#b45309';
                   const isGoogleFallback = rec.geocodeSource === 'google';
                   return (
                     <Polyline
@@ -663,26 +725,26 @@ export default function LiveMapPage() {
                       pathOptions={{
                         color,
                         weight: 4,
-                        opacity: selectedRecordId === rec.id ? 1 : 0.7,
+                        opacity: selectedRecordId === rec.id ? 1 : 0.65,
                         lineCap: 'round',
                         lineJoin: 'round',
                         ...(isGoogleFallback ? { dashArray: '10, 8' } : {}),
                       }}
                     >
                       <Popup>
-                        <div className="text-sm min-w-[180px]">
-                          <div className="flex items-center gap-1.5 font-semibold mb-1.5">
+                        <div className="text-sm min-w-[200px]">
+                          <div className="flex items-center gap-1.5 font-bold mb-2" style={{ color: brand.navy }}>
                             {rec.operation_type === 'entrega' ? (
-                              <><Truck className="h-3.5 w-3.5 text-blue-600" /> Entrega</>
+                              <><Truck className="h-3.5 w-3.5 text-blue-700" /> Entrega</>
                             ) : (
-                              <><RotateCcw className="h-3.5 w-3.5 text-amber-600" /> Devolución</>
+                              <><RotateCcw className="h-3.5 w-3.5 text-amber-700" /> Devolución</>
                             )}
                           </div>
                           {rec.external_reservation_id && (
                             <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
                           )}
                           <p className="text-xs text-gray-600">{rec.destination_address}</p>
-                          <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-700">
+                          <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold" style={{ color: brand.navy }}>
                             <Clock className="h-3 w-3" />
                             ETA: {routeData.durationMinutes} min ({routeData.distanceKm} km)
                           </div>
@@ -701,7 +763,7 @@ export default function LiveMapPage() {
                       key={`live-route-${recId}`}
                       positions={routeData.positions}
                       pathOptions={{
-                        color: '#10b981',
+                        color: '#059669',
                         weight: 4,
                         opacity: 0.9,
                         dashArray: '8, 6',
@@ -710,15 +772,15 @@ export default function LiveMapPage() {
                       }}
                     >
                       <Popup>
-                        <div className="text-sm min-w-[180px]">
-                          <div className="flex items-center gap-1.5 font-semibold mb-1.5 text-emerald-600">
+                        <div className="text-sm min-w-[200px]">
+                          <div className="flex items-center gap-1.5 font-bold mb-2 text-emerald-700">
                             <Radio className="h-3.5 w-3.5" /> Ruta en vivo
                           </div>
                           {rec.external_reservation_id && (
                             <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
                           )}
                           <p className="text-xs text-gray-600">{rec.destination_address}</p>
-                          <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-700">
+                          <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-emerald-700">
                             <Clock className="h-3 w-3" />
                             Restante: {routeData.durationMinutes} min ({routeData.distanceKm} km)
                           </div>
@@ -736,7 +798,7 @@ export default function LiveMapPage() {
                       key={`trail-${rec.id}`}
                       positions={trailPositions}
                       pathOptions={{
-                        color: '#10b981',
+                        color: '#059669',
                         weight: 4,
                         opacity: 0.85,
                         lineCap: 'round',
@@ -744,8 +806,8 @@ export default function LiveMapPage() {
                       }}
                     >
                       <Popup>
-                        <div className="text-sm min-w-[180px]">
-                          <div className="flex items-center gap-1.5 font-semibold mb-1.5 text-emerald-600">
+                        <div className="text-sm min-w-[200px]">
+                          <div className="flex items-center gap-1.5 font-bold mb-2 text-emerald-700">
                             <Navigation className="h-3.5 w-3.5" /> Recorrido real
                           </div>
                           {rec.external_reservation_id && (
@@ -769,15 +831,15 @@ export default function LiveMapPage() {
                 {/* Live location car markers — animated for smooth movement */}
                 {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => {
                   const popupHtml = `
-                    <div style="font-size:0.875rem;min-width:200px">
-                      <div style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:8px">
-                        <span style="color:#10b981">●</span>
-                        <span style="color:#059669">Ubicación en vivo</span>
+                    <div style="font-size:0.875rem;min-width:220px;font-family:system-ui,-apple-system,sans-serif">
+                      <div style="display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:8px;color:#047857">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite"></span>
+                        Ubicación en vivo
                       </div>
-                      ${rec.external_reservation_id ? `<p style="font-size:0.75rem;font-weight:600;margin-bottom:4px">Reserva Nº ${rec.external_reservation_id}</p>` : ''}
-                      ${rec.assigned_user_name ? `<p style="font-size:0.75rem;margin-bottom:4px">👤 ${rec.assigned_user_name}</p>` : ''}
-                      <p style="font-size:0.75rem;margin-bottom:4px">📍 Hacia: ${rec.destination_address || 'Sin destino'}</p>
-                      ${rec.location_updated_at ? `<p style="font-size:0.75rem;color:#6b7280">Actualizado ${formatRelativeTime(new Date(rec.location_updated_at))}</p>` : ''}
+                      ${rec.external_reservation_id ? `<p style="font-size:0.75rem;font-weight:600;margin-bottom:4px;color:#001321">Reserva Nº ${rec.external_reservation_id}</p>` : ''}
+                      ${rec.assigned_user_name ? `<p style="font-size:0.75rem;margin-bottom:4px;color:#374151">👤 ${rec.assigned_user_name}</p>` : ''}
+                      <p style="font-size:0.75rem;margin-bottom:4px;color:#6b7280">📍 Hacia: ${rec.destination_address || 'Sin destino'}</p>
+                      ${rec.location_updated_at ? `<p style="font-size:0.7rem;color:#9ca3af;margin-top:6px">Actualizado ${formatRelativeTime(new Date(rec.location_updated_at))}</p>` : ''}
                     </div>
                   `;
                   return (
@@ -800,33 +862,34 @@ export default function LiveMapPage() {
                     icon={rec.operation_type === 'entrega' ? entregaIcon : devolucionIcon}
                   >
                     <Popup>
-                      <div className="text-sm min-w-[200px]">
-                        <div className="flex items-center gap-1.5 font-semibold mb-2">
+                      <div className="text-sm min-w-[220px]">
+                        <div className="flex items-center gap-1.5 font-bold mb-2" style={{ color: brand.navy }}>
                           {rec.operation_type === 'entrega' ? (
-                            <><Truck className="h-3.5 w-3.5 text-blue-600" /> Entrega</>
+                            <><Truck className="h-3.5 w-3.5 text-blue-700" /> Entrega</>
                           ) : (
-                            <><RotateCcw className="h-3.5 w-3.5 text-amber-600" /> Devolución</>
+                            <><RotateCcw className="h-3.5 w-3.5 text-amber-700" /> Devolución</>
                           )}
                         </div>
                         {rec.external_reservation_id && (
-                          <p className="text-xs font-semibold mb-1">Reserva Nº {rec.external_reservation_id}</p>
+                          <p className="text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Reserva Nº {rec.external_reservation_id}</p>
                         )}
                         {rec.assigned_user_name && (
-                          <p className="text-xs flex items-center gap-1 mb-1">
+                          <p className="text-xs flex items-center gap-1.5 mb-1 text-gray-600">
                             <User className="h-3 w-3 text-gray-400" /> {rec.assigned_user_name}
                           </p>
                         )}
-                        <p className="text-xs flex items-center gap-1 mb-1">
+                        <p className="text-xs flex items-center gap-1.5 mb-1 text-gray-600">
                           <MapPin className="h-3 w-3 text-gray-400" /> {rec.destination_address}
                         </p>
-                        <p className="text-xs flex items-center gap-1 mb-2">
+                        <p className="text-xs flex items-center gap-1.5 mb-2.5 text-gray-500">
                           <Clock className="h-3 w-3 text-gray-400" /> Salió {formatRelativeTime(new Date(rec.en_camino_at))}
                         </p>
                         <a
                           href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rec.destination_address || '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                          className="text-xs font-medium inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+                          style={{ backgroundColor: 'rgba(0,19,33,0.05)', color: brand.navy }}
                         >
                           <ExternalLink className="h-3 w-3" /> Abrir en Google Maps
                         </a>
@@ -840,34 +903,56 @@ export default function LiveMapPage() {
             )}
           </div>
 
-          {/* ── Sidebar ── */}
-          <div className="w-[340px] border-l border-border bg-card flex flex-col hidden lg:flex">
+          {/* ── Premium Sidebar ── */}
+          <div
+            className={cn(
+              "border-l flex flex-col hidden lg:flex transition-all duration-300",
+              sidebarCollapsed ? "w-0 overflow-hidden border-l-0" : "w-[360px]"
+            )}
+            style={{ backgroundColor: '#FAFAF8', borderColor: brand.borderLight }}
+          >
             {/* Sidebar header */}
-            <div className="px-4 py-3 border-b border-border">
+            <div className="px-4 py-3.5 border-b" style={{ borderColor: brand.borderLight }}>
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold font-[Montserrat] tracking-tight">Operaciones</h2>
-                <Badge variant="outline" className="text-[10px] font-medium tabular-nums">
-                  {filteredRecords.length} activas
-                </Badge>
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(0,19,33,0.06)' }}>
+                    <Navigation className="h-3.5 w-3.5" style={{ color: brand.navy }} />
+                  </div>
+                  <h2
+                    className="text-[13px] font-bold tracking-tight"
+                    style={{ fontFamily: 'Montserrat, sans-serif', color: brand.navy }}
+                  >
+                    Operaciones
+                  </h2>
+                </div>
+                <div
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+                  style={{ backgroundColor: 'rgba(0,19,33,0.04)', borderColor: brand.borderLight, color: brand.navy }}
+                >
+                  {filteredRecords.length} activa{filteredRecords.length !== 1 ? 's' : ''}
+                </div>
               </div>
             </div>
 
             {/* Operation cards */}
             <div className="flex-1 overflow-y-auto">
               {filteredRecords.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full px-6 text-center">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                    <Navigation className="h-4 w-4 text-muted-foreground" />
+                <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+                  <div className="h-14 w-14 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(0,19,33,0.04)' }}>
+                    <Navigation className="h-5 w-5 text-gray-400" />
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm font-semibold" style={{ color: brand.navy }}>
+                    {records.length > 0 ? 'Operaciones ocultas' : 'Sin operaciones'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
                     {records.length > 0
-                      ? 'Operaciones ocultas por filtro'
-                      : 'No hay operaciones en camino'
+                      ? 'Activa los filtros para ver las operaciones'
+                      : 'No hay vehículos en camino'
                     }
                   </p>
                 </div>
               ) : (
-                <div className="p-2 space-y-1.5">
+                <div className="p-3 space-y-2">
                   {filteredRecords.map((rec) => {
                     const enCaminoAt = new Date(rec.en_camino_at);
                     const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
@@ -876,44 +961,48 @@ export default function LiveMapPage() {
                     const routeData = geocoded ? routes[geocoded.id] : null;
                     const isEntrega = rec.operation_type === 'entrega';
                     const isSelected = selectedRecordId === rec.id;
+                    const liveRoute = liveRoutes[rec.id];
+                    const isLive = rec.sharing_location && rec.current_lat != null;
 
                     return (
                       <div
                         key={rec.id}
                         onClick={() => setSelectedRecordId(isSelected ? null : rec.id)}
                         className={cn(
-                          "rounded-lg border transition-all cursor-pointer group",
+                          "rounded-xl border transition-all cursor-pointer group",
                           isSelected
-                            ? "border-primary/40 bg-primary/5 shadow-sm"
-                            : "border-border hover:border-border/80 hover:bg-muted/30"
+                            ? "border-blue-200 bg-blue-50/50 shadow-md ring-1 ring-blue-100"
+                            : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
                         )}
                       >
-                        {/* Card header */}
-                        <div className="px-3 py-2.5">
-                          <div className="flex items-center justify-between mb-1.5">
+                        <div className="px-3.5 py-3">
+                          {/* Card top row */}
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <div className={cn(
-                                "h-6 w-6 rounded-md flex items-center justify-center",
-                                isEntrega ? "bg-blue-100 dark:bg-blue-950" : "bg-amber-100 dark:bg-amber-950"
+                                "h-7 w-7 rounded-lg flex items-center justify-center",
+                                isEntrega ? "bg-blue-100" : "bg-amber-100"
                               )}>
                                 {isEntrega ? (
-                                  <Truck className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                  <Truck className="h-3.5 w-3.5 text-blue-700" />
                                 ) : (
-                                  <RotateCcw className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                                  <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
                                 )}
                               </div>
-                              <span className="text-xs font-semibold">
-                                {isEntrega ? 'Entrega' : 'Devolución'}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-bold" style={{ color: brand.navy }}>
+                                  {isEntrega ? 'Entrega' : 'Devolución'}
+                                </span>
+                                {rec.external_reservation_id && (
+                                  <span className="text-[10px] text-gray-500 font-medium">
+                                    Nº {rec.external_reservation_id}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            {rec.external_reservation_id && (
-                              <span className="text-[10px] font-mono font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                Nº {rec.external_reservation_id}
-                              </span>
-                            )}
                             <div className={cn(
-                              "flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                              urgency.bg, urgency.text, urgency.border, "border"
+                              "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border",
+                              urgency.bg, urgency.text, urgency.border
                             )}>
                               <Clock className="h-2.5 w-2.5" />
                               {minutesAgo} min
@@ -922,40 +1011,38 @@ export default function LiveMapPage() {
 
                           {/* User */}
                           {rec.assigned_user_name && (
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <User className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="text-xs font-medium truncate">{rec.assigned_user_name}</span>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <User className="h-3 w-3 text-gray-400 shrink-0" />
+                              <span className="text-[11px] font-medium text-gray-700 truncate">{rec.assigned_user_name}</span>
                             </div>
                           )}
 
                           {/* Destination */}
-                          <div className="flex items-start gap-1.5">
-                            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                            <span className="text-xs text-muted-foreground leading-tight line-clamp-2">
+                          <div className="flex items-start gap-1.5 mb-2">
+                            <MapPin className="h-3 w-3 text-gray-400 shrink-0 mt-0.5" />
+                            <span className="text-[11px] text-gray-600 leading-tight line-clamp-2">
                               {rec.destination_address || 'Sin dirección'}
                             </span>
                           </div>
 
                           {/* Route info + departure time */}
-                          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-border/50">
-                            <span className="text-[10px] text-muted-foreground">
+                          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                            <span className="text-[10px] text-gray-500">
                               Salió a las {format(enCaminoAt, 'HH:mm')}
                             </span>
                             {(() => {
-                              const liveRoute = liveRoutes[rec.id];
-                              const baseRoute = geocoded ? routes[geocoded.id] : null;
                               if (liveRoute) {
                                 return (
-                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                                  <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
                                     <Navigation className="h-2.5 w-2.5" />
-                                    {liveRoute.durationMinutes}' / {liveRoute.distanceKm} km restante
+                                    {liveRoute.durationMinutes}' / {liveRoute.distanceKm} km
                                   </span>
                                 );
                               }
-                              if (baseRoute) {
+                              if (routeData) {
                                 return (
-                                  <span className="text-[10px] font-medium text-muted-foreground">
-                                    ETA {baseRoute.durationMinutes}' / {baseRoute.distanceKm} km
+                                  <span className="text-[10px] font-medium text-gray-500">
+                                    ETA {routeData.durationMinutes}' / {routeData.distanceKm} km
                                   </span>
                                 );
                               }
@@ -963,45 +1050,36 @@ export default function LiveMapPage() {
                             })()}
                           </div>
 
-                          {/* Live location badge */}
-                          {rec.sharing_location && rec.current_lat != null && (
-                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40 font-semibold">
-                                <Radio className="h-2.5 w-2.5 animate-pulse" />
-                                En vivo
-                              </span>
-                              {trails[rec.id] && trails[rec.id].length > 0 && (
-                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40 font-medium">
+                          {/* Live location + trail badges */}
+                          {(isLive || (geocoded && geocoded.geocodeSource !== 'nominatim')) && (
+                            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                              {isLive && (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-bold">
+                                  <Radio className="h-2.5 w-2.5 animate-pulse" />
+                                  GPS en vivo
+                                </span>
+                              )}
+                              {isLive && trails[rec.id] && trails[rec.id].length > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">
                                   <Navigation className="h-2.5 w-2.5" />
                                   {trails[rec.id].length} pts
                                 </span>
                               )}
-                              {rec.location_updated_at && (
-                                <span className="text-[9px] text-muted-foreground">
-                                  {formatRelativeTime(new Date(rec.location_updated_at))}
+                              {geocoded && geocoded.geocodeSource === 'alias' && (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">
+                                  Ubicación predefinida
+                                </span>
+                              )}
+                              {geocoded && geocoded.geocodeSource === 'google' && (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-violet-200 text-violet-700 bg-violet-50 font-medium">
+                                  Google Maps
                                 </span>
                               )}
                             </div>
                           )}
-
-                          {/* Geocode source badge */}
-                          {geocoded && (
-                            <div className="mt-1.5">
-                              <span className={cn(
-                                "inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border",
-                                geocoded.geocodeSource === 'alias'
-                                  ? "border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/40"
-                                  : geocoded.geocodeSource === 'google'
-                                  ? "border-violet-200 text-violet-700 bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:bg-violet-950/40"
-                                  : "border-border text-muted-foreground bg-muted/50"
-                              )}>
-                                {geocoded.geocodeSource === 'alias' ? 'Ubicación predefinida' : geocoded.geocodeSource === 'google' ? 'Google Maps' : 'OpenStreetMap'}
-                              </span>
-                            </div>
-                          )}
                           {!geocoded && rec.destination_address && (
-                            <div className="mt-1.5">
-                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full border border-amber-200 text-amber-700 bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:bg-amber-950/40">
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-orange-200 text-orange-700 bg-orange-50 font-medium">
                                 <AlertTriangle className="h-2.5 w-2.5" />
                                 No se pudo ubicar
                               </span>
@@ -1016,13 +1094,35 @@ export default function LiveMapPage() {
             </div>
 
             {/* Sidebar footer — Base info */}
-            <div className="px-4 py-2.5 border-t border-border bg-muted/30">
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="truncate">Base: Carrer del Canal de Sant Jordi, 29 — Palma</span>
+            <div className="px-4 py-3 border-t" style={{ borderColor: brand.borderLight, backgroundColor: 'rgba(0,19,33,0.02)' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="h-6 w-6 rounded-md flex items-center justify-center bg-emerald-100">
+                  <MapPin className="h-3 w-3 text-emerald-700" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold" style={{ color: brand.navy }}>Base Azul Cars</span>
+                  <span className="text-[9px] text-gray-500 truncate">Carrer del Canal de Sant Jordi, 29 — Palma</span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Sidebar toggle button (visible on lg+) */}
+          <button
+            onClick={() => setSidebarCollapsed(v => !v)}
+            className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-5 items-center justify-center rounded-l-md border border-r-0 bg-white shadow-sm transition-all hover:bg-gray-50"
+            style={{
+              borderColor: brand.borderLight,
+              right: sidebarCollapsed ? '0' : '360px',
+            }}
+            title={sidebarCollapsed ? 'Mostrar panel' : 'Ocultar panel'}
+          >
+            {sidebarCollapsed ? (
+              <Eye className="h-3 w-3 text-gray-500" />
+            ) : (
+              <EyeOff className="h-3 w-3 text-gray-500" />
+            )}
+          </button>
         </div>
       </div>
     </AppLayout>

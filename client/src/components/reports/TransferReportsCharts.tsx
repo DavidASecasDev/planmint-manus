@@ -104,3 +104,75 @@ export function TransfersTrendChart({ data, isLoading }: { data: { date: string;
   );
 }
 
+
+const BROKER_COLORS = [
+  'hsl(217, 91%, 60%)',
+  'hsl(142, 71%, 45%)',
+  'hsl(38, 92%, 50%)',
+  'hsl(271, 91%, 65%)',
+  'hsl(0, 84%, 60%)',
+  'hsl(180, 70%, 45%)',
+  'hsl(330, 80%, 55%)',
+  'hsl(60, 70%, 45%)',
+];
+
+interface BrokerComparisonData {
+  brokerName: string;
+  totalRequests: number;
+  revenue: number;
+  cost: number;
+  margin: number;
+}
+
+export function BrokerComparisonChart({ data, isLoading }: { data: BrokerComparisonData[]; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader><CardTitle className="text-base">Comparativa de brokers</CardTitle></CardHeader>
+        <CardContent><Skeleton className="h-[280px] w-full" /></CardContent>
+      </Card>
+    );
+  }
+
+  const chartData = data
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 8)
+    .map((d, i) => ({
+      name: d.brokerName.length > 12 ? d.brokerName.slice(0, 12) + '…' : d.brokerName,
+      fullName: d.brokerName,
+      Ingresos: d.revenue,
+      Costes: d.cost,
+      Margen: d.margin,
+      Solicitudes: d.totalRequests,
+      fill: BROKER_COLORS[i % BROKER_COLORS.length],
+    }));
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Comparativa de brokers — Ingresos vs Costes</CardTitle></CardHeader>
+      <CardContent>
+        {chartData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Sin datos de brokers</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+              <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelStyle={tooltipLabelStyle}
+                formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <Bar dataKey="Ingresos" fill="hsl(217, 91%, 60%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Costes" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Margen" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
