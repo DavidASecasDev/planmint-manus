@@ -30,14 +30,16 @@ export default function Reservations() {
   return (
     <AppLayout title="Programación" fullWidth>
       <div className="flex flex-col h-full">
-        <div className="shrink-0">
-          <PageHeader
-            title="Programación"
-            description="Gestiona las operaciones del día: entregas, devoluciones y transfers"
-          />
-        </div>
+        {activeTab !== 'map' && (
+          <div className="shrink-0">
+            <PageHeader
+              title="Programación"
+              description="Gestiona las operaciones del día: entregas, devoluciones y transfers"
+            />
+          </div>
+        )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 mt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className={`flex flex-col flex-1 min-h-0 ${activeTab === 'map' ? 'mt-0' : 'mt-6'}`}>
           <TabsList className="shrink-0">
             <TabsTrigger value="table" className="flex items-center gap-2">
               <Table className="h-4 w-4" />
@@ -57,7 +59,7 @@ export default function Reservations() {
             <ReservationsTable />
           </TabsContent>
 
-          <TabsContent value="map" className="mt-6 flex-1 min-h-0 overflow-auto">
+          <TabsContent value="map" className="mt-0 flex-1 min-h-0">
             <MapTabContent />
           </TabsContent>
 
@@ -163,51 +165,56 @@ function MapTabContent() {
   const goToToday = () => setSelectedDate(new Date());
 
   return (
-    <div className="space-y-4">
-      {/* Date selector */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" onClick={goToPrevDay} className="h-8 w-8">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "min-w-[200px] justify-start text-left font-medium",
-                  !selectedDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
+    <div className="flex flex-col -m-4 md:-m-6 lg:-m-8 -mb-8 md:-mb-12 lg:-mb-16" style={{ height: 'calc(100% + 2rem + 2rem)' }}>
+      {/* Full-page map with overlaid controls */}
+      <OperationsMapView
+        operations={mapOperations}
+        isLoading={isLoading}
+        organizationId={profile?.organization_id || undefined}
+        fullPage
+        dateControls={
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" onClick={goToPrevDay} className="h-8 w-8 bg-white/90 backdrop-blur-sm">
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => d && setSelectedDate(d)}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
 
-          <Button variant="outline" size="icon" onClick={goToNextDay} className="h-8 w-8">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "min-w-[200px] justify-start text-left font-medium bg-white/90 backdrop-blur-sm",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => d && setSelectedDate(d)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-        {selectedDateStr !== todayStr && (
-          <Button variant="ghost" size="sm" onClick={goToToday} className="text-xs">
-            Ir a hoy
-          </Button>
-        )}
-      </div>
+              <Button variant="outline" size="icon" onClick={goToNextDay} className="h-8 w-8 bg-white/90 backdrop-blur-sm">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-      {/* Map */}
-      <OperationsMapView operations={mapOperations} isLoading={isLoading} organizationId={profile?.organization_id || undefined} />
+            {selectedDateStr !== todayStr && (
+              <Button variant="ghost" size="sm" onClick={goToToday} className="text-xs bg-white/90 backdrop-blur-sm">
+                Ir a hoy
+              </Button>
+            )}
+          </div>
+        }
+      />
     </div>
   );
 }

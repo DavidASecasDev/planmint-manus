@@ -38,6 +38,8 @@ interface OperationsMapViewProps {
   operations: MapOperation[];
   isLoading?: boolean;
   organizationId?: string;
+  fullPage?: boolean;
+  dateControls?: React.ReactNode;
 }
 
 interface GeocodedOperation extends MapOperation {
@@ -301,7 +303,7 @@ function formatTime(isoStr: string | null): string {
 }
 
 // ── Main Component ──
-export function OperationsMapView({ operations, isLoading, organizationId }: OperationsMapViewProps) {
+export function OperationsMapView({ operations, isLoading, organizationId, fullPage, dateControls }: OperationsMapViewProps) {
   const [geocodedOps, setGeocodedOps] = useState<GeocodedOperation[]>([]);
   const [geocodingProgress, setGeocodingProgress] = useState({ done: 0, total: 0 });
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -486,9 +488,12 @@ export function OperationsMapView({ operations, isLoading, organizationId }: Ope
     return { entregas, devoluciones, transfers, total: operations.length };
   }, [operations]);
 
+  const mapHeight = fullPage ? 'h-full' : 'h-[600px]';
+  const containerClass = fullPage ? 'flex flex-col h-full' : 'flex flex-col gap-4';
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-muted/30 rounded-xl border">
+      <div className={`flex items-center justify-center ${mapHeight} bg-muted/30 ${fullPage ? '' : 'rounded-xl border'}`}>
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Cargando operaciones...</p>
@@ -499,7 +504,12 @@ export function OperationsMapView({ operations, isLoading, organizationId }: Ope
 
   if (operations.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-muted/30 rounded-xl border">
+      <div className={`flex items-center justify-center ${mapHeight} bg-muted/30 ${fullPage ? '' : 'rounded-xl border'}`}>
+        {dateControls && (
+          <div className="absolute top-4 left-4 z-[1000]">
+            {dateControls}
+          </div>
+        )}
         <div className="flex flex-col items-center gap-3">
           <MapPin className="h-12 w-12 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No hay operaciones para mostrar en el mapa</p>
@@ -509,193 +519,395 @@ export function OperationsMapView({ operations, isLoading, organizationId }: Ope
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Stats bar */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-sm">
-          <div className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span className="font-medium text-emerald-800">{stats.entregas} Entregas</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-sm">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span className="font-medium text-blue-800">{stats.devoluciones} Devoluciones</span>
-        </div>
-        {stats.transfers > 0 && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
-            <div className="w-3 h-3 rounded-full bg-amber-500" />
-            <span className="font-medium text-amber-800">{stats.transfers} Transfers</span>
-          </div>
-        )}
-        <div className="ml-auto text-sm text-muted-foreground">
-          {geocodedOps.length}/{operations.length} ubicaciones resueltas
-        </div>
-      </div>
-
-      {/* Geocoding progress */}
-      {isGeocoding && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-lg border">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            Geolocalizando direcciones... {geocodingProgress.done}/{geocodingProgress.total}
-          </span>
-          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-300"
-              style={{ width: `${geocodingProgress.total > 0 ? (geocodingProgress.done / geocodingProgress.total) * 100 : 0}%` }}
+    <div className={containerClass}>
+      {fullPage ? (
+        /* ── Full-page mode: map fills everything, controls overlaid ── */
+        <div className="relative flex-1 min-h-0">
+          <MapContainer
+            center={MALLORCA_CENTER}
+            zoom={MALLORCA_ZOOM}
+            className="h-full w-full absolute inset-0"
+            zoomControl={false}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             />
-          </div>
-        </div>
-      )}
 
-      {/* Unresolved addresses indicator */}
-      {!isGeocoding && unresolvedOps.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <span className="text-sm font-medium text-amber-800">
-                {unresolvedOps.length} direcci{unresolvedOps.length === 1 ? 'ón' : 'ones'} no resuelta{unresolvedOps.length === 1 ? '' : 's'}
-              </span>
-            </div>
-            <button
-              onClick={() => setShowUnresolved(!showUnresolved)}
-              className="text-xs text-amber-700 hover:text-amber-900 font-medium underline"
-            >
-              {showUnresolved ? 'Ocultar' : 'Ver detalles'}
-            </button>
-          </div>
+            {geocodedOps.length > 0 && (
+              <FitBounds points={geocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
+            )}
 
-          {showUnresolved && (
-            <div className="mt-3 space-y-2 max-h-[200px] overflow-y-auto">
-              {unresolvedOps.map((op) => (
-                <div key={op.id} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-white rounded border border-amber-100">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        'inline-block w-2 h-2 rounded-full shrink-0',
-                        op.tipoOperacion === 'Entrega' ? 'bg-emerald-500' :
-                        op.tipoOperacion === 'Devolución' ? 'bg-blue-500' : 'bg-amber-500'
-                      )} />
-                      <span className="text-xs font-medium text-gray-800 truncate">
-                        {op.clienteNombre} {op.clienteApellido}
-                      </span>
-                      <span className="text-xs text-gray-400 font-mono">N\u00ba {op.externalReservationId}</span>
+            {clusters.map((cluster, idx) => {
+              const isSingle = cluster.operations.length === 1;
+              const op = cluster.operations[0];
+              const icon = isSingle
+                ? getIconForType(op.tipoOperacion)
+                : createMarkerIcon(
+                    cluster.operations.some(o => o.tipoOperacion === 'Entrega') ? '#10b981' : '#3b82f6',
+                    cluster.operations.length
+                  );
+
+              return (
+                <Marker
+                  key={`cluster-${idx}`}
+                  position={[cluster.lat, cluster.lng]}
+                  icon={icon}
+                >
+                  <Popup maxWidth={320} minWidth={240}>
+                    <div className="p-1">
+                      {isSingle ? (
+                        <SingleOperationPopup op={op} />
+                      ) : (
+                        <ClusterPopup cluster={cluster} />
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500 truncate mt-0.5 ml-4">
-                      {op.direccion || op.lugar || 'Sin dirección'}
-                    </p>
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MapContainer>
+
+          {/* Zoom controls - top right */}
+          <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-1">
+            <button className="w-8 h-8 bg-white rounded shadow border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 text-lg font-bold" onClick={() => document.querySelector('.leaflet-container')?.dispatchEvent(new Event('zoomin'))}>+</button>
+            <button className="w-8 h-8 bg-white rounded shadow border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 text-lg font-bold" onClick={() => document.querySelector('.leaflet-container')?.dispatchEvent(new Event('zoomout'))}>−</button>
+          </div>
+
+          {/* Date controls - top left */}
+          {dateControls && (
+            <div className="absolute top-4 left-4 z-[1000]">
+              {dateControls}
+            </div>
+          )}
+
+          {/* Stats bar - top center */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="font-medium text-emerald-800">{stats.entregas}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="font-medium text-blue-800">{stats.devoluciones}</span>
+            </div>
+            {stats.transfers > 0 && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <span className="font-medium text-amber-800">{stats.transfers}</span>
+              </div>
+            )}
+            <div className="px-2.5 py-1 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-xs shadow-sm text-muted-foreground">
+              {geocodedOps.length}/{operations.length}
+            </div>
+          </div>
+
+          {/* Geocoding progress - bottom */}
+          {isGeocoding && (
+            <div className="absolute bottom-4 left-4 right-4 z-[1000]">
+              <div className="flex items-center gap-3 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-lg border shadow-sm">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  Geolocalizando... {geocodingProgress.done}/{geocodingProgress.total}
+                </span>
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${geocodingProgress.total > 0 ? (geocodingProgress.done / geocodingProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Unresolved addresses - bottom left */}
+          {!isGeocoding && unresolvedOps.length > 0 && (
+            <div className="absolute bottom-4 left-4 z-[1000] max-w-sm">
+              <div className="bg-white/95 backdrop-blur-sm border border-amber-200 rounded-lg px-3 py-2 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                    <span className="text-xs font-medium text-amber-800">
+                      {unresolvedOps.length} sin resolver
+                    </span>
                   </div>
                   <button
-                    onClick={() => {
-                      setManualEditOp(op);
-                      setManualLat('');
-                      setManualLng('');
-                    }}
-                    className="shrink-0 text-xs px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-medium transition-colors"
+                    onClick={() => setShowUnresolved(!showUnresolved)}
+                    className="text-xs text-amber-700 hover:text-amber-900 font-medium underline"
                   >
-                    Corregir
+                    {showUnresolved ? 'Ocultar' : 'Ver'}
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Manual coordinate correction dialog */}
-      {manualEditOp && (
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold text-gray-900">Corregir ubicación manualmente</h4>
-            <button onClick={() => setManualEditOp(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
-          </div>
-          <p className="text-xs text-gray-600 mb-3">
-            <strong>{manualEditOp.clienteNombre} {manualEditOp.clienteApellido}</strong> — {manualEditOp.direccion || manualEditOp.lugar || 'Sin dirección'}
-          </p>
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <label className="text-xs text-gray-500 block mb-1">Latitud</label>
-              <input
-                type="number"
-                step="any"
-                value={manualLat}
-                onChange={e => setManualLat(e.target.value)}
-                placeholder="39.5696"
-                className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs text-gray-500 block mb-1">Longitud</label>
-              <input
-                type="number"
-                step="any"
-                value={manualLng}
-                onChange={e => setManualLng(e.target.value)}
-                placeholder="2.6502"
-                className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <button
-              onClick={handleManualSave}
-              disabled={savingManual || !manualLat || !manualLng}
-              className="shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {savingManual ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Puedes obtener las coordenadas desde Google Maps (clic derecho → Coordenadas)
-          </p>
-        </div>
-      )}
-
-      {/* Map */}
-      <div className="relative h-[600px] rounded-xl overflow-hidden border shadow-sm">
-        <MapContainer
-          center={MALLORCA_CENTER}
-          zoom={MALLORCA_ZOOM}
-          className="h-full w-full"
-          zoomControl={true}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          />
-
-          {geocodedOps.length > 0 && (
-            <FitBounds points={geocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
-          )}
-
-          {clusters.map((cluster, idx) => {
-            const isSingle = cluster.operations.length === 1;
-            const op = cluster.operations[0];
-            const icon = isSingle
-              ? getIconForType(op.tipoOperacion)
-              : createMarkerIcon(
-                  cluster.operations.some(o => o.tipoOperacion === 'Entrega') ? '#10b981' : '#3b82f6',
-                  cluster.operations.length
-                );
-
-            return (
-              <Marker
-                key={`cluster-${idx}`}
-                position={[cluster.lat, cluster.lng]}
-                icon={icon}
-              >
-                <Popup maxWidth={320} minWidth={240}>
-                  <div className="p-1">
-                    {isSingle ? (
-                      <SingleOperationPopup op={op} />
-                    ) : (
-                      <ClusterPopup cluster={cluster} />
-                    )}
+                {showUnresolved && (
+                  <div className="mt-2 space-y-1.5 max-h-[180px] overflow-y-auto">
+                    {unresolvedOps.map((op) => (
+                      <div key={op.id} className="flex items-center justify-between gap-2 py-1 px-1.5 bg-amber-50 rounded border border-amber-100">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium text-gray-800 truncate block">
+                            {op.clienteNombre} {op.clienteApellido}
+                          </span>
+                          <p className="text-xs text-gray-500 truncate">
+                            {op.direccion || op.lugar || 'Sin dirección'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setManualEditOp(op);
+                            setManualLat('');
+                            setManualLng('');
+                          }}
+                          className="shrink-0 text-xs px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-medium"
+                        >
+                          Corregir
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-      </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Manual correction panel - bottom right */}
+          {manualEditOp && (
+            <div className="absolute bottom-4 right-4 z-[1000] w-80">
+              <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-900">Corregir ubicación</h4>
+                  <button onClick={() => setManualEditOp(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+                </div>
+                <p className="text-xs text-gray-600 mb-3 truncate">
+                  <strong>{manualEditOp.clienteNombre} {manualEditOp.clienteApellido}</strong> — {manualEditOp.direccion || manualEditOp.lugar || 'Sin dirección'}
+                </p>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 block mb-1">Lat</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={manualLat}
+                      onChange={e => setManualLat(e.target.value)}
+                      placeholder="39.5696"
+                      className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 block mb-1">Lng</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={manualLng}
+                      onChange={e => setManualLng(e.target.value)}
+                      placeholder="2.6502"
+                      className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <button
+                    onClick={handleManualSave}
+                    disabled={savingManual || !manualLat || !manualLng}
+                    className="shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded font-medium hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {savingManual ? '...' : 'OK'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Google Maps → clic derecho → Coordenadas
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Normal mode: existing layout with fixed height map ── */
+        <>
+          {/* Stats bar */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-sm">
+              <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="font-medium text-emerald-800">{stats.entregas} Entregas</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-sm">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="font-medium text-blue-800">{stats.devoluciones} Devoluciones</span>
+            </div>
+            {stats.transfers > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
+                <div className="w-3 h-3 rounded-full bg-amber-500" />
+                <span className="font-medium text-amber-800">{stats.transfers} Transfers</span>
+              </div>
+            )}
+            <div className="ml-auto text-sm text-muted-foreground">
+              {geocodedOps.length}/{operations.length} ubicaciones resueltas
+            </div>
+          </div>
+
+          {/* Geocoding progress */}
+          {isGeocoding && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-lg border">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Geolocalizando direcciones... {geocodingProgress.done}/{geocodingProgress.total}
+              </span>
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  style={{ width: `${geocodingProgress.total > 0 ? (geocodingProgress.done / geocodingProgress.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Unresolved addresses indicator */}
+          {!isGeocoding && unresolvedOps.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800">
+                    {unresolvedOps.length} direcci{unresolvedOps.length === 1 ? 'ón' : 'ones'} no resuelta{unresolvedOps.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowUnresolved(!showUnresolved)}
+                  className="text-xs text-amber-700 hover:text-amber-900 font-medium underline"
+                >
+                  {showUnresolved ? 'Ocultar' : 'Ver detalles'}
+                </button>
+              </div>
+
+              {showUnresolved && (
+                <div className="mt-3 space-y-2 max-h-[200px] overflow-y-auto">
+                  {unresolvedOps.map((op) => (
+                    <div key={op.id} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-white rounded border border-amber-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            'inline-block w-2 h-2 rounded-full shrink-0',
+                            op.tipoOperacion === 'Entrega' ? 'bg-emerald-500' :
+                            op.tipoOperacion === 'Devolución' ? 'bg-blue-500' : 'bg-amber-500'
+                          )} />
+                          <span className="text-xs font-medium text-gray-800 truncate">
+                            {op.clienteNombre} {op.clienteApellido}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate mt-0.5 ml-4">
+                          {op.direccion || op.lugar || 'Sin dirección'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setManualEditOp(op);
+                          setManualLat('');
+                          setManualLng('');
+                        }}
+                        className="shrink-0 text-xs px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-medium transition-colors"
+                      >
+                        Corregir
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Manual coordinate correction dialog */}
+          {manualEditOp && (
+            <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-gray-900">Corregir ubicación manualmente</h4>
+                <button onClick={() => setManualEditOp(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+              </div>
+              <p className="text-xs text-gray-600 mb-3">
+                <strong>{manualEditOp.clienteNombre} {manualEditOp.clienteApellido}</strong> — {manualEditOp.direccion || manualEditOp.lugar || 'Sin dirección'}
+              </p>
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">Latitud</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={manualLat}
+                    onChange={e => setManualLat(e.target.value)}
+                    placeholder="39.5696"
+                    className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">Longitud</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={manualLng}
+                    onChange={e => setManualLng(e.target.value)}
+                    placeholder="2.6502"
+                    className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <button
+                  onClick={handleManualSave}
+                  disabled={savingManual || !manualLat || !manualLng}
+                  className="shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {savingManual ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Puedes obtener las coordenadas desde Google Maps (clic derecho → Coordenadas)
+              </p>
+            </div>
+          )}
+
+          {/* Map */}
+          <div className="relative h-[600px] rounded-xl overflow-hidden border shadow-sm">
+            <MapContainer
+              center={MALLORCA_CENTER}
+              zoom={MALLORCA_ZOOM}
+              className="h-full w-full"
+              zoomControl={true}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              />
+
+              {geocodedOps.length > 0 && (
+                <FitBounds points={geocodedOps.map(o => ({ lat: o.lat, lng: o.lng }))} />
+              )}
+
+              {clusters.map((cluster, idx) => {
+                const isSingle = cluster.operations.length === 1;
+                const op = cluster.operations[0];
+                const icon = isSingle
+                  ? getIconForType(op.tipoOperacion)
+                  : createMarkerIcon(
+                      cluster.operations.some(o => o.tipoOperacion === 'Entrega') ? '#10b981' : '#3b82f6',
+                      cluster.operations.length
+                    );
+
+                return (
+                  <Marker
+                    key={`cluster-${idx}`}
+                    position={[cluster.lat, cluster.lng]}
+                    icon={icon}
+                  >
+                    <Popup maxWidth={320} minWidth={240}>
+                      <div className="p-1">
+                        {isSingle ? (
+                          <SingleOperationPopup op={op} />
+                        ) : (
+                          <ClusterPopup cluster={cluster} />
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+          </div>
+        </>
+      )}
     </div>
   );
 }
