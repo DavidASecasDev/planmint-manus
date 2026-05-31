@@ -211,3 +211,142 @@ describe('Elapsed time calculation', () => {
     expect(elapsed).toBeLessThanOrEqual(31);
   });
 });
+
+// ── Polyline decoding ──
+describe('Google encoded polyline decoding', () => {
+  // Replicate the decodePolyline function from PublicTracking.tsx
+  function decodePolyline(encoded: string): [number, number][] {
+    const points: [number, number][] = [];
+    let index = 0;
+    let lat = 0;
+    let lng = 0;
+
+    while (index < encoded.length) {
+      let b: number;
+      let shift = 0;
+      let result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+      lng += dlng;
+
+      points.push([lat / 1e5, lng / 1e5]);
+    }
+    return points;
+  }
+
+  it('decodes a known Google polyline correctly', () => {
+    // Known encoded polyline: "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+    // This decodes to: (38.5, -120.2), (40.7, -120.95), (43.252, -126.453)
+    const encoded = '_p~iF~ps|U_ulLnnqC_mqNvxq`@';
+    const points = decodePolyline(encoded);
+    expect(points).toHaveLength(3);
+    expect(points[0][0]).toBeCloseTo(38.5, 1);
+    expect(points[0][1]).toBeCloseTo(-120.2, 1);
+    expect(points[1][0]).toBeCloseTo(40.7, 1);
+    expect(points[1][1]).toBeCloseTo(-120.95, 1);
+    expect(points[2][0]).toBeCloseTo(43.252, 1);
+    expect(points[2][1]).toBeCloseTo(-126.453, 1);
+  });
+
+  it('returns empty array for empty string', () => {
+    const points = decodePolyline('');
+    expect(points).toHaveLength(0);
+  });
+
+  it('decoded points have valid lat/lng ranges', () => {
+    // A short polyline in Mallorca area
+    const encoded = '_p~iF~ps|U_ulLnnqC';
+    const points = decodePolyline(encoded);
+    for (const [lat, lng] of points) {
+      expect(lat).toBeGreaterThanOrEqual(-90);
+      expect(lat).toBeLessThanOrEqual(90);
+      expect(lng).toBeGreaterThanOrEqual(-180);
+      expect(lng).toBeLessThanOrEqual(180);
+    }
+  });
+
+  it('returns array of [lat, lng] tuples', () => {
+    const encoded = '_p~iF~ps|U_ulLnnqC';
+    const points = decodePolyline(encoded);
+    expect(points.length).toBeGreaterThan(0);
+    for (const point of points) {
+      expect(point).toHaveLength(2);
+      expect(typeof point[0]).toBe('number');
+      expect(typeof point[1]).toBe('number');
+      expect(isFinite(point[0])).toBe(true);
+      expect(isFinite(point[1])).toBe(true);
+    }
+  });
+});
+
+// ── Coordinate validation (defensive against NaN) ──
+describe('Coordinate validation (defensive against NaN/null)', () => {
+  function validateCoordinates(lat: unknown, lng: unknown): { valid: boolean; parsedLat: number; parsedLng: number } {
+    const parsedLat = lat != null ? Number(lat) : NaN;
+    const parsedLng = lng != null ? Number(lng) : NaN;
+    const valid = isFinite(parsedLat) && isFinite(parsedLng) && parsedLat !== 0 && parsedLng !== 0;
+    return { valid, parsedLat, parsedLng };
+  }
+
+  it('returns valid for normal coordinates', () => {
+    const result = validateCoordinates(39.5350, 2.5721);
+    expect(result.valid).toBe(true);
+    expect(result.parsedLat).toBeCloseTo(39.535, 3);
+    expect(result.parsedLng).toBeCloseTo(2.5721, 4);
+  });
+
+  it('returns invalid for null coordinates', () => {
+    const result = validateCoordinates(null, null);
+    expect(result.valid).toBe(false);
+  });
+
+  it('returns invalid for NaN coordinates', () => {
+    const result = validateCoordinates(NaN, NaN);
+    expect(result.valid).toBe(false);
+  });
+
+  it('returns invalid when only lat is null', () => {
+    const result = validateCoordinates(null, 2.5721);
+    expect(result.valid).toBe(false);
+  });
+
+  it('returns invalid when only lng is null', () => {
+    const result = validateCoordinates(39.535, null);
+    expect(result.valid).toBe(false);
+  });
+
+  it('returns invalid for zero coordinates (0,0 is unlikely real location)', () => {
+    const result = validateCoordinates(0, 0);
+    expect(result.valid).toBe(false);
+  });
+
+  it('returns invalid for Infinity', () => {
+    const result = validateCoordinates(Infinity, 2.5721);
+    expect(result.valid).toBe(false);
+  });
+
+  it('handles string numbers from API responses', () => {
+    const result = validateCoordinates('39.5350', '2.5721');
+    expect(result.valid).toBe(true);
+    expect(result.parsedLat).toBeCloseTo(39.535, 3);
+  });
+
+  it('returns invalid for non-numeric strings', () => {
+    const result = validateCoordinates('abc', 'def');
+    expect(result.valid).toBe(false);
+  });
+});

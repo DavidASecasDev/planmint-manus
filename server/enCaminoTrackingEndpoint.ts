@@ -1094,6 +1094,7 @@ export async function handlePublicTrackEta(req: Request, res: Response) {
           duration: { text: string; value: number };
           duration_in_traffic?: { text: string; value: number };
         }>;
+        overview_polyline?: { points: string };
       }>;
       status: string;
     };
@@ -1116,6 +1117,9 @@ export async function handlePublicTrackEta(req: Request, res: Response) {
     const durationText = leg.duration_in_traffic?.text ?? leg.duration.text;
     const distanceMeters = leg.distance.value;
     const distanceText = leg.distance.text;
+    // Get the encoded polyline for the route
+    const overviewPolyline = directions.routes[0].overview_polyline?.points || null;
+
     return res.json({
       ok: true,
       status: "ok",
@@ -1123,6 +1127,7 @@ export async function handlePublicTrackEta(req: Request, res: Response) {
       distance_km: Math.round(distanceMeters / 100) / 10, // 1 decimal
       distance_text: distanceText,
       duration_text: durationText,
+      polyline: overviewPolyline,
     });
   } catch (err) {
     console.error("[public-track/eta] Error:", err);

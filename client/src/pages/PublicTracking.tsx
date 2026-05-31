@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Car, MapPin, Clock, CheckCircle2, Navigation, Loader2, Route } from 'lucide-react';
@@ -50,6 +50,41 @@ interface EtaData {
   distance_km: number | null;
   distance_text: string | null;
   duration_text: string | null;
+  polyline: string | null;
+}
+
+// ── Decode Google encoded polyline ──
+function decodePolyline(encoded: string): [number, number][] {
+  const points: [number, number][] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let b: number;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+  return points;
 }
 
 // ── Custom car marker ──
@@ -481,6 +516,21 @@ export default function PublicTracking() {
           {/* Destination marker */}
           {destCoords && (
             <Marker position={[destCoords.lat, destCoords.lng]} icon={destIcon} />
+          )}
+
+          {/* Route polyline */}
+          {eta?.polyline && (
+            <Polyline
+              positions={decodePolyline(eta.polyline)}
+              pathOptions={{
+                color: brand.gold,
+                weight: 4,
+                opacity: 0.8,
+                dashArray: undefined,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
           )}
 
           <MapAutoFit
