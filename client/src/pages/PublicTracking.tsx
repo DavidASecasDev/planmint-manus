@@ -110,8 +110,13 @@ function MapAutoFit({ carLat, carLng, destLat, destLng }: {
   useEffect(() => {
     if (fittedRef.current) return;
     const points: [number, number][] = [];
-    if (carLat != null && carLng != null) points.push([carLat, carLng]);
-    if (destLat != null && destLng != null) points.push([destLat, destLng]);
+    // Defensive: only use coordinates that are finite valid numbers
+    if (carLat != null && carLng != null && isFinite(carLat) && isFinite(carLng)) {
+      points.push([carLat, carLng]);
+    }
+    if (destLat != null && destLng != null && isFinite(destLat) && isFinite(destLng)) {
+      points.push([destLat, destLng]);
+    }
     if (points.length >= 2) {
       map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: 14 });
       fittedRef.current = true;
@@ -256,7 +261,10 @@ export default function PublicTracking() {
 
   const isEntrega = data.operation_type === 'entrega';
   const isArrived = data.status === 'arrived';
-  const hasLocation = data.current_lat != null && data.current_lng != null;
+  // Defensive: ensure coordinates are valid numbers (not null, NaN, or Infinity)
+  const parsedLat = data.current_lat != null ? Number(data.current_lat) : NaN;
+  const parsedLng = data.current_lng != null ? Number(data.current_lng) : NaN;
+  const hasLocation = isFinite(parsedLat) && isFinite(parsedLng) && parsedLat !== 0 && parsedLng !== 0;
 
   // Elapsed time
   const elapsedMin = Math.floor((Date.now() - new Date(data.en_camino_at).getTime()) / 60000);
@@ -357,7 +365,7 @@ export default function PublicTracking() {
 
   // ── En camino state (main view with map) ──
   const mapCenter: [number, number] = hasLocation
-    ? [data.current_lat!, data.current_lng!]
+    ? [parsedLat, parsedLng]
     : destCoords
       ? [destCoords.lat, destCoords.lng]
       : [39.5696, 2.6502]; // Default: Mallorca
@@ -467,7 +475,7 @@ export default function PublicTracking() {
 
           {/* Driver car marker */}
           {hasLocation && (
-            <Marker position={[data.current_lat!, data.current_lng!]} icon={carIcon} />
+            <Marker position={[parsedLat, parsedLng]} icon={carIcon} />
           )}
 
           {/* Destination marker */}
@@ -476,8 +484,8 @@ export default function PublicTracking() {
           )}
 
           <MapAutoFit
-            carLat={data.current_lat}
-            carLng={data.current_lng}
+            carLat={hasLocation ? parsedLat : null}
+            carLng={hasLocation ? parsedLng : null}
             destLat={destCoords?.lat ?? null}
             destLng={destCoords?.lng ?? null}
           />

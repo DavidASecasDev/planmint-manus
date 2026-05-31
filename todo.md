@@ -993,3 +993,4 @@
 - [x] Historial tracking: Crear endpoint para listar trayectos completados con filtros por fecha/conductor — ya existía /history
 - [x] Historial tracking: Crear página de historial con tabla de trayectos y métricas comparativas (real vs estimado) — ya existía ReportsTravel
 - [x] Historial tracking: Dashboard con gráficos de rendimiento (media de desviación, tendencia, ranking conductores) — ya existía TravelStatsDashboard
+- [x] Fix: Página pública de tracking crashea con "Invalid LatLng object (NaN)" cuando current_lat/current_lng son null — añadida validación defensiva con isFinite()
