@@ -985,3 +985,11 @@
 - [x] Tracking público: Botón "Compartir ubicación" en el flujo En Camino para copiar enlace al portapapeles
 - [x] Tracking público: Auto-polling de ubicación cada 5s en la página pública
 - [x] Tracking público: Estado completado/expirado cuando el conductor llega o cancela
+- [x] ETA dinámico: Crear endpoint backend que consulte Google Maps Directions API con origen (conductor) y destino
+- [x] ETA dinámico: Integrar ETA en la página pública /track/:token con actualización periódica
+- [x] ETA dinámico: Mostrar tiempo estimado de llegada y distancia restante en la UI del cliente
+- [x] ETA dinámico: Actualizar ETA cada 30s mientras el conductor comparte ubicación
+- [x] Historial tracking: Añadir columnas de métricas a en_camino_tracking (real_duration_minutes, distance_km) — ya existían
+- [x] Historial tracking: Crear endpoint para listar trayectos completados con filtros por fecha/conductor — ya existía /history
+- [x] Historial tracking: Crear página de historial con tabla de trayectos y métricas comparativas (real vs estimado) — ya existía ReportsTravel
+- [x] Historial tracking: Dashboard con gráficos de rendimiento (media de desviación, tendencia, ranking conductores) — ya existía TravelStatsDashboard

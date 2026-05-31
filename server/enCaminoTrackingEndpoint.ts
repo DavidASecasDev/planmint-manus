@@ -1056,3 +1056,76 @@ export async function handleGetShareToken(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }
+
+/**
+ * GET /api/track/:token/eta
+ * Public endpoint (no auth required) — returns dynamic ETA from driver's current position to destination.
+ * Uses Google Maps Directions API for accurate, traffic-aware estimates.
+ */
+export async function handlePublicTrackEta(req: Request, res: Response) {
+  try {
+    const { token } = req.params;
+    if (!token || token.length < 8) {
+      return res.status(400).json({ ok: false, error: "Invalid tracking token" });
+    }
+    const sb = getServiceClient();
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("current_lat, current_lng, destination_address, llego_at, sharing_location")
+      .eq("share_token", token)
+      .maybeSingle();
+    if (error || !data) {
+      return res.status(404).json({ ok: false, error: "Tracking not found" });
+    }
+    // If already arrived, no ETA needed
+    if (data.llego_at) {
+      return res.json({ ok: true, status: "arrived", eta_minutes: 0, distance_km: 0, distance_text: "", duration_text: "" });
+    }
+    // Need both driver location and destination to calculate ETA
+    if (data.current_lat == null || data.current_lng == null || !data.destination_address) {
+      return res.json({ ok: true, status: "no_data", eta_minutes: null, distance_km: null, distance_text: null, duration_text: null });
+    }
+    // Call Google Maps Directions API via the Manus proxy
+    const { makeRequest } = await import("./_core/map");
+    type DirectionsResult = {
+      routes: Array<{
+        legs: Array<{
+          distance: { text: string; value: number };
+          duration: { text: string; value: number };
+          duration_in_traffic?: { text: string; value: number };
+        }>;
+      }>;
+      status: string;
+    };
+    const directions = await makeRequest<DirectionsResult>(
+      "/maps/api/directions/json",
+      {
+        origin: `${data.current_lat},${data.current_lng}`,
+        destination: data.destination_address,
+        mode: "driving",
+        language: "es",
+        departure_time: "now",
+      }
+    );
+    if (directions.status !== "OK" || !directions.routes?.length) {
+      return res.json({ ok: true, status: "no_route", eta_minutes: null, distance_km: null, distance_text: null, duration_text: null });
+    }
+    const leg = directions.routes[0].legs[0];
+    // Prefer traffic-aware duration if available
+    const durationSeconds = leg.duration_in_traffic?.value ?? leg.duration.value;
+    const durationText = leg.duration_in_traffic?.text ?? leg.duration.text;
+    const distanceMeters = leg.distance.value;
+    const distanceText = leg.distance.text;
+    return res.json({
+      ok: true,
+      status: "ok",
+      eta_minutes: Math.ceil(durationSeconds / 60),
+      distance_km: Math.round(distanceMeters / 100) / 10, // 1 decimal
+      distance_text: distanceText,
+      duration_text: durationText,
+    });
+  } catch (err) {
+    console.error("[public-track/eta] Error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+}

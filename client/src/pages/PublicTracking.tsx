@@ -4,6 +4,7 @@
  *
  * Features:
  * - Real-time map with driver's GPS position (polls every 5s)
+ * - Dynamic ETA via Google Maps Directions API (polls every 30s)
  * - Contextual messages based on operation type (entrega/devolucion)
  * - Arrival state with different messages per operation type
  * - Azul Cars branded design
@@ -13,7 +14,7 @@ import { useParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Car, MapPin, Clock, CheckCircle2, Navigation, Loader2 } from 'lucide-react';
+import { Car, MapPin, Clock, CheckCircle2, Navigation, Loader2, Route } from 'lucide-react';
 
 // ── Brand constants ──
 const brand = {
@@ -40,6 +41,15 @@ interface TrackingData {
   sharing_location: boolean;
   client_name: string;
   vehicle_info: string;
+}
+
+interface EtaData {
+  ok: boolean;
+  status: 'ok' | 'arrived' | 'no_data' | 'no_route';
+  eta_minutes: number | null;
+  distance_km: number | null;
+  distance_text: string | null;
+  duration_text: string | null;
 }
 
 // ── Custom car marker ──
@@ -143,10 +153,17 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   return null;
 }
 
+// ── ETA arrival time formatter ──
+function formatEtaArrival(etaMinutes: number): string {
+  const arrival = new Date(Date.now() + etaMinutes * 60000);
+  return arrival.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
 // ── Main component ──
 export default function PublicTracking() {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<TrackingData | null>(null);
+  const [eta, setEta] = useState<EtaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -177,12 +194,30 @@ export default function PublicTracking() {
     }
   }, [token]);
 
-  // Initial fetch + polling every 5s
+  const fetchEta = useCallback(async () => {
+    if (!token) return;
+    try {
+      const resp = await fetch(`/api/track/${token}/eta`);
+      const json = await resp.json();
+      if (resp.ok && json.ok) {
+        setEta(json);
+      }
+    } catch { /* ignore ETA errors — non-critical */ }
+  }, [token]);
+
+  // Initial fetch + polling every 5s for location
   useEffect(() => {
     fetchTracking();
     const interval = setInterval(fetchTracking, 5000);
     return () => clearInterval(interval);
   }, [fetchTracking]);
+
+  // ETA polling every 30s (less frequent to avoid API rate limits)
+  useEffect(() => {
+    fetchEta();
+    const interval = setInterval(fetchEta, 30000);
+    return () => clearInterval(interval);
+  }, [fetchEta]);
 
   // ── Loading state ──
   if (loading) {
@@ -225,6 +260,9 @@ export default function PublicTracking() {
 
   // Elapsed time
   const elapsedMin = Math.floor((Date.now() - new Date(data.en_camino_at).getTime()) / 60000);
+
+  // ETA data
+  const hasEta = eta?.status === 'ok' && eta.eta_minutes != null;
 
   // ── Arrived state ──
   if (isArrived) {
@@ -347,7 +385,7 @@ export default function PublicTracking() {
         </div>
       </header>
 
-      {/* Status banner */}
+      {/* Status banner with ETA */}
       <div className="px-4 py-3 flex items-center gap-3" style={{ background: brand.white, borderBottom: '1px solid #E5E7EB' }}>
         <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: brand.navy }}>
           <Navigation className="h-5 w-5" style={{ color: brand.gold }} />
@@ -358,21 +396,60 @@ export default function PublicTracking() {
           </p>
           <p className="text-xs mt-0.5" style={{ color: '#6B7280', fontFamily: 'Barlow, sans-serif' }}>
             {data.driver_name && `${data.driver_name} · `}
-            {data.estimated_minutes
-              ? `Estimado: ${data.estimated_minutes} min`
-              : `En camino desde las ${formatTime(data.en_camino_at)}`}
+            {hasEta
+              ? `Llega aprox. a las ${formatEtaArrival(eta!.eta_minutes!)}`
+              : data.estimated_minutes
+                ? `Estimado: ${data.estimated_minutes} min`
+                : `En camino desde las ${formatTime(data.en_camino_at)}`}
           </p>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" style={{ color: brand.gold }} />
-            <span className="text-sm font-bold tabular-nums" style={{ color: brand.navy, fontFamily: 'Montserrat, sans-serif' }}>
-              {elapsedMin} min
-            </span>
-          </div>
-          <p className="text-[10px] mt-0.5" style={{ color: '#9CA3AF', fontFamily: 'Barlow, sans-serif' }}>transcurridos</p>
+          {hasEta ? (
+            <>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" style={{ color: brand.gold }} />
+                <span className="text-sm font-bold tabular-nums" style={{ color: brand.navy, fontFamily: 'Montserrat, sans-serif' }}>
+                  {eta!.eta_minutes} min
+                </span>
+              </div>
+              <p className="text-[10px] mt-0.5" style={{ color: '#9CA3AF', fontFamily: 'Barlow, sans-serif' }}>restantes</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" style={{ color: brand.gold }} />
+                <span className="text-sm font-bold tabular-nums" style={{ color: brand.navy, fontFamily: 'Montserrat, sans-serif' }}>
+                  {elapsedMin} min
+                </span>
+              </div>
+              <p className="text-[10px] mt-0.5" style={{ color: '#9CA3AF', fontFamily: 'Barlow, sans-serif' }}>transcurridos</p>
+            </>
+          )}
         </div>
       </div>
+
+      {/* ETA detail strip — only when ETA is available */}
+      {hasEta && (
+        <div className="px-4 py-2 flex items-center justify-between" style={{ background: `${brand.navy}08`, borderBottom: '1px solid #E5E7EB' }}>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <Route className="h-3.5 w-3.5" style={{ color: brand.gold }} />
+              <span className="text-xs font-medium" style={{ color: brand.navy, fontFamily: 'Barlow, sans-serif' }}>
+                {eta!.distance_text}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" style={{ color: '#6B7280' }} />
+              <span className="text-xs" style={{ color: '#6B7280', fontFamily: 'Barlow, sans-serif' }}>
+                {eta!.duration_text}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px]" style={{ color: '#9CA3AF', fontFamily: 'Barlow, sans-serif' }}>
+            {elapsedMin} min en ruta
+          </span>
+        </div>
+      )}
 
       {/* Map */}
       <div className="flex-1 relative" style={{ minHeight: '50vh' }}>
@@ -418,6 +495,26 @@ export default function PublicTracking() {
           </div>
         )}
 
+        {/* ETA badge overlay — prominent on the map */}
+        {hasLocation && hasEta && (
+          <div className="absolute top-3 left-3 z-[1000]">
+            <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{
+              background: brand.navy,
+              boxShadow: '0 2px 12px rgba(0,19,33,0.3)',
+            }}>
+              <Navigation className="h-4 w-4" style={{ color: brand.gold }} />
+              <div>
+                <p className="text-sm font-bold" style={{ color: brand.white, fontFamily: 'Montserrat, sans-serif' }}>
+                  {eta!.eta_minutes} min
+                </p>
+                <p className="text-[9px] -mt-0.5" style={{ color: brand.gold, fontFamily: 'Barlow, sans-serif' }}>
+                  {eta!.distance_text}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Last update overlay */}
         {hasLocation && data.location_updated_at && (
           <div className="absolute top-3 right-3 z-[1000]">
@@ -455,6 +552,23 @@ export default function PublicTracking() {
               </p>
               <p className="text-sm font-medium" style={{ color: brand.navy, fontFamily: 'Barlow, sans-serif' }}>
                 {data.vehicle_info}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ETA arrival time estimate */}
+        {hasEta && (
+          <div className="flex items-start gap-3 mt-3 pt-3" style={{ borderTop: '1px solid #F3F4F6' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: '#10B98120' }}>
+              <Clock className="h-4 w-4" style={{ color: '#10B981' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs uppercase tracking-wider font-semibold mb-0.5" style={{ color: '#9CA3AF', fontFamily: 'Montserrat, sans-serif' }}>
+                Hora estimada de llegada
+              </p>
+              <p className="text-sm font-medium" style={{ color: brand.navy, fontFamily: 'Barlow, sans-serif' }}>
+                {formatEtaArrival(eta!.eta_minutes!)} · {eta!.duration_text} ({eta!.distance_text})
               </p>
             </div>
           </div>
