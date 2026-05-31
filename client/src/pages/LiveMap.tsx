@@ -6,6 +6,14 @@
  * 
  * REDESIGN: Premium visual treatment with glassmorphism, refined typography,
  * and brand-consistent Azul Cars styling.
+ * 
+ * IMPROVEMENTS v2:
+ * - Share link button in sidebar cards (copies /track/:token URL)
+ * - Click-to-focus: clicking a sidebar card pans/zooms the map to that marker
+ * - Mobile bottom sheet: operations list accessible on small screens
+ * - Live ETA from Google Maps for operations with GPS active
+ * - Improved sidebar toggle visibility
+ * - Selected marker visual highlight
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -13,7 +21,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2, Eye, EyeOff, Car } from 'lucide-react';
+import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2, Eye, EyeOff, Car, Share2, Copy, Check, ChevronUp, ChevronDown, Crosshair, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -27,6 +35,14 @@ import {
 import { useRealtimeEnCamino, type EnCaminoRecord, type RealtimeStatus } from '@/hooks/useRealtimeEnCamino';
 import { useLocationTrail } from '@/hooks/useLocationTrail';
 import { AnimatedMarker } from '@/components/map/AnimatedMarker';
+import { toast } from 'sonner';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 
 // ── Types ──
 type GeocodeSource = 'alias' | 'nominatim' | 'google';
@@ -250,6 +266,16 @@ function FitBounds({ markers }: { markers: GeocodedRecord[] }) {
   return null;
 }
 
+// ── FlyTo component: pans/zooms map to a specific location when triggered ──
+function FlyToLocation({ target, trigger }: { target: { lat: number; lng: number } | null; trigger: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target || trigger === 0) return;
+    map.flyTo([target.lat, target.lng], 15, { duration: 0.8 });
+  }, [target, trigger, map]);
+  return null;
+}
+
 // ── Helper: time urgency color ──
 function getUrgencyColor(minutesAgo: number) {
   if (minutesAgo > 45) return { text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-500' };
@@ -303,6 +329,206 @@ function ConnectionIndicator({ status }: { status: RealtimeStatus }) {
   );
 }
 
+// ── ETA data type ──
+interface EtaData {
+  eta_minutes: number | null;
+  distance_km: number | null;
+  duration_text: string | null;
+  distance_text: string | null;
+  status: string;
+}
+
+// ── Operation Card Component (shared between sidebar and mobile drawer) ──
+function OperationCard({
+  rec,
+  records,
+  geocodedRecords,
+  routes,
+  liveRoutes,
+  trails,
+  selectedRecordId,
+  onSelect,
+  onShareLink,
+  copiedId,
+  etaMap,
+}: {
+  rec: EnCaminoRecord;
+  records: EnCaminoRecord[];
+  geocodedRecords: GeocodedRecord[];
+  routes: Record<string, RouteResult>;
+  liveRoutes: Record<string, RouteResult>;
+  trails: Record<string, any[]>;
+  selectedRecordId: string | null;
+  onSelect: (id: string) => void;
+  onShareLink: (rec: EnCaminoRecord) => void;
+  copiedId: string | null;
+  etaMap: Record<string, EtaData>;
+}) {
+  const enCaminoAt = new Date(rec.en_camino_at);
+  const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
+  const urgency = getUrgencyColor(minutesAgo);
+  const geocoded = geocodedRecords.find(g => g.id === rec.id);
+  const routeData = geocoded ? routes[geocoded.id] : null;
+  const isEntrega = rec.operation_type === 'entrega';
+  const isSelected = selectedRecordId === rec.id;
+  const liveRoute = liveRoutes[rec.id];
+  const isLive = rec.sharing_location && rec.current_lat != null;
+  const eta = etaMap[rec.id];
+
+  return (
+    <div
+      onClick={() => onSelect(rec.id)}
+      className={cn(
+        "rounded-xl border transition-all cursor-pointer group",
+        isSelected
+          ? "border-blue-200 bg-blue-50/50 shadow-md ring-1 ring-blue-100"
+          : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
+      )}
+    >
+      <div className="px-3.5 py-3">
+        {/* Card top row */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "h-7 w-7 rounded-lg flex items-center justify-center",
+              isEntrega ? "bg-blue-100" : "bg-amber-100"
+            )}>
+              {isEntrega ? (
+                <Truck className="h-3.5 w-3.5 text-blue-700" />
+              ) : (
+                <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold" style={{ color: brand.navy }}>
+                {isEntrega ? 'Entrega' : 'Devolución'}
+              </span>
+              {rec.external_reservation_id && (
+                <span className="text-[10px] text-gray-500 font-medium">
+                  Nº {rec.external_reservation_id}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className={cn(
+            "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border",
+            urgency.bg, urgency.text, urgency.border
+          )}>
+            <Clock className="h-2.5 w-2.5" />
+            {minutesAgo} min
+          </div>
+        </div>
+
+        {/* User */}
+        {rec.assigned_user_name && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <User className="h-3 w-3 text-gray-400 shrink-0" />
+            <span className="text-[11px] font-medium text-gray-700 truncate">{rec.assigned_user_name}</span>
+          </div>
+        )}
+
+        {/* Destination */}
+        <div className="flex items-start gap-1.5 mb-2">
+          <MapPin className="h-3 w-3 text-gray-400 shrink-0 mt-0.5" />
+          <span className="text-[11px] text-gray-600 leading-tight line-clamp-2">
+            {rec.destination_address || 'Sin dirección'}
+          </span>
+        </div>
+
+        {/* Route info + departure time */}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <span className="text-[10px] text-gray-500">
+            Salió a las {format(enCaminoAt, 'HH:mm')}
+          </span>
+          {(() => {
+            // Priority: Google Maps ETA > OSRM live route > OSRM static route
+            if (eta && eta.status === 'ok' && eta.eta_minutes != null) {
+              return (
+                <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                  <Navigation className="h-2.5 w-2.5" />
+                  {eta.eta_minutes}' / {eta.distance_text || `${eta.distance_km} km`}
+                </span>
+              );
+            }
+            if (liveRoute) {
+              return (
+                <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                  <Navigation className="h-2.5 w-2.5" />
+                  {liveRoute.durationMinutes}' / {liveRoute.distanceKm} km
+                </span>
+              );
+            }
+            if (routeData) {
+              return (
+                <span className="text-[10px] font-medium text-gray-500">
+                  ETA {routeData.durationMinutes}' / {routeData.distanceKm} km
+                </span>
+              );
+            }
+            return null;
+          })()}
+        </div>
+
+        {/* Live location + trail badges + share button */}
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+          {isLive && (
+            <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-bold">
+              <Radio className="h-2.5 w-2.5 animate-pulse" />
+              GPS en vivo
+            </span>
+          )}
+          {isLive && trails[rec.id] && trails[rec.id].length > 0 && (
+            <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">
+              <Navigation className="h-2.5 w-2.5" />
+              {trails[rec.id].length} pts
+            </span>
+          )}
+          {geocoded && geocoded.geocodeSource === 'alias' && (
+            <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">
+              Ubicación predefinida
+            </span>
+          )}
+          {geocoded && geocoded.geocodeSource === 'google' && (
+            <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-violet-200 text-violet-700 bg-violet-50 font-medium">
+              Google Maps
+            </span>
+          )}
+          {/* Share link button */}
+          {rec.share_token && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShareLink(rec);
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border font-semibold transition-all",
+                copiedId === rec.id
+                  ? "border-emerald-300 text-emerald-700 bg-emerald-50"
+                  : "border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100"
+              )}
+              title="Copiar enlace de seguimiento para el cliente"
+            >
+              {copiedId === rec.id ? (
+                <><Check className="h-2.5 w-2.5" /> Copiado</>
+              ) : (
+                <><Share2 className="h-2.5 w-2.5" /> Compartir</>
+              )}
+            </button>
+          )}
+        </div>
+        {!geocoded && rec.destination_address && (
+          <div className="mt-2">
+            <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-orange-200 text-orange-700 bg-orange-50 font-medium">
+              <AlertTriangle className="h-2.5 w-2.5" />
+              No se pudo ubicar
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ──
 export default function LiveMapPage() {
   const {
@@ -326,6 +552,11 @@ export default function LiveMapPage() {
   const [showEntregas, setShowEntregas] = useState(true);
   const [showDevoluciones, setShowDevoluciones] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
+  const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
+  const [flyTrigger, setFlyTrigger] = useState(0);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [etaMap, setEtaMap] = useState<Record<string, EtaData>>({});
   // Track which addresses are currently being geocoded to avoid duplicate requests
   const geocodingInProgress = useRef<Set<string>>(new Set());
 
@@ -338,6 +569,33 @@ export default function LiveMapPage() {
   const formatRelativeTime = (date: Date) => {
     return formatDistanceToNow(date, { addSuffix: true, locale: es });
   };
+
+  // ── Share link handler ──
+  const handleShareLink = useCallback(async (rec: EnCaminoRecord) => {
+    if (!rec.share_token) return;
+    const url = `${window.location.origin}/track/${rec.share_token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedShareId(rec.id);
+      toast.success('Enlace de seguimiento copiado', {
+        description: 'Pégalo en WhatsApp para enviárselo al cliente.',
+      });
+      setTimeout(() => setCopiedShareId(null), 3000);
+    } catch {
+      // Fallback for insecure contexts
+      const input = document.createElement('input');
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopiedShareId(rec.id);
+      toast.success('Enlace copiado');
+      setTimeout(() => setCopiedShareId(null), 3000);
+    }
+  }, []);
+
+
 
   // Geocode only NEW addresses that aren't in cache yet.
   useEffect(() => {
@@ -392,6 +650,26 @@ export default function LiveMapPage() {
     return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records, tick]);
+
+  // ── Click-to-focus handler ──
+  const handleSelectRecord = useCallback((id: string) => {
+    const isAlreadySelected = selectedRecordId === id;
+    setSelectedRecordId(isAlreadySelected ? null : id);
+
+    if (!isAlreadySelected) {
+      // Find the record's position (live GPS or geocoded destination)
+      const rec = records.find(r => r.id === id);
+      if (rec?.sharing_location && rec.current_lat != null && rec.current_lng != null) {
+        setFlyTarget({ lat: rec.current_lat, lng: rec.current_lng });
+      } else {
+        const geocoded = geocodedRecords.find(g => g.id === id);
+        if (geocoded) {
+          setFlyTarget({ lat: geocoded.lat, lng: geocoded.lng });
+        }
+      }
+      setFlyTrigger(t => t + 1);
+    }
+  }, [selectedRecordId, records, geocodedRecords]);
 
   // Fetch real road routes when geocoded records change
   useEffect(() => {
@@ -468,6 +746,62 @@ export default function LiveMapPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geocodedRecords.length, records.filter(r => r.sharing_location && r.current_lat != null).length]);
+
+  // ── Fetch Google Maps ETA for live-tracking operations ──
+  const etaTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const etaFetchRef = useRef<() => void>(() => {});
+
+  etaFetchRef.current = async () => {
+    const liveRecords = records.filter(r => r.sharing_location && r.current_lat != null && r.share_token);
+    if (liveRecords.length === 0) {
+      setEtaMap({});
+      return;
+    }
+    const newEtaMap: Record<string, EtaData> = {};
+    for (const rec of liveRecords) {
+      try {
+        const resp = await fetch(`/api/track/${rec.share_token}/eta`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.ok) {
+            newEtaMap[rec.id] = {
+              eta_minutes: data.eta_minutes,
+              distance_km: data.distance_km,
+              duration_text: data.duration_text,
+              distance_text: data.distance_text,
+              status: data.status,
+            };
+          }
+        }
+      } catch {
+        // Silently skip failed ETA fetches
+      }
+    }
+    setEtaMap(newEtaMap);
+  };
+
+  useEffect(() => {
+    const liveWithToken = records.filter(r => r.sharing_location && r.current_lat != null && r.share_token).length;
+    if (liveWithToken > 0) {
+      etaFetchRef.current();
+      if (!etaTimerRef.current) {
+        etaTimerRef.current = setInterval(() => etaFetchRef.current(), 45_000); // Every 45s
+      }
+    } else {
+      setEtaMap({});
+      if (etaTimerRef.current) {
+        clearInterval(etaTimerRef.current);
+        etaTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (etaTimerRef.current) {
+        clearInterval(etaTimerRef.current);
+        etaTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records.filter(r => r.sharing_location && r.current_lat != null && r.share_token).length]);
 
   const entregas = geocodedRecords.filter(r => r.operation_type === 'entrega');
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
@@ -624,7 +958,7 @@ export default function LiveMapPage() {
         </div>
 
         {/* ── Map + Sidebar ── */}
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex min-h-0 relative">
           {/* Map Area */}
           <div className="flex-1 relative">
             {loading ? (
@@ -673,7 +1007,7 @@ export default function LiveMapPage() {
                       borderColor: brand.borderLight,
                     }}
                   >
-                    <div className="mx-auto mb-4 h-14 w-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(0,19,33,0.05)' }}>
+                    <div className="mx-auto mb-4 h-14 w-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(0,19,33,0.04)' }}>
                       <Navigation className="h-6 w-6" style={{ color: brand.navy }} />
                     </div>
                     <p className="text-base font-bold" style={{ fontFamily: 'Montserrat, sans-serif', color: brand.navy }}>
@@ -899,11 +1233,69 @@ export default function LiveMapPage() {
                 ))}
 
                 {filteredGeocodedRecords.length > 0 && <FitBounds markers={filteredGeocodedRecords} />}
+                <FlyToLocation target={flyTarget} trigger={flyTrigger} />
               </MapContainer>
             )}
+
+            {/* ── Mobile bottom sheet trigger (visible on < lg) ── */}
+            <div className="lg:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000]">
+              <Drawer open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+                <DrawerTrigger asChild>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg border transition-all"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.95)',
+                      backdropFilter: 'blur(12px)',
+                      borderColor: brand.borderLight,
+                    }}
+                  >
+                    <Navigation className="h-4 w-4" style={{ color: brand.navy }} />
+                    <span className="text-xs font-bold" style={{ color: brand.navy }}>
+                      {filteredRecords.length} operación{filteredRecords.length !== 1 ? 'es' : ''}
+                    </span>
+                    <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
+                  </button>
+                </DrawerTrigger>
+                <DrawerContent className="max-h-[70vh]">
+                  <DrawerHeader className="pb-2">
+                    <DrawerTitle className="text-sm font-bold flex items-center gap-2" style={{ color: brand.navy }}>
+                      <Navigation className="h-4 w-4" />
+                      Operaciones En Camino
+                    </DrawerTitle>
+                  </DrawerHeader>
+                  <div className="overflow-y-auto px-4 pb-6 space-y-2">
+                    {filteredRecords.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-gray-500">No hay operaciones activas</p>
+                      </div>
+                    ) : (
+                      filteredRecords.map((rec) => (
+                        <OperationCard
+                          key={rec.id}
+                          rec={rec}
+                          records={records}
+                          geocodedRecords={geocodedRecords}
+                          routes={routes}
+                          liveRoutes={liveRoutes}
+                          trails={trails}
+                          selectedRecordId={selectedRecordId}
+                          onSelect={(id) => {
+                            handleSelectRecord(id);
+                            setMobileDrawerOpen(false);
+                          }}
+                          onShareLink={handleShareLink}
+                          copiedId={copiedShareId}
+                          etaMap={etaMap}
+                        />
+                      ))
+                    )}
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            </div>
           </div>
 
-          {/* ── Premium Sidebar ── */}
+          {/* ── Premium Sidebar (desktop only) ── */}
           <div
             className={cn(
               "border-l flex flex-col hidden lg:flex transition-all duration-300",
@@ -925,11 +1317,13 @@ export default function LiveMapPage() {
                     Operaciones
                   </h2>
                 </div>
-                <div
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full border"
-                  style={{ backgroundColor: 'rgba(0,19,33,0.04)', borderColor: brand.borderLight, color: brand.navy }}
-                >
-                  {filteredRecords.length} activa{filteredRecords.length !== 1 ? 's' : ''}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+                    style={{ backgroundColor: 'rgba(0,19,33,0.04)', borderColor: brand.borderLight, color: brand.navy }}
+                  >
+                    {filteredRecords.length} activa{filteredRecords.length !== 1 ? 's' : ''}
+                  </div>
                 </div>
               </div>
             </div>
@@ -953,142 +1347,22 @@ export default function LiveMapPage() {
                 </div>
               ) : (
                 <div className="p-3 space-y-2">
-                  {filteredRecords.map((rec) => {
-                    const enCaminoAt = new Date(rec.en_camino_at);
-                    const minutesAgo = Math.floor((Date.now() - enCaminoAt.getTime()) / 60000);
-                    const urgency = getUrgencyColor(minutesAgo);
-                    const geocoded = filteredGeocodedRecords.find(g => g.id === rec.id);
-                    const routeData = geocoded ? routes[geocoded.id] : null;
-                    const isEntrega = rec.operation_type === 'entrega';
-                    const isSelected = selectedRecordId === rec.id;
-                    const liveRoute = liveRoutes[rec.id];
-                    const isLive = rec.sharing_location && rec.current_lat != null;
-
-                    return (
-                      <div
-                        key={rec.id}
-                        onClick={() => setSelectedRecordId(isSelected ? null : rec.id)}
-                        className={cn(
-                          "rounded-xl border transition-all cursor-pointer group",
-                          isSelected
-                            ? "border-blue-200 bg-blue-50/50 shadow-md ring-1 ring-blue-100"
-                            : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
-                        )}
-                      >
-                        <div className="px-3.5 py-3">
-                          {/* Card top row */}
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className={cn(
-                                "h-7 w-7 rounded-lg flex items-center justify-center",
-                                isEntrega ? "bg-blue-100" : "bg-amber-100"
-                              )}>
-                                {isEntrega ? (
-                                  <Truck className="h-3.5 w-3.5 text-blue-700" />
-                                ) : (
-                                  <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
-                                )}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[11px] font-bold" style={{ color: brand.navy }}>
-                                  {isEntrega ? 'Entrega' : 'Devolución'}
-                                </span>
-                                {rec.external_reservation_id && (
-                                  <span className="text-[10px] text-gray-500 font-medium">
-                                    Nº {rec.external_reservation_id}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className={cn(
-                              "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border",
-                              urgency.bg, urgency.text, urgency.border
-                            )}>
-                              <Clock className="h-2.5 w-2.5" />
-                              {minutesAgo} min
-                            </div>
-                          </div>
-
-                          {/* User */}
-                          {rec.assigned_user_name && (
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <User className="h-3 w-3 text-gray-400 shrink-0" />
-                              <span className="text-[11px] font-medium text-gray-700 truncate">{rec.assigned_user_name}</span>
-                            </div>
-                          )}
-
-                          {/* Destination */}
-                          <div className="flex items-start gap-1.5 mb-2">
-                            <MapPin className="h-3 w-3 text-gray-400 shrink-0 mt-0.5" />
-                            <span className="text-[11px] text-gray-600 leading-tight line-clamp-2">
-                              {rec.destination_address || 'Sin dirección'}
-                            </span>
-                          </div>
-
-                          {/* Route info + departure time */}
-                          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                            <span className="text-[10px] text-gray-500">
-                              Salió a las {format(enCaminoAt, 'HH:mm')}
-                            </span>
-                            {(() => {
-                              if (liveRoute) {
-                                return (
-                                  <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
-                                    <Navigation className="h-2.5 w-2.5" />
-                                    {liveRoute.durationMinutes}' / {liveRoute.distanceKm} km
-                                  </span>
-                                );
-                              }
-                              if (routeData) {
-                                return (
-                                  <span className="text-[10px] font-medium text-gray-500">
-                                    ETA {routeData.durationMinutes}' / {routeData.distanceKm} km
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-
-                          {/* Live location + trail badges */}
-                          {(isLive || (geocoded && geocoded.geocodeSource !== 'nominatim')) && (
-                            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                              {isLive && (
-                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-bold">
-                                  <Radio className="h-2.5 w-2.5 animate-pulse" />
-                                  GPS en vivo
-                                </span>
-                              )}
-                              {isLive && trails[rec.id] && trails[rec.id].length > 0 && (
-                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">
-                                  <Navigation className="h-2.5 w-2.5" />
-                                  {trails[rec.id].length} pts
-                                </span>
-                              )}
-                              {geocoded && geocoded.geocodeSource === 'alias' && (
-                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-medium">
-                                  Ubicación predefinida
-                                </span>
-                              )}
-                              {geocoded && geocoded.geocodeSource === 'google' && (
-                                <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-violet-200 text-violet-700 bg-violet-50 font-medium">
-                                  Google Maps
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {!geocoded && rec.destination_address && (
-                            <div className="mt-2">
-                              <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-orange-200 text-orange-700 bg-orange-50 font-medium">
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                No se pudo ubicar
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {filteredRecords.map((rec) => (
+                    <OperationCard
+                      key={rec.id}
+                      rec={rec}
+                      records={records}
+                      geocodedRecords={geocodedRecords}
+                      routes={routes}
+                      liveRoutes={liveRoutes}
+                      trails={trails}
+                      selectedRecordId={selectedRecordId}
+                      onSelect={handleSelectRecord}
+                      onShareLink={handleShareLink}
+                      copiedId={copiedShareId}
+                      etaMap={etaMap}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -1107,20 +1381,22 @@ export default function LiveMapPage() {
             </div>
           </div>
 
-          {/* Sidebar toggle button (visible on lg+) */}
+          {/* Sidebar toggle button (improved visibility) */}
           <button
             onClick={() => setSidebarCollapsed(v => !v)}
-            className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-5 items-center justify-center rounded-l-md border border-r-0 bg-white shadow-sm transition-all hover:bg-gray-50"
+            className={cn(
+              "hidden lg:flex absolute top-3 z-10 h-9 w-9 items-center justify-center rounded-lg border bg-white shadow-md transition-all hover:bg-gray-50 hover:shadow-lg",
+            )}
             style={{
               borderColor: brand.borderLight,
-              right: sidebarCollapsed ? '0' : '360px',
+              right: sidebarCollapsed ? '12px' : '372px',
             }}
-            title={sidebarCollapsed ? 'Mostrar panel' : 'Ocultar panel'}
+            title={sidebarCollapsed ? 'Mostrar panel de operaciones' : 'Ocultar panel'}
           >
             {sidebarCollapsed ? (
-              <Eye className="h-3 w-3 text-gray-500" />
+              <PanelRightOpen className="h-4 w-4" style={{ color: brand.navy }} />
             ) : (
-              <EyeOff className="h-3 w-3 text-gray-500" />
+              <PanelRightClose className="h-4 w-4" style={{ color: brand.navy }} />
             )}
           </button>
         </div>

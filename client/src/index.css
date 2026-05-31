@@ -364,3 +364,16 @@
   height: 100% !important;
   width: 100% !important;
 }
+
+/* ── Live car marker (no background) ── */
+.live-car-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ── Selected marker highlight ring ── */
+.marker-selected {
+  filter: drop-shadow(0 0 8px rgba(29, 78, 216, 0.6)) drop-shadow(0 0 16px rgba(29, 78, 216, 0.3));
+  transform: scale(1.15);
+  transition: filter 0.3s ease, transform 0.3s ease;
+}

@@ -29,6 +29,8 @@ export interface EnCaminoRecord {
   current_lat?: number | null;
   current_lng?: number | null;
   location_updated_at?: string | null;
+  // Share token for public tracking link
+  share_token?: string | null;
 }
 
 export type RealtimeStatus = 'connected' | 'connecting' | 'disconnected';

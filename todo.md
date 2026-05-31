@@ -1000,3 +1000,9 @@
 - [x] Fix: Nominatim API devuelve 'lon' no 'lng' — causaba NaN en destCoords y crash del mapa público de tracking
 - [x] Fix: Mapa de tracking público no se mostraba (height: 0) — react-leaflet sobreescribe inline styles, solucionado con wrapper div absolute inset-0 + CSS !important override
 - [x] Fix: Meta tags Open Graph de la página de tracking público muestran "Organiza tareas, objetivos y equipos" en WhatsApp — cambiar a "Tu vehículo está en camino — Azul Cars"
+- [x] Live Map: Botón "Compartir enlace" en sidebar cards — copiar URL /track/:token al portapapeles para operaciones con share_token
+- [x] Live Map: Click-to-focus — al hacer clic en una tarjeta del sidebar, el mapa hace pan/zoom al marcador correspondiente
+- [x] Live Map: Panel móvil (bottom sheet) — en pantallas < lg, mostrar lista de operaciones en un panel inferior deslizable
+- [x] Live Map: ETA en vivo desde Google Maps — mostrar ETA actualizado en sidebar cards para operaciones con GPS activo
+- [x] Live Map: Sidebar toggle más visible — mejorar botón de colapsar/expandir sidebar
+- [x] Live Map: Indicador visual de operación seleccionada en el mapa (highlight del marcador)
