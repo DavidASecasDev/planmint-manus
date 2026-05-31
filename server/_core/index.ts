@@ -342,6 +342,10 @@ async function startServer() {
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);
   app.post("/api/scheduled/rently-poll", handleScheduledRentlyPoll);
 
+  // Open Graph meta tags for /track/:token (must be before SPA catch-all)
+  const { trackingOgMiddleware } = await import("../trackingOgMiddleware");
+  app.use(trackingOgMiddleware);
+
   // tRPC API
   app.use(
     "/api/trpc",

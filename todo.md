@@ -999,3 +999,4 @@
 - [x] Tracking público: Rotar icono del coche según la dirección de movimiento (bearing entre posición anterior y actual)
 - [x] Fix: Nominatim API devuelve 'lon' no 'lng' — causaba NaN en destCoords y crash del mapa público de tracking
 - [x] Fix: Mapa de tracking público no se mostraba (height: 0) — react-leaflet sobreescribe inline styles, solucionado con wrapper div absolute inset-0 + CSS !important override
+- [x] Fix: Meta tags Open Graph de la página de tracking público muestran "Organiza tareas, objetivos y equipos" en WhatsApp — cambiar a "Tu vehículo está en camino — Azul Cars"
