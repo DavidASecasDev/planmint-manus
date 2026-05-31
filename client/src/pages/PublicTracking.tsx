@@ -134,11 +134,38 @@ function createDestinationMarker() {
 const carIcon = createCarMarker();
 const destIcon = createDestinationMarker();
 
-// ── Animated car marker component ──
+// ── Bearing calculation (degrees from north, clockwise) ──
+function calculateBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const dLng = toRad(lng2 - lng1);
+  const phi1 = toRad(lat1);
+  const phi2 = toRad(lat2);
+
+  const x = Math.sin(dLng) * Math.cos(phi2);
+  const y = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLng);
+
+  const bearing = toDeg(Math.atan2(x, y));
+  return (bearing + 360) % 360; // Normalize to 0-360
+}
+
+// ── Animated car marker component with rotation ──
 function AnimatedCarMarker({ lat, lng, icon }: { lat: number; lng: number; icon: L.Icon | L.DivIcon }) {
   const markerRef = useRef<L.Marker | null>(null);
   const animFrameRef = useRef<number>(0);
   const prevPosRef = useRef<{ lat: number; lng: number }>({ lat, lng });
+  const bearingRef = useRef<number>(0);
+
+  // Apply rotation to the marker's DOM element
+  const applyRotation = (marker: L.Marker, degrees: number) => {
+    const el = marker.getElement();
+    if (el) {
+      el.style.transition = 'transform 0.5s ease-out';
+      el.style.transformOrigin = 'center center';
+      el.style.transform = `rotate(${degrees}deg)`;
+    }
+  };
 
   useEffect(() => {
     const marker = markerRef.current;
@@ -151,6 +178,11 @@ function AnimatedCarMarker({ lat, lng, icon }: { lat: number; lng: number; icon:
 
     // Skip animation if it's the first position or same position
     if (startLat === endLat && startLng === endLng) return;
+
+    // Calculate and apply bearing rotation
+    const newBearing = calculateBearing(startLat, startLng, endLat, endLng);
+    bearingRef.current = newBearing;
+    applyRotation(marker, newBearing);
 
     const duration = 2000; // 2 seconds smooth transition
     const startTime = performance.now();

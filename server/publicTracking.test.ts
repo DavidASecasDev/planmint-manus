@@ -293,6 +293,62 @@ describe('Google encoded polyline decoding', () => {
   });
 });
 
+// ── Bearing calculation ──
+describe('Bearing calculation for car rotation', () => {
+  function calculateBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+    const dLng = toRad(lng2 - lng1);
+    const phi1 = toRad(lat1);
+    const phi2 = toRad(lat2);
+
+    const x = Math.sin(dLng) * Math.cos(phi2);
+    const y = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLng);
+
+    const bearing = toDeg(Math.atan2(x, y));
+    return (bearing + 360) % 360;
+  }
+
+  it('returns ~0 (north) when moving directly north', () => {
+    // Moving from (39.5, 2.5) to (39.6, 2.5) - straight north
+    const bearing = calculateBearing(39.5, 2.5, 39.6, 2.5);
+    expect(bearing).toBeCloseTo(0, 0);
+  });
+
+  it('returns ~90 (east) when moving directly east', () => {
+    // Moving from (39.5, 2.5) to (39.5, 2.6) - straight east
+    const bearing = calculateBearing(39.5, 2.5, 39.5, 2.6);
+    expect(bearing).toBeCloseTo(90, 0);
+  });
+
+  it('returns ~180 (south) when moving directly south', () => {
+    // Moving from (39.5, 2.5) to (39.4, 2.5) - straight south
+    const bearing = calculateBearing(39.5, 2.5, 39.4, 2.5);
+    expect(bearing).toBeCloseTo(180, 0);
+  });
+
+  it('returns ~270 (west) when moving directly west', () => {
+    // Moving from (39.5, 2.5) to (39.5, 2.4) - straight west
+    const bearing = calculateBearing(39.5, 2.5, 39.5, 2.4);
+    expect(bearing).toBeCloseTo(270, 0);
+  });
+
+  it('returns value between 0 and 360', () => {
+    // Random movement in Mallorca
+    const bearing = calculateBearing(39.57, 2.65, 39.55, 2.62);
+    expect(bearing).toBeGreaterThanOrEqual(0);
+    expect(bearing).toBeLessThan(360);
+  });
+
+  it('returns ~45 (northeast) for diagonal movement', () => {
+    const bearing = calculateBearing(39.5, 2.5, 39.6, 2.6);
+    // Should be roughly northeast (30-60 degrees)
+    expect(bearing).toBeGreaterThan(30);
+    expect(bearing).toBeLessThan(60);
+  });
+});
+
 // ── Coordinate validation (defensive against NaN) ──
 describe('Coordinate validation (defensive against NaN/null)', () => {
   function validateCoordinates(lat: unknown, lng: unknown): { valid: boolean; parsedLat: number; parsedLng: number } {
