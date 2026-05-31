@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play, Radio, MapPin, RotateCcw, PenLine } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Play, Radio, MapPin, RotateCcw, PenLine, Copy, Check, Share2, ExternalLink } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -428,7 +428,8 @@ export function ReservationsTable() {
   const [confirmLlego, setConfirmLlego] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
 
   // Location sharing state
-  const [locationDialog, setLocationDialog] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
+  const [locationDialog, setLocationDialog] = useState<{ open: boolean; row: OperationRow | null; shareToken?: string | null }>({ open: false, row: null, shareToken: null });
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [sharingLocation, setSharingLocation] = useState<Record<string, boolean>>({});
   const locationWatchIds = useRef<Record<string, number>>({});
   const lastLocationSent = useRef<Record<string, number>>({});
@@ -536,7 +537,7 @@ export function ReservationsTable() {
       handleOperationFieldUpdate(row, 'estado', 'En camino');
       // Record timestamp in en_camino_tracking table
       const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
-      await apiInvoke('en-camino-tracking', {
+      const trackResp = await apiInvoke<{ ok: boolean; record: { share_token?: string } }>('en-camino-tracking', {
         body: {
           reservation_id: row.reservationId,
           operation_type: opType,
@@ -545,9 +546,11 @@ export function ReservationsTable() {
           estimated_minutes: row.travelMinutes ?? null,
         },
       });
+      const shareToken = trackResp.data?.record?.share_token || null;
       toast.success('Operación marcada como En camino');
       // Show location sharing dialog
-      setLocationDialog({ open: true, row });
+      setLocationDialog({ open: true, row, shareToken });
+      setShareLinkCopied(false);
     } catch (err) {
       console.error('[iniciar] Error:', err);
       toast.error('Error al iniciar trayecto');
@@ -2361,10 +2364,55 @@ export function ReservationsTable() {
               <p className="text-muted-foreground">Tu ubicación se actualizará cada 15 segundos. Se detendrá automáticamente al pulsar "Llegué".</p>
             </div>
           </div>
+
+          {/* Share link for client */}
+          {locationDialog.shareToken && (
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Share2 className="h-4 w-4 text-blue-500" />
+                <span>Enlace para el cliente</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Comparte este enlace con el cliente para que pueda seguir la ubicación del vehículo en tiempo real.
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-muted rounded-md px-3 py-2 text-xs font-mono truncate select-all">
+                  {`${window.location.origin}/track/${locationDialog.shareToken}`}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(`${window.location.origin}/track/${locationDialog.shareToken}`);
+                      setShareLinkCopied(true);
+                      toast.success('Enlace copiado al portapapeles');
+                      setTimeout(() => setShareLinkCopied(false), 3000);
+                    } catch {
+                      // Fallback for older browsers
+                      const input = document.createElement('input');
+                      input.value = `${window.location.origin}/track/${locationDialog.shareToken}`;
+                      document.body.appendChild(input);
+                      input.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(input);
+                      setShareLinkCopied(true);
+                      toast.success('Enlace copiado al portapapeles');
+                      setTimeout(() => setShareLinkCopied(false), 3000);
+                    }
+                  }}
+                >
+                  {shareLinkCopied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="flex-row gap-2 sm:justify-end">
             <Button
               variant="outline"
-              onClick={() => setLocationDialog({ open: false, row: null })}
+              onClick={() => setLocationDialog({ open: false, row: null, shareToken: null })}
             >
               No, gracias
             </Button>
@@ -2373,7 +2421,7 @@ export function ReservationsTable() {
                 if (locationDialog.row) {
                   startLocationSharing(locationDialog.row);
                 }
-                setLocationDialog({ open: false, row: null });
+                setLocationDialog({ open: false, row: null, shareToken: null });
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >

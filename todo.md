@@ -978,3 +978,10 @@
 - [x] Mapa: filtro por conductor — select dropdown en la barra de leyenda con lista de conductores asignados, filtra marcadores en tiempo real
 - [x] Mapa: popup mejorado — muestra hora, cliente, matrícula (estilo placa amarilla), conductor asignado, dirección, botón 'Completar' (marca la operación como hecha vía updateReservation) y 'Google Maps'
 - [x] Tabla Programación: indicador de color en columna de balance — rojo si saldo pendiente, verde si pagado
+- [x] Tracking público: Añadir columna share_token a en_camino_tracking para generar enlace público
+- [x] Tracking público: Crear endpoint GET /api/track/:token para consultar ubicación sin autenticación
+- [x] Tracking público: Crear página pública /track/:token con mapa en tiempo real del conductor
+- [x] Tracking público: Mensajes contextuales por tipo (entrega: "Tu vehículo te está esperando" / devolución: "El conductor ha llegado para recoger el vehículo")
+- [x] Tracking público: Botón "Compartir ubicación" en el flujo En Camino para copiar enlace al portapapeles
+- [x] Tracking público: Auto-polling de ubicación cada 5s en la página pública
+- [x] Tracking público: Estado completado/expirado cuando el conductor llega o cancela

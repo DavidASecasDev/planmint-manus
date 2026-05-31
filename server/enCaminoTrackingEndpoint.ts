@@ -5,7 +5,13 @@
  */
 import { Request, Response } from "express";
 import { createClient } from "@supabase/supabase-js";
+import { randomBytes } from "crypto";
 import { notifyOwner } from "./_core/notification";
+
+/** Generate a short, URL-safe share token (12 chars) */
+function generateShareToken(): string {
+  return randomBytes(9).toString('base64url').slice(0, 12);
+}
 
 const getServiceClient = () =>
   createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -63,6 +69,8 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
       });
     }
 
+    const shareToken = generateShareToken();
+
     const { data, error } = await sb
       .from("en_camino_tracking")
       .upsert(
@@ -73,6 +81,7 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
           destination_address: destination_address || null,
           assigned_user_name: assigned_user_name || null,
           estimated_minutes: estimated_minutes ?? null,
+          share_token: shareToken,
         },
         { onConflict: "reservation_id,operation_type" }
       )
@@ -926,6 +935,124 @@ export async function handleEnCaminoStats(req: Request, res: Response) {
     });
   } catch (err) {
     console.error("[en-camino-tracking/stats] Error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
+
+/**
+ * GET /api/track/:token
+ * Public endpoint (no auth required) — returns live tracking data for a share token.
+ * Used by clients to see the driver's real-time location on a map.
+ */
+export async function handlePublicTrack(req: Request, res: Response) {
+  try {
+    const { token } = req.params;
+
+    if (!token || token.length < 8) {
+      return res.status(400).json({ ok: false, error: "Invalid tracking token" });
+    }
+
+    const sb = getServiceClient();
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("id, reservation_id, operation_type, en_camino_at, llego_at, destination_address, assigned_user_name, estimated_minutes, current_lat, current_lng, location_updated_at, sharing_location")
+      .eq("share_token", token)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[public-track] Query error:", error);
+      return res.status(500).json({ ok: false, error: "Internal server error" });
+    }
+
+    if (!data) {
+      return res.status(404).json({ ok: false, error: "Tracking not found", status: "not_found" });
+    }
+
+    // Determine status
+    let status: "en_camino" | "arrived" | "cancelled" = "en_camino";
+    if (data.llego_at) {
+      status = "arrived";
+    }
+
+    // Get the reservation's client name and vehicle info for the public page
+    let clientName = "";
+    let vehicleInfo = "";
+    try {
+      const { data: resData } = await sb
+        .from("reservations")
+        .select("cliente_nombre, vehiculo_matricula, vehiculo_modelo")
+        .eq("id", data.reservation_id)
+        .single();
+      if (resData) {
+        clientName = resData.cliente_nombre || "";
+        vehicleInfo = [resData.vehiculo_modelo, resData.vehiculo_matricula].filter(Boolean).join(" · ");
+      }
+    } catch { /* ignore */ }
+
+    // Return sanitized data (no internal IDs exposed)
+    return res.json({
+      ok: true,
+      status,
+      operation_type: data.operation_type,
+      driver_name: data.assigned_user_name || "Tu conductor",
+      destination_address: data.destination_address || "",
+      estimated_minutes: data.estimated_minutes ?? null,
+      en_camino_at: data.en_camino_at,
+      llego_at: data.llego_at,
+      current_lat: data.current_lat,
+      current_lng: data.current_lng,
+      location_updated_at: data.location_updated_at,
+      sharing_location: data.sharing_location ?? false,
+      client_name: clientName,
+      vehicle_info: vehicleInfo,
+    });
+  } catch (err) {
+    console.error("[public-track] Error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+}
+
+/**
+ * POST /api/en-camino-tracking/share-token
+ * Get the share token for an existing tracking record.
+ * Used by the driver to get the shareable link after starting a trip.
+ * Body: { reservation_id, operation_type }
+ */
+export async function handleGetShareToken(req: Request, res: Response) {
+  try {
+    const { reservation_id, operation_type } = req.body as {
+      reservation_id?: string;
+      operation_type?: string;
+    };
+
+    if (!reservation_id || !operation_type) {
+      return res.status(400).json({ ok: false, error: "reservation_id and operation_type required" });
+    }
+
+    const sb = getServiceClient();
+
+    const { data, error } = await sb
+      .from("en_camino_tracking")
+      .select("share_token")
+      .eq("reservation_id", reservation_id)
+      .eq("operation_type", operation_type)
+      .is("llego_at", null)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[en-camino-tracking/share-token] Error:", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    if (!data || !data.share_token) {
+      return res.status(404).json({ ok: false, error: "No active tracking found" });
+    }
+
+    return res.json({ ok: true, share_token: data.share_token });
+  } catch (err) {
+    console.error("[en-camino-tracking/share-token] Error:", err);
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }

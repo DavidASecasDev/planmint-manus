@@ -131,7 +131,7 @@ import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleGeocodeCacheLookup, handleGeocodeCacheSave, handleGeocodeCacheManualSet } from "../geocodeCacheEndpoint";
-import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats } from "../enCaminoTrackingEndpoint";
+import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats, handlePublicTrack, handleGetShareToken } from "../enCaminoTrackingEndpoint";
 import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
 import { handleScheduledRentlyPoll } from "../scheduledRentlyPoll";
@@ -314,6 +314,8 @@ async function startServer() {
   app.post("/api/en-camino-tracking/stats", handleEnCaminoStats);
   app.get("/api/en-camino-tracking", handleEnCaminoList);
   app.delete("/api/en-camino-tracking", handleEnCaminoDelete);
+  app.post("/api/en-camino-tracking/share-token", handleGetShareToken);
+  app.get("/api/track/:token", handlePublicTrack); // Public — no auth required
 
   // User management
   app.post("/api/create-user", handleCreateUser);
