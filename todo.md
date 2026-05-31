@@ -997,3 +997,4 @@
 - [x] Tracking público: Dibujar polyline de ruta (Google Directions) en el mapa del cliente mostrando el camino que seguirá el conductor
 - [x] Tracking público: Animar marcador del coche moviéndose suavemente entre actualizaciones GPS (interpolación lineal) en lugar de saltar de posición
 - [x] Tracking público: Rotar icono del coche según la dirección de movimiento (bearing entre posición anterior y actual)
+- [x] Fix: Nominatim API devuelve 'lon' no 'lng' — causaba NaN en destCoords y crash del mapa público de tracking

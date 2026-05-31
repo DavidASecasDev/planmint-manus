@@ -289,7 +289,12 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
     const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`);
     const results = await resp.json();
     if (results.length > 0) {
-      return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lng) };
+      // Nominatim returns 'lon' not 'lng'
+      const lat = parseFloat(results[0].lat);
+      const lng = parseFloat(results[0].lon);
+      if (isFinite(lat) && isFinite(lng)) {
+        return { lat, lng };
+      }
     }
   } catch { /* ignore */ }
   return null;
@@ -503,7 +508,7 @@ export default function PublicTracking() {
   // ── En camino state (main view with map) ──
   const mapCenter: [number, number] = hasLocation
     ? [parsedLat, parsedLng]
-    : destCoords
+    : (destCoords && isFinite(destCoords.lat) && isFinite(destCoords.lng))
       ? [destCoords.lat, destCoords.lng]
       : [39.5696, 2.6502]; // Default: Mallorca
 
@@ -616,7 +621,7 @@ export default function PublicTracking() {
           )}
 
           {/* Destination marker */}
-          {destCoords && (
+          {destCoords && isFinite(destCoords.lat) && isFinite(destCoords.lng) && (
             <Marker position={[destCoords.lat, destCoords.lng]} icon={destIcon} />
           )}
 
