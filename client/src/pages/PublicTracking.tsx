@@ -134,6 +134,76 @@ function createDestinationMarker() {
 const carIcon = createCarMarker();
 const destIcon = createDestinationMarker();
 
+// ── Animated car marker component ──
+function AnimatedCarMarker({ lat, lng, icon }: { lat: number; lng: number; icon: L.Icon | L.DivIcon }) {
+  const markerRef = useRef<L.Marker | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const prevPosRef = useRef<{ lat: number; lng: number }>({ lat, lng });
+
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker) return;
+
+    const startLat = prevPosRef.current.lat;
+    const startLng = prevPosRef.current.lng;
+    const endLat = lat;
+    const endLng = lng;
+
+    // Skip animation if it's the first position or same position
+    if (startLat === endLat && startLng === endLng) return;
+
+    const duration = 2000; // 2 seconds smooth transition
+    const startTime = performance.now();
+
+    // Cancel any ongoing animation
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+
+    function animate(currentTime: number) {
+      if (!marker) return;
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease-out cubic for natural deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      const currentLat = startLat + (endLat - startLat) * eased;
+      const currentLng = startLng + (endLng - startLng) * eased;
+
+      marker.setLatLng([currentLat, currentLng]);
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        prevPosRef.current = { lat: endLat, lng: endLng };
+      }
+    }
+
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [lat, lng]);
+
+  // Set initial position on mount
+  useEffect(() => {
+    prevPosRef.current = { lat, lng };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Marker
+      position={[lat, lng]}
+      icon={icon}
+      ref={markerRef}
+    />
+  );
+}
+
 // ── Map auto-fit component ──
 function MapAutoFit({ carLat, carLng, destLat, destLng }: {
   carLat: number | null; carLng: number | null;
@@ -508,9 +578,9 @@ export default function PublicTracking() {
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
 
-          {/* Driver car marker */}
+          {/* Driver car marker (animated smooth movement) */}
           {hasLocation && (
-            <Marker position={[parsedLat, parsedLng]} icon={carIcon} />
+            <AnimatedCarMarker lat={parsedLat} lng={parsedLng} icon={carIcon} />
           )}
 
           {/* Destination marker */}

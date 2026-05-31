@@ -995,3 +995,4 @@
 - [x] Historial tracking: Dashboard con gráficos de rendimiento (media de desviación, tendencia, ranking conductores) — ya existía TravelStatsDashboard
 - [x] Fix: Página pública de tracking crashea con "Invalid LatLng object (NaN)" cuando current_lat/current_lng son null — añadida validación defensiva con isFinite()
 - [x] Tracking público: Dibujar polyline de ruta (Google Directions) en el mapa del cliente mostrando el camino que seguirá el conductor
+- [x] Tracking público: Animar marcador del coche moviéndose suavemente entre actualizaciones GPS (interpolación lineal) en lugar de saltar de posición
