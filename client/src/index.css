@@ -358,3 +358,9 @@
 .leaflet-popup-content {
   margin: 10px 12px !important;
 }
+
+/* Force leaflet map to fill absolute-positioned wrapper */
+.absolute.inset-0 > .leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+}

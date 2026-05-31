@@ -603,13 +603,14 @@ export default function PublicTracking() {
 
       {/* Map */}
       <div className="flex-1 relative" style={{ minHeight: '50vh' }}>
-        <MapContainer
-          center={mapCenter}
-          zoom={13}
-          scrollWheelZoom={true}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={false}
-        >
+        <div className="absolute inset-0">
+          <MapContainer
+            center={mapCenter}
+            zoom={13}
+            scrollWheelZoom={true}
+            className="!h-full !w-full"
+            zoomControl={false}
+          >
           <TileLayer
             attribution='&copy; <a href="https://carto.com">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
@@ -646,7 +647,8 @@ export default function PublicTracking() {
             destLat={destCoords?.lat ?? null}
             destLng={destCoords?.lng ?? null}
           />
-        </MapContainer>
+          </MapContainer>
+        </div>
 
         {/* GPS status overlay */}
         {!hasLocation && (
