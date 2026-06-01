@@ -1006,3 +1006,4 @@
 - [x] Live Map: ETA en vivo desde Google Maps — mostrar ETA actualizado en sidebar cards para operaciones con GPS activo
 - [x] Live Map: Sidebar toggle más visible — mejorar botón de colapsar/expandir sidebar
 - [x] Live Map: Indicador visual de operación seleccionada en el mapa (highlight del marcador)
+- [x] Bug: Live Map interno muestra línea recta verde cruzando Mallorca hasta Alcúdia en lugar de la ruta real por carretera — RESUELTO: el endpoint location-history devolvía TODAS las posiciones históricas sin filtrar por la fecha de inicio del viaje actual. Añadido parámetro 'since' que filtra por en_camino_at

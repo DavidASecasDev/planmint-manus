@@ -24,6 +24,7 @@ interface TrailRecord {
   reservation_id: string;
   operation_type: string;
   sharing_location?: boolean;
+  en_camino_at?: string;
 }
 
 export function useLocationTrail(records: TrailRecord[]) {
@@ -40,6 +41,7 @@ export function useLocationTrail(records: TrailRecord[]) {
           body: {
             reservation_id: rec.reservation_id,
             operation_type: rec.operation_type,
+            since: rec.en_camino_at || undefined,
           },
         }
       );

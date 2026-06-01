@@ -663,10 +663,11 @@ export async function handleEnCaminoLocation(req: Request, res: Response) {
  */
 export async function handleEnCaminoLocationHistory(req: Request, res: Response) {
   try {
-    const { reservation_id, operation_type, tracking_id } = req.body as {
+    const { reservation_id, operation_type, tracking_id, since } = req.body as {
       reservation_id?: string;
       operation_type?: string;
       tracking_id?: string;
+      since?: string; // ISO timestamp — only return positions after this time
     };
 
     const sb = getServiceClient();
@@ -684,6 +685,11 @@ export async function handleEnCaminoLocationHistory(req: Request, res: Response)
         .eq("operation_type", operation_type);
     } else {
       return res.status(400).json({ ok: false, error: "tracking_id or (reservation_id + operation_type) required" });
+    }
+
+    // Filter to only positions recorded after the trip start time
+    if (since) {
+      query = query.gte("recorded_at", since);
     }
 
     const { data, error } = await query;
