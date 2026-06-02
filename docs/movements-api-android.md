@@ -112,20 +112,26 @@ Sube una foto (inicio o fin del movimiento) y devuelve la URL pública.
   "start_photo_url": "https://...url-de-la-foto-subida...",
   "start_lat": 39.5696,
   "start_lng": 2.6502,
+  "destination_address": "Portals Nous, Calvià",
+  "estimated_minutes": 25,
+  "enable_tracking": true,
   "notes": "Cliente espera en recepción hotel"
 }
 ```
 
-| Campo            | Tipo     | Requerido | Descripción                              |
-|------------------|----------|-----------|------------------------------------------|
-| `matricula`      | string   | **Sí**    | Matrícula del vehículo (sin espacios)    |
-| `movement_type`  | string   | **Sí**    | Uno de: entrega, recogida, escoba, limpieza |
-| `start_photo_url`| string   | No        | URL de la foto de inicio (del paso 2)    |
-| `start_lat`      | number   | No        | Latitud GPS al iniciar                   |
-| `start_lng`      | number   | No        | Longitud GPS al iniciar                  |
-| `reservation_id` | string   | No        | UUID de la reserva asociada (si aplica)  |
-| `vehicle_id`     | string   | No        | UUID del vehículo operacional            |
-| `notes`          | string   | No        | Notas adicionales                        |
+| Campo               | Tipo     | Requerido | Descripción                              |
+|---------------------|----------|-----------|------------------------------------------|
+| `matricula`         | string   | **Sí**    | Matrícula del vehículo (sin espacios)    |
+| `movement_type`     | string   | **Sí**    | Uno de: entrega, recogida, escoba, limpieza |
+| `start_photo_url`   | string   | No        | URL de la foto de inicio (del paso 2)    |
+| `start_lat`         | number   | No        | Latitud GPS al iniciar                   |
+| `start_lng`         | number   | No        | Longitud GPS al iniciar                  |
+| `destination_address` | string | No        | Dirección de destino (para tracking en mapa) |
+| `estimated_minutes` | number   | No        | Minutos estimados de viaje               |
+| `enable_tracking`   | boolean  | No        | Activar tracking GPS en vivo (default: true para entrega/recogida) |
+| `reservation_id`    | string   | No        | UUID de la reserva asociada (si aplica)  |
+| `vehicle_id`        | string   | No        | UUID del vehículo operacional            |
+| `notes`             | string   | No        | Notas adicionales                        |
 
 **Respuesta (200):**
 ```json
@@ -143,6 +149,10 @@ Sube una foto (inicio o fin del movimiento) y devuelve la URL pública.
     "status": "en_curso",
     "started_at": "2026-06-02T10:30:00.000Z",
     "notes": "Cliente espera en recepción hotel"
+  },
+  "tracking": {
+    "enabled": true,
+    "share_token": "Xpe7vRZmh4V1"
   }
 }
 ```
@@ -348,24 +358,53 @@ val photoUrl = uploadResponse.url
 // 3. Obtener GPS
 val location = locationManager.getLastKnownLocation()
 
-// 4. Iniciar el movimiento
+// 4. Iniciar el movimiento (con tracking GPS en vivo)
 val startResponse = api.post("/api/movements/start", mapOf(
     "matricula" to plate,
     "movement_type" to "entrega",
     "start_photo_url" to photoUrl,
     "start_lat" to location.latitude,
     "start_lng" to location.longitude,
-    "notes" to notesInput  // opcional
+    "destination_address" to destinationAddress,  // ¡IMPORTANTE para el mapa!
+    "estimated_minutes" to estimatedMinutes,      // opcional
+    "enable_tracking" to true,                    // default para entrega/recogida
+    "notes" to notesInput
 ))
 val movementId = startResponse.movement.id
+val shareToken = startResponse.tracking?.share_token  // Token para compartir con el cliente
 
-// ... el conductor realiza la entrega ...
+// 5. TRACKING GPS EN VIVO (mientras el conductor conduce)
+// Enviar posición cada 10-15 segundos
+val trackingReservationId = "mov_$movementId"  // ¡Prefijo mov_ obligatorio!
+fun sendGpsUpdate(lat: Double, lng: Double, accuracy: Float?) {
+    api.post("/api/en-camino-tracking/location", mapOf(
+        "reservation_id" to trackingReservationId,
+        "operation_type" to "entrega",  // o "devolucion" para recogida
+        "lat" to lat,
+        "lng" to lng,
+        "accuracy" to accuracy
+    ))
+}
 
-// 5. Al llegar: capturar foto final
+// Iniciar servicio de ubicación en background
+locationService.startTracking { location ->
+    sendGpsUpdate(location.latitude, location.longitude, location.accuracy)
+}
+
+// ... el conductor conduce hacia el destino ...
+
+// 6. Al llegar: detener tracking + capturar foto final
+locationService.stopTracking()
+// Opcionalmente, notificar que se detuvo la ubicación:
+api.post("/api/en-camino-tracking/location-stop", mapOf(
+    "reservation_id" to trackingReservationId,
+    "operation_type" to "entrega"
+))
+
 val endPhotoUrl = uploadPhoto(endImageBase64)
 val endLocation = locationManager.getLastKnownLocation()
 
-// 6. Finalizar el movimiento
+// 7. Finalizar el movimiento (esto también cierra el tracking automáticamente)
 val endResponse = api.post("/api/movements/end", mapOf(
     "movement_id" to movementId,
     "end_photo_url" to endPhotoUrl,
@@ -373,7 +412,8 @@ val endResponse = api.post("/api/movements/end", mapOf(
     "end_lng" to endLocation.longitude
 ))
 
-// ─── Alternativa: Cancelar ───
+// ─── Alternativa: Cancelar (también elimina el tracking) ───
+locationService.stopTracking()
 val cancelResponse = api.post("/api/movements/cancel", mapOf(
     "movement_id" to movementId
 ))
@@ -408,7 +448,7 @@ val jwt = session?.accessToken
 
 5. **Movimientos activos:** Un conductor puede tener múltiples movimientos activos simultáneamente (ej. escoba + entrega).
 
-6. **Relación con En Camino:** Los movimientos son independientes del sistema "En Camino" (tracking GPS en vivo). Un movimiento registra el hecho de que se movió un vehículo; "En Camino" es el tracking en tiempo real de una operación de reserva. Pueden coexistir.
+6. **Integración con En Camino (Tracking GPS en vivo):** Al iniciar un movimiento tipo `entrega` o `recogida`, el servidor crea automáticamente un registro de tracking GPS en vivo. Esto permite que el equipo de oficina vea el movimiento en el **Mapa En Vivo** (Live Map). Al finalizar o cancelar el movimiento, el tracking se desactiva automáticamente. Para movimientos tipo `escoba` o `limpieza`, NO se activa tracking (no tienen destino definido). Puedes desactivar el tracking pasando `enable_tracking: false` en el body de start.
 
 7. **Offline:** Si la app pierde conexión, guardar los datos localmente y reintentar cuando vuelva la conexión. El campo `started_at` se genera en el servidor, no en el cliente.
 
@@ -435,3 +475,154 @@ val jwt = session?.accessToken
 | `vehicle_id`      | uuid      | ID del vehículo operacional (FK)               |
 | `reservation_id`  | uuid      | ID de la reserva asociada (opcional)           |
 | `notes`           | string    | Notas adicionales                              |
+
+---
+
+## Integración GPS Tracking en Vivo (En Camino)
+
+Cuando se inicia un movimiento tipo `entrega` o `recogida`, el servidor crea automáticamente un registro de tracking GPS. Esto permite que el equipo de oficina vea la posición del conductor en tiempo real en el **Mapa En Vivo**.
+
+### Flujo automático
+
+```
+POST /api/movements/start (entrega/recogida)
+    └── Servidor crea registro en en_camino_tracking
+        └── Live Map muestra la operación automáticamente
+        └── Se genera share_token para compartir con el cliente
+
+POST /api/movements/end
+    └── Servidor marca tracking como "llegó" y desactiva GPS
+
+POST /api/movements/cancel
+    └── Servidor elimina el registro de tracking completamente
+```
+
+### Enviar posición GPS durante el trayecto
+
+**`POST /api/en-camino-tracking/location`**
+
+```json
+{
+  "reservation_id": "mov_<movement_id>",
+  "operation_type": "entrega",
+  "lat": 39.5696,
+  "lng": 2.6502,
+  "accuracy": 10.5
+}
+```
+
+| Campo             | Tipo   | Requerido | Descripción                                    |
+|-------------------|--------|-----------|------------------------------------------------|
+| `reservation_id`  | string | **Sí**    | `"mov_" + movement_id` (prefijo obligatorio)   |
+| `operation_type`  | string | **Sí**    | `"entrega"` o `"devolucion"` (recogida → devolucion) |
+| `lat`             | number | **Sí**    | Latitud actual                                 |
+| `lng`             | number | **Sí**    | Longitud actual                                |
+| `accuracy`        | number | No        | Precisión del GPS en metros                    |
+
+**Respuesta (200):**
+```json
+{ "ok": true }
+```
+
+**Errores:**
+
+| Status | Mensaje                              | Causa                                         |
+|--------|--------------------------------------|-----------------------------------------------|
+| 400    | `reservation_id and operation_type required` | Campos faltantes                      |
+| 400    | `lat and lng are required as numbers`| Coordenadas inválidas                         |
+| 404    | `No active en_camino record found`   | El movimiento ya fue finalizado o cancelado   |
+
+### Detener compartición de ubicación
+
+**`POST /api/en-camino-tracking/location-stop`**
+
+```json
+{
+  "reservation_id": "mov_<movement_id>",
+  "operation_type": "entrega"
+}
+```
+
+> **Nota:** Esto solo marca `sharing_location = false`. El registro de tracking sigue existiendo hasta que se llame a `end` o `cancel`. Útil si el conductor quiere pausar temporalmente la compartición.
+
+### Mapeo de tipos
+
+| `movement_type` | `operation_type` en tracking | Tracking activo |
+|-----------------|------------------------------|-----------------|
+| `entrega`       | `entrega`                    | **Sí**          |
+| `recogida`      | `devolucion`                 | **Sí**          |
+| `escoba`        | —                            | No              |
+| `limpieza`      | —                            | No              |
+
+### Frecuencia de envío GPS recomendada
+
+| Situación                | Intervalo recomendado |
+|--------------------------|-----------------------|
+| Conduciendo (> 10 km/h) | Cada 10 segundos      |
+| Parado/lento             | Cada 30 segundos      |
+| Batería baja (< 15%)    | Cada 60 segundos      |
+
+### Enlace de seguimiento para el cliente
+
+Cuando el movimiento se inicia con tracking, la respuesta incluye un `share_token`. La URL pública de seguimiento es:
+
+```
+https://plan-mint.com/track/<share_token>
+```
+
+Esta URL se puede enviar al cliente por WhatsApp para que vea en tiempo real dónde está su vehículo.
+
+### Implementación Android recomendada
+
+```kotlin
+class GpsTrackingService : Service() {
+    private var movementId: String? = null
+    private var operationType: String = "entrega"
+    
+    fun startTracking(movId: String, opType: String) {
+        movementId = movId
+        operationType = opType
+        // Usar FusedLocationProviderClient con PRIORITY_HIGH_ACCURACY
+        // Intervalo: 10 segundos
+        locationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    }
+    
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            val location = result.lastLocation ?: return
+            // Enviar al servidor en background (usar WorkManager o coroutine)
+            scope.launch {
+                try {
+                    api.post("/api/en-camino-tracking/location", mapOf(
+                        "reservation_id" to "mov_${movementId}",
+                        "operation_type" to operationType,
+                        "lat" to location.latitude,
+                        "lng" to location.longitude,
+                        "accuracy" to location.accuracy
+                    ))
+                } catch (e: Exception) {
+                    // No fallar silenciosamente, guardar para retry
+                    pendingUpdates.add(GpsUpdate(location))
+                }
+            }
+        }
+    }
+    
+    fun stopTracking() {
+        locationClient.removeLocationUpdates(locationCallback)
+        // Notificar al servidor que se detuvo
+        scope.launch {
+            api.post("/api/en-camino-tracking/location-stop", mapOf(
+                "reservation_id" to "mov_${movementId}",
+                "operation_type" to operationType
+            ))
+        }
+    }
+}
+```
+
+> **Permisos Android requeridos:**
+> - `ACCESS_FINE_LOCATION`
+> - `ACCESS_COARSE_LOCATION`
+> - `FOREGROUND_SERVICE` (para tracking en background)
+> - `FOREGROUND_SERVICE_LOCATION` (Android 14+)

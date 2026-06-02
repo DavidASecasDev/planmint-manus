@@ -202,7 +202,12 @@ export async function handleEnCaminoList(req: Request, res: Response) {
     // Enrich records with external_reservation_id from reservations table
     const records = data || [];
     if (records.length > 0) {
-      const reservationIds = Array.from(new Set(records.map((r: any) => r.reservation_id).filter(Boolean)));
+      // Filter out movement-based records (mov_ prefix) — they don't have real reservations
+      const reservationIds = Array.from(new Set(
+        records
+          .map((r: any) => r.reservation_id)
+          .filter((id: string) => id && !id.startsWith('mov_'))
+      ));
       if (reservationIds.length > 0) {
         const { data: reservations } = await sb
           .from('reservations')

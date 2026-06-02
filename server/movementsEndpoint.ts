@@ -19,6 +19,106 @@ import {
   authenticateSupabaseRequest,
   AuthError,
 } from "./supabaseAdmin";
+import { randomBytes } from "crypto";
+
+/** Generate a short, URL-safe share token (12 chars) */
+function generateShareToken(): string {
+  return randomBytes(9).toString('base64url').slice(0, 12);
+}
+
+/** Map movement_type to en_camino_tracking operation_type */
+function mapMovementToOperationType(movementType: MovementType): 'entrega' | 'devolucion' | null {
+  switch (movementType) {
+    case 'entrega': return 'entrega';
+    case 'recogida': return 'devolucion';
+    default: return null; // escoba/limpieza don't get tracked
+  }
+}
+
+/** Build the en_camino_tracking reservation_id from a movement_id */
+function movementTrackingId(movementId: string): string {
+  return `mov_${movementId}`;
+}
+
+/**
+ * Create an en_camino_tracking record for a movement.
+ * This enables the Live Map to show the movement in real-time.
+ */
+async function createTrackingForMovement(opts: {
+  movementId: string;
+  operationType: 'entrega' | 'devolucion';
+  destinationAddress?: string;
+  driverName?: string;
+  estimatedMinutes?: number;
+}): Promise<{ share_token: string } | null> {
+  const sb = getServiceClient();
+  const shareToken = generateShareToken();
+  const trackingId = movementTrackingId(opts.movementId);
+
+  const { data, error } = await sb
+    .from('en_camino_tracking')
+    .upsert(
+      {
+        reservation_id: trackingId,
+        operation_type: opts.operationType,
+        en_camino_at: new Date().toISOString(),
+        destination_address: opts.destinationAddress || null,
+        assigned_user_name: opts.driverName || null,
+        estimated_minutes: opts.estimatedMinutes || null,
+        share_token: shareToken,
+      },
+      { onConflict: 'reservation_id,operation_type' }
+    )
+    .select('share_token')
+    .single();
+
+  if (error) {
+    console.error('[movements/tracking] Error creating tracking:', error.message);
+    return null;
+  }
+  return { share_token: data.share_token };
+}
+
+/**
+ * Remove the en_camino_tracking record for a movement (on end/cancel).
+ */
+async function removeTrackingForMovement(movementId: string): Promise<void> {
+  const sb = getServiceClient();
+  const trackingId = movementTrackingId(movementId);
+  
+  // First stop location sharing
+  await sb
+    .from('en_camino_tracking')
+    .update({ sharing_location: false })
+    .eq('reservation_id', trackingId);
+
+  // Then delete the record
+  const { error } = await sb
+    .from('en_camino_tracking')
+    .delete()
+    .eq('reservation_id', trackingId);
+
+  if (error) {
+    console.error('[movements/tracking] Error removing tracking:', error.message);
+  }
+}
+
+/**
+ * Mark the en_camino_tracking record as arrived (on movement end).
+ */
+async function markTrackingArrived(movementId: string): Promise<void> {
+  const sb = getServiceClient();
+  const trackingId = movementTrackingId(movementId);
+  
+  await sb
+    .from('en_camino_tracking')
+    .update({
+      llego_at: new Date().toISOString(),
+      sharing_location: false,
+    })
+    .eq('reservation_id', trackingId)
+    .is('llego_at', null);
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +134,13 @@ interface StartMovementBody {
   reservation_id?: string;
   vehicle_id?: string;
   notes?: string;
+  /** Destination address for GPS tracking (e.g., "Portals Nous, Calvià") */
+  destination_address?: string;
+  /** If true, automatically creates an en_camino_tracking record for live GPS tracking.
+   *  Only applies to movement types 'entrega' and 'recogida'. Defaults to true for those types. */
+  enable_tracking?: boolean;
+  /** Estimated travel time in minutes (for ETA display) */
+  estimated_minutes?: number;
 }
 
 interface EndMovementBody {
@@ -171,7 +278,37 @@ export async function handleMovementsStart(req: Request, res: Response) {
       return res.status(500).json({ ok: false, error: error.message });
     }
 
-    return res.json({ ok: true, movement });
+    // ── Auto-create en_camino_tracking for entrega/recogida movements ──
+    let tracking: { share_token: string } | null = null;
+    const operationType = mapMovementToOperationType(body.movement_type);
+    const shouldTrack = body.enable_tracking !== false && operationType !== null;
+
+    if (shouldTrack && movement) {
+      // Get the driver's name from profiles
+      let driverName = '';
+      try {
+        const { data: profile } = await sb
+          .from('profiles')
+          .select('name')
+          .eq('id', userId)
+          .maybeSingle();
+        driverName = profile?.name || '';
+      } catch { /* ignore */ }
+
+      tracking = await createTrackingForMovement({
+        movementId: movement.id,
+        operationType,
+        destinationAddress: body.destination_address,
+        driverName,
+        estimatedMinutes: body.estimated_minutes,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      movement,
+      tracking: tracking ? { share_token: tracking.share_token, enabled: true } : { enabled: false },
+    });
   } catch (err) {
     if (err instanceof AuthError) {
       return res.status(err.status).json({ ok: false, error: err.message });
@@ -236,6 +373,9 @@ export async function handleMovementsEnd(req: Request, res: Response) {
       return res.status(500).json({ ok: false, error: error.message });
     }
 
+    // ── Mark en_camino_tracking as arrived and stop GPS sharing ──
+    await markTrackingArrived(body.movement_id);
+
     return res.json({ ok: true, movement });
   } catch (err) {
     if (err instanceof AuthError) {
@@ -294,6 +434,9 @@ export async function handleMovementsCancel(req: Request, res: Response) {
       console.error("[movements/cancel] Update error:", error);
       return res.status(500).json({ ok: false, error: error.message });
     }
+
+    // ── Remove en_camino_tracking record (cancel = remove from Live Map) ──
+    await removeTrackingForMovement(body.movement_id);
 
     return res.json({ ok: true, movement });
   } catch (err) {

@@ -74,6 +74,7 @@
     "mysql2": "^3.20.0",
     "nanoid": "^5.1.5",
     "next-themes": "^0.3.0",
+    "pg": "^8.21.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

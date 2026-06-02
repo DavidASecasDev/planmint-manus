@@ -369,6 +369,7 @@ function OperationCard({
   const urgency = getUrgencyColor(minutesAgo);
   const geocoded = geocodedRecords.find(g => g.id === rec.id);
   const routeData = geocoded ? routes[geocoded.id] : null;
+  const isMovement = rec.reservation_id?.startsWith('mov_');
   const isEntrega = rec.operation_type === 'entrega';
   const isSelected = selectedRecordId === rec.id;
   const liveRoute = liveRoutes[rec.id];
@@ -401,9 +402,11 @@ function OperationCard({
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] font-bold" style={{ color: brand.navy }}>
-                {isEntrega ? 'Entrega' : 'Devolución'}
+                {isMovement
+                  ? (isEntrega ? 'Mov. Entrega' : 'Mov. Recogida')
+                  : (isEntrega ? 'Entrega' : 'Devolución')}
               </span>
-              {rec.external_reservation_id && (
+              {rec.external_reservation_id && !isMovement && (
                 <span className="text-[10px] text-gray-500 font-medium">
                   Nº {rec.external_reservation_id}
                 </span>
