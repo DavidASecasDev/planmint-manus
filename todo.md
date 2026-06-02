@@ -1015,3 +1015,4 @@
 - [x] Live Map: Indicador de señal GPS débil — mostrar badge "Señal débil" en tarjeta del sidebar cuando current_accuracy > 30m
 - [x] Live Map: Botón "Cancelar trayecto" — botón en cada tarjeta para eliminar un trayecto iniciado por error (con diálogo de confirmación)
 - [x] Live Map: Filtro por selección — al seleccionar una tarjeta, ocultar todos los demás conductores/rutas del mapa y mostrar solo la operación seleccionada
+- [x] Bug: Mapa en LiveMap tiene z-index demasiado alto — se superpone a dropdowns de notificaciones y al AlertDialog de cancelar trayecto

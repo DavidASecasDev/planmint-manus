@@ -1039,8 +1039,8 @@ export default function LiveMapPage() {
 
         {/* ── Map + Sidebar ── */}
         <div className="flex-1 flex min-h-0 relative">
-          {/* Map Area */}
-          <div className="flex-1 relative">
+          {/* Map Area — isolate stacking context so leaflet z-indices don't escape */}
+          <div className="flex-1 relative" style={{ isolation: 'isolate' }}>
             {loading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ backgroundColor: brand.warmBg }}>
                 <div className="relative">
