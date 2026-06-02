@@ -592,12 +592,19 @@ export async function handleEnCaminoHistory(req: Request, res: Response) {
  */
 export async function handleEnCaminoLocation(req: Request, res: Response) {
   try {
-    const { reservation_id, operation_type, lat, lng } = req.body as {
+    const body = req.body as {
       reservation_id?: string;
       operation_type?: string;
       lat?: number;
       lng?: number;
+      latitude?: number;
+      longitude?: number;
+      accuracy?: number;
     };
+    const { reservation_id, operation_type } = body;
+    // Accept both lat/lng and latitude/longitude for Android compatibility
+    const lat = body.lat ?? body.latitude;
+    const lng = body.lng ?? body.longitude;
 
     if (!reservation_id || !operation_type) {
       return res.status(400).json({ ok: false, error: "reservation_id and operation_type required" });
@@ -645,7 +652,7 @@ export async function handleEnCaminoLocation(req: Request, res: Response) {
         operation_type,
         latitude: lat,
         longitude: lng,
-        accuracy: (req.body as any).accuracy ?? null,
+        accuracy: body.accuracy ?? null,
         recorded_at: new Date().toISOString(),
       });
     } catch (histErr) {
