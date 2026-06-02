@@ -1008,3 +1008,5 @@
 - [x] Live Map: Indicador visual de operación seleccionada en el mapa (highlight del marcador)
 - [x] Bug: Live Map interno muestra línea recta verde cruzando Mallorca hasta Alcúdia en lugar de la ruta real por carretera — RESUELTO: el endpoint location-history devolvía TODAS las posiciones históricas sin filtrar por la fecha de inicio del viaje actual. Añadido parámetro 'since' que filtra por en_camino_at
 - [x] Bug: Live Map sigue mostrando operación cancelada como "1 activa" — RESUELTO: al cambiar el estado de una operación desde 'En camino' a cualquier otro, ahora se elimina automáticamente el registro de en_camino_tracking. También se limpiaron los registros huérfanos de la BD.
+- [x] Crear API server-side para Movimientos (Android): POST /api/movements/start, POST /api/movements/end, POST /api/movements/cancel, GET /api/movements/active, GET /api/movements/mine, GET /api/movements/:id, POST /api/movements/upload-photo, POST /api/ocr-plate
+- [x] Documentar API de Movimientos para desarrolladores Android

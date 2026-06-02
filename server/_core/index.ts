@@ -137,6 +137,15 @@ import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
 import { handleScheduledRentlyPoll } from "../scheduledRentlyPoll";
 import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
 import { handleRepairServiceSync } from "../repairServiceSync";
+import {
+  handleMovementsStart,
+  handleMovementsEnd,
+  handleMovementsCancel,
+  handleMovementsActive,
+  handleMovementsMine,
+  handleMovementsGetById,
+  handleMovementsUploadPhoto,
+} from "../movementsEndpoint";
 import { handleRepairRentlyPoll } from "../repairRentlyPoll";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
 import {
@@ -317,6 +326,15 @@ async function startServer() {
   app.post("/api/en-camino-tracking/share-token", handleGetShareToken);
   app.get("/api/track/:token", handlePublicTrack); // Public — no auth required
   app.get("/api/track/:token/eta", handlePublicTrackEta); // Public — dynamic ETA
+
+  // Movements API (Android + Web)
+  app.post("/api/movements/start", handleMovementsStart);
+  app.post("/api/movements/end", handleMovementsEnd);
+  app.post("/api/movements/cancel", handleMovementsCancel);
+  app.get("/api/movements/active", handleMovementsActive);
+  app.get("/api/movements/mine", handleMovementsMine);
+  app.get("/api/movements/:id", handleMovementsGetById);
+  app.post("/api/movements/upload-photo", handleMovementsUploadPhoto);
 
   // User management
   app.post("/api/create-user", handleCreateUser);
