@@ -1194,6 +1194,24 @@ export function ReservationsTable() {
               : `Cambio de estado manual: ${oldStatus || '(vacío)'} → ${value}`,
           },
         }).catch(() => { /* fire-and-forget */ });
+
+        // If the operation was 'En camino' and is being changed to any other status,
+        // delete the en_camino_tracking record so it disappears from the Live Map
+        if (oldStatus === 'En camino' && value !== 'En camino') {
+          const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+          // Stop location sharing if active
+          if (locationWatchIds.current[row.id] != null) {
+            stopLocationSharing(row.id, row.reservationId, opType);
+          }
+          // Delete the tracking record
+          apiInvoke('en-camino-tracking', {
+            body: {
+              _method: 'DELETE',
+              reservation_id: row.reservationId,
+              operation_type: opType,
+            },
+          }).catch((err) => console.warn('[en-camino-tracking] Delete on status change error:', err));
+        }
       }
     }
 
