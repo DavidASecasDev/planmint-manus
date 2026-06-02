@@ -28,6 +28,7 @@ export interface EnCaminoRecord {
   sharing_location?: boolean;
   current_lat?: number | null;
   current_lng?: number | null;
+  current_accuracy?: number | null;
   location_updated_at?: string | null;
   // Share token for public tracking link
   share_token?: string | null;

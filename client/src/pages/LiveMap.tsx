@@ -21,7 +21,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiInvoke } from '@/lib/apiClient';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2, Eye, EyeOff, Car, Share2, Copy, Check, ChevronUp, ChevronDown, Crosshair, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { RefreshCw, Navigation, Clock, MapPin, User, ArrowRight, ExternalLink, Truck, RotateCcw, Radio, AlertTriangle, Wifi, WifiOff, Loader2, Eye, EyeOff, Car, Share2, Copy, Check, ChevronUp, ChevronDown, Crosshair, PanelRightClose, PanelRightOpen, SignalLow, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -43,6 +43,16 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // ── Types ──
 type GeocodeSource = 'alias' | 'nominatim' | 'google';
@@ -349,6 +359,7 @@ function OperationCard({
   selectedRecordId,
   onSelect,
   onShareLink,
+  onCancelTrip,
   copiedId,
   etaMap,
 }: {
@@ -361,6 +372,7 @@ function OperationCard({
   selectedRecordId: string | null;
   onSelect: (id: string) => void;
   onShareLink: (rec: EnCaminoRecord) => void;
+  onCancelTrip: (rec: EnCaminoRecord) => void;
   copiedId: string | null;
   etaMap: Record<string, EtaData>;
 }) {
@@ -413,12 +425,24 @@ function OperationCard({
               )}
             </div>
           </div>
-          <div className={cn(
-            "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border",
-            urgency.bg, urgency.text, urgency.border
-          )}>
-            <Clock className="h-2.5 w-2.5" />
-            {minutesAgo} min
+          <div className="flex items-center gap-1.5">
+            <div className={cn(
+              "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border",
+              urgency.bg, urgency.text, urgency.border
+            )}>
+              <Clock className="h-2.5 w-2.5" />
+              {minutesAgo} min
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancelTrip(rec);
+              }}
+              className="h-6 w-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+              title="Cancelar trayecto"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
           </div>
         </div>
 
@@ -478,6 +502,13 @@ function OperationCard({
             <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 font-bold">
               <Radio className="h-2.5 w-2.5 animate-pulse" />
               GPS en vivo
+            </span>
+          )}
+          {/* GPS signal quality indicator */}
+          {isLive && rec.current_accuracy != null && rec.current_accuracy > 30 && (
+            <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border border-amber-200 text-amber-700 bg-amber-50 font-bold">
+              <SignalLow className="h-2.5 w-2.5" />
+              Señal débil ({Math.round(rec.current_accuracy)}m)
             </span>
           )}
           {isLive && trails[rec.id] && trails[rec.id].length > 0 && (
@@ -560,6 +591,9 @@ export default function LiveMapPage() {
   const [flyTrigger, setFlyTrigger] = useState(0);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [etaMap, setEtaMap] = useState<Record<string, EtaData>>({});
+  // Cancel trip dialog state
+  const [cancelTarget, setCancelTarget] = useState<EnCaminoRecord | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   // Track which addresses are currently being geocoded to avoid duplicate requests
   const geocodingInProgress = useRef<Set<string>>(new Set());
 
@@ -572,6 +606,41 @@ export default function LiveMapPage() {
   const formatRelativeTime = (date: Date) => {
     return formatDistanceToNow(date, { addSuffix: true, locale: es });
   };
+
+  // ── Cancel trip handler ──
+  const handleCancelTrip = useCallback(async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      const resp = await apiInvoke<{ ok: boolean; error?: string }>('en-camino-tracking', {
+        body: {
+          _method: 'DELETE',
+          reservation_id: cancelTarget.reservation_id,
+          operation_type: cancelTarget.operation_type,
+        },
+      });
+      if (resp.data?.ok) {
+        toast.success('Trayecto cancelado', {
+          description: `Se eliminó el trayecto de ${cancelTarget.assigned_user_name || 'conductor'}.`,
+        });
+        // Clear selection if the cancelled record was selected
+        if (selectedRecordId === cancelTarget.id) {
+          setSelectedRecordId(null);
+        }
+      } else {
+        toast.error('Error al cancelar', {
+          description: resp.data?.error || 'No se pudo eliminar el trayecto.',
+        });
+      }
+    } catch (err) {
+      toast.error('Error de conexión', {
+        description: 'No se pudo contactar al servidor.',
+      });
+    } finally {
+      setCancelling(false);
+      setCancelTarget(null);
+    }
+  }, [cancelTarget, selectedRecordId]);
 
   // ── Share link handler ──
   const handleShareLink = useCallback(async (rec: EnCaminoRecord) => {
@@ -810,7 +879,7 @@ export default function LiveMapPage() {
   const devoluciones = geocodedRecords.filter(r => r.operation_type === 'devolucion');
   const failedGeocode = records.filter(r => r.destination_address && !geocodedRecords.find(g => g.id === r.id));
 
-  // Filtered records based on toggle state
+  // Filtered records based on toggle state (for sidebar list)
   const filteredGeocodedRecords = geocodedRecords.filter(r => {
     if (r.operation_type === 'entrega' && !showEntregas) return false;
     if (r.operation_type === 'devolucion' && !showDevoluciones) return false;
@@ -821,6 +890,14 @@ export default function LiveMapPage() {
     if (r.operation_type === 'devolucion' && !showDevoluciones) return false;
     return true;
   });
+
+  // Map-visible records: further filtered by selection (only show selected operation on map)
+  const mapVisibleGeocodedRecords = selectedRecordId
+    ? filteredGeocodedRecords.filter(r => r.id === selectedRecordId)
+    : filteredGeocodedRecords;
+  const mapVisibleRecords = selectedRecordId
+    ? filteredRecords.filter(r => r.id === selectedRecordId)
+    : filteredRecords;
 
   const liveTrackingCount = records.filter(r => r.sharing_location && r.current_lat != null).length;
 
@@ -1050,7 +1127,7 @@ export default function LiveMapPage() {
                 </Marker>
 
                 {/* Route polylines */}
-                {filteredGeocodedRecords.map((rec) => {
+                {mapVisibleGeocodedRecords.map((rec) => {
                   const routeData = routes[rec.id];
                   if (!routeData) return null;
                   const color = rec.operation_type === 'entrega' ? '#1d4ed8' : '#b45309';
@@ -1093,7 +1170,7 @@ export default function LiveMapPage() {
 
                 {/* Live route polylines (from rental's current position to destination) */}
                 {Object.entries(liveRoutes).map(([recId, routeData]) => {
-                  const rec = filteredGeocodedRecords.find(r => r.id === recId);
+                  const rec = mapVisibleGeocodedRecords.find(r => r.id === recId);
                   if (!rec) return null;
                   return (
                     <Polyline
@@ -1128,7 +1205,7 @@ export default function LiveMapPage() {
                 })}
 
                 {/* GPS trail polylines — real route history */}
-                {filteredRecords.filter(r => r.sharing_location && trails[r.id] && trails[r.id].length > 1).map((rec) => {
+                {mapVisibleRecords.filter(r => r.sharing_location && trails[r.id] && trails[r.id].length > 1).map((rec) => {
                   const trailPositions = trails[rec.id].map(p => [p.lat, p.lng] as [number, number]);
                   return (
                     <Polyline
@@ -1166,7 +1243,7 @@ export default function LiveMapPage() {
                 })}
 
                 {/* Live location car markers — animated for smooth movement */}
-                {filteredRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => {
+                {mapVisibleRecords.filter(r => r.sharing_location && r.current_lat != null && r.current_lng != null).map((rec) => {
                   const popupHtml = `
                     <div style="font-size:0.875rem;min-width:220px;font-family:system-ui,-apple-system,sans-serif">
                       <div style="display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:8px;color:#047857">
@@ -1192,7 +1269,7 @@ export default function LiveMapPage() {
                 })}
 
                 {/* Destination markers */}
-                {filteredGeocodedRecords.map((rec) => (
+                {mapVisibleGeocodedRecords.map((rec) => (
                   <Marker
                     key={rec.id}
                     position={[rec.lat, rec.lng]}
@@ -1235,7 +1312,7 @@ export default function LiveMapPage() {
                   </Marker>
                 ))}
 
-                {filteredGeocodedRecords.length > 0 && <FitBounds markers={filteredGeocodedRecords} />}
+                {mapVisibleGeocodedRecords.length > 0 && <FitBounds markers={mapVisibleGeocodedRecords} />}
                 <FlyToLocation target={flyTarget} trigger={flyTrigger} />
               </MapContainer>
             )}
@@ -1287,6 +1364,7 @@ export default function LiveMapPage() {
                             setMobileDrawerOpen(false);
                           }}
                           onShareLink={handleShareLink}
+                          onCancelTrip={(r) => setCancelTarget(r)}
                           copiedId={copiedShareId}
                           etaMap={etaMap}
                         />
@@ -1362,6 +1440,7 @@ export default function LiveMapPage() {
                       selectedRecordId={selectedRecordId}
                       onSelect={handleSelectRecord}
                       onShareLink={handleShareLink}
+                      onCancelTrip={(r) => setCancelTarget(r)}
                       copiedId={copiedShareId}
                       etaMap={etaMap}
                     />
@@ -1403,7 +1482,56 @@ export default function LiveMapPage() {
             )}
           </button>
         </div>
+
+        {/* ── Selection filter indicator (floating pill) ── */}
+        {selectedRecordId && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1000]">
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg border text-xs font-semibold"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                backdropFilter: 'blur(12px)',
+                borderColor: brand.borderLight,
+                color: brand.navy,
+              }}
+            >
+              <Crosshair className="h-3 w-3 text-blue-600" />
+              <span>Mostrando 1 de {filteredRecords.length}</span>
+              <button
+                onClick={() => setSelectedRecordId(null)}
+                className="h-5 w-5 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                title="Mostrar todas las operaciones"
+              >
+                <X className="h-3 w-3 text-gray-500" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ── Cancel trip confirmation dialog ── */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar este trayecto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará el trayecto de <strong>{cancelTarget?.assigned_user_name || 'conductor'}</strong> hacia{' '}
+              <strong>{cancelTarget?.destination_address || 'destino desconocido'}</strong>.
+              El conductor dejará de aparecer en el mapa en vivo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelTrip}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? 'Cancelando...' : 'Sí, cancelar trayecto'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

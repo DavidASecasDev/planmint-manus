@@ -195,3 +195,160 @@ describe('LiveMap — EnCaminoRecord Type', () => {
     expect(!!record.share_token).toBe(false);
   });
 });
+
+describe('LiveMap — GPS Signal Quality Indicator', () => {
+  it('should show weak signal badge when accuracy > 30m', () => {
+    const record = {
+      id: 'test-signal',
+      sharing_location: true,
+      current_lat: 39.5361,
+      current_lng: 2.7339,
+      current_accuracy: 55, // > 30m → weak signal
+    };
+
+    const isLive = record.sharing_location && record.current_lat != null;
+    const hasWeakSignal = isLive && record.current_accuracy != null && record.current_accuracy > 30;
+    
+    expect(hasWeakSignal).toBe(true);
+  });
+
+  it('should NOT show weak signal badge when accuracy <= 30m', () => {
+    const record = {
+      id: 'test-signal-good',
+      sharing_location: true,
+      current_lat: 39.5361,
+      current_lng: 2.7339,
+      current_accuracy: 12, // <= 30m → good signal
+    };
+
+    const isLive = record.sharing_location && record.current_lat != null;
+    const hasWeakSignal = isLive && record.current_accuracy != null && record.current_accuracy > 30;
+    
+    expect(hasWeakSignal).toBe(false);
+  });
+
+  it('should NOT show weak signal badge when accuracy is null', () => {
+    const record = {
+      id: 'test-signal-null',
+      sharing_location: true,
+      current_lat: 39.5361,
+      current_lng: 2.7339,
+      current_accuracy: null,
+    };
+
+    const isLive = record.sharing_location && record.current_lat != null;
+    const hasWeakSignal = isLive && record.current_accuracy != null && record.current_accuracy > 30;
+    
+    expect(hasWeakSignal).toBe(false);
+  });
+
+  it('should NOT show weak signal badge when not sharing location', () => {
+    const record = {
+      id: 'test-signal-not-live',
+      sharing_location: false,
+      current_lat: null,
+      current_lng: null,
+      current_accuracy: 100,
+    };
+
+    const isLive = record.sharing_location && record.current_lat != null;
+    const hasWeakSignal = isLive && record.current_accuracy != null && record.current_accuracy > 30;
+    
+    expect(hasWeakSignal).toBe(false);
+  });
+});
+
+describe('LiveMap — Cancel Trip', () => {
+  it('should build correct delete payload from record', () => {
+    const record = {
+      id: 'trip-1',
+      reservation_id: 'res-789',
+      operation_type: 'entrega' as const,
+      assigned_user_name: 'Carlos',
+      destination_address: 'Hotel Meliá',
+    };
+
+    const payload = {
+      _method: 'DELETE',
+      reservation_id: record.reservation_id,
+      operation_type: record.operation_type,
+    };
+
+    expect(payload._method).toBe('DELETE');
+    expect(payload.reservation_id).toBe('res-789');
+    expect(payload.operation_type).toBe('entrega');
+  });
+
+  it('should build correct delete payload for devolucion', () => {
+    const record = {
+      id: 'trip-2',
+      reservation_id: 'res-999',
+      operation_type: 'devolucion' as const,
+      assigned_user_name: 'Pedro',
+      destination_address: 'Aeropuerto',
+    };
+
+    const payload = {
+      _method: 'DELETE',
+      reservation_id: record.reservation_id,
+      operation_type: record.operation_type,
+    };
+
+    expect(payload._method).toBe('DELETE');
+    expect(payload.reservation_id).toBe('res-999');
+    expect(payload.operation_type).toBe('devolucion');
+  });
+});
+
+describe('LiveMap — Selection Filter', () => {
+  const mockRecords = [
+    { id: 'rec-1', operation_type: 'entrega' as const },
+    { id: 'rec-2', operation_type: 'devolucion' as const },
+    { id: 'rec-3', operation_type: 'entrega' as const },
+  ];
+
+  it('should show all records when no selection', () => {
+    const selectedRecordId: string | null = null;
+    const mapVisible = selectedRecordId
+      ? mockRecords.filter(r => r.id === selectedRecordId)
+      : mockRecords;
+
+    expect(mapVisible).toHaveLength(3);
+  });
+
+  it('should show only selected record when one is selected', () => {
+    const selectedRecordId = 'rec-2';
+    const mapVisible = selectedRecordId
+      ? mockRecords.filter(r => r.id === selectedRecordId)
+      : mockRecords;
+
+    expect(mapVisible).toHaveLength(1);
+    expect(mapVisible[0].id).toBe('rec-2');
+  });
+
+  it('should return empty if selected record not in list', () => {
+    const selectedRecordId = 'rec-nonexistent';
+    const mapVisible = selectedRecordId
+      ? mockRecords.filter(r => r.id === selectedRecordId)
+      : mockRecords;
+
+    expect(mapVisible).toHaveLength(0);
+  });
+
+  it('should deselect (show all) when clicking same record again', () => {
+    let selectedRecordId: string | null = 'rec-1';
+    const clickedId = 'rec-1';
+    
+    // Simulate toggle logic
+    const isAlreadySelected = selectedRecordId === clickedId;
+    selectedRecordId = isAlreadySelected ? null : clickedId;
+
+    expect(selectedRecordId).toBeNull();
+
+    const mapVisible = selectedRecordId
+      ? mockRecords.filter(r => r.id === selectedRecordId)
+      : mockRecords;
+
+    expect(mapVisible).toHaveLength(3);
+  });
+});

@@ -1012,3 +1012,6 @@
 - [x] Documentar API de Movimientos para desarrolladores Android
 - [x] Conectar Movimientos con En Camino: al iniciar un movimiento tipo "entrega" o "recogida" desde la API, crear automáticamente un registro en en_camino_tracking para activar el tracking GPS en vivo
 - [x] Documentar integración GPS tracking en vivo para Android (flujo completo con código Kotlin de ejemplo)
+- [x] Live Map: Indicador de señal GPS débil — mostrar badge "Señal débil" en tarjeta del sidebar cuando current_accuracy > 30m
+- [x] Live Map: Botón "Cancelar trayecto" — botón en cada tarjeta para eliminar un trayecto iniciado por error (con diálogo de confirmación)
+- [x] Live Map: Filtro por selección — al seleccionar una tarjeta, ocultar todos los demás conductores/rutas del mapa y mostrar solo la operación seleccionada
