@@ -74,7 +74,7 @@ const brand = {
 };
 
 // ── Map Constants ──
-const AZUL_CARS_BASE = { lat: 39.5361, lng: 2.7339 }; // Polígono Son Oms
+const AZUL_CARS_BASE = { lat: 39.5391, lng: 2.7419 }; // Carrer del Canal de Sant Jordi, 29 – Polígono Son Oms
 const PALMA_CENTER = { lat: 39.5696, lng: 2.6502 };
 const DEFAULT_ZOOM = 11;
 

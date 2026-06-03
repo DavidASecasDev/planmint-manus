@@ -49,7 +49,7 @@ interface RouteReplaySheetProps {
 }
 
 // ── Azul Cars base ──
-const AZUL_CARS_BASE = { lat: 39.5361, lng: 2.7339 };
+const AZUL_CARS_BASE = { lat: 39.5391, lng: 2.7419 }; // Carrer del Canal de Sant Jordi, 29
 
 // ── Custom icons ──
 const createCarIcon = (color: string) => {
