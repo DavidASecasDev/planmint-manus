@@ -88,14 +88,14 @@ interface LocationAlias {
 
 const LOCATION_ALIASES: Record<string, LocationAlias> = {
   'parking_g_aeropuerto': {
-    coords: { lat: 39.5530, lng: 2.7340 },
-    routingTarget: { lat: 39.5495, lng: 2.7305 },
+    coords: { lat: 39.5460, lng: 2.7310 },
+    routingTarget: { lat: 39.5440, lng: 2.7290 },
     lastMileWaypoints: [
-      [39.5495, 2.7305],
-      [39.5500, 2.7315],
-      [39.5510, 2.7325],
-      [39.5520, 2.7335],
-      [39.5530, 2.7340],
+      [39.5440, 2.7290],
+      [39.5445, 2.7295],
+      [39.5450, 2.7300],
+      [39.5455, 2.7305],
+      [39.5460, 2.7310],
     ],
     extraMinutes: 3,
   },
