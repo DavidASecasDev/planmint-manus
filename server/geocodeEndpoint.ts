@@ -40,8 +40,8 @@ export async function handleGeocode(req: Request, res: Response) {
       "/maps/api/geocode/json",
       {
         address: address.trim(),
-        // Bias results towards Mallorca, Spain
-        bounds: "39.2,-3.5|40.0,3.5",
+        // Bias results towards Balearic Islands (Mallorca)
+        bounds: "39.2,2.3|40.1,4.4",
         language: "es",
         region: "es",
       }

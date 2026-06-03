@@ -73,13 +73,26 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'clubs to hire': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
   'transport meeting point': { lat: 39.5532, lng: 2.7290, label: 'Aeropuerto de Palma' },
 
-  // ── Terminal de Cruceros / Puerto ──
+  // ── Terminal de Cruceros / Puerto de Palma ──
   'terminal de cruceros': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'terminal de cruceros de palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'estacion maritima': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'estacion maritima palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'puerto de palma': { lat: 39.5600, lng: 2.6350, label: 'Terminal de Cruceros' },
   'puerto portals': { lat: 39.5250, lng: 2.5700, label: 'Puerto Portals' },
+
+  // ── Puerto / Muelle Comercial de Alcúdia ──
+  'muelle comercial': { lat: 39.8365, lng: 3.1400, label: 'Muelle Comercial de Alcúdia' },
+  'muelle comercial de alcudia': { lat: 39.8365, lng: 3.1400, label: 'Muelle Comercial de Alcúdia' },
+  'muelle comercial de alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Muelle Comercial de Alcúdia' },
+  'muelle comercial alcudia': { lat: 39.8365, lng: 3.1400, label: 'Muelle Comercial de Alcúdia' },
+  'muelle comercial alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Muelle Comercial de Alcúdia' },
+  'puerto de alcudia': { lat: 39.8365, lng: 3.1400, label: 'Puerto de Alcúdia' },
+  'puerto de alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Puerto de Alcúdia' },
+  'port d\'alcudia': { lat: 39.8365, lng: 3.1400, label: 'Port d\'Alcúdia' },
+  'port d\'alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Port d\'Alcúdia' },
+  'terminal maritima alcudia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
+  'terminal maritima alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
 
   // ── Oficina Azul Cars (Carrer Canal de Sant Jordi 29, local 3, 07199 Palma) ──
   'oficina azul': { lat: 39.5392, lng: 2.7418, label: 'Oficina Azul Cars - Son Oms' },
@@ -101,7 +114,8 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'municipio de llucmajor - entrega a domicilio': { lat: 39.4900, lng: 2.8900, label: 'Llucmajor' },
 
   // ── Localidades frecuentes ──
-  'alc\u00fadia': { lat: 39.8530, lng: 3.1210, label: 'Alc\u00fadia' },
+  'alcudia': { lat: 39.8530, lng: 3.1210, label: 'Alcúdia' },
+  'alcúdia': { lat: 39.8530, lng: 3.1210, label: 'Alcúdia' },
   paguera: { lat: 39.5350, lng: 2.4550, label: 'Paguera' },
   'palmanova': { lat: 39.5220, lng: 2.5350, label: 'Palmanova' },
   'magaluf': { lat: 39.5100, lng: 2.5250, label: 'Magaluf' },
@@ -257,6 +271,17 @@ function matchKnownLocation(lugar: string): { lat: number; lng: number; label: s
   // Direct match (exact or starts with known key)
   for (const [key, coords] of Object.entries(KNOWN_LOCATIONS)) {
     if (normalized === key || normalized.startsWith(key + ' ') || normalized.startsWith(key + ',')) {
+      return coords;
+    }
+  }
+
+  // Partial containment match — check if any known key (3+ chars) is contained in the string
+  // Sort by key length descending so longer/more specific keys match first
+  const sortedKeys = Object.entries(KNOWN_LOCATIONS)
+    .filter(([key]) => key.length >= 5)
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [key, coords] of sortedKeys) {
+    if (normalized.includes(key)) {
       return coords;
     }
   }
@@ -446,6 +471,16 @@ export function OperationsMapView({ operations, isLoading, organizationId, fullP
           const known = matchKnownLocation(lugarKey);
           if (known) {
             results.push({ ...op, lat: known.lat, lng: known.lng });
+            setGeocodingProgress({ done: i + 1, total });
+            continue;
+          }
+        }
+
+        // Also check known locations against the full address (direccion)
+        if (cacheKey && cacheKey !== lugarKey) {
+          const knownFromAddress = matchKnownLocation(cacheKey);
+          if (knownFromAddress) {
+            results.push({ ...op, lat: knownFromAddress.lat, lng: knownFromAddress.lng });
             setGeocodingProgress({ done: i + 1, total });
             continue;
           }

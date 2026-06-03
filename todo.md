@@ -1017,3 +1017,4 @@
 - [x] Live Map: Filtro por selección — al seleccionar una tarjeta, ocultar todos los demás conductores/rutas del mapa y mostrar solo la operación seleccionada
 - [x] Bug: Mapa en LiveMap tiene z-index demasiado alto — se superpone a dropdowns de notificaciones y al AlertDialog de cancelar trayecto
 - [x] Live Map: Añadir Parking G del Aeropuerto como location alias con ruta predefinida desde la oficina de Azul Cars (coordenadas manuales, no geocodificable por Google Maps)
+- [x] Bug: Mapa de Programación muestra marcadores en ubicaciones incorrectas — ej: Muelle Comercial de Alcúdia aparece cerca de Sa Pobla en vez del puerto
