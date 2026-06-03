@@ -88,14 +88,15 @@ interface LocationAlias {
 
 const LOCATION_ALIASES: Record<string, LocationAlias> = {
   'parking_g_aeropuerto': {
-    coords: { lat: 39.5460, lng: 2.7310 },
-    routingTarget: { lat: 39.5440, lng: 2.7290 },
+    coords: { lat: 39.5490, lng: 2.7250 },
+    routingTarget: { lat: 39.5430, lng: 2.7180 },
     lastMileWaypoints: [
-      [39.5440, 2.7290],
-      [39.5445, 2.7295],
-      [39.5450, 2.7300],
-      [39.5455, 2.7305],
-      [39.5460, 2.7310],
+      [39.5430, 2.7180],  // Rotonda acceso suroeste
+      [39.5445, 2.7195],  // Carretera acceso sur
+      [39.5460, 2.7210],  // Continuación hacia el este
+      [39.5475, 2.7225],  // Curva hacia parking
+      [39.5485, 2.7240],  // Entrada parking G
+      [39.5490, 2.7250],  // Centro Parking G
     ],
     extraMinutes: 3,
   },
