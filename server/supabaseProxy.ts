@@ -62,8 +62,8 @@ async function getOrgScopedTables(): Promise<Set<string>> {
 function getFallbackOrgScopedTables(): Set<string> {
   const tables = new Set([
     'accidents', 'accident_files', 'areas', 'audit_logs', 'automation_rules',
-    'damage_catalog', 'damage_reports', 'equipment_inventory',
-    'fleet_vehicles', 'forms', 'integration_settings', 'kanban_columns',
+    'damage_catalog', 'damage_reports', 'equipment_assignments', 'equipment_inventory',
+    'fleet_vehicles', 'forms', 'integration_settings', 'kanban_columns', 'lost_found_items',
     'notification_preferences', 'notifications', 'operation_legs',
     'repair_comments', 'repair_history', 'repair_invoices', 'repair_photos', 'repairs',
     'reservations', 'saml_connections', 'scim_tokens',
