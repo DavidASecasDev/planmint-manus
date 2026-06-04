@@ -2,7 +2,6 @@ import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import fs from "node:fs";
 import path from "node:path";
-import { componentTagger } from "lovable-tagger";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
@@ -118,7 +117,6 @@ export default defineConfig({
   define: fallbackDefine,
   plugins: [
     react(),
-    process.env.NODE_ENV === "development" && componentTagger(),
     vitePluginManusRuntime(),
     vitePluginManusDebugCollector(),
   ].filter(Boolean),
