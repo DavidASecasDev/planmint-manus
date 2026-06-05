@@ -740,13 +740,17 @@ export function ReservationsTable() {
     };
 
     // Date range filter (skip when showing reactivated to show all historical reactivations)
+    // Use confirmedDatetime (if exists) as the effective date for filtering,
+    // so operations moved to a different day via hora_confirmada appear on the correct day.
     if (dateRange?.from && !showReactivated) {
       const fromKey = dateToKey(dateRange.from);
       const toKey = dateRange.to ? dateToKey(dateRange.to) : fromKey;
       
       result = result.filter(row => {
-        if (!row.fechaHora) return false;
-        const rowKey = extractDateKey(row.fechaHora);
+        // Use confirmed datetime if available, otherwise fall back to original fecha_hora
+        const effectiveDate = row.confirmedDatetime || row.fechaHora;
+        if (!effectiveDate) return false;
+        const rowKey = extractDateKey(effectiveDate);
         if (!rowKey) return false;
         
         // If only from date, filter for that single day
