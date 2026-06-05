@@ -69,6 +69,9 @@ export interface OperationalStats {
   pendingTasksTotal: number;
   // Today's operations (expanded into per-operation rows like ReservationsTable)
   todayReservations: TodayOperationRow[];
+  // Progress tracking
+  todayOperationsTotal: number;
+  todayOperationsCompleted: number;
   // Vehicles needing preparation (dynamic, crossed with reservations)
   vehiclesNeedingPrep: VehiclePrepItem[];
   // Total dirty/incomplete vehicles (including those without reservations)
@@ -354,6 +357,7 @@ export function useOperationalDashboard() {
 
       // Filter out completed operations — dashboard only shows pending work
       const pendingOperations = todayOperations.filter(op => !op.isCompleted);
+      const completedCount = todayOperations.filter(op => op.isCompleted).length;
 
       return {
         vehiclesByStatus,
@@ -369,6 +373,8 @@ export function useOperationalDashboard() {
         pendingTasksHigh: serverData.pendingTasksHighCount,
         pendingTasksTotal: serverData.pendingTasksTotalCount,
         todayReservations: pendingOperations,
+        todayOperationsTotal: todayOperations.length,
+        todayOperationsCompleted: completedCount,
         vehiclesNeedingPrep,
         totalDirtyVehicles: dirtyVehicles.length,
       };

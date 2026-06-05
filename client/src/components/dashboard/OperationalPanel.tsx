@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Car, CalendarCheck, ArrowRightLeft, Wrench, ClipboardList,
   ArrowRight, RefreshCw, AlertTriangle, ArrowDownToLine, ArrowUpFromLine,
-  Clock, FileWarning, ChevronRight, User, Baby, Repeat,
+  Clock, FileWarning, ChevronRight, User, Baby, Repeat, CheckCircle2,
 } from 'lucide-react';
 
 const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3', 'portabebés', 'portabebes'];
@@ -328,7 +328,7 @@ export function OperationalPanel() {
       </div>
 
       {/* ─── Today's Operations ─── */}
-      {stats.todayReservations.length > 0 && (
+      {stats.todayOperationsTotal > 0 && (
         <Card className="border-border/50 shadow-sm">
           <CardHeader className="pb-2 px-4 sm:px-6">
             <div className="flex items-center justify-between">
@@ -337,7 +337,7 @@ export function OperationalPanel() {
                 <span className="truncate">
                   <span className="hidden sm:inline">Operaciones de hoy · </span>
                   <span className="sm:hidden">Hoy · </span>
-                  {stats.todayReservations.length} mov.
+                  {stats.todayReservations.length} pendiente{stats.todayReservations.length !== 1 ? 's' : ''}
                 </span>
               </CardTitle>
               <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 flex-shrink-0" onClick={() => navigate('/reservations')}>
@@ -345,8 +345,36 @@ export function OperationalPanel() {
                 <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
+            {stats.todayOperationsTotal > 0 && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">
+                    {stats.todayOperationsCompleted}/{stats.todayOperationsTotal} completadas
+                  </span>
+                  <span className="text-xs font-medium text-emerald-600">
+                    {Math.round((stats.todayOperationsCompleted / stats.todayOperationsTotal) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+                    style={{ width: `${(stats.todayOperationsCompleted / stats.todayOperationsTotal) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="pb-3 px-4 sm:px-6">
+            {stats.todayReservations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center mb-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Todas las operaciones completadas</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{stats.todayOperationsCompleted} operaciones realizadas hoy</p>
+              </div>
+            ) : (
+            <>
             <div className="divide-y divide-border/50">
               {stats.todayReservations.slice(0, 8).map((r) => (
                 <div
@@ -429,6 +457,7 @@ export function OperationalPanel() {
                 +{stats.todayReservations.length - 8} más
               </p>
             )}
+            </>)}
           </CardContent>
         </Card>
       )}

@@ -1026,3 +1026,4 @@
 - [x] Implementar job periódico (heartbeat) que re-intente enriquecimiento de detalle Rently para reservas con rently_detail_synced_at = null
 - [x] Auditoría completa flujo Rently: keywords unificados en 4 archivos, heartbeat ampliado a 14 días + reservas futuras, excluir canceladas, EquipmentStockWidget keywords corregidos
 - [x] Dashboard: Ocultar operaciones marcadas como "Completada" del widget "Operaciones de hoy" — solo mostrar pendientes (Pendiente, Confirmada, En curso)
+- [x] Dashboard: Añadir barra de progreso visual en "Operaciones de hoy" mostrando avance del día (ej: "6/16 completadas")
