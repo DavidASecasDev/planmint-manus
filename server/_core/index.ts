@@ -19,6 +19,7 @@ import { handleGetVapidKey } from "../vapidKey";
 import { handleApplyTemplate } from "../applyTemplate";
 import { handleCreateInvitation } from "../createInvitation";
 import { handleCreateUser } from "../createUser";
+import { handleResetMemberPassword } from "../resetMemberPassword";
 import {
   handleGetInvitationPublic,
   handleAcceptInvitation,
@@ -345,6 +346,7 @@ async function startServer() {
 
   // User management
   app.post("/api/create-user", handleCreateUser);
+  app.post("/api/reset-member-password", handleResetMemberPassword);
 
   // Preparation list (manual)
   app.post("/api/get-preparation-list", handleGetPreparationList);

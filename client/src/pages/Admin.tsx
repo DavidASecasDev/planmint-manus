@@ -15,12 +15,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MoreHorizontal, Shield, UserPlus, Users, Crown, AlertTriangle, Settings, Layers, Bug, Trash2, Eye } from 'lucide-react';
+import { Loader2, MoreHorizontal, Shield, UserPlus, Users, Crown, AlertTriangle, Settings, Layers, Bug, Trash2, Eye, Key } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { PERMISSION_CATEGORIES as PERMISSION_CATEGORIES_DEF } from '@/lib/permissionDefinitions';
 import { MemberPermissionsEditor } from '@/components/admin/MemberPermissionsEditor';
 import { RoleEditor } from '@/components/admin/RoleEditor';
 import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
+import { ResetMemberPasswordDialog } from '@/components/admin/ResetMemberPasswordDialog';
 import { EffectivePermissionsView } from '@/components/admin/EffectivePermissionsView';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -44,7 +45,7 @@ const roleBadgeVariants: Record<string, 'default' | 'secondary' | 'outline'> = {
 export default function Admin() {
   const { profile, user } = useAuth();
   const { canAccessAdminPanel, isLoading: permissionsLoading, role: myRole, isOwner } = usePermissions();
-  const { members, isLoading: membersLoading, updateMemberRole, updateMemberStatus, removeMember, isUpdating } = useOrganizationMembers();
+  const { members, isLoading: membersLoading, updateMemberRole, updateMemberStatus, removeMember, resetMemberPassword, isResettingPassword, isUpdating } = useOrganizationMembers();
   const { customRoles } = useCustomRoles();
 
   const [editingMember, setEditingMember] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function Admin() {
   const [newRole, setNewRole] = useState<OrgRole>('member');
   const [permissionsDialog, setPermissionsDialog] = useState<{ userId: string; userName: string } | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ userId: string; userName: string } | null>(null);
 
   if (permissionsLoading) {
     return (
@@ -286,6 +288,17 @@ export default function Admin() {
                                     <Settings className="h-4 w-4 mr-2" />
                                     Gestionar permisos
                                   </DropdownMenuItem>
+                                  {!isMe && (
+                                    <DropdownMenuItem
+                                      onClick={() => setResetPasswordDialog({
+                                        userId: member.user_id,
+                                        userName: member.profile?.name || 'Usuario',
+                                      })}
+                                    >
+                                      <Key className="h-4 w-4 mr-2" />
+                                      Cambiar contraseña
+                                    </DropdownMenuItem>
+                                  )}
                                   {canSuspend && (
                                     <>
                                       <DropdownMenuSeparator />
@@ -411,6 +424,22 @@ export default function Admin() {
 
         {/* Create User Dialog */}
         <CreateUserDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} />
+
+        {/* Reset Member Password Dialog */}
+        <ResetMemberPasswordDialog
+          open={!!resetPasswordDialog}
+          onOpenChange={(open) => { if (!open) setResetPasswordDialog(null); }}
+          memberName={resetPasswordDialog?.userName || ''}
+          onConfirm={(newPassword) => {
+            if (resetPasswordDialog) {
+              resetMemberPassword(
+                { targetUserId: resetPasswordDialog.userId, newPassword },
+                { onSuccess: () => setResetPasswordDialog(null) }
+              );
+            }
+          }}
+          isLoading={isResettingPassword}
+        />
       </div>
     </AppLayout>
   );

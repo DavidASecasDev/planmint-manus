@@ -1028,3 +1028,5 @@
 - [x] Dashboard: Ocultar operaciones marcadas como "Completada" del widget "Operaciones de hoy" — solo mostrar pendientes (Pendiente, Confirmada, En curso)
 - [x] Dashboard: Añadir barra de progreso visual en "Operaciones de hoy" mostrando avance del día (ej: "6/16 completadas")
 - [x] Programación: Añadir barra de progreso compacta en la cabecera de la tabla mostrando avance del día (completadas/total)
+- [x] Añadir opción 'Cambiar contraseña' en el menú de acciones de miembros de organización
+- [x] Implementar flujo 'Olvidé mi contraseña' auto-servicio en la página de login (YA EXISTÍA: /auth/recover → email → /reset-password)

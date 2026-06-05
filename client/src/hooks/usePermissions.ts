@@ -314,6 +314,24 @@ export function useOrganizationMembers() {
     },
   });
 
+  const resetMemberPassword = useMutation({
+    mutationFn: async ({ targetUserId, newPassword }: { targetUserId: string; newPassword: string }) => {
+      const result = await apiInvoke<{ success: boolean; error?: string }>('reset-member-password', {
+        body: { targetUserId, newPassword },
+      });
+      if (result.error) throw new Error(result.error.message);
+      if (result.data && !result.data.success) {
+        throw new Error(result.data.error || 'Error desconocido');
+      }
+    },
+    onSuccess: () => {
+      toast({ title: 'Contraseña actualizada', description: 'La contraseña del miembro ha sido cambiada correctamente' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error al cambiar contraseña', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     members,
     isLoading,
@@ -321,6 +339,8 @@ export function useOrganizationMembers() {
     updateMemberRole: updateMemberRole.mutate,
     updateMemberStatus: updateMemberStatus.mutate,
     removeMember: removeMember.mutate,
+    resetMemberPassword: resetMemberPassword.mutate,
+    isResettingPassword: resetMemberPassword.isPending,
     isUpdating: updateMemberRole.isPending || updateMemberStatus.isPending || removeMember.isPending,
   };
 }
