@@ -290,6 +290,9 @@ export function useVehicles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles', orgId] });
+      // Vehicle may transition to 'limpio' via DB trigger, refresh preparation lists
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
     },
     onError: (error) => {
       console.error('[useVehicles] Toggle task error:', error);

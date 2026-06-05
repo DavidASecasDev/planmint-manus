@@ -74,6 +74,8 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
       
       setServiceDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['vehicles', profile?.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
       toast({
         title: serviceType === 'reparacion' ? 'Vehículo en reparación' : 'Disponibilidad bloqueada',
         description: `${vehicle.matricula} movido a servicio.`,
@@ -117,6 +119,8 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
       if (error) throw error;
       
       queryClient.invalidateQueries({ queryKey: ['vehicles', profile?.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
       toast({
         title: 'Vehículo de vuelta al ciclo',
         description: `${vehicle.matricula} listo para limpieza.`,

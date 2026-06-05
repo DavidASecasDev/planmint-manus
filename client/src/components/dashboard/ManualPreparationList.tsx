@@ -32,6 +32,7 @@ interface FleetVehicleOption {
   matricula: string;
   modelo: string | null;
   marca: string | null;
+  vehicle_status: 'sucio' | 'incompleto';
 }
 
 function formatDeadlineTime(dateStr: string): string {
@@ -167,12 +168,22 @@ function PlateAutocomplete({
                 setShowSuggestions(false);
               }}
             >
+              <span className={`inline-flex items-center justify-center w-2 h-2 rounded-full flex-shrink-0 ${
+                v.vehicle_status === 'sucio' ? 'bg-red-500' : 'bg-orange-400'
+              }`} />
               <span className="font-semibold text-foreground">{v.matricula}</span>
               {(v.marca || v.modelo) && (
                 <span className="text-muted-foreground text-xs truncate">
                   {[v.marca, v.modelo].filter(Boolean).join(' ')}
                 </span>
               )}
+              <span className={`ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                v.vehicle_status === 'sucio'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-orange-100 text-orange-700'
+              }`}>
+                {v.vehicle_status === 'sucio' ? 'Sucio' : 'Incompleto'}
+              </span>
             </button>
           ))}
         </div>
@@ -204,7 +215,7 @@ export function ManualPreparationList() {
     queryFn: async () => {
       const { data, error } = await supabaseQuery
         .from('vehicles')
-        .select('matricula, modelo, categoria')
+        .select('matricula, modelo, categoria, status')
         .eq('organization_id', orgId!)
         .eq('is_archived', false)
         .in('status', ['sucio', 'incompleto'])
@@ -213,7 +224,8 @@ export function ManualPreparationList() {
       return (data || []).map((v: any) => ({
         matricula: v.matricula,
         modelo: v.modelo,
-        marca: v.categoria, // use categoria as brand info
+        marca: v.categoria,
+        vehicle_status: v.status as 'sucio' | 'incompleto',
       })) as FleetVehicleOption[];
     },
     enabled: !!orgId,

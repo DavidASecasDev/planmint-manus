@@ -60,6 +60,46 @@ async function handleAddPreparationItem(req: Request, res: Response) {
       return res.status(400).json({ ok: false, error: "Missing required fields (matricula, deadline_at)" });
     }
 
+    // Validate vehicle status: only allow sucio or incompleto
+    const { data: vehicleData } = await sb
+      .from("vehicles")
+      .select("status")
+      .eq("organization_id", organizationId)
+      .eq("matricula", matricula.toUpperCase().trim())
+      .eq("is_archived", false)
+      .maybeSingle();
+
+    if (vehicleData) {
+      const blockedStatuses = ['limpio', 'alquilado', 'en_servicio'];
+      if (blockedStatuses.includes(vehicleData.status)) {
+        const statusLabels: Record<string, string> = {
+          limpio: 'ya est\u00e1 limpio',
+          alquilado: 'est\u00e1 alquilado',
+          en_servicio: 'est\u00e1 en servicio',
+        };
+        return res.status(400).json({
+          ok: false,
+          error: `No se puede a\u00f1adir: el veh\u00edculo ${statusLabels[vehicleData.status] || vehicleData.status}`,
+        });
+      }
+    }
+
+    // Check if vehicle is already in the pending preparation list
+    const { data: existingItem } = await sb
+      .from("preparation_list")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("matricula", matricula.toUpperCase().trim())
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (existingItem) {
+      return res.status(400).json({
+        ok: false,
+        error: "Este veh\u00edculo ya est\u00e1 en la lista de preparaci\u00f3n",
+      });
+    }
+
     const { data, error } = await sb
       .from("preparation_list")
       .insert({

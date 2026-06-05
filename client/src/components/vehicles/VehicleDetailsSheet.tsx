@@ -113,6 +113,8 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
       if (error) throw error;
       
       queryClient.invalidateQueries({ queryKey: ['vehicles', profile?.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
       toast({
         title: 'Vehículo de vuelta al ciclo',
         description: `${vehicle.matricula} listo para limpieza.`,
