@@ -1312,17 +1312,14 @@ export function ReservationsTable() {
 
         {/* Progress bar - day completion */}
         {(() => {
-          const total = filteredAndSorted.length + filteredAndSorted.filter(r => r.isCompleted).length;
-          const completed = filteredAndSorted.filter(r => r.isCompleted).length;
-          // We already filter out completed from filteredAndSorted in some views,
-          // so count from enrichedOperationRows which has ALL visible ops
-          const allVisible = enrichedOperationRows.filter(row => {
-            // Only count non-cancelled
+          // Count from filteredAndSorted (already date-filtered to selected day)
+          // plus completed ones that are still in the filtered set
+          const pendingOps = filteredAndSorted.filter(row => {
             const estado = getRowFieldValue(row, 'estado');
-            return estado !== 'Cancelada';
+            return estado?.toLowerCase() !== 'cancelada';
           });
-          const totalOps = allVisible.length;
-          const completedOps = allVisible.filter(r => r.isCompleted).length;
+          const completedOps = pendingOps.filter(r => r.isCompleted).length;
+          const totalOps = pendingOps.length;
           if (totalOps === 0) return null;
           const pct = Math.round((completedOps / totalOps) * 100);
           return (
