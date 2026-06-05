@@ -11,12 +11,10 @@ const LS_KEY = 'equipment_shortage_last_check';
 const ALERT_ROLES = ['admin', 'manager', 'directiva', 'mostrador', 'rental'];
 
 const BABY_SEAT_KEYWORDS = [
-  'recién nacido', 'recien nacido', 'newborn', 'grupo 0',
-  'silla de bebé', 'silla de bebe', 'silla bebé', 'silla bebe',
-  'silla de infantes', 'silla infantes',
-  'silla de niño', 'silla de nino', 'silla niño', 'silla nino',
-  'asiento elevador', 'elevador',
-  'baby seat', 'child seat', 'booster seat', 'infant seat',
+  'silla', 'sillita', 'bebé', 'bebe', 'baby', 'child', 'booster', 'infant',
+  'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn',
+  'niño', 'nino', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3',
+  'portabebés', 'portabebes', 'asiento elevador',
 ];
 
 function isBabySeatExtra(name: string): boolean {

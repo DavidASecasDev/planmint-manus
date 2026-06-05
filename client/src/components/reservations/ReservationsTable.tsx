@@ -1180,7 +1180,7 @@ export function ReservationsTable() {
   };
 
   // Detect baby/child seat extras in a reservation
-  const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino'];
+  const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3', 'portabebés', 'portabebes'];
   const getBabySeats = (r: Reservation): RentlyExtra[] => {
     let extras: RentlyExtra[] = [];
     try {

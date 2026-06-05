@@ -13,7 +13,7 @@ import {
   Clock, FileWarning, ChevronRight, User, Baby, Repeat,
 } from 'lucide-react';
 
-const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino'];
+const BABY_SEAT_KEYWORDS = ['silla', 'sillita', 'baby', 'child', 'booster', 'infant', 'bebé', 'bebe', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3', 'portabebés', 'portabebes'];
 
 function hasBabySeatExtras(extrasRaw: string | null): { has: boolean; count: number; types: string[] } {
   if (!extrasRaw) return { has: false, count: 0, types: [] };

@@ -28,7 +28,7 @@ function safeParseJsonArray<T>(value: unknown): T[] {
   return [];
 }
 
-const SEAT_KEYWORDS = ['silla', 'bebé', 'bebe', 'infante', 'elevador', 'child seat', 'baby seat', 'booster', 'infant', 'recién nacido', 'recien nacido', 'newborn'];
+const SEAT_KEYWORDS = ['silla', 'sillita', 'bebé', 'bebe', 'baby', 'child', 'booster', 'infant', 'infante', 'elevador', 'recién nacido', 'recien nacido', 'newborn', 'niño', 'nino', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3', 'portabebés', 'portabebes'];
 
 function isBabySeatExtra(name: string): boolean {
   const lower = name.toLowerCase();

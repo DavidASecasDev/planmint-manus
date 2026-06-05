@@ -1,7 +1,7 @@
 /**
  * Scheduled handler: Rently Detail Enrichment Retry
  * 
- * Runs every 2 hours. Finds reservations with rently_detail_synced_at = null
+ * Runs every hour. Finds reservations with rently_detail_synced_at = null
  * (i.e., detail was never fetched from Rently) that are active or upcoming,
  * and fetches their extras/details from the Rently API.
  * 
@@ -74,9 +74,11 @@ export async function handleScheduledRentlyEnrich(req: Request, res: Response) {
 
       try {
         // Find reservations that have never been enriched and are active/upcoming
-        // (desde within last 7 days or in the future — covers active rentals)
+        // Include reservations from the last 14 days AND all future reservations
+        // This ensures we don't miss reservations that were synced from the list
+        // but never had their detail fetched (e.g., due to timeout)
         const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - 7);
+        cutoffDate.setDate(cutoffDate.getDate() - 14);
 
         const { data: unenriched, error: queryError } = await serviceClient
           .from("reservations")
@@ -85,8 +87,9 @@ export async function handleScheduledRentlyEnrich(req: Request, res: Response) {
           .is("rently_detail_synced_at", null)
           .is("archived_at", null)
           .not("external_reservation_id", "is", null)
+          .neq("estado", "Cancelada")
           .gte("desde", cutoffDate.toISOString())
-          .order("desde", { ascending: false })
+          .order("desde", { ascending: true })
           .limit(MAX_ENRICHMENTS_PER_RUN);
 
         if (queryError || !unenriched || unenriched.length === 0) {
