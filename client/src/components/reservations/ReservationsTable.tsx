@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -1865,6 +1865,32 @@ export function ReservationsTable() {
                               >
                                 {row.tipoOperacion}
                               </Badge>
+                            ) : col.key === 'estado' ? (
+                              <div className="flex flex-col gap-0.5">
+                                <ChipSelect
+                                  fieldName={col.fieldName as 'estado' | 'tipo_actividad' | 'pagado' | 'hosp' | 'checkin' | 'contacto'}
+                                  value={getOperationFieldValue(row, col.key)}
+                                  onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                                />
+                                {getOperationFieldValue(row, 'estado') === 'En camino' && arrivalUsers[row.id]?.startedBy && !llegoState[row.id] && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 px-1 py-0.5 rounded bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 max-w-full">
+                                          <Car className="h-3 w-3 text-sky-500 shrink-0 animate-pulse" />
+                                          <span className="text-[10px] font-medium text-sky-700 dark:text-sky-300 truncate">
+                                            {arrivalUsers[row.id].startedBy}
+                                          </span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs">
+                                        <p>Movimiento iniciado desde la app</p>
+                                        <p className="text-muted-foreground">Conductor: {arrivalUsers[row.id].startedBy}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
                             ) : (
                               <ChipSelect
                                 fieldName={col.fieldName as 'estado' | 'tipo_actividad' | 'pagado' | 'hosp' | 'checkin' | 'contacto'}
