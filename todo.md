@@ -1019,3 +1019,4 @@
 - [x] Live Map: Añadir Parking G del Aeropuerto como location alias con ruta predefinida desde la oficina de Azul Cars (coordenadas manuales, no geocodificable por Google Maps)
 - [x] Bug: Mapa de Programación muestra marcadores en ubicaciones incorrectas — ej: Muelle Comercial de Alcúdia aparece cerca de Sa Pobla en vez del puerto
 - [x] Eliminar botón Play (iniciar movimiento) de la tabla de Programación — los conductores ahora inician movimientos desde la app Android
+- [x] Eliminar código huérfano de geolocalización del navegador (startLocationSharing, stopLocationSharing, sendLocation, refs y estado sharingLocation) de ReservationsTable

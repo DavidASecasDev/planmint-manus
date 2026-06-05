@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, Radio, MapPin, RotateCcw, PenLine, ExternalLink } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -420,104 +420,7 @@ export function ReservationsTable() {
   const [confirmLlego, setConfirmLlego] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
 
 
-  const [sharingLocation, setSharingLocation] = useState<Record<string, boolean>>({});
-  const locationWatchIds = useRef<Record<string, number>>({});
-  const lastLocationSent = useRef<Record<string, number>>({});
-  const pendingLocationSend = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
   // (arrival status loading moved below operationRows declaration)
-
-  // Start sharing GPS location for an operation
-  // Throttled location sender — sends at most once every 5 seconds per operation
-  const sendLocation = useCallback((rowId: string, reservationId: string, opType: string, lat: number, lng: number, accuracy?: number) => {
-    const MIN_INTERVAL_MS = 5_000; // 5 seconds between sends
-    const now = Date.now();
-    const lastSent = lastLocationSent.current[rowId] || 0;
-    const elapsed = now - lastSent;
-
-    const doSend = () => {
-      lastLocationSent.current[rowId] = Date.now();
-      apiInvoke('en-camino-tracking/location', {
-        body: {
-          reservation_id: reservationId,
-          operation_type: opType,
-          lat,
-          lng,
-          accuracy: accuracy ?? null,
-        },
-      }).catch(err => console.warn('[location] Error sending:', err));
-    };
-
-    if (elapsed >= MIN_INTERVAL_MS) {
-      // Enough time has passed, send immediately
-      if (pendingLocationSend.current[rowId]) {
-        clearTimeout(pendingLocationSend.current[rowId]);
-        delete pendingLocationSend.current[rowId];
-      }
-      doSend();
-    } else {
-      // Schedule send for when the interval elapses (debounce: always send latest position)
-      if (pendingLocationSend.current[rowId]) {
-        clearTimeout(pendingLocationSend.current[rowId]);
-      }
-      pendingLocationSend.current[rowId] = setTimeout(doSend, MIN_INTERVAL_MS - elapsed);
-    }
-  }, []);
-
-  const startLocationSharing = useCallback((row: OperationRow) => {
-    const rowId = row.id;
-    const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
-
-    if (!navigator.geolocation) {
-      toast.error('Tu navegador no soporta geolocalización');
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        sendLocation(rowId, row.reservationId, opType, latitude, longitude, accuracy);
-      },
-      (error) => {
-        console.warn('[location] Geolocation error:', error.message);
-        if (error.code === error.PERMISSION_DENIED) {
-          toast.error('Permiso de ubicación denegado');
-          stopLocationSharing(rowId, row.reservationId, opType);
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-    );
-
-    locationWatchIds.current[rowId] = watchId;
-    setSharingLocation(prev => ({ ...prev, [rowId]: true }));
-    toast.success('Compartiendo ubicación en tiempo real (cada ~5s)');
-  }, [sendLocation]);
-
-  // Stop sharing GPS location
-  const stopLocationSharing = useCallback((rowId: string, reservationId: string, opType: string) => {
-    const watchId = locationWatchIds.current[rowId];
-    if (watchId != null) {
-      navigator.geolocation.clearWatch(watchId);
-      delete locationWatchIds.current[rowId];
-    }
-    // Clear any pending throttled send
-    if (pendingLocationSend.current[rowId]) {
-      clearTimeout(pendingLocationSend.current[rowId]);
-      delete pendingLocationSend.current[rowId];
-    }
-    delete lastLocationSent.current[rowId];
-    setSharingLocation(prev => ({ ...prev, [rowId]: false }));
-    apiInvoke('en-camino-tracking/location-stop', {
-      body: { reservation_id: reservationId, operation_type: opType },
-    }).catch(err => console.warn('[location-stop] Error:', err));
-  }, []);
-
-  // Cleanup all watchers on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(locationWatchIds.current).forEach(id => navigator.geolocation.clearWatch(id));
-    };
-  }, []);
 
 
 
@@ -526,10 +429,6 @@ export function ReservationsTable() {
     setLlegoLoading(prev => ({ ...prev, [rowId]: true }));
     try {
       const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
-      // Stop location sharing if active
-      if (locationWatchIds.current[rowId] != null) {
-        stopLocationSharing(rowId, row.reservationId, opType);
-      }
       const resp = await apiInvoke<{ ok: boolean; real_minutes: number; estimated_minutes: number | null }>('en-camino-tracking/llego', {
         body: {
           reservation_id: row.reservationId,
@@ -574,7 +473,7 @@ export function ReservationsTable() {
     } finally {
       setLlegoLoading(prev => ({ ...prev, [rowId]: false }));
     }
-  }, [stopLocationSharing]);
+  }, []);
 
   // Ref for the scroll container to enable arrow key navigation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1161,10 +1060,6 @@ export function ReservationsTable() {
         // delete the en_camino_tracking record so it disappears from the Live Map
         if (oldStatus === 'En camino' && value !== 'En camino') {
           const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
-          // Stop location sharing if active
-          if (locationWatchIds.current[row.id] != null) {
-            stopLocationSharing(row.id, row.reservationId, opType);
-          }
           // Delete the tracking record
           apiInvoke('en-camino-tracking', {
             body: {
@@ -2047,31 +1942,7 @@ export function ReservationsTable() {
 
 
 
-                                {/* 2b. Location sharing indicator */}
-                                {isEnCamino && sharingLocation[row.id] && (
-                                  <TooltipProvider delayDuration={200}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
-                                            stopLocationSharing(row.id, row.reservationId, opType);
-                                            toast.info('Ubicación dejada de compartir');
-                                          }}
-                                          className="p-1 rounded-md text-emerald-500 hover:text-red-500 transition-colors"
-                                          title="Compartiendo ubicación (clic para detener)"
-                                        >
-                                          <Radio className="h-3.5 w-3.5 animate-pulse" />
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="text-xs">
-                                        <p>Compartiendo ubicación en vivo</p>
-                                        <p className="text-muted-foreground">Clic para detener</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
+
 
                                 {/* 3. Llegué — Confirmar llegada */}
                                 {isEnCamino && !arrived && (
