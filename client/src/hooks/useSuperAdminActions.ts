@@ -278,6 +278,69 @@ export function useSuperAdminActions() {
     },
   });
 
+  // ============ Auth User Management ============
+
+  const resetUserPassword = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/reset-password', {
+        body: { userId, newPassword },
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Contraseña actualizada correctamente');
+    },
+    onError: (error: Error) => {
+      toast.error('Error al resetear contraseña: ' + error.message);
+    },
+  });
+
+  const createUser = useMutation({
+    mutationFn: async ({ email, password, name, organizationId, role }: {
+      email: string;
+      password: string;
+      name?: string;
+      organizationId?: string;
+      role?: string;
+    }) => {
+      const { data, error } = await apiInvoke<{ success: boolean; userId: string; email: string; name: string }>('super-admin/create-user', {
+        body: { email, password, name, organizationId, role },
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (_, { name, email }) => {
+      queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['auth-users'] });
+      toast.success(`Usuario ${name || email} creado correctamente`);
+    },
+    onError: (error: Error) => {
+      toast.error('Error al crear usuario: ' + error.message);
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      const { data, error } = await apiInvoke<{ success: boolean }>('super-admin/delete-user', {
+        body: { userId },
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['auth-users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-detail'] });
+      toast.success('Usuario eliminado completamente del sistema');
+    },
+    onError: (error: Error) => {
+      toast.error('Error al eliminar usuario: ' + error.message);
+    },
+  });
+
   return {
     // Member actions
     addMemberToOrg,
@@ -294,5 +357,9 @@ export function useSuperAdminActions() {
     // Data actions
     deleteTask,
     deleteArea,
+    // Auth user management
+    resetUserPassword,
+    createUser,
+    deleteUser,
   };
 }

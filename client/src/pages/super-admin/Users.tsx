@@ -36,11 +36,12 @@ import { es } from 'date-fns/locale';
 import { DeleteMemberDialog } from '@/components/super-admin/DeleteMemberDialog';
 import { ChangeMemberRoleDialog } from '@/components/super-admin/ChangeMemberRoleDialog';
 import { AddUserToOrgDialog } from '@/components/super-admin/AddUserToOrgDialog';
+import { CreateUserDialog } from '@/components/super-admin/CreateUserDialog';
 
 export default function UsersPage() {
   const navigate = useNavigate();
   const { data: users, isLoading } = usePlatformUsers();
-  const { updateMemberRole, updateMemberStatus, deleteMember, addMemberToOrg } = useSuperAdminActions();
+  const { updateMemberRole, updateMemberStatus, deleteMember, addMemberToOrg, createUser } = useSuperAdminActions();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -50,6 +51,7 @@ export default function UsersPage() {
   const [deleteMemberData, setDeleteMemberData] = useState<{ id: string; name: string; orgName: string } | null>(null);
   const [changeRoleData, setChangeRoleData] = useState<{ id: string; name: string; role: string } | null>(null);
   const [addToOrgData, setAddToOrgData] = useState<{ userId: string; name: string } | null>(null);
+  const [showCreateUser, setShowCreateUser] = useState(false);
 
   const filteredUsers = users?.filter((user: any) => {
     const matchesSearch = 
@@ -110,9 +112,15 @@ export default function UsersPage() {
                   Lista global de todos los usuarios del SaaS
                 </CardDescription>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold">{users?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Total</p>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-3xl font-bold">{users?.length || 0}</p>
+                  <p className="text-sm text-muted-foreground">Total</p>
+                </div>
+                <Button onClick={() => setShowCreateUser(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Crear usuario
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -315,6 +323,17 @@ export default function UsersPage() {
           );
         }}
         isLoading={addMemberToOrg.isPending}
+      />
+
+      <CreateUserDialog
+        open={showCreateUser}
+        onOpenChange={setShowCreateUser}
+        onConfirm={(data) => {
+          createUser.mutate(data, {
+            onSuccess: () => setShowCreateUser(false),
+          });
+        }}
+        isLoading={createUser.isPending}
       />
     </SuperAdminLayout>
   );

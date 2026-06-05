@@ -19,8 +19,12 @@ import {
 } from '@/components/ui/table';
 import {
   ArrowLeft, User, Mail, Calendar, Building2, Shield, Clock,
-  CheckCircle, XCircle, AlertCircle, Activity, Key, ChevronRight
+  CheckCircle, XCircle, AlertCircle, Activity, Key, ChevronRight,
+  Trash2, KeyRound
 } from 'lucide-react';
+import { useSuperAdminActions } from '@/hooks/useSuperAdminActions';
+import { ResetPasswordDialog } from '@/components/super-admin/ResetPasswordDialog';
+import { DeleteUserDialog } from '@/components/super-admin/DeleteUserDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ROLE_LABELS } from '@/lib/roleHierarchy';
@@ -157,6 +161,9 @@ export default function UserDetail() {
   const { id: userId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('memberships');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showDeleteUser, setShowDeleteUser] = useState(false);
+  const { resetUserPassword, deleteUser } = useSuperAdminActions();
 
   const { data: userData, isLoading } = useQuery({
     queryKey: ['super-admin-user-detail', userId],
@@ -266,8 +273,26 @@ export default function UserDetail() {
                   </span>
                 </div>
               </div>
-              <div className="text-right text-xs text-muted-foreground shrink-0">
-                <p>ID: {profile.id.slice(0, 8)}...</p>
+              <div className="shrink-0 flex flex-col items-end gap-2">
+                <p className="text-xs text-muted-foreground">ID: {profile.id.slice(0, 8)}...</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowResetPassword(true)}
+                  >
+                    <KeyRound className="h-4 w-4 mr-1" />
+                    Cambiar contraseña
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteUser(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Eliminar usuario
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -563,6 +588,35 @@ export default function UserDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Reset Password Dialog */}
+      <ResetPasswordDialog
+        open={showResetPassword}
+        onOpenChange={setShowResetPassword}
+        userName={profile.name || profile.email || 'Usuario'}
+        onConfirm={(newPassword) => {
+          resetUserPassword.mutate(
+            { userId: profile.id, newPassword },
+            { onSuccess: () => setShowResetPassword(false) }
+          );
+        }}
+        isLoading={resetUserPassword.isPending}
+      />
+
+      {/* Delete User Dialog */}
+      <DeleteUserDialog
+        open={showDeleteUser}
+        onOpenChange={setShowDeleteUser}
+        userName={profile.name || 'Sin nombre'}
+        userEmail={profile.email || ''}
+        onConfirm={() => {
+          deleteUser.mutate(
+            { userId: profile.id },
+            { onSuccess: () => navigate('/super-admin/users') }
+          );
+        }}
+        isLoading={deleteUser.isPending}
+      />
     </SuperAdminLayout>
   );
 }

@@ -99,6 +99,9 @@ import {
   handleSuperAdminDeleteArea,
   handleSuperAdminGetUserMemberships,
   handleSuperAdminGetUserDetail,
+  handleSuperAdminResetPassword,
+  handleSuperAdminCreateUser,
+  handleSuperAdminDeleteUser,
 } from "../superAdminEndpoints";
 import {
   handleGetShiftTemplates,
@@ -271,6 +274,9 @@ async function startServer() {
   app.post("/api/super-admin/delete-area", handleSuperAdminDeleteArea);
   app.post("/api/super-admin/get-user-memberships", handleSuperAdminGetUserMemberships);
   app.post("/api/super-admin/get-user-detail", handleSuperAdminGetUserDetail);
+  app.post("/api/super-admin/reset-password", handleSuperAdminResetPassword);
+  app.post("/api/super-admin/create-user", handleSuperAdminCreateUser);
+  app.post("/api/super-admin/delete-user", handleSuperAdminDeleteUser);
 
   // Service Requests (cross-org)
   app.post("/api/list-service-requests", handleListServiceRequests);

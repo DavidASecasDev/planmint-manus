@@ -759,3 +759,181 @@ export async function handleSuperAdminGetUserDetail(req: Request, res: Response)
     return handleError(res, err, "get-user-detail");
   }
 }
+
+
+// ─── Reset User Password ───────────────────────────────────────────────────
+export async function handleSuperAdminResetPassword(req: Request, res: Response) {
+  try {
+    const { userId, email } = await authenticateAsSuperAdmin(req.headers.authorization);
+    const { userId: targetUserId, newPassword } = req.body;
+
+    if (!targetUserId || !newPassword) {
+      return res.status(400).json({ error: "userId and newPassword are required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const serviceClient = getServiceClient();
+
+    // Update the user's password via admin API
+    const { error: updateError } = await serviceClient.auth.admin.updateUserById(
+      targetUserId,
+      { password: newPassword }
+    );
+    if (updateError) throw updateError;
+
+    // Get target user info for audit log
+    const { data: targetProfile } = await serviceClient
+      .from("profiles")
+      .select("name, email")
+      .eq("id", targetUserId)
+      .single();
+
+    // Log the action
+    await serviceClient.from("audit_logs").insert({
+      action: "reset_password",
+      entity_type: "user",
+      entity_id: targetUserId,
+      actor_user_id: userId,
+      actor_role: "super_admin",
+      metadata_json: JSON.stringify({
+        target_email: targetProfile?.email || "unknown",
+        target_name: targetProfile?.name || "unknown",
+      }),
+    });
+
+    return res.json({ success: true, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "reset-password");
+  }
+}
+
+// ─── Create User ───────────────────────────────────────────────────────────
+export async function handleSuperAdminCreateUser(req: Request, res: Response) {
+  try {
+    const { userId, email: adminEmail } = await authenticateAsSuperAdmin(req.headers.authorization);
+    const { email, password, name, organizationId, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const serviceClient = getServiceClient();
+
+    // 1. Create the auth user
+    const { data: authData, error: authError } = await serviceClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Auto-confirm email
+    });
+    if (authError) throw authError;
+
+    const newUserId = authData.user.id;
+
+    // 2. Create the profile
+    await serviceClient.from("profiles").upsert({
+      id: newUserId,
+      email,
+      name: name || email.split("@")[0],
+      role: "member",
+      organization_id: organizationId && organizationId !== "none" ? organizationId : null,
+    });
+
+    // 3. If organization specified, add as member
+    if (organizationId && organizationId !== "none") {
+      await serviceClient.from("organization_members").insert({
+        user_id: newUserId,
+        organization_id: organizationId,
+        role: role || "member",
+        status: "active",
+      });
+    }
+
+    // 4. Audit log
+    await serviceClient.from("audit_logs").insert({
+      action: "create_user",
+      entity_type: "user",
+      entity_id: newUserId,
+      actor_user_id: userId,
+      actor_role: "super_admin",
+      metadata_json: JSON.stringify({
+        new_user_email: email,
+        new_user_name: name || email.split("@")[0],
+        organization_id: organizationId || null,
+      }),
+    });
+
+    return res.json({ success: true, userId: newUserId, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "create-user");
+  }
+}
+
+// ─── Delete User ───────────────────────────────────────────────────────────
+export async function handleSuperAdminDeleteUser(req: Request, res: Response) {
+  try {
+    const { userId, email: adminEmail } = await authenticateAsSuperAdmin(req.headers.authorization);
+    const { userId: targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    // Prevent self-deletion
+    if (targetUserId === userId) {
+      return res.status(400).json({ error: "Cannot delete your own account" });
+    }
+
+    const serviceClient = getServiceClient();
+
+    // Get target user info before deletion for audit
+    const { data: targetProfile } = await serviceClient
+      .from("profiles")
+      .select("name, email")
+      .eq("id", targetUserId)
+      .single();
+
+    // 1. Remove from all organizations
+    await serviceClient
+      .from("organization_members")
+      .delete()
+      .eq("user_id", targetUserId);
+
+    // 2. Remove custom permissions
+    await serviceClient
+      .from("user_permissions")
+      .delete()
+      .eq("user_id", targetUserId);
+
+    // 3. Delete profile
+    await serviceClient
+      .from("profiles")
+      .delete()
+      .eq("id", targetUserId);
+
+    // 4. Delete auth user
+    const { error: deleteAuthError } = await serviceClient.auth.admin.deleteUser(targetUserId);
+    if (deleteAuthError) throw deleteAuthError;
+
+    // 5. Audit log
+    await serviceClient.from("audit_logs").insert({
+      action: "delete_user",
+      entity_type: "user",
+      entity_id: targetUserId,
+      actor_user_id: userId,
+      actor_role: "super_admin",
+      metadata_json: JSON.stringify({
+        deleted_email: targetProfile?.email || "unknown",
+        deleted_name: targetProfile?.name || "unknown",
+      }),
+    });
+
+    return res.json({ success: true, error: null });
+  } catch (err: any) {
+    return handleError(res, err, "delete-user");
+  }
+}
