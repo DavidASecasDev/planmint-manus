@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   RefreshCw,
   AlertTriangle,
@@ -6,6 +6,8 @@ import {
   Car,
   CheckCircle2,
   Loader2,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 // ─── Corporate Colors ───────────────────────────────────────────────────────
@@ -91,12 +93,74 @@ function formatDeadlineLabel(dateStr: string): string {
   }
 }
 
+// ─── Alert Sound Generator (Web Audio API) ──────────────────────────────────
+function playAlertSound(urgency: "critical" | "high" | "medium" | "low") {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    if (urgency === "critical") {
+      // Triple beep for critical - urgent attention
+      const playBeep = (startTime: number, freq: number, duration: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "square";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = audioCtx.currentTime;
+      playBeep(now, 880, 0.15);
+      playBeep(now + 0.2, 880, 0.15);
+      playBeep(now + 0.4, 1100, 0.3);
+    } else if (urgency === "high") {
+      // Double beep for high priority
+      const playBeep = (startTime: number, freq: number, duration: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = audioCtx.currentTime;
+      playBeep(now, 660, 0.2);
+      playBeep(now + 0.3, 880, 0.25);
+    } else {
+      // Single soft chime for medium/low
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    }
+  } catch {
+    // Web Audio API not available - silently fail
+  }
+}
+
 // ─── Main Page (TV-optimized) ───────────────────────────────────────────────
 export default function PublicPreparation() {
   const [items, setItems] = useState<PreparationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
+  const previousItemIdsRef = useRef<Set<string>>(new Set());
+  const isFirstFetchRef = useRef(true);
 
   // Add noindex meta tag
   useEffect(() => {
@@ -114,7 +178,39 @@ export default function PublicPreparation() {
       if (!res.ok) throw new Error("Error al cargar datos");
       const json = await res.json();
       if (!json.ok) throw new Error("Error al cargar datos");
-      setItems(json.items || []);
+
+      const fetchedItems: PreparationItem[] = json.items || [];
+      const currentIds = new Set(fetchedItems.map((i) => i.id));
+
+      // Detect new items (not in previous fetch)
+      if (!isFirstFetchRef.current) {
+        const newIds = new Set<string>();
+        let highestNewUrgency: "critical" | "high" | "medium" | "low" | null = null;
+        const urgencyPriority = { critical: 4, high: 3, medium: 2, low: 1 };
+
+        for (const item of fetchedItems) {
+          if (!previousItemIdsRef.current.has(item.id)) {
+            newIds.add(item.id);
+            if (!highestNewUrgency || urgencyPriority[item.urgency] > urgencyPriority[highestNewUrgency]) {
+              highestNewUrgency = item.urgency;
+            }
+          }
+        }
+
+        if (newIds.size > 0) {
+          setNewItemIds(newIds);
+          // Play alert sound for new items
+          if (soundEnabled && highestNewUrgency) {
+            playAlertSound(highestNewUrgency);
+          }
+          // Clear the highlight after 10 seconds
+          setTimeout(() => setNewItemIds(new Set()), 10000);
+        }
+      }
+
+      isFirstFetchRef.current = false;
+      previousItemIdsRef.current = currentIds;
+      setItems(fetchedItems);
       setError(null);
       setLastUpdated(new Date());
     } catch (err: any) {
@@ -122,7 +218,7 @@ export default function PublicPreparation() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [soundEnabled]);
 
   // Initial fetch + auto-refresh every 30 seconds
   useEffect(() => {
@@ -130,6 +226,13 @@ export default function PublicPreparation() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Enable audio context on first user interaction (browser autoplay policy)
+  const handleEnableSound = () => {
+    setSoundEnabled(true);
+    // Play a test beep to unlock audio context
+    playAlertSound("low");
+  };
 
   if (error && items.length === 0) {
     return (
@@ -174,6 +277,25 @@ export default function PublicPreparation() {
                 {lastUpdated.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
+            {/* Sound toggle button */}
+            <button
+              onClick={() => {
+                if (!soundEnabled) {
+                  handleEnableSound();
+                } else {
+                  setSoundEnabled(false);
+                }
+              }}
+              className="p-3 rounded-xl transition-all hover:opacity-80"
+              style={{ backgroundColor: soundEnabled ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.1)" }}
+              title={soundEnabled ? "Sonido activado" : "Sonido desactivado"}
+            >
+              {soundEnabled ? (
+                <Volume2 className="w-6 h-6" style={{ color: "#10b981" }} />
+              ) : (
+                <VolumeX className="w-6 h-6" style={{ color: "rgba(255,255,255,0.5)" }} />
+              )}
+            </button>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -222,6 +344,7 @@ export default function PublicPreparation() {
               const config = URGENCY_CONFIG[item.urgency];
               const timeLabel = formatDeadlineLabel(item.deadline_at);
               const timeStr = formatDeadlineTime(item.deadline_at);
+              const isNew = newItemIds.has(item.id);
 
               return (
                 <div
@@ -229,7 +352,9 @@ export default function PublicPreparation() {
                   className={`rounded-2xl shadow-sm border-2 overflow-hidden transition-all ${config.pulse ? "animate-pulse" : ""}`}
                   style={{
                     backgroundColor: config.bg,
-                    borderColor: config.border,
+                    borderColor: isNew ? config.barColor : config.border,
+                    boxShadow: isNew ? `0 0 20px ${config.barColor}40, 0 0 40px ${config.barColor}20` : undefined,
+                    transform: isNew ? "scale(1.02)" : undefined,
                   }}
                 >
                   <div className="flex items-stretch">
@@ -271,6 +396,17 @@ export default function PublicPreparation() {
                           >
                             {config.label}
                           </span>
+                          {isNew && (
+                            <span
+                              className="text-xs font-bold uppercase px-2 py-1 rounded-md animate-bounce"
+                              style={{
+                                backgroundColor: "#10b981",
+                                color: "#ffffff",
+                              }}
+                            >
+                              NUEVO
+                            </span>
+                          )}
                         </div>
                         {item.modelo && (
                           <p className="text-xl font-medium truncate" style={{ color: COLORS.textLight }}>

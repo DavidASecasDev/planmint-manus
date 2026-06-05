@@ -1036,3 +1036,4 @@
 - [x] Indicador visual en selector de preparación que diferencie entre "sucio" e "incompleto"
 - [x] Invalidar automáticamente la lista de preparación cuando un vehículo cambia de estado en el kanban
 - [x] Validación backend en add-preparation-item para rechazar vehículos limpios o alquilados
+- [x] Añadir sonido de alerta en vista TV /ops/preparacion cuando se detecta un nuevo vehículo urgente
