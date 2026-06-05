@@ -352,6 +352,9 @@ export function useOperationalDashboard() {
         ...vehiclesWithoutReservations.slice(0, Math.max(0, 12 - vehiclesWithReservations.length)),
       ];
 
+      // Filter out completed operations — dashboard only shows pending work
+      const pendingOperations = todayOperations.filter(op => !op.isCompleted);
+
       return {
         vehiclesByStatus,
         totalVehicles: serverData.vehicles.length,
@@ -365,7 +368,7 @@ export function useOperationalDashboard() {
         contractsExpiringSoon: serverData.expiringContractsCount,
         pendingTasksHigh: serverData.pendingTasksHighCount,
         pendingTasksTotal: serverData.pendingTasksTotalCount,
-        todayReservations: todayOperations,
+        todayReservations: pendingOperations,
         vehiclesNeedingPrep,
         totalDirtyVehicles: dirtyVehicles.length,
       };

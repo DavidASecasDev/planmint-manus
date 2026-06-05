@@ -1025,3 +1025,4 @@
 - [x] Bug CRÍTICO: Reserva 3958 tiene sillitas de bebé pero NO aparece el icono en Programación — causa: rently_detail_synced_at = null (detalle nunca descargado por timeout en sync)
 - [x] Implementar job periódico (heartbeat) que re-intente enriquecimiento de detalle Rently para reservas con rently_detail_synced_at = null
 - [x] Auditoría completa flujo Rently: keywords unificados en 4 archivos, heartbeat ampliado a 14 días + reservas futuras, excluir canceladas, EquipmentStockWidget keywords corregidos
+- [x] Dashboard: Ocultar operaciones marcadas como "Completada" del widget "Operaciones de hoy" — solo mostrar pendientes (Pendiente, Confirmada, En curso)
