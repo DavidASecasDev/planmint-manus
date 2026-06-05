@@ -198,21 +198,26 @@ export function ManualPreparationList() {
   const [formDeadline, setFormDeadline] = useState('');
   const [formNotes, setFormNotes] = useState('');
 
-  // Fetch fleet vehicles for autocomplete
+  // Fetch vehicles that actually need preparation (sucio or incompleto only)
   const { data: fleetVehicles = [] } = useQuery<FleetVehicleOption[]>({
-    queryKey: ['fleet-vehicles-plates', orgId],
+    queryKey: ['vehicles-for-preparation', orgId],
     queryFn: async () => {
       const { data, error } = await supabaseQuery
-        .from('fleet_vehicles')
-        .select('matricula, modelo, marca')
+        .from('vehicles')
+        .select('matricula, modelo, categoria')
         .eq('organization_id', orgId!)
-        .eq('status', 'activo')
+        .eq('is_archived', false)
+        .in('status', ['sucio', 'incompleto'])
         .order('matricula');
       if (error) throw error;
-      return (data || []) as FleetVehicleOption[];
+      return (data || []).map((v: any) => ({
+        matricula: v.matricula,
+        modelo: v.modelo,
+        marca: v.categoria, // use categoria as brand info
+      })) as FleetVehicleOption[];
     },
     enabled: !!orgId,
-    staleTime: 5 * 60 * 1000, // 5 min cache
+    staleTime: 30 * 1000, // 30s cache - status changes frequently
   });
 
   // Fetch preparation list
@@ -360,6 +365,14 @@ export function ManualPreparationList() {
     setFormMatricula(v.matricula);
     setFormModelo([v.marca, v.modelo].filter(Boolean).join(' '));
   };
+
+  // Filter out vehicles already in the pending preparation list
+  const availableVehicles = useMemo(() => {
+    const pendingMatriculas = new Set(
+      items.filter(i => i.status === 'pending').map(i => i.matricula.toUpperCase())
+    );
+    return fleetVehicles.filter(v => !pendingMatriculas.has(v.matricula.toUpperCase()));
+  }, [fleetVehicles, items]);
 
   // Separate pending and completed
   const pendingItems = useMemo(() => items.filter(i => i.status === 'pending'), [items]);
@@ -562,7 +575,7 @@ export function ManualPreparationList() {
                 value={formMatricula}
                 onChange={setFormMatricula}
                 onSelectVehicle={handleSelectVehicle}
-                vehicles={fleetVehicles}
+                vehicles={availableVehicles}
                 autoFocus={!editingItem}
               />
             </div>

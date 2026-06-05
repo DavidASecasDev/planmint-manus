@@ -1032,3 +1032,4 @@
 - [x] Implementar flujo 'Olvidé mi contraseña' auto-servicio en la página de login (YA EXISTÍA: /auth/recover → email → /reset-password)
 - [x] Crear página pública /ops/preparacion para el equipo de preparación (sin login, estilo similar a /ops/azul-ops, mostrando matrícula y marca/modelo de vehículos pendientes)
 - [x] Rediseñar /ops/preparacion para visualización en televisión: tipografía grande, tarjetas amplias, alto contraste, legible desde lejos
+- [x] Filtrar selector de vehículos en lista de preparación: excluir coches alquilados y coches ya limpios (basarse en estado real de estado_coches)
