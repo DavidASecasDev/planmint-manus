@@ -57,6 +57,7 @@ import { handleSupabaseQuery } from "../supabaseProxy";
 import { handleGetOperationalDashboard } from "../dashboardEndpoint";
 import { handleValidateBrokerInvite } from "../validateBrokerInvite";
 import { handlePublicOperations } from "../publicOperationsEndpoint";
+import { handlePublicPreparation } from "../publicPreparationEndpoint";
 import {
   handleGetOrgModules,
   handleGetOrgCustomRoles,
@@ -235,6 +236,7 @@ async function startServer() {
 
   // ─── Public endpoints (no auth required) ───────────────────────────────────
   app.get("/api/public/operations/:orgSlug", handlePublicOperations);
+  app.get("/api/public/preparacion", handlePublicPreparation);
   app.get("/api/public/operations/:orgSlug/timeline", handlePublicTimeline);
   app.post("/api/timeline", handleAuthenticatedTimeline);
 

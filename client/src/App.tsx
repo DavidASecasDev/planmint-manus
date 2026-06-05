@@ -98,6 +98,7 @@ const FormEditorPage = lazy(() => import("./pages/FormEditor"));
 const PublicForm = lazy(() => import("./pages/PublicForm"));
 const PublicTransferForm = lazy(() => import("./pages/PublicTransferForm"));
 const PublicOperations = lazy(() => import("./pages/PublicOperations"));
+const PublicPreparation = lazy(() => import("./pages/PublicPreparation"));
 const PublicTracking = lazy(() => import("./pages/PublicTracking"));
 
 // Programación (operations / scheduling)
@@ -237,6 +238,7 @@ function QueryRecovery() {
             {/* Public form routes */}
             <Route path="/f/:slug" element={<PublicForm />} />
             <Route path="/transfer/:slug" element={<PublicTransferForm />} />
+            <Route path="/ops/preparacion" element={<PublicPreparation />} />
             <Route path="/ops/:slug" element={<PublicOperations />} />
             <Route path="/track/:token" element={<PublicTracking />} />
             <Route path="/install" element={<Install />} />

@@ -1030,3 +1030,4 @@
 - [x] Programación: Añadir barra de progreso compacta en la cabecera de la tabla mostrando avance del día (completadas/total)
 - [x] Añadir opción 'Cambiar contraseña' en el menú de acciones de miembros de organización
 - [x] Implementar flujo 'Olvidé mi contraseña' auto-servicio en la página de login (YA EXISTÍA: /auth/recover → email → /reset-password)
+- [x] Crear página pública /ops/preparacion para el equipo de preparación (sin login, estilo similar a /ops/azul-ops, mostrando matrícula y marca/modelo de vehículos pendientes)
