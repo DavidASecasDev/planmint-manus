@@ -1037,3 +1037,6 @@
 - [x] Invalidar automáticamente la lista de preparación cuando un vehículo cambia de estado en el kanban
 - [x] Validación backend en add-preparation-item para rechazar vehículos limpios o alquilados
 - [x] Añadir sonido de alerta en vista TV /ops/preparacion cuando se detecta un nuevo vehículo urgente
+- [x] Reducir intervalo de refresco a 15 segundos en /ops/preparacion
+- [x] Añadir botón de pantalla completa en el header de /ops/preparacion
+- [x] Añadir contador "Completados hoy" en el header de /ops/preparacion

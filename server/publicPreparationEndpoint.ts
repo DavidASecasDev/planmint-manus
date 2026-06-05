@@ -7,6 +7,7 @@ import { getServiceClient } from "./supabaseAdmin";
  * GET /api/public/preparacion
  *
  * Returns the current preparation list for Azul Cars (pending items only).
+ * Also returns the count of items completed today for motivation.
  * No authentication required. Minimal data exposed (matricula, modelo, deadline, notes, urgency).
  */
 
@@ -30,6 +31,21 @@ export async function handlePublicPreparation(req: Request, res: Response) {
       return res.status(500).json({ error: "Internal server error" });
     }
 
+    // Get count of items completed today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { count: completedToday, error: countError } = await sb
+      .from("preparation_list")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", AZUL_CARS_ORG_ID)
+      .eq("status", "done")
+      .gte("updated_at", todayStart.toISOString());
+
+    if (countError) {
+      console.error("[public-preparation] Count error:", countError.message);
+      // Non-critical, continue with 0
+    }
+
     // Add urgency level to each item
     const now = Date.now();
     const items = (data || []).map((item) => {
@@ -51,7 +67,12 @@ export async function handlePublicPreparation(req: Request, res: Response) {
       };
     });
 
-    return res.json({ ok: true, items, count: items.length });
+    return res.json({
+      ok: true,
+      items,
+      count: items.length,
+      completed_today: completedToday ?? 0,
+    });
   } catch (err: any) {
     console.error("[public-preparation] Error:", err?.message);
     return res.status(500).json({ error: "Internal server error" });

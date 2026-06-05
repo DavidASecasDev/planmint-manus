@@ -8,6 +8,9 @@ import {
   Loader2,
   Volume2,
   VolumeX,
+  Maximize,
+  Minimize,
+  Trophy,
 } from "lucide-react";
 
 // ─── Corporate Colors ───────────────────────────────────────────────────────
@@ -99,7 +102,6 @@ function playAlertSound(urgency: "critical" | "high" | "medium" | "low") {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
 
     if (urgency === "critical") {
-      // Triple beep for critical - urgent attention
       const playBeep = (startTime: number, freq: number, duration: number) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -117,7 +119,6 @@ function playAlertSound(urgency: "critical" | "high" | "medium" | "low") {
       playBeep(now + 0.2, 880, 0.15);
       playBeep(now + 0.4, 1100, 0.3);
     } else if (urgency === "high") {
-      // Double beep for high priority
       const playBeep = (startTime: number, freq: number, duration: number) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -134,7 +135,6 @@ function playAlertSound(urgency: "critical" | "high" | "medium" | "low") {
       playBeep(now, 660, 0.2);
       playBeep(now + 0.3, 880, 0.25);
     } else {
-      // Single soft chime for medium/low
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.connect(gain);
@@ -159,6 +159,8 @@ export default function PublicPreparation() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [completedToday, setCompletedToday] = useState(0);
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const isFirstFetchRef = useRef(true);
 
@@ -171,6 +173,27 @@ export default function PublicPreparation() {
     return () => { document.head.removeChild(meta); };
   }, []);
 
+  // Listen for fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Fullscreen not supported or denied
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -181,6 +204,11 @@ export default function PublicPreparation() {
 
       const fetchedItems: PreparationItem[] = json.items || [];
       const currentIds = new Set(fetchedItems.map((i) => i.id));
+
+      // Update completed today counter
+      if (typeof json.completed_today === "number") {
+        setCompletedToday(json.completed_today);
+      }
 
       // Detect new items (not in previous fetch)
       if (!isFirstFetchRef.current) {
@@ -199,11 +227,9 @@ export default function PublicPreparation() {
 
         if (newIds.size > 0) {
           setNewItemIds(newIds);
-          // Play alert sound for new items
           if (soundEnabled && highestNewUrgency) {
             playAlertSound(highestNewUrgency);
           }
-          // Clear the highlight after 10 seconds
           setTimeout(() => setNewItemIds(new Set()), 10000);
         }
       }
@@ -220,17 +246,15 @@ export default function PublicPreparation() {
     }
   }, [soundEnabled]);
 
-  // Initial fetch + auto-refresh every 30 seconds
+  // Initial fetch + auto-refresh every 15 seconds
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Enable audio context on first user interaction (browser autoplay policy)
   const handleEnableSound = () => {
     setSoundEnabled(true);
-    // Play a test beep to unlock audio context
     playAlertSound("low");
   };
 
@@ -263,7 +287,23 @@ export default function PublicPreparation() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
+            {/* Completed today counter */}
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-xl"
+              style={{ backgroundColor: "rgba(16,185,129,0.15)" }}
+              title="Completados hoy"
+            >
+              <Trophy className="w-6 h-6" style={{ color: "#10b981" }} />
+              <span className="text-2xl font-bold" style={{ color: "#10b981" }}>
+                {completedToday}
+              </span>
+              <span className="text-sm font-medium" style={{ color: "rgba(16,185,129,0.8)" }}>
+                hoy
+              </span>
+            </div>
+
+            {/* Pending count */}
             {items.length > 0 && (
               <span
                 className="text-3xl font-bold px-5 py-2 rounded-xl"
@@ -272,12 +312,14 @@ export default function PublicPreparation() {
                 {items.length} pendiente{items.length !== 1 ? "s" : ""}
               </span>
             )}
+
             {lastUpdated && (
               <span className="text-lg" style={{ color: "rgba(255,255,255,0.6)" }}>
                 {lastUpdated.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
-            {/* Sound toggle button */}
+
+            {/* Sound toggle */}
             <button
               onClick={() => {
                 if (!soundEnabled) {
@@ -296,6 +338,22 @@ export default function PublicPreparation() {
                 <VolumeX className="w-6 h-6" style={{ color: "rgba(255,255,255,0.5)" }} />
               )}
             </button>
+
+            {/* Fullscreen toggle */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-3 rounded-xl transition-all hover:opacity-80"
+              style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            >
+              {isFullscreen ? (
+                <Minimize className="w-6 h-6" style={{ color: COLORS.gold }} />
+              ) : (
+                <Maximize className="w-6 h-6" style={{ color: COLORS.gold }} />
+              )}
+            </button>
+
+            {/* Refresh button */}
             <button
               onClick={fetchData}
               disabled={loading}
@@ -330,8 +388,16 @@ export default function PublicPreparation() {
               <p className="text-3xl" style={{ color: COLORS.textLight }}>
                 No hay vehículos pendientes de preparar
               </p>
+              {completedToday > 0 && (
+                <div className="mt-8 flex items-center justify-center gap-3">
+                  <Trophy className="w-10 h-10" style={{ color: COLORS.gold }} />
+                  <span className="text-4xl font-bold" style={{ color: COLORS.gold }}>
+                    {completedToday} completado{completedToday !== 1 ? "s" : ""} hoy
+                  </span>
+                </div>
+              )}
               <p className="text-xl mt-6" style={{ color: COLORS.textMuted }}>
-                Se actualiza automáticamente cada 30 segundos
+                Se actualiza automáticamente cada 15 segundos
               </p>
             </div>
           </div>

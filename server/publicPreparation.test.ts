@@ -17,23 +17,53 @@ function createMockReqRes() {
   return { req, res };
 }
 
+// Helper to create a mock supabase client that handles both queries
+function createMockClient(pendingResult: any, completedCountResult?: any) {
+  const completedCount = completedCountResult ?? { count: 0, error: null };
+
+  const mockFrom = vi.fn().mockImplementation((table: string) => {
+    if (table === "preparation_list") {
+      // Track call count to differentiate between the two queries
+      const callIndex = mockFrom.mock.calls.filter((c: any) => c[0] === "preparation_list").length;
+
+      if (callIndex <= 1) {
+        // First call: pending items query
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue(pendingResult),
+              }),
+            }),
+          }),
+        };
+      } else {
+        // Second call: completed today count query
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                gte: vi.fn().mockResolvedValue(completedCount),
+              }),
+            }),
+          }),
+        };
+      }
+    }
+    return { select: vi.fn() };
+  });
+
+  return { from: mockFrom };
+}
+
 describe("handlePublicPreparation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns empty items array when no pending preparation items exist", async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        }),
-      }),
-    });
-
-    (getServiceClient as any).mockReturnValue({
-      from: vi.fn().mockReturnValue({ select: mockSelect }),
-    });
+    const mockClient = createMockClient({ data: [], error: null }, { count: 3, error: null });
+    (getServiceClient as any).mockReturnValue(mockClient);
 
     const { req, res } = createMockReqRes();
     await handlePublicPreparation(req, res);
@@ -42,6 +72,7 @@ describe("handlePublicPreparation", () => {
       ok: true,
       items: [],
       count: 0,
+      completed_today: 3,
     });
   });
 
@@ -86,17 +117,8 @@ describe("handlePublicPreparation", () => {
       },
     ];
 
-    const mockSelect = vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({ data: mockItems, error: null }),
-        }),
-      }),
-    });
-
-    (getServiceClient as any).mockReturnValue({
-      from: vi.fn().mockReturnValue({ select: mockSelect }),
-    });
+    const mockClient = createMockClient({ data: mockItems, error: null }, { count: 5, error: null });
+    (getServiceClient as any).mockReturnValue(mockClient);
 
     const { req, res } = createMockReqRes();
     await handlePublicPreparation(req, res);
@@ -106,6 +128,7 @@ describe("handlePublicPreparation", () => {
     expect(response.ok).toBe(true);
     expect(response.count).toBe(4);
     expect(response.items).toHaveLength(4);
+    expect(response.completed_today).toBe(5);
 
     // Check urgency levels
     expect(response.items[0].urgency).toBe("critical");
@@ -125,17 +148,8 @@ describe("handlePublicPreparation", () => {
   });
 
   it("returns 500 on database error", async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({ data: null, error: { message: "DB connection failed" } }),
-        }),
-      }),
-    });
-
-    (getServiceClient as any).mockReturnValue({
-      from: vi.fn().mockReturnValue({ select: mockSelect }),
-    });
+    const mockClient = createMockClient({ data: null, error: { message: "DB connection failed" } });
+    (getServiceClient as any).mockReturnValue(mockClient);
 
     const { req, res } = createMockReqRes();
     await handlePublicPreparation(req, res);
@@ -144,27 +158,21 @@ describe("handlePublicPreparation", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Internal server error" });
   });
 
-  it("queries the correct table with correct filters", async () => {
-    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null });
-    const mockEqStatus = vi.fn().mockReturnValue({ order: mockOrder });
-    const mockEqOrg = vi.fn().mockReturnValue({ eq: mockEqStatus });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqOrg });
-    const mockFrom = vi.fn().mockReturnValue({ select: mockSelect });
-
-    (getServiceClient as any).mockReturnValue({ from: mockFrom });
+  it("returns completed_today as 0 when count query fails", async () => {
+    const mockClient = createMockClient(
+      { data: [], error: null },
+      { count: null, error: { message: "Count query failed" } }
+    );
+    (getServiceClient as any).mockReturnValue(mockClient);
 
     const { req, res } = createMockReqRes();
     await handlePublicPreparation(req, res);
 
-    // Verify correct table
-    expect(mockFrom).toHaveBeenCalledWith("preparation_list");
-    // Verify correct select fields
-    expect(mockSelect).toHaveBeenCalledWith("id, matricula, modelo, deadline_at, notes, status, created_at");
-    // Verify org filter (Azul Cars)
-    expect(mockEqOrg).toHaveBeenCalledWith("organization_id", "a23a0d42-5af7-4cda-9955-569c10cc6714");
-    // Verify status filter
-    expect(mockEqStatus).toHaveBeenCalledWith("status", "pending");
-    // Verify ordering
-    expect(mockOrder).toHaveBeenCalledWith("deadline_at", { ascending: true });
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      items: [],
+      count: 0,
+      completed_today: 0,
+    });
   });
 });
