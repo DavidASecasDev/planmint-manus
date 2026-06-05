@@ -1022,3 +1022,5 @@
 - [x] Eliminar código huérfano de geolocalización del navegador (startLocationSharing, stopLocationSharing, sendLocation, refs y estado sharingLocation) de ReservationsTable
 - [x] Añadir indicador visual "En camino" en la tabla de Programación cuando un conductor inicia movimiento desde la app Android (badge con nombre del conductor)
 - [x] Bug: Filtro de fecha en Programación debe usar hora_confirmada (si existe) en lugar de fecha_hora original para determinar en qué día aparece una operación
+- [x] Bug CRÍTICO: Reserva 3958 tiene sillitas de bebé pero NO aparece el icono en Programación — causa: rently_detail_synced_at = null (detalle nunca descargado por timeout en sync)
+- [x] Implementar job periódico (heartbeat) que re-intente enriquecimiento de detalle Rently para reservas con rently_detail_synced_at = null
