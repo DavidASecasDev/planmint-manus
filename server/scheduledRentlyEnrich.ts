@@ -115,33 +115,48 @@ export async function handleScheduledRentlyEnrich(req: Request, res: Response) {
 
               const drivers = await fetchBookingDrivers(host, token, bookingId);
 
-              // Build enrichment data (only the detail fields, not the full reservation)
+              // Build enrichment data using the same function as the main sync
               const enriched = enrichReservationWithDetail(
                 { external_reservation_id: reservation.external_reservation_id },
                 detail,
                 drivers
               );
 
-              // Update only the detail fields in the database
+              // Only update fields that exist in the reservations table
               const updateFields: Record<string, unknown> = {};
               const detailKeys = [
-                "auto",
-                "modelo",
-                "matricula",
-                "color",
-                "categoria",
                 "extras_contratados",
                 "desglose_precios",
                 "conductores_adicionales",
                 "cliente_direccion",
                 "cliente_ciudad",
+                "cliente_estado_provincia",
                 "cliente_pais",
-                "cliente_codigo_postal",
                 "cliente_fecha_nacimiento",
                 "cliente_carnet_numero",
                 "cliente_carnet_pais",
                 "cliente_carnet_expiracion",
                 "cliente_notas",
+                "vehiculo_kms",
+                "vehiculo_combustible",
+                "vehiculo_color",
+                "vehiculo_anio",
+                "vehiculo_chasis",
+                "vehiculo_tipo_combustible",
+                "balance",
+                "total_pagado_rently",
+                "prepago",
+                "pagado_por_agencia",
+                "pagado_por_cliente",
+                "moneda",
+                "comision_ventas",
+                "tarifa_diaria",
+                "tarifa_hora",
+                "tarifa_dia_extra",
+                "tarifa_hora_extra",
+                "km_ilimitados",
+                "km_max_permitidos",
+                "km_max_por_dia",
                 "rently_detail_synced_at",
               ];
 
