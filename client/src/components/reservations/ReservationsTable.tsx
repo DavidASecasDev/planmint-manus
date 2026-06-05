@@ -1310,6 +1310,41 @@ export function ReservationsTable() {
           {filteredAndSorted.length} operaciones ({reservations.length} reservas)
         </Badge>
 
+        {/* Progress bar - day completion */}
+        {(() => {
+          const total = filteredAndSorted.length + filteredAndSorted.filter(r => r.isCompleted).length;
+          const completed = filteredAndSorted.filter(r => r.isCompleted).length;
+          // We already filter out completed from filteredAndSorted in some views,
+          // so count from enrichedOperationRows which has ALL visible ops
+          const allVisible = enrichedOperationRows.filter(row => {
+            // Only count non-cancelled
+            const estado = getRowFieldValue(row, 'estado');
+            return estado !== 'Cancelada';
+          });
+          const totalOps = allVisible.length;
+          const completedOps = allVisible.filter(r => r.isCompleted).length;
+          if (totalOps === 0) return null;
+          const pct = Math.round((completedOps / totalOps) * 100);
+          return (
+            <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {completedOps}/{totalOps}
+                </span>
+                <div className="h-2 w-20 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-emerald-600 whitespace-nowrap">
+                  {pct}%
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Toggle para filtros de vista */}
         <div className="flex items-center gap-4 ml-auto border-l pl-4">
           {/* Botón Ver archivadas */}

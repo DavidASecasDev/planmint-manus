@@ -1027,3 +1027,4 @@
 - [x] Auditoría completa flujo Rently: keywords unificados en 4 archivos, heartbeat ampliado a 14 días + reservas futuras, excluir canceladas, EquipmentStockWidget keywords corregidos
 - [x] Dashboard: Ocultar operaciones marcadas como "Completada" del widget "Operaciones de hoy" — solo mostrar pendientes (Pendiente, Confirmada, En curso)
 - [x] Dashboard: Añadir barra de progreso visual en "Operaciones de hoy" mostrando avance del día (ej: "6/16 completadas")
+- [x] Programación: Añadir barra de progreso compacta en la cabecera de la tabla mostrando avance del día (completadas/total)
