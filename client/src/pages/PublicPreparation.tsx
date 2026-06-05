@@ -97,28 +97,54 @@ function formatDeadlineLabel(dateStr: string): string {
 }
 
 // ─── Alert Sound Generator (Web Audio API) ──────────────────────────────────
+// Loud, penetrating sounds designed for noisy workshop environments
 function playAlertSound(urgency: "critical" | "high" | "medium" | "low") {
   try {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
 
     if (urgency === "critical") {
+      // CRITICAL: Loud alarm siren - 5 rapid beeps at max volume, high-pitched
       const playBeep = (startTime: number, freq: number, duration: number) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.type = "square";
+        osc.type = "square"; // Square wave is harsher/louder
         osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.setValueAtTime(1.0, startTime); // MAX volume
+        gain.gain.setValueAtTime(1.0, startTime + duration * 0.7);
         gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
         osc.start(startTime);
         osc.stop(startTime + duration);
       };
       const now = audioCtx.currentTime;
-      playBeep(now, 880, 0.15);
-      playBeep(now + 0.2, 880, 0.15);
-      playBeep(now + 0.4, 1100, 0.3);
+      // 5 rapid beeps alternating frequencies for attention
+      playBeep(now, 1000, 0.25);
+      playBeep(now + 0.3, 1400, 0.25);
+      playBeep(now + 0.6, 1000, 0.25);
+      playBeep(now + 0.9, 1400, 0.25);
+      playBeep(now + 1.2, 1600, 0.4);
     } else if (urgency === "high") {
+      // HIGH: 3 strong beeps, sawtooth wave for cutting through noise
+      const playBeep = (startTime: number, freq: number, duration: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "sawtooth"; // Sawtooth is very audible
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.8, startTime); // High volume
+        gain.gain.setValueAtTime(0.8, startTime + duration * 0.6);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = audioCtx.currentTime;
+      playBeep(now, 800, 0.3);
+      playBeep(now + 0.4, 1000, 0.3);
+      playBeep(now + 0.8, 1200, 0.4);
+    } else {
+      // MEDIUM/LOW: 2 clear chimes, still loud enough to hear
       const playBeep = (startTime: number, freq: number, duration: number) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -126,25 +152,15 @@ function playAlertSound(urgency: "critical" | "high" | "medium" | "low") {
         gain.connect(audioCtx.destination);
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.setValueAtTime(0.6, startTime); // Moderate-high volume
+        gain.gain.setValueAtTime(0.6, startTime + duration * 0.5);
         gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
         osc.start(startTime);
         osc.stop(startTime + duration);
       };
       const now = audioCtx.currentTime;
-      playBeep(now, 660, 0.2);
-      playBeep(now + 0.3, 880, 0.25);
-    } else {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(523, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.4);
+      playBeep(now, 660, 0.35);
+      playBeep(now + 0.45, 880, 0.4);
     }
   } catch {
     // Web Audio API not available - silently fail
