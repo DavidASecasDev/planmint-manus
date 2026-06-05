@@ -163,14 +163,17 @@ const menuItems = [
   { title: 'Movimientos', url: '/movements', icon: Route },
   { title: 'Recordatorios', url: '/reminders', icon: Bell },
   { title: 'Áreas', url: '/areas', icon: Layers },
-  { title: 'Etiquetas', url: '/tags', icon: Tag },
-  { title: 'Automatizaciones', url: '/automations', icon: Zap },
-  { title: 'Plantillas', url: '/templates', icon: LayoutTemplate },
   { title: 'Reportes', url: '/reports', icon: BarChart3 },
   { title: 'Teams', url: '/teams', icon: Users },
   { title: 'Horarios', url: '/schedules', icon: CalendarClock },
   { title: 'Objetos Perdidos', url: '/lost-found', icon: PackageSearch },
   { title: 'Solicitudes Servicio', url: '/service-requests', icon: ArrowLeftRight },
+];
+
+const configItems = [
+  { title: 'Etiquetas', url: '/tags', icon: Tag },
+  { title: 'Automatizaciones', url: '/automations', icon: Zap },
+  { title: 'Plantillas', url: '/templates', icon: LayoutTemplate },
   { title: 'Ajustes', url: '/settings', icon: Settings },
 ];
 
@@ -247,6 +250,19 @@ export function AppSidebar() {
     if (!dataReady) return menuItems;
     return menuItems.filter((item) => {
       // Hide items based on organization vertical
+      if (verticalHiddenPaths.some(hp => item.url === hp || item.url.startsWith(hp + '/'))) return false;
+      const requiredPermission = MENU_PERMISSION_MAP[item.url];
+      if (requiredPermission && !hasPermission(requiredPermission)) return false;
+      const moduleKey = MENU_MODULE_MAP[item.url] || 
+        Object.entries(MENU_MODULE_MAP).find(([path]) => item.url.startsWith(path + '/'))?.[1];
+      if (moduleKey && OPTIONAL_MODULES.includes(moduleKey)) return isModuleEnabled(moduleKey);
+      return true;
+    });
+  }, [isModuleEnabled, hasPermission, dataReady, verticalHiddenPaths]);
+
+  const filteredConfigItems = useMemo(() => {
+    if (!dataReady) return configItems;
+    return configItems.filter((item) => {
       if (verticalHiddenPaths.some(hp => item.url === hp || item.url.startsWith(hp + '/'))) return false;
       const requiredPermission = MENU_PERMISSION_MAP[item.url];
       if (requiredPermission && !hasPermission(requiredPermission)) return false;
@@ -609,6 +625,62 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          {/* ── Configuración group ── */}
+          {dataReady && filteredConfigItems.length > 0 && (
+            <SidebarGroup>
+              <SidebarGroupLabel
+                className={cn(
+                  "mb-2 px-3 font-heading text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/35",
+                  isCollapsed && "sr-only"
+                )}
+              >
+                Configuración
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <DockContainer>
+                    {filteredConfigItems.map((item, index) => {
+                      const isItemActive = location.pathname === item.url ||
+                        (item.url !== '/dashboard' && location.pathname.startsWith(item.url + '/'));
+                      return (
+                        <SidebarMenuItem
+                          key={item.title}
+                          className="opacity-0 animate-sidebar-item-in"
+                          style={{ animationDelay: `${index * 30}ms` }}
+                        >
+                          <DockItem>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="w-full">
+                                  <SidebarMenuButton asChild>
+                                    <NavLink
+                                      to={item.url}
+                                      className={menuItemBase}
+                                      data-active={isItemActive}
+                                      activeClassName=""
+                                    >
+                                      <item.icon className="h-[18px] w-[18px] shrink-0" />
+                                      {!isCollapsed && <span>{item.title}</span>}
+                                    </NavLink>
+                                  </SidebarMenuButton>
+                                </span>
+                              </TooltipTrigger>
+                              {isCollapsed && (
+                                <TooltipContent side="right" className="font-medium">
+                                  {item.title}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </DockItem>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </DockContainer>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
         </SidebarContent>
 
         {/* ── Footer ── */}
