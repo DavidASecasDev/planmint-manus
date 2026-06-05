@@ -6,56 +6,53 @@ import {
   Car,
   CheckCircle2,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 
-// ─── Corporate Colors (same as PublicOperations) ────────────────────────────
+// ─── Corporate Colors ───────────────────────────────────────────────────────
 const COLORS = {
   navy: "#1a2332",
   navyLight: "#2a3a4e",
   gold: "#c9a96e",
   goldLight: "#d4b87a",
-  goldDark: "#b8944f",
   beige: "#f8f5f0",
-  beigeDark: "#ede8e0",
   white: "#ffffff",
-  text: "#2d3748",
-  textLight: "#718096",
-  textMuted: "#a0aec0",
+  text: "#1a1a1a",
+  textLight: "#4a5568",
+  textMuted: "#718096",
 };
 
-// ─── Urgency styles ─────────────────────────────────────────────────────────
+// ─── Urgency styles (high contrast for TV) ──────────────────────────────────
 const URGENCY_CONFIG = {
   critical: {
-    bg: "rgba(239, 68, 68, 0.08)",
-    border: "rgba(239, 68, 68, 0.3)",
-    text: "#dc2626",
-    icon: "#dc2626",
-    label: "Urgente",
+    bg: "#fef2f2",
+    border: "#fca5a5",
+    barColor: "#dc2626",
+    text: "#991b1b",
+    label: "URGENTE",
     pulse: true,
   },
   high: {
-    bg: "rgba(249, 115, 22, 0.08)",
-    border: "rgba(249, 115, 22, 0.3)",
-    text: "#ea580c",
-    icon: "#ea580c",
-    label: "Alta",
+    bg: "#fff7ed",
+    border: "#fdba74",
+    barColor: "#ea580c",
+    text: "#9a3412",
+    label: "ALTA",
     pulse: false,
   },
   medium: {
-    bg: "rgba(245, 158, 11, 0.06)",
-    border: "rgba(245, 158, 11, 0.25)",
-    text: "#d97706",
-    icon: "#d97706",
-    label: "Media",
+    bg: "#fffbeb",
+    border: "#fcd34d",
+    barColor: "#d97706",
+    text: "#92400e",
+    label: "MEDIA",
     pulse: false,
   },
   low: {
-    bg: "rgba(107, 114, 128, 0.04)",
-    border: "rgba(107, 114, 128, 0.15)",
-    text: "#6b7280",
-    icon: "#6b7280",
-    label: "Normal",
+    bg: "#f9fafb",
+    border: "#d1d5db",
+    barColor: "#6b7280",
+    text: "#374151",
+    label: "NORMAL",
     pulse: false,
   },
 };
@@ -85,7 +82,7 @@ function formatDeadlineLabel(dateStr: string): string {
     const diffMs = d.getTime() - now.getTime();
     const diffMin = Math.round(diffMs / 60000);
 
-    if (diffMin < 0) return "¡Pasado!";
+    if (diffMin < 0) return "¡PASADO!";
     if (diffMin < 60) return `${diffMin} min`;
     if (diffMin < 1440) return `${Math.round(diffMin / 60)}h`;
     return d.toLocaleDateString("es-ES", { weekday: "short", day: "numeric" });
@@ -94,7 +91,7 @@ function formatDeadlineLabel(dateStr: string): string {
   }
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
+// ─── Main Page (TV-optimized) ───────────────────────────────────────────────
 export default function PublicPreparation() {
   const [items, setItems] = useState<PreparationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,17 +134,10 @@ export default function PublicPreparation() {
   if (error && items.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.beige }}>
-        <div className="max-w-md w-full mx-4 bg-white rounded-2xl shadow-lg p-8 text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: COLORS.gold }} />
-          <h2 className="text-lg font-semibold mb-2" style={{ color: COLORS.navy }}>Error al cargar datos</h2>
-          <p style={{ color: COLORS.textLight }}>{error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
-            style={{ backgroundColor: COLORS.gold, color: COLORS.navy }}
-          >
-            Reintentar
-          </button>
+        <div className="text-center p-12">
+          <AlertTriangle className="w-20 h-20 mx-auto mb-6" style={{ color: COLORS.gold }} />
+          <h2 className="text-4xl font-bold mb-4" style={{ color: COLORS.navy }}>Error al cargar datos</h2>
+          <p className="text-2xl" style={{ color: COLORS.textLight }}>{error}</p>
         </div>
       </div>
     );
@@ -155,86 +145,79 @@ export default function PublicPreparation() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.beige }}>
-      {/* ─── Header ─────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 shadow-sm" style={{ backgroundColor: COLORS.navy }}>
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold tracking-tight" style={{ color: COLORS.white }}>AZUL</span>
-              <span className="text-xl font-light" style={{ color: COLORS.gold }}>Cars</span>
+      {/* ─── Header (compact for TV - maximize content space) ──────────── */}
+      <header className="sticky top-0 z-50 shadow-md" style={{ backgroundColor: COLORS.navy }}>
+        <div className="max-w-[1800px] mx-auto px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="text-3xl font-bold tracking-tight" style={{ color: COLORS.white }}>AZUL</span>
+            <span className="text-3xl font-light" style={{ color: COLORS.gold }}>Cars</span>
+            <div className="h-8 w-px bg-white/30 mx-2" />
+            <div className="flex items-center gap-3">
+              <Car className="w-7 h-7" style={{ color: COLORS.gold }} />
+              <span className="text-2xl font-medium" style={{ color: "rgba(255,255,255,0.9)" }}>
+                Preparación
+              </span>
             </div>
-            <div className="h-6 w-px bg-white/20" />
-            <p className="text-sm font-light" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Preparación
-            </p>
           </div>
 
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: COLORS.gold, color: COLORS.navy }}
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Actualizar</span>
-          </button>
+          <div className="flex items-center gap-6">
+            {items.length > 0 && (
+              <span
+                className="text-3xl font-bold px-5 py-2 rounded-xl"
+                style={{ backgroundColor: COLORS.gold, color: COLORS.white }}
+              >
+                {items.length} pendiente{items.length !== 1 ? "s" : ""}
+              </span>
+            )}
+            {lastUpdated && (
+              <span className="text-lg" style={{ color: "rgba(255,255,255,0.6)" }}>
+                {lastUpdated.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className="p-3 rounded-xl transition-all hover:opacity-80 disabled:opacity-50"
+              style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+            >
+              <RefreshCw className={`w-6 h-6 ${loading ? "animate-spin" : ""}`} style={{ color: COLORS.gold }} />
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-        {/* ─── Status bar ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Car className="w-5 h-5" style={{ color: COLORS.gold }} />
-            <h1 className="text-lg font-semibold" style={{ color: COLORS.navy }}>
-              Lista de preparación
-            </h1>
-            {items.length > 0 && (
-              <span
-                className="inline-flex items-center justify-center h-6 min-w-6 px-2 rounded-full text-xs font-bold"
-                style={{ backgroundColor: COLORS.gold, color: COLORS.white }}
-              >
-                {items.length}
-              </span>
-            )}
-          </div>
-          {lastUpdated && (
-            <p className="text-xs" style={{ color: COLORS.textMuted }}>
-              Actualizado: {lastUpdated.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-            </p>
-          )}
-        </div>
-
+      <main className="max-w-[1800px] mx-auto px-8 py-6">
         {/* ─── Loading state ───────────────────────────────────────────── */}
         {loading && items.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-            <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin" style={{ color: COLORS.gold }} />
-            <p className="text-sm" style={{ color: COLORS.textLight }}>Cargando lista...</p>
+          <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 120px)" }}>
+            <div className="text-center">
+              <Loader2 className="w-16 h-16 mx-auto mb-6 animate-spin" style={{ color: COLORS.gold }} />
+              <p className="text-3xl font-medium" style={{ color: COLORS.textLight }}>Cargando lista...</p>
+            </div>
           </div>
         )}
 
         {/* ─── Empty state ─────────────────────────────────────────────── */}
         {!loading && items.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-            <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: "#10b981" }} />
-            <h2 className="text-lg font-semibold mb-1" style={{ color: COLORS.navy }}>
-              ¡Todo listo!
-            </h2>
-            <p className="text-sm" style={{ color: COLORS.textLight }}>
-              No hay vehículos pendientes de preparar
-            </p>
-            <div className="flex items-center justify-center gap-1 mt-3">
-              <Sparkles className="w-4 h-4" style={{ color: COLORS.gold }} />
-              <span className="text-xs" style={{ color: COLORS.textMuted }}>
+          <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 120px)" }}>
+            <div className="text-center">
+              <CheckCircle2 className="w-28 h-28 mx-auto mb-8" style={{ color: "#10b981" }} />
+              <h2 className="text-5xl font-bold mb-4" style={{ color: COLORS.navy }}>
+                ¡Todo listo!
+              </h2>
+              <p className="text-3xl" style={{ color: COLORS.textLight }}>
+                No hay vehículos pendientes de preparar
+              </p>
+              <p className="text-xl mt-6" style={{ color: COLORS.textMuted }}>
                 Se actualiza automáticamente cada 30 segundos
-              </span>
+              </p>
             </div>
           </div>
         )}
 
-        {/* ─── Vehicle cards ───────────────────────────────────────────── */}
+        {/* ─── Vehicle cards (TV-optimized: large, high contrast) ───────── */}
         {items.length > 0 && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {items.map((item) => {
               const config = URGENCY_CONFIG[item.urgency];
               const timeLabel = formatDeadlineLabel(item.deadline_at);
@@ -243,67 +226,73 @@ export default function PublicPreparation() {
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-xl shadow-sm border overflow-hidden transition-all hover:shadow-md"
-                  style={{ borderColor: config.border }}
+                  className={`rounded-2xl shadow-sm border-2 overflow-hidden transition-all ${config.pulse ? "animate-pulse" : ""}`}
+                  style={{
+                    backgroundColor: config.bg,
+                    borderColor: config.border,
+                  }}
                 >
                   <div className="flex items-stretch">
-                    {/* Urgency color bar */}
+                    {/* Urgency color bar (thick for TV visibility) */}
                     <div
-                      className="w-1.5 flex-shrink-0"
-                      style={{ backgroundColor: config.icon }}
+                      className="w-3 flex-shrink-0"
+                      style={{ backgroundColor: config.barColor }}
                     />
 
-                    <div className="flex-1 px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 px-6 py-5 flex items-center gap-5">
                       {/* Urgency icon */}
                       <div
-                        className={`flex items-center justify-center h-10 w-10 rounded-full flex-shrink-0 ${config.pulse ? "animate-pulse" : ""}`}
-                        style={{ backgroundColor: config.bg }}
+                        className="flex items-center justify-center h-16 w-16 rounded-2xl flex-shrink-0"
+                        style={{ backgroundColor: `${config.barColor}20` }}
                       >
                         {item.urgency === "critical" ? (
-                          <AlertTriangle className="h-5 w-5" style={{ color: config.icon }} />
+                          <AlertTriangle className="h-9 w-9" style={{ color: config.barColor }} />
                         ) : (
-                          <Clock className="h-5 w-5" style={{ color: config.icon }} />
+                          <Clock className="h-9 w-9" style={{ color: config.barColor }} />
                         )}
                       </div>
 
                       {/* Vehicle info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 mb-1">
                           <span
-                            className="font-bold text-sm sm:text-base tracking-wide"
+                            className="font-black text-3xl tracking-wider"
                             style={{ color: COLORS.navy }}
                           >
                             {item.matricula}
                           </span>
                           <span
-                            className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded"
+                            className="text-sm font-bold uppercase px-3 py-1 rounded-lg"
                             style={{
-                              backgroundColor: config.bg,
+                              backgroundColor: `${config.barColor}20`,
                               color: config.text,
-                              border: `1px solid ${config.border}`,
+                              border: `2px solid ${config.border}`,
                             }}
                           >
                             {config.label}
                           </span>
                         </div>
                         {item.modelo && (
-                          <p className="text-xs mt-0.5 truncate" style={{ color: COLORS.textLight }}>
+                          <p className="text-xl font-medium truncate" style={{ color: COLORS.textLight }}>
                             {item.modelo}
                           </p>
                         )}
                         {item.notes && (
-                          <p className="text-[11px] mt-0.5 truncate italic" style={{ color: COLORS.textMuted }}>
+                          <p className="text-lg mt-1 truncate italic" style={{ color: COLORS.textMuted }}>
                             {item.notes}
                           </p>
                         )}
                       </div>
 
-                      {/* Deadline */}
+                      {/* Deadline (large for TV) */}
                       <div className="flex-shrink-0 text-right">
-                        <p className="text-sm font-semibold" style={{ color: config.text }}>
+                        <p
+                          className="text-3xl font-bold"
+                          style={{ color: config.text }}
+                        >
                           {timeLabel}
                         </p>
-                        <p className="text-xs" style={{ color: COLORS.textMuted }}>
+                        <p className="text-xl font-medium mt-1" style={{ color: COLORS.textMuted }}>
                           {timeStr}
                         </p>
                       </div>
@@ -314,13 +303,6 @@ export default function PublicPreparation() {
             })}
           </div>
         )}
-
-        {/* ─── Footer ──────────────────────────────────────────────────── */}
-        <div className="text-center pt-4 pb-8">
-          <p className="text-xs" style={{ color: COLORS.textMuted }}>
-            Vista de solo lectura · Se actualiza automáticamente
-          </p>
-        </div>
       </main>
     </div>
   );

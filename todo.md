@@ -1031,3 +1031,4 @@
 - [x] Añadir opción 'Cambiar contraseña' en el menú de acciones de miembros de organización
 - [x] Implementar flujo 'Olvidé mi contraseña' auto-servicio en la página de login (YA EXISTÍA: /auth/recover → email → /reset-password)
 - [x] Crear página pública /ops/preparacion para el equipo de preparación (sin login, estilo similar a /ops/azul-ops, mostrando matrícula y marca/modelo de vehículos pendientes)
+- [x] Rediseñar /ops/preparacion para visualización en televisión: tipografía grande, tarjetas amplias, alto contraste, legible desde lejos
