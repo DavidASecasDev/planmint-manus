@@ -517,7 +517,7 @@ function OperationList({
       <div
         className="grid gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
         style={{
-          gridTemplateColumns: "80px 100px 1fr 160px 1fr",
+          gridTemplateColumns: "80px 100px 90px 1fr 160px 1fr",
           color: "rgba(255,255,255,0.4)",
           borderBottom: `1px solid ${getBorderColor()}`,
           backgroundColor: "rgba(0,0,0,0.15)",
@@ -525,6 +525,7 @@ function OperationList({
       >
         <span>Hora</span>
         <span>Tipo</span>
+        <span>Estado</span>
         <span>Vehículo</span>
         <span>Rental</span>
         <span>Dirección</span>
@@ -558,7 +559,7 @@ function OperationRow({
     <div
       className="grid gap-4 px-5 py-3 items-center transition-colors hover:bg-white/[0.02]"
       style={{
-        gridTemplateColumns: "80px 100px 1fr 160px 1fr",
+        gridTemplateColumns: "80px 100px 90px 1fr 160px 1fr",
         borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
       }}
     >
@@ -604,6 +605,35 @@ function OperationRow({
           >
             <Navigation className="w-2.5 h-2.5" />
             {formatEnCaminoTime(op.enCaminoAt) || "EN RUTA"}
+          </span>
+        )}
+      </div>
+
+      {/* Status */}
+      <div className="flex items-center">
+        {op.completed ? (
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold"
+            style={{ backgroundColor: "rgba(16,185,129,0.15)", color: "#34d399" }}
+          >
+            <CheckCircle2 className="w-3 h-3" />
+            Hecha
+          </span>
+        ) : op.enCamino ? (
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold animate-pulse"
+            style={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#60a5fa" }}
+          >
+            <Navigation className="w-3 h-3" />
+            En ruta
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold"
+            style={{ backgroundColor: "rgba(251,191,36,0.15)", color: "#fbbf24" }}
+          >
+            <Clock className="w-3 h-3" />
+            Pendiente
           </span>
         )}
       </div>
