@@ -22,6 +22,7 @@ import {
   CalendarClock,
   PackageSearch,
   RefreshCw,
+  SprayCan,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/hooks/usePermissions';
@@ -260,6 +261,18 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'schedules.view_directiva', label: 'Ver horarios de Directiva', description: 'Permite ver los turnos del equipo Directiva (si está desactivado, el equipo Directiva queda oculto)' },
       { key: 'schedules.manage_notes', label: 'Gestionar notas de horarios', description: 'Permite crear, ver y eliminar notas internas en la cuadrícula de horarios' },
       { key: 'schedules.manage', label: 'Gestionar todo (Horarios)', description: 'Acceso completo: copiar semanas, gestionar plantillas y asignar turnos' },
+    ],
+  },
+  {
+    id: 'preparation',
+    label: 'Preparación',
+    icon: SprayCan,
+    permissions: [
+      { key: 'preparation.view', label: 'Ver lista de preparación', description: 'Permite ver la lista de vehículos pendientes de preparar' },
+      { key: 'preparation.start', label: 'Iniciar preparación', description: 'Permite marcar el inicio de la preparación de un vehículo' },
+      { key: 'preparation.complete_tasks', label: 'Completar tareas', description: 'Permite marcar tareas de preparación como completadas' },
+      { key: 'preparation.view_progress', label: 'Ver progreso', description: 'Permite ver el progreso en tiempo real de las preparaciones en curso' },
+      { key: 'preparation.manage', label: 'Gestionar todo (Preparación)', description: 'Acceso completo para gestionar la lista de preparación, añadir y eliminar vehículos' },
     ],
   },
   {

@@ -70,6 +70,7 @@ const Admin = lazy(() => import("./pages/Admin"));
 const DailyTasks = lazy(() => import("./pages/DailyTasks"));
 const TimeTracking = lazy(() => import("./pages/TimeTracking"));
 const VehicleStatus = lazy(() => import("./pages/VehicleStatus"));
+const Preparation = lazy(() => import("./pages/Preparation"));
 
 // Templates
 const Templates = lazy(() => import("./pages/Templates"));
@@ -313,6 +314,20 @@ function QueryRecovery() {
               element={
                 <ProtectedRoute>
                   <LiveMap />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/preparation" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="preparation" 
+                    moduleName="Preparación"
+                    moduleDescription="El módulo de Preparación no está habilitado para tu organización."
+                  >
+                    <Preparation />
+                  </ModuleRoute>
                 </ProtectedRoute>
               } 
             />

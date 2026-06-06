@@ -1040,3 +1040,11 @@
 - [x] Reducir intervalo de refresco a 15 segundos en /ops/preparacion
 - [x] Añadir botón de pantalla completa en el header de /ops/preparacion
 - [x] Añadir contador "Completados hoy" en el header de /ops/preparacion
+- [x] Crear módulo "Preparación" en sidebar (encima de Estado Coches)
+- [x] Crear permisos preparation.start, preparation.complete_tasks, preparation.view_progress
+- [x] Backend: endpoint start-preparation (marca inicio_prep task como completada)
+- [x] Backend: endpoint get-preparation-progress con progreso de tareas en tiempo real
+- [x] Frontend: página Preparación con lista pendientes + panel preparaciones en curso
+- [x] Mostrar tiempo transcurrido y barra de progreso (tareas completadas/total) por coche
+- [x] Permitir asignación opcional de preparador al coche (botón Iniciar en panel)
+- [x] Mantener lista de preparación también en el dashboard

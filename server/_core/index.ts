@@ -162,6 +162,10 @@ import {
   handleDeletePreparationItem,
   handleUpdatePreparationItem,
 } from "../preparationEndpoints";
+import {
+  handleGetPreparationProgress,
+  handleStartPreparation,
+} from "../preparationProgressEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -357,6 +361,10 @@ async function startServer() {
   app.post("/api/uncomplete-preparation-item", handleUncompletePreparationItem);
   app.post("/api/delete-preparation-item", handleDeletePreparationItem);
   app.post("/api/update-preparation-item", handleUpdatePreparationItem);
+
+  // Preparation progress (module)
+  app.post("/api/get-preparation-progress", handleGetPreparationProgress);
+  app.post("/api/start-preparation", handleStartPreparation);
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);

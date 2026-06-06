@@ -61,7 +61,7 @@ export const ALL_PERMISSION_KEYS = [
   // Schedules (Horarios)
   "schedules.view", "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
   // Preparation (Lista de preparación)
-  "preparation.view", "preparation.manage",
+  "preparation.view", "preparation.start", "preparation.complete_tasks", "preparation.view_progress", "preparation.manage",
   // Lost & Found (Objetos Perdidos)
   "lost_found.view", "lost_found.create", "lost_found.update", "lost_found.manage",
   // Rently (Bidirectional Sync)
@@ -122,7 +122,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "fleet.manage", "fleet.import",
     "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
-    "preparation.manage",
+    "preparation.start", "preparation.complete_tasks", "preparation.view_progress", "preparation.manage",
     "lost_found.create", "lost_found.update", "lost_found.manage",
     // Rently
     "rently.booking_confirm", "rently.booking_cancel", "rently.booking_uncancel", "rently.booking_update", "rently.booking_create",
@@ -144,7 +144,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "movements.create", "movements.manage", "movements.edit_photos", "movements.upload_receipt",
     "daily_tasks.view_other_days", "daily_tasks.complete", "daily_tasks.manage",
     "schedules.assign",
-    "preparation.manage",
+    "preparation.start", "preparation.complete_tasks", "preparation.view_progress", "preparation.manage",
     "lost_found.create", "lost_found.update",
     // Rently (limited)
     "rently.booking_confirm", "rently.booking_cancel", "rently.booking_update",
@@ -156,6 +156,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "movements.create", "movements.upload_receipt",
     "daily_tasks.complete",
     "time_tracking.create",
+    "preparation.start", "preparation.complete_tasks",
     "lost_found.create",
   ],
   read_only: [],
@@ -322,6 +323,12 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["schedules.view_directiva"] = pj?.schedules?.view_directiva ?? pj?.schedules?.manage ?? false;
   flat["schedules.manage_notes"] = pj?.schedules?.manage_notes ?? pj?.schedules?.manage ?? false;
   flat["schedules.manage"] = pj?.schedules?.manage ?? false;
+  // Preparation (Lista de preparación)
+  flat["preparation.view"] = pj?.preparation?.view ?? false;
+  flat["preparation.start"] = pj?.preparation?.start ?? pj?.preparation?.manage ?? false;
+  flat["preparation.complete_tasks"] = pj?.preparation?.complete_tasks ?? pj?.preparation?.manage ?? false;
+  flat["preparation.view_progress"] = pj?.preparation?.view_progress ?? pj?.preparation?.manage ?? false;
+  flat["preparation.manage"] = pj?.preparation?.manage ?? false;
   // Lost & Found (Objetos Perdidos)
   flat["lost_found.view"] = pj?.lost_found?.view ?? false;
   flat["lost_found.create"] = pj?.lost_found?.create ?? pj?.lost_found?.manage ?? false;

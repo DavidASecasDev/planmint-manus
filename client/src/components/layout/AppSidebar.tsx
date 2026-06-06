@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -95,6 +95,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/garatech/damages': 'garatech',
   '/lost-found': 'lost_found',
   '/timeline': 'reservations',
+  '/preparation': 'preparation',
 };
 
 // Garatech submenu items with permission gates
@@ -151,6 +152,7 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/schedules': 'schedules.view',
   '/lost-found': 'lost_found.view',
   '/timeline': 'reservations.view',
+  '/preparation': 'preparation.view',
 };
 
 const menuItems = [
@@ -159,6 +161,7 @@ const menuItems = [
   { title: 'Programación', url: '/reservations', icon: CarFront },
   { title: 'Timeline', url: '/timeline', icon: GanttChart },
   { title: 'Mapa En Camino', url: '/live-map', icon: MapPin },
+  { title: 'Preparación', url: '/preparation', icon: SprayCan },
   { title: 'Estado Coches', url: '/vehicles', icon: Car },
   { title: 'Movimientos', url: '/movements', icon: Route },
   { title: 'Recordatorios', url: '/reminders', icon: Bell },

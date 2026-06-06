@@ -127,6 +127,9 @@ export type PermissionKey =
   | 'schedules.manage'
   // Preparation
   | 'preparation.view'
+  | 'preparation.start'
+  | 'preparation.complete_tasks'
+  | 'preparation.view_progress'
   | 'preparation.manage'
   // Lost & Found
   | 'lost_found.view'
