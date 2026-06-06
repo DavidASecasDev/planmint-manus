@@ -166,6 +166,7 @@ import {
   handleGetPreparationProgress,
   handleStartPreparation,
 } from "../preparationProgressEndpoints";
+import { handleGetPreparationHistory } from "../preparationHistoryEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -365,6 +366,7 @@ async function startServer() {
   // Preparation progress (module)
   app.post("/api/get-preparation-progress", handleGetPreparationProgress);
   app.post("/api/start-preparation", handleStartPreparation);
+  app.post("/api/get-preparation-history", handleGetPreparationHistory);
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);

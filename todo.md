@@ -1048,3 +1048,7 @@
 - [x] Mostrar tiempo transcurrido y barra de progreso (tareas completadas/total) por coche
 - [x] Permitir asignación opcional de preparador al coche (botón Iniciar en panel)
 - [x] Mantener lista de preparación también en el dashboard
+- [x] Historial de preparaciones: endpoint backend con datos de preparaciones completadas y métricas de rendimiento
+- [x] Historial de preparaciones: tab "Historial" en página Preparación con tabla de completadas
+- [x] Historial de preparaciones: panel de métricas (tiempo medio, ranking preparadores, tendencias)
+- [x] Historial de preparaciones: filtro por período (semana, mes, trimestre)

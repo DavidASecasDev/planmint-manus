@@ -13,8 +13,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   SprayCan, Clock, PlayCircle, CheckCircle2, AlertTriangle,
   Fuel, Gauge, Smartphone, Sparkles, Droplets, Timer,
+  History, TrendingUp, Trophy, Target, BarChart3,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { ManualPreparationList } from '@/components/dashboard/ManualPreparationList';
 
@@ -60,6 +77,48 @@ interface PreparationProgress {
   }>;
 }
 
+interface HistoryItem {
+  id: string;
+  matricula: string;
+  modelo: string | null;
+  deadline_at: string;
+  notes: string | null;
+  created_at: string;
+  completed_at: string;
+  completed_by_name: string;
+  duration_minutes: number | null;
+  met_deadline: boolean | null;
+}
+
+interface PreparerRanking {
+  name: string;
+  completed_count: number;
+  avg_duration_minutes: number | null;
+}
+
+interface DailyTrend {
+  date: string;
+  count: number;
+}
+
+interface HistoryMetrics {
+  total_completed: number;
+  avg_duration_minutes: number | null;
+  min_duration_minutes: number | null;
+  max_duration_minutes: number | null;
+  deadline_compliance_rate: number | null;
+  preparer_ranking: PreparerRanking[];
+  daily_trend: DailyTrend[];
+}
+
+interface HistoryResponse {
+  items: HistoryItem[];
+  total: number;
+  page: number;
+  limit: number;
+  metrics: HistoryMetrics;
+}
+
 function formatElapsedTime(startedAt: string): string {
   const start = new Date(startedAt).getTime();
   const now = Date.now();
@@ -69,6 +128,19 @@ function formatElapsedTime(startedAt: string): string {
   const mins = minutes % 60;
   if (hours > 0) return `${hours}h ${mins}m`;
   return `${mins}m`;
+}
+
+function formatDuration(minutes: number | null): string {
+  if (minutes === null) return '—';
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function getUrgencyColor(deadlineAt: string): string {
@@ -81,6 +153,9 @@ function getUrgencyColor(deadlineAt: string): string {
   return 'text-emerald-600 bg-emerald-50 border-emerald-200';
 }
 
+// ============================================================================
+// Active Preparations Panel
+// ============================================================================
 function ActivePreparationsPanel() {
   const { organization } = useAuth();
   const { hasPermission } = usePermissions();
@@ -98,7 +173,7 @@ function ActivePreparationsPanel() {
       return result.data.data;
     },
     enabled: !!organization?.id && canViewProgress,
-    refetchInterval: 15000, // Refresh every 15 seconds
+    refetchInterval: 15000,
   });
 
   const startMutation = useMutation({
@@ -121,9 +196,7 @@ function ActivePreparationsPanel() {
     },
   });
 
-  if (!canViewProgress) {
-    return null;
-  }
+  if (!canViewProgress) return null;
 
   if (isLoading) {
     return (
@@ -256,6 +329,299 @@ function ActivePreparationsPanel() {
   );
 }
 
+// ============================================================================
+// History Panel with Performance Analytics
+// ============================================================================
+function HistoryPanel() {
+  const { organization } = useAuth();
+  const [period, setPeriod] = useState<string>('month');
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
+  const { data: historyData, isLoading } = useQuery({
+    queryKey: ['preparation-history', organization?.id, period, page],
+    queryFn: async () => {
+      const result = await apiInvoke<{ ok: boolean; data: HistoryResponse }>('get-preparation-history', {
+        body: { period, page, limit },
+      });
+      if (result.error || !result.data?.ok) throw new Error(result.error?.message || 'Error');
+      return result.data.data;
+    },
+    enabled: !!organization?.id,
+  });
+
+  const metrics = historyData?.metrics;
+  const items = historyData?.items || [];
+  const totalPages = Math.ceil((historyData?.total || 0) / limit);
+
+  // Simple bar chart using divs
+  const maxTrendCount = Math.max(...(metrics?.daily_trend?.map(d => d.count) || [1]), 1);
+
+  return (
+    <div className="space-y-6">
+      {/* Period selector */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <History className="h-5 w-5 text-blue-600" />
+          Historial de preparaciones
+        </h3>
+        <Select value={period} onValueChange={(v) => { setPeriod(v); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">Última semana</SelectItem>
+            <SelectItem value="month">Último mes</SelectItem>
+            <SelectItem value="quarter">Último trimestre</SelectItem>
+            <SelectItem value="year">Último año</SelectItem>
+            <SelectItem value="all">Todo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+          </div>
+          <Skeleton className="h-48" />
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                  <BarChart3 className="h-4 w-4" />
+                  Total completadas
+                </div>
+                <p className="text-2xl font-bold">{metrics?.total_completed || 0}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                  <Clock className="h-4 w-4" />
+                  Tiempo medio
+                </div>
+                <p className="text-2xl font-bold">{formatDuration(metrics?.avg_duration_minutes || null)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Min: {formatDuration(metrics?.min_duration_minutes || null)} / Max: {formatDuration(metrics?.max_duration_minutes || null)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                  <Target className="h-4 w-4" />
+                  Cumplimiento deadline
+                </div>
+                <p className="text-2xl font-bold">
+                  {metrics?.deadline_compliance_rate !== null ? `${metrics?.deadline_compliance_rate}%` : '—'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                  <TrendingUp className="h-4 w-4" />
+                  Media diaria
+                </div>
+                <p className="text-2xl font-bold">
+                  {metrics?.daily_trend && metrics.daily_trend.length > 0
+                    ? (metrics.total_completed / metrics.daily_trend.length).toFixed(1)
+                    : '—'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Daily Trend Chart */}
+          {metrics?.daily_trend && metrics.daily_trend.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Preparaciones completadas por día
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end gap-[2px] h-24">
+                  {metrics.daily_trend.map((day, i) => {
+                    const height = maxTrendCount > 0 ? (day.count / maxTrendCount) * 100 : 0;
+                    const isToday = i === metrics.daily_trend.length - 1;
+                    return (
+                      <div
+                        key={day.date}
+                        className="flex-1 group relative"
+                        title={`${day.date}: ${day.count} preparaciones`}
+                      >
+                        <div
+                          className={`w-full rounded-t transition-all ${
+                            isToday ? 'bg-blue-500' : day.count > 0 ? 'bg-blue-300' : 'bg-muted'
+                          }`}
+                          style={{ height: `${Math.max(height, 2)}%` }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                  <span>{metrics.daily_trend[0]?.date?.slice(5)}</span>
+                  <span>Hoy</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Preparer Ranking */}
+          {metrics?.preparer_ranking && metrics.preparer_ranking.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  Ranking de preparadores
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {metrics.preparer_ranking.map((preparer, index) => {
+                    const maxCount = metrics.preparer_ranking[0]?.completed_count || 1;
+                    const barWidth = (preparer.completed_count / maxCount) * 100;
+                    return (
+                      <div key={preparer.name} className="flex items-center gap-3">
+                        <span className={`text-sm font-bold w-6 text-center ${
+                          index === 0 ? 'text-amber-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-700' : 'text-muted-foreground'
+                        }`}>
+                          #{index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium truncate">{preparer.name}</span>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span>{preparer.completed_count} vehículos</span>
+                              {preparer.avg_duration_minutes && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDuration(preparer.avg_duration_minutes)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                index === 0 ? 'bg-amber-400' : index === 1 ? 'bg-gray-300' : index === 2 ? 'bg-amber-600' : 'bg-blue-300'
+                              }`}
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* History Table */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Detalle de preparaciones completadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {items.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <History className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>No hay preparaciones completadas en este período</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Matrícula</TableHead>
+                        <TableHead>Modelo</TableHead>
+                        <TableHead>Completado por</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Duración</TableHead>
+                        <TableHead>Deadline</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono font-bold">{item.matricula}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.modelo || '—'}</TableCell>
+                          <TableCell>{item.completed_by_name}</TableCell>
+                          <TableCell className="text-sm">{formatDate(item.completed_at)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono">
+                              {formatDuration(item.duration_minutes)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {item.met_deadline === null ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : item.met_deadline ? (
+                              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                A tiempo
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Retrasado
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Página {page} de {totalPages} ({historyData?.total} total)
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage(p => Math.max(1, p - 1))}
+                          disabled={page <= 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                          disabled={page >= totalPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Preparation Page
+// ============================================================================
 export default function Preparation() {
   const { hasPermission } = usePermissions();
   const canManage = hasPermission('preparation.manage');
@@ -269,13 +635,45 @@ export default function Preparation() {
         icon={SprayCan}
       />
 
-      <div className="space-y-6 mt-6">
-        {/* Active preparations panel (admin/owner) */}
-        {canViewProgress && <ActivePreparationsPanel />}
+      <Tabs defaultValue="active" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="active" className="gap-1.5">
+            <Timer className="h-4 w-4" />
+            En curso
+          </TabsTrigger>
+          <TabsTrigger value="list" className="gap-1.5">
+            <SprayCan className="h-4 w-4" />
+            Lista
+          </TabsTrigger>
+          {canViewProgress && (
+            <TabsTrigger value="history" className="gap-1.5">
+              <History className="h-4 w-4" />
+              Historial
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-        {/* Preparation list (same as dashboard) */}
-        <ManualPreparationList />
-      </div>
+        <TabsContent value="active" className="mt-4 space-y-6">
+          {canViewProgress && <ActivePreparationsPanel />}
+          {!canViewProgress && (
+            <div className="text-center py-12 text-muted-foreground">
+              <Timer className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No tienes permiso para ver las preparaciones en curso</p>
+              <p className="text-sm">Contacta con tu administrador para obtener acceso</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="list" className="mt-4">
+          <ManualPreparationList />
+        </TabsContent>
+
+        {canViewProgress && (
+          <TabsContent value="history" className="mt-4">
+            <HistoryPanel />
+          </TabsContent>
+        )}
+      </Tabs>
     </AppLayout>
   );
 }
