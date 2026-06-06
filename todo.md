@@ -1054,3 +1054,4 @@
 - [x] Historial de preparaciones: filtro por período (semana, mes, trimestre)
 - [x] Optimizar módulo Preparación para dispositivos móviles (responsive layout, tablas scrollables, tarjetas adaptables)
 - [x] Rediseñar módulo Preparación con aspecto más profesional y premium (gradientes, mejor jerarquía visual, cards elevadas, colores corporativos, micro-interacciones)
+- [x] Alinear diseño de Preparación con identidad corporativa Azul Cars (PageHeader, Cards border-border/50 shadow-sm, KPIs compactos, tipografía Montserrat/Barlow, sin gradientes hero)
