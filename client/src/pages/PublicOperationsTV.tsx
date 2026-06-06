@@ -430,8 +430,34 @@ export default function PublicOperationsTV() {
         );
       })()}
 
-      {/* ─── Main Content ──────────────────────────────────────────────────── */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ scrollBehavior: "auto" }}>
+      {/* ─── Fixed Column Header ────────────────────────────────────────────── */}
+      {data && data.operations.length > 0 && (() => {
+        const totalOps = data.operations.length;
+        const compact = totalOps > 20;
+        return (
+          <div
+            className={`flex-shrink-0 max-w-[1920px] mx-auto w-full grid gap-4 ${compact ? "px-11 py-1.5 text-[10px]" : "px-16 py-2.5 text-xs"} font-semibold uppercase tracking-wider`}
+            style={{
+              gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
+              color: "rgba(255,255,255,0.5)",
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
+              backgroundColor: "rgba(0,0,0,0.3)",
+            }}
+          >
+            <span>Hora</span>
+            <span>Tipo</span>
+            <span>Estado</span>
+            <span>Vehículo</span>
+            <span>Cliente</span>
+            <span>Rental</span>
+            <span>Escoba</span>
+            <span>Dirección</span>
+          </div>
+        );
+      })()}
+
+      {/* ─── Scrollable Rows ───────────────────────────────────────────────── */}
+      <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ scrollBehavior: "auto" }}>
         {loading && !data ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -457,10 +483,10 @@ export default function PublicOperationsTV() {
           const totalOps = (data?.operations || []).length;
           const compact = totalOps > 20;
           return (
-          <div className={`max-w-[1920px] mx-auto px-8 ${compact ? "py-3" : "py-5"}`}>
-            {/* ─── En Camino Section ──────────────────────────────────── */}
+          <div className={`max-w-[1920px] mx-auto px-8 ${compact ? "py-2" : "py-3"}`}>
+            {/* ─── En Camino Section ──────────────────────────────────────── */}
             {enCaminoOps.length > 0 && (
-              <section className="mb-6">
+              <section className="mb-4">
                 <SectionHeader
                   icon={<Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />}
                   label="En Camino"
@@ -468,13 +494,13 @@ export default function PublicOperationsTV() {
                   color="#60a5fa"
                   pulse
                 />
-                <OperationList ops={enCaminoOps} variant="enCamino" compact={compact} />
+                <OperationRows ops={enCaminoOps} variant="enCamino" compact={compact} />
               </section>
             )}
 
-            {/* ─── Overdue Section ────────────────────────────────────── */}
+            {/* ─── Overdue Section ────────────────────────────────────────── */}
             {overdueOps.length > 0 && (
-              <section className="mb-6">
+              <section className="mb-4">
                 <SectionHeader
                   icon={<AlertTriangle className="w-5 h-5" style={{ color: "#ef4444" }} />}
                   label="Retrasadas"
@@ -482,17 +508,17 @@ export default function PublicOperationsTV() {
                   color="#f87171"
                   pulse
                 />
-                <OperationList ops={overdueOps} variant="overdue" compact={compact} />
+                <OperationRows ops={overdueOps} variant="overdue" compact={compact} />
               </section>
             )}
 
-            {/* ─── Time Slot Groups ───────────────────────────────────── */}
+            {/* ─── Time Slot Groups ───────────────────────────────────────── */}
             {slotGroups.map((group) => {
               const config = TIME_SLOT_CONFIG[group.slot];
               const Icon = config.icon;
               return (
-                <section key={group.slot} className="mb-6">
-                  <div className="flex items-center gap-4 mb-3 sticky top-0 z-20 py-2" style={{ backgroundColor: COLORS.navy }}>
+                <section key={group.slot} className="mb-4">
+                  <div className="flex items-center gap-4 mb-2 py-1">
                     <div className="flex items-center gap-3">
                       <Icon className="w-5 h-5" style={{ color: COLORS.gold }} />
                       <h2 className="text-lg font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
@@ -510,12 +536,12 @@ export default function PublicOperationsTV() {
                       {group.ops.length}
                     </span>
                   </div>
-                  <OperationList ops={group.ops} variant="normal" compact={compact} />
+                  <OperationRows ops={group.ops} variant="normal" compact={compact} />
                 </section>
               );
             })}
 
-            {/* ─── Completed Section ──────────────────────────────────── */}
+            {/* ─── Completed Section ──────────────────────────────────────── */}
             {completedOps.length > 0 && (
               <section className="mb-4">
                 <SectionHeader
@@ -524,7 +550,7 @@ export default function PublicOperationsTV() {
                   count={completedOps.length}
                   color="#10b981"
                 />
-                <OperationList ops={completedOps} variant="completed" compact={compact} />
+                <OperationRows ops={completedOps} variant="completed" compact={compact} />
               </section>
             )}
           </div>
@@ -564,7 +590,7 @@ function SectionHeader({
   pulse?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 mb-3 sticky top-0 z-20 py-2" style={{ backgroundColor: COLORS.navy }}>
+    <div className="flex items-center gap-3 mb-2 py-1">
       {pulse && (
         <div
           className="w-2.5 h-2.5 rounded-full animate-pulse"
@@ -585,8 +611,8 @@ function SectionHeader({
   );
 }
 
-// ─── Operation List (Table-like rows) ───────────────────────────────────────
-function OperationList({
+// ─── Operation Rows (only rows, no header) ───────────────────────────────────
+function OperationRows({
   ops,
   variant,
   compact = false,
@@ -604,42 +630,8 @@ function OperationList({
     }
   };
 
-  const getBgColor = () => {
-    switch (variant) {
-      case "enCamino": return "rgba(59,130,246,0.05)";
-      case "overdue": return "rgba(239,68,68,0.04)";
-      case "completed": return "rgba(16,185,129,0.03)";
-      default: return "rgba(255,255,255,0.02)";
-    }
-  };
-
   return (
-    <div
-      className="rounded-xl border overflow-hidden"
-      style={{ borderColor: getBorderColor(), backgroundColor: getBgColor() }}
-    >
-      {/* Table header - sticky */}
-      <div
-        className={`grid gap-4 ${compact ? "px-3 py-1.5 text-[10px]" : "px-5 py-2.5 text-xs"} font-semibold uppercase tracking-wider sticky top-0 z-10`}
-        style={{
-          gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
-          color: "rgba(255,255,255,0.4)",
-          borderBottom: `1px solid ${getBorderColor()}`,
-          backgroundColor: getBgColor(),
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <span>Hora</span>
-        <span>Tipo</span>
-        <span>Estado</span>
-        <span>Vehículo</span>
-        <span>Cliente</span>
-        <span>Rental</span>
-        <span>Escoba</span>
-        <span>Dirección</span>
-      </div>
-
-      {/* Rows */}
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: getBorderColor() }}>
       {ops.map((op, idx) => (
         <OperationRow key={idx} op={op} variant={variant} isLast={idx === ops.length - 1} borderColor={getBorderColor()} compact={compact} />
       ))}
