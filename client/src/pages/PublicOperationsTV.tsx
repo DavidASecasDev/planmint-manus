@@ -40,6 +40,7 @@ interface OperationItem {
   auto: string;
   completed: boolean;
   assignedRentalName: string | null;
+  assignedEscobaName: string | null;
   enCamino: boolean;
   enCaminoAt: string | null;
 }
@@ -165,7 +166,6 @@ export default function PublicOperationsTV() {
       return;
     }
 
-    const SCROLL_SPEED = 1; // pixels per tick
     const TICK_MS = 30; // interval in ms (~33fps)
     const PAUSE_AT_BOTTOM_MS = 4000; // pause 4s at bottom before resetting
     const PAUSE_AT_TOP_MS = 3000; // pause 3s at top before scrolling again
@@ -178,6 +178,9 @@ export default function PublicOperationsTV() {
       const maxScroll = el.scrollHeight - el.clientHeight;
       if (maxScroll <= 0) return; // Content fits, no scroll needed
 
+      // Adaptive speed: more content = faster scroll (target ~25s full cycle)
+      const speed = Math.max(1, Math.min(4, Math.ceil(maxScroll / 800)));
+
       if (el.scrollTop >= maxScroll - 2) {
         // Reached bottom: pause, then reset to top
         paused = true;
@@ -187,7 +190,7 @@ export default function PublicOperationsTV() {
           setTimeout(() => { paused = false; }, PAUSE_AT_TOP_MS);
         }, PAUSE_AT_BOTTOM_MS);
       } else {
-        el.scrollTop += SCROLL_SPEED;
+        el.scrollTop += speed;
       }
     }, TICK_MS);
 
@@ -399,7 +402,7 @@ export default function PublicOperationsTV() {
       </header>
 
       {/* ─── Main Content ──────────────────────────────────────────────────── */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto" style={{ scrollBehavior: "auto" }}>
+      <main ref={mainRef} className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ scrollBehavior: "auto" }}>
         {loading && !data ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -584,7 +587,7 @@ function OperationList({
       <div
         className="grid gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
         style={{
-          gridTemplateColumns: "80px 100px 90px 1fr 160px 1fr",
+          gridTemplateColumns: "70px 90px 85px 1fr 140px 140px 1fr",
           color: "rgba(255,255,255,0.4)",
           borderBottom: `1px solid ${getBorderColor()}`,
           backgroundColor: "rgba(0,0,0,0.15)",
@@ -595,6 +598,7 @@ function OperationList({
         <span>Estado</span>
         <span>Vehículo</span>
         <span>Rental</span>
+        <span>Escoba</span>
         <span>Dirección</span>
       </div>
 
@@ -626,7 +630,7 @@ function OperationRow({
     <div
       className="grid gap-4 px-5 py-3 items-center transition-colors hover:bg-white/[0.02]"
       style={{
-        gridTemplateColumns: "80px 100px 90px 1fr 160px 1fr",
+        gridTemplateColumns: "70px 90px 85px 1fr 140px 140px 1fr",
         borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
       }}
     >
@@ -735,6 +739,25 @@ function OperationRow({
         ) : (
           <span className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
             Sin asignar
+          </span>
+        )}
+      </div>
+
+      {/* Assigned Escoba */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {op.assignedEscobaName ? (
+          <>
+            <Car className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(52,211,153,0.5)" : "#34d399" }} />
+            <span
+              className="text-sm font-semibold truncate"
+              style={{ color: isCompleted ? "rgba(110,231,183,0.5)" : "#6ee7b7" }}
+            >
+              {op.assignedEscobaName}
+            </span>
+          </>
+        ) : (
+          <span className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+            —
           </span>
         )}
       </div>

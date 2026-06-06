@@ -77,7 +77,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     // Get reservations where desde (delivery) or hasta (return) matches the target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
-      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id")
+      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id")
       .eq("organization_id", organizationId)
       .neq("estado", "Cancelada")
       .or(`desde.gte.${targetDate}T00:00:00,hasta.gte.${targetDate}T00:00:00`)
@@ -94,6 +94,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
       if (r.asignado_rental_id) allAssigneeIds.add(r.asignado_rental_id);
       if (r.asignado_rental_entrega_id) allAssigneeIds.add(r.asignado_rental_entrega_id);
       if (r.asignado_rental_devolucion_id) allAssigneeIds.add(r.asignado_rental_devolucion_id);
+      if (r.asignado_escoba_id) allAssigneeIds.add(r.asignado_escoba_id);
+      if (r.asignado_escoba_entrega_id) allAssigneeIds.add(r.asignado_escoba_entrega_id);
+      if (r.asignado_escoba_devolucion_id) allAssigneeIds.add(r.asignado_escoba_devolucion_id);
     }
 
     let profileNameMap = new Map<string, string>();
@@ -137,6 +140,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       auto: string;
       completed: boolean;
       assignedRentalName: string | null;
+      assignedEscobaName: string | null;
       enCamino: boolean;
       enCaminoAt: string | null;
     }> = [];
@@ -166,6 +170,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             auto: r.auto || "",
             completed: r.entrega_completada || false,
             assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
+            assignedEscobaName: (() => { const eid = r.asignado_escoba_entrega_id || r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
           });
@@ -196,6 +201,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             auto: r.auto || "",
             completed: r.devolucion_completada || false,
             assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
+            assignedEscobaName: (() => { const eid = r.asignado_escoba_devolucion_id || r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
           });
@@ -363,6 +369,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         auto: op.auto,
         completed: op.completed,
         assignedRentalName: op.assignedRentalName || null,
+        assignedEscobaName: op.assignedEscobaName || null,
         enCamino: op.enCamino || false,
         enCaminoAt: op.enCaminoAt || null,
       })),
