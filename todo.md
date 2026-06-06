@@ -1058,3 +1058,6 @@
 - [x] Crear página pública TV /ops/operaciones con programación del día (entregas, devoluciones) optimizada para pantalla grande en oficina
 - [x] Auto-refresh cada 60 segundos sin intervención del usuario
 - [x] Diseño TV-optimizado: textos grandes, alto contraste, colores corporativos Azul Cars
+- [x] TV Operaciones: Indicador "En camino" en las tarjetas cuando un rental ha salido hacia el destino
+- [x] TV Operaciones: Mostrar nombre del rental asignado a cada operación
+- [x] TV Operaciones: Agrupación por franjas horarias (Mañana / Mediodía / Tarde) con separadores visuales

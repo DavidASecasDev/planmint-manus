@@ -77,7 +77,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     // Get reservations where desde (delivery) or hasta (return) matches the target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
-      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada")
+      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id")
       .eq("organization_id", organizationId)
       .neq("estado", "Cancelada")
       .or(`desde.gte.${targetDate}T00:00:00,hasta.gte.${targetDate}T00:00:00`)
@@ -86,6 +86,44 @@ export async function handlePublicOperations(req: Request, res: Response) {
     if (resError) {
       console.error("[public-ops] Error fetching reservations:", resError);
       return res.status(500).json({ error: "Internal error" });
+    }
+
+    // ─── Fetch assigned rental names from profiles ────────────────────────────
+    const allAssigneeIds = new Set<string>();
+    for (const r of reservations || []) {
+      if (r.asignado_rental_id) allAssigneeIds.add(r.asignado_rental_id);
+      if (r.asignado_rental_entrega_id) allAssigneeIds.add(r.asignado_rental_entrega_id);
+      if (r.asignado_rental_devolucion_id) allAssigneeIds.add(r.asignado_rental_devolucion_id);
+    }
+
+    let profileNameMap = new Map<string, string>();
+    if (allAssigneeIds.size > 0) {
+      const { data: profiles } = await serviceClient
+        .from("profiles")
+        .select("id, name")
+        .in("id", Array.from(allAssigneeIds));
+      if (profiles) {
+        for (const p of profiles) {
+          if (p.name) profileNameMap.set(p.id, p.name);
+        }
+      }
+    }
+
+    // ─── Fetch en_camino_tracking records for today ──────────────────────────
+    const { data: enCaminoRecords } = await serviceClient
+      .from("en_camino_tracking")
+      .select("reservation_id, operation_type, en_camino_at, assigned_user_name, llego_at")
+      .gte("en_camino_at", `${targetDate}T00:00:00.000Z`)
+      .lte("en_camino_at", `${targetDate}T23:59:59.999Z`)
+      .is("llego_at", null);
+
+    // Build a map: reservation_id + operation_type -> en_camino record
+    const enCaminoMap = new Map<string, { en_camino_at: string; assigned_user_name: string | null }>();
+    for (const rec of enCaminoRecords || []) {
+      enCaminoMap.set(`${rec.reservation_id}_${rec.operation_type}`, {
+        en_camino_at: rec.en_camino_at,
+        assigned_user_name: rec.assigned_user_name,
+      });
     }
 
     // Filter to only reservations that have operations on the target date
@@ -97,6 +135,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
       modelo: string;
       auto: string;
       completed: boolean;
+      assignedRentalName: string | null;
+      enCamino: boolean;
+      enCaminoAt: string | null;
     }> = [];
 
     for (const r of reservations || []) {
@@ -110,6 +151,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
         // Apply location filter
         if (!locationFilter || locationFilter === "all" || location.toLowerCase().includes(locationFilter.toLowerCase())) {
           const minutes = desdeTime ? parseInt(desdeTime.substring(14, 16)) || 0 : 0;
+          const assigneeId = r.asignado_rental_entrega_id || r.asignado_rental_id;
+          const enCaminoKey = `${r.id}_entrega`;
+          const enCaminoRec = enCaminoMap.get(enCaminoKey);
           operations.push({
             type: "entrega",
             hour,
@@ -118,6 +162,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
             modelo: r.modelo || "Desconocido",
             auto: r.auto || "",
             completed: r.entrega_completada || false,
+            assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
+            enCamino: !!enCaminoRec,
+            enCaminoAt: enCaminoRec?.en_camino_at || null,
           });
         }
       }
@@ -132,6 +179,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
         // Apply location filter
         if (!locationFilter || locationFilter === "all" || location.toLowerCase().includes(locationFilter.toLowerCase())) {
           const minutes = hastaTime ? parseInt(hastaTime.substring(14, 16)) || 0 : 0;
+          const assigneeId = r.asignado_rental_devolucion_id || r.asignado_rental_id;
+          const enCaminoKey = `${r.id}_devolucion`;
+          const enCaminoRec = enCaminoMap.get(enCaminoKey);
           operations.push({
             type: "devolucion",
             hour,
@@ -140,6 +190,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
             modelo: r.modelo || "Desconocido",
             auto: r.auto || "",
             completed: r.devolucion_completada || false,
+            assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
+            enCamino: !!enCaminoRec,
+            enCaminoAt: enCaminoRec?.en_camino_at || null,
           });
         }
       }
@@ -303,6 +356,9 @@ export async function handlePublicOperations(req: Request, res: Response) {
         modelo: op.modelo,
         auto: op.auto,
         completed: op.completed,
+        assignedRentalName: op.assignedRentalName || null,
+        enCamino: op.enCamino || false,
+        enCaminoAt: op.enCaminoAt || null,
       })),
       hourly: hourlyWithLoad,
       recommendedSlots,

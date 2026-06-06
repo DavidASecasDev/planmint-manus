@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   RefreshCw,
   AlertTriangle,
@@ -11,6 +11,11 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   MapPin,
+  Navigation,
+  User,
+  Sunrise,
+  Sun,
+  Sunset,
 } from "lucide-react";
 
 // ─── Corporate Colors (Azul Cars) ──────────────────────────────────────────
@@ -33,6 +38,9 @@ interface OperationItem {
   modelo: string;
   auto: string;
   completed: boolean;
+  assignedRentalName: string | null;
+  enCamino: boolean;
+  enCaminoAt: string | null;
 }
 
 interface OperationsData {
@@ -45,6 +53,23 @@ interface OperationsData {
     pendingOps: number;
   };
   operations: OperationItem[];
+}
+
+type TimeSlot = "manana" | "mediodia" | "tarde";
+
+interface TimeSlotGroup {
+  slot: TimeSlot;
+  label: string;
+  icon: typeof Sunrise;
+  operations: OperationItem[];
+  range: string;
+}
+
+function getTimeSlot(timeStr: string): TimeSlot {
+  const hour = parseInt(timeStr.split(":")[0], 10);
+  if (hour < 13) return "manana";
+  if (hour < 17) return "mediodia";
+  return "tarde";
 }
 
 function formatCurrentTime(): string {
@@ -78,6 +103,16 @@ function getTimeStatus(timeStr: string): "past" | "current" | "upcoming" {
   if (diffMinutes < -30) return "past";
   if (diffMinutes <= 30) return "current";
   return "upcoming";
+}
+
+function formatEnCaminoTime(enCaminoAt: string | null): string {
+  if (!enCaminoAt) return "";
+  try {
+    const date = new Date(enCaminoAt);
+    return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
 }
 
 // ─── Main TV Dashboard Page ─────────────────────────────────────────────────
@@ -133,7 +168,6 @@ export default function PublicOperationsTV() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      // Use today's date in Madrid timezone
       const now = new Date();
       const madridDate = now.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
 
@@ -159,6 +193,46 @@ export default function PublicOperationsTV() {
     };
   }, [fetchData]);
 
+  // Group operations by time slot
+  const timeSlotGroups = useMemo((): TimeSlotGroup[] => {
+    if (!data) return [];
+
+    const pendingOps = data.operations.filter((op) => !op.completed);
+
+    const groups: TimeSlotGroup[] = [
+      { slot: "manana", label: "Mañana", icon: Sunrise, operations: [], range: "07:00 – 12:59" },
+      { slot: "mediodia", label: "Mediodía", icon: Sun, operations: [], range: "13:00 – 16:59" },
+      { slot: "tarde", label: "Tarde", icon: Sunset, operations: [], range: "17:00 – 22:00" },
+    ];
+
+    for (const op of pendingOps) {
+      const slot = getTimeSlot(op.time);
+      const group = groups.find((g) => g.slot === slot);
+      if (group) group.operations.push(op);
+    }
+
+    return groups.filter((g) => g.operations.length > 0);
+  }, [data]);
+
+  const enCaminoOps = useMemo(() => {
+    if (!data) return [];
+    return data.operations.filter((op) => op.enCamino && !op.completed);
+  }, [data]);
+
+  const completedOps = useMemo(() => {
+    if (!data) return [];
+    return data.operations.filter((op) => op.completed);
+  }, [data]);
+
+  const pendingOps = useMemo(() => {
+    if (!data) return [];
+    return data.operations.filter((op) => !op.completed);
+  }, [data]);
+
+  const overdueOps = useMemo(() => {
+    return pendingOps.filter((op) => getTimeStatus(op.time) === "past" && !op.enCamino);
+  }, [pendingOps]);
+
   if (error && !data) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.navy }}>
@@ -172,14 +246,6 @@ export default function PublicOperationsTV() {
       </div>
     );
   }
-
-  const pendingOps = data?.operations.filter((op) => !op.completed) || [];
-  const completedOps = data?.operations.filter((op) => op.completed) || [];
-
-  // Group pending ops by time proximity
-  const currentOps = pendingOps.filter((op) => getTimeStatus(op.time) === "current");
-  const upcomingOps = pendingOps.filter((op) => getTimeStatus(op.time) === "upcoming");
-  const pastOps = pendingOps.filter((op) => getTimeStatus(op.time) === "past");
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: COLORS.navy }}>
@@ -221,6 +287,17 @@ export default function PublicOperationsTV() {
             {/* KPI pills */}
             {data && (
               <div className="flex items-center gap-3">
+                {enCaminoOps.length > 0 && (
+                  <div
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl animate-pulse"
+                    style={{ backgroundColor: "rgba(59,130,246,0.15)" }}
+                  >
+                    <Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />
+                    <span className="text-xl font-bold" style={{ color: "#3b82f6" }}>
+                      {enCaminoOps.length}
+                    </span>
+                  </div>
+                )}
                 <div
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
                   style={{ backgroundColor: "rgba(16,185,129,0.15)" }}
@@ -296,52 +373,99 @@ export default function PublicOperationsTV() {
             </div>
           </div>
         ) : (
-          <div className="max-w-[1920px] mx-auto px-8 py-6 h-full flex flex-col gap-6">
-            {/* ─── Overdue / Current Section ─────────────────────────────── */}
-            {(pastOps.length > 0 || currentOps.length > 0) && (
+          <div className="max-w-[1920px] mx-auto px-8 py-6 h-full flex flex-col gap-5 overflow-y-auto">
+            {/* ─── En Camino Section (always on top when active) ──────────── */}
+            {enCaminoOps.length > 0 && (
               <section className="flex-shrink-0">
                 <div className="flex items-center gap-3 mb-4">
                   <div
                     className="w-3 h-3 rounded-full animate-pulse"
-                    style={{ backgroundColor: pastOps.length > 0 ? "#ef4444" : "#10b981" }}
+                    style={{ backgroundColor: "#3b82f6" }}
                   />
-                  <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
-                    {pastOps.length > 0 ? "Atención — Operaciones retrasadas" : "Ahora"}
+                  <Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />
+                  <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: "#60a5fa" }}>
+                    En Camino
                   </h2>
+                  <span
+                    className="text-sm font-bold px-3 py-1 rounded-full"
+                    style={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#60a5fa" }}
+                  >
+                    {enCaminoOps.length}
+                  </span>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {[...pastOps, ...currentOps].map((op, idx) => (
-                    <OperationCard key={`current-${idx}`} op={op} highlight />
+                  {enCaminoOps.map((op, idx) => (
+                    <OperationCard key={`encamino-${idx}`} op={op} highlight />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* ─── Upcoming Operations ───────────────────────────────────── */}
-            {upcomingOps.length > 0 && (
-              <section className="flex-1 min-h-0 overflow-hidden">
+            {/* ─── Overdue Section ───────────────────────────────────────── */}
+            {overdueOps.length > 0 && (
+              <section className="flex-shrink-0">
                 <div className="flex items-center gap-3 mb-4">
-                  <Clock className="w-5 h-5" style={{ color: "rgba(255,255,255,0.4)" }} />
-                  <h2
-                    className="text-xl font-semibold uppercase tracking-wider"
-                    style={{ color: "rgba(255,255,255,0.6)" }}
-                  >
-                    Próximas operaciones
+                  <div
+                    className="w-3 h-3 rounded-full animate-pulse"
+                    style={{ backgroundColor: "#ef4444" }}
+                  />
+                  <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: "#f87171" }}>
+                    Atención — Operaciones retrasadas
                   </h2>
                   <span
-                    className="text-sm font-medium px-3 py-1 rounded-full"
-                    style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}
+                    className="text-sm font-bold px-3 py-1 rounded-full"
+                    style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}
                   >
-                    {upcomingOps.length}
+                    {overdueOps.length}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto max-h-[calc(100vh-380px)]">
-                  {upcomingOps.map((op, idx) => (
-                    <OperationCard key={`upcoming-${idx}`} op={op} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {overdueOps.map((op, idx) => (
+                    <OperationCard key={`overdue-${idx}`} op={op} highlight />
                   ))}
                 </div>
               </section>
             )}
+
+            {/* ─── Time Slot Groups ──────────────────────────────────────── */}
+            {timeSlotGroups.map((group) => {
+              const Icon = group.icon;
+              // Filter out en_camino and overdue ops (already shown above)
+              const groupOps = group.operations.filter(
+                (op) => !op.enCamino && getTimeStatus(op.time) !== "past"
+              );
+              if (groupOps.length === 0) return null;
+
+              return (
+                <section key={group.slot} className="flex-shrink-0">
+                  {/* Time slot separator */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-6 h-6" style={{ color: COLORS.gold }} />
+                      <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
+                        {group.label}
+                      </h2>
+                      <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {group.range}
+                      </span>
+                    </div>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "rgba(201,169,110,0.2)" }} />
+                    <span
+                      className="text-sm font-bold px-3 py-1 rounded-full"
+                      style={{ backgroundColor: "rgba(201,169,110,0.1)", color: COLORS.gold }}
+                    >
+                      {groupOps.length}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {groupOps.map((op, idx) => (
+                      <OperationCard key={`${group.slot}-${idx}`} op={op} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
 
             {/* ─── Completed Operations (compact) ────────────────────────── */}
             {completedOps.length > 0 && (
@@ -393,19 +517,23 @@ export default function PublicOperationsTV() {
 function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boolean }) {
   const isEntrega = op.type === "entrega";
   const status = getTimeStatus(op.time);
-  const isOverdue = status === "past";
+  const isOverdue = status === "past" && !op.enCamino;
 
-  const borderColor = isOverdue
-    ? "#ef4444"
-    : highlight
-      ? COLORS.gold
-      : "rgba(255,255,255,0.1)";
+  const borderColor = op.enCamino
+    ? "#3b82f6"
+    : isOverdue
+      ? "#ef4444"
+      : highlight
+        ? COLORS.gold
+        : "rgba(255,255,255,0.1)";
 
-  const bgColor = isOverdue
-    ? "rgba(239,68,68,0.08)"
-    : highlight
-      ? "rgba(201,169,110,0.06)"
-      : "rgba(255,255,255,0.03)";
+  const bgColor = op.enCamino
+    ? "rgba(59,130,246,0.08)"
+    : isOverdue
+      ? "rgba(239,68,68,0.08)"
+      : highlight
+        ? "rgba(201,169,110,0.06)"
+        : "rgba(255,255,255,0.03)";
 
   return (
     <div
@@ -413,14 +541,24 @@ function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boole
       style={{
         borderColor,
         backgroundColor: bgColor,
-        boxShadow: isOverdue ? "0 0 20px rgba(239,68,68,0.15)" : undefined,
+        boxShadow: op.enCamino
+          ? "0 0 20px rgba(59,130,246,0.15)"
+          : isOverdue
+            ? "0 0 20px rgba(239,68,68,0.15)"
+            : undefined,
       }}
     >
       <div className="flex items-stretch">
         {/* Type color bar */}
         <div
           className="w-2 flex-shrink-0"
-          style={{ backgroundColor: isEntrega ? "#16a34a" : "#ea580c" }}
+          style={{
+            backgroundColor: op.enCamino
+              ? "#3b82f6"
+              : isEntrega
+                ? "#16a34a"
+                : "#ea580c",
+          }}
         />
 
         <div className="flex-1 px-5 py-4 flex items-center gap-4">
@@ -428,11 +566,16 @@ function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boole
           <div className="flex-shrink-0 text-center" style={{ minWidth: "70px" }}>
             <p
               className="text-3xl font-mono font-bold"
-              style={{ color: isOverdue ? "#ef4444" : COLORS.white }}
+              style={{ color: op.enCamino ? "#60a5fa" : isOverdue ? "#ef4444" : COLORS.white }}
             >
               {op.time}
             </p>
-            {isOverdue && (
+            {op.enCamino && (
+              <p className="text-xs font-semibold mt-1 animate-pulse" style={{ color: "#60a5fa" }}>
+                EN CAMINO
+              </p>
+            )}
+            {isOverdue && !op.enCamino && (
               <p className="text-xs font-semibold mt-1" style={{ color: "#ef4444" }}>
                 RETRASADA
               </p>
@@ -440,7 +583,7 @@ function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boole
           </div>
 
           {/* Divider */}
-          <div className="w-px h-12 flex-shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <div className="w-px h-14 flex-shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
 
           {/* Info */}
           <div className="flex-1 min-w-0">
@@ -460,6 +603,17 @@ function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boole
                 )}
                 {isEntrega ? "Entrega" : "Devolución"}
               </span>
+
+              {/* En Camino badge */}
+              {op.enCamino && (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold uppercase animate-pulse"
+                  style={{ backgroundColor: "rgba(59,130,246,0.2)", color: "#60a5fa" }}
+                >
+                  <Navigation className="w-3 h-3" />
+                  {formatEnCaminoTime(op.enCaminoAt) && `desde ${formatEnCaminoTime(op.enCaminoAt)}`}
+                </span>
+              )}
             </div>
 
             {/* Vehicle */}
@@ -473,10 +627,23 @@ function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boole
             )}
           </div>
 
-          {/* Location */}
-          <div className="flex-shrink-0 text-right max-w-[200px]">
+          {/* Right side: Location + Assigned */}
+          <div className="flex-shrink-0 text-right max-w-[220px] flex flex-col gap-1.5">
+            {/* Assigned rental */}
+            {op.assignedRentalName && (
+              <div className="flex items-center gap-1.5 justify-end">
+                <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#a78bfa" }} />
+                <p
+                  className="text-sm font-semibold truncate"
+                  style={{ color: "#c4b5fd" }}
+                >
+                  {op.assignedRentalName}
+                </p>
+              </div>
+            )}
+            {/* Location */}
             <div className="flex items-center gap-1.5 justify-end">
-              <MapPin className="w-4 h-4 flex-shrink-0" style={{ color: COLORS.gold }} />
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: COLORS.gold }} />
               <p
                 className="text-sm font-medium truncate"
                 style={{ color: "rgba(255,255,255,0.7)" }}
@@ -512,6 +679,11 @@ function CompletedChip({ op }: { op: OperationItem }) {
       <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.8)" }}>
         {op.auto || op.modelo}
       </span>
+      {op.assignedRentalName && (
+        <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+          · {op.assignedRentalName}
+        </span>
+      )}
     </div>
   );
 }
