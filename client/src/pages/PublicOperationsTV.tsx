@@ -402,6 +402,34 @@ export default function PublicOperationsTV() {
         </div>
       </header>
 
+      {/* ─── Progress Bar ─────────────────────────────────────────────────── */}
+      {data && data.operations.length > 0 && (() => {
+        const total = data.operations.length;
+        const completed = completedOps.length;
+        const pct = Math.round((completed / total) * 100);
+        return (
+          <div className="flex-shrink-0 px-8 py-2" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
+            <div className="max-w-[1920px] mx-auto flex items-center gap-4">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>
+                Progreso del día
+              </span>
+              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: pct === 100 ? "#10b981" : COLORS.gold,
+                  }}
+                />
+              </div>
+              <span className="text-sm font-bold tabular-nums" style={{ color: pct === 100 ? "#10b981" : COLORS.gold }}>
+                {completed}/{total} ({pct}%)
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ─── Main Content ──────────────────────────────────────────────────── */}
       <main ref={mainRef} className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ scrollBehavior: "auto" }}>
         {loading && !data ? (
