@@ -1055,3 +1055,6 @@
 - [x] Optimizar módulo Preparación para dispositivos móviles (responsive layout, tablas scrollables, tarjetas adaptables)
 - [x] Rediseñar módulo Preparación con aspecto más profesional y premium (gradientes, mejor jerarquía visual, cards elevadas, colores corporativos, micro-interacciones)
 - [x] Alinear diseño de Preparación con identidad corporativa Azul Cars (PageHeader, Cards border-border/50 shadow-sm, KPIs compactos, tipografía Montserrat/Barlow, sin gradientes hero)
+- [x] Crear página pública TV /ops/operaciones con programación del día (entregas, devoluciones) optimizada para pantalla grande en oficina
+- [x] Auto-refresh cada 60 segundos sin intervención del usuario
+- [x] Diseño TV-optimizado: textos grandes, alto contraste, colores corporativos Azul Cars
