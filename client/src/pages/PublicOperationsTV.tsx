@@ -41,6 +41,7 @@ interface OperationItem {
   completed: boolean;
   assignedRentalName: string | null;
   assignedEscobaName: string | null;
+  clientName: string | null;
   enCamino: boolean;
   enCaminoAt: string | null;
 }
@@ -587,7 +588,7 @@ function OperationList({
       <div
         className="grid gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
         style={{
-          gridTemplateColumns: "70px 90px 85px 1fr 140px 140px 1fr",
+          gridTemplateColumns: "70px 85px 80px 1fr 150px 120px 120px 1fr",
           color: "rgba(255,255,255,0.4)",
           borderBottom: `1px solid ${getBorderColor()}`,
           backgroundColor: "rgba(0,0,0,0.15)",
@@ -597,6 +598,7 @@ function OperationList({
         <span>Tipo</span>
         <span>Estado</span>
         <span>Vehículo</span>
+        <span>Cliente</span>
         <span>Rental</span>
         <span>Escoba</span>
         <span>Dirección</span>
@@ -630,7 +632,7 @@ function OperationRow({
     <div
       className="grid gap-4 px-5 py-3 items-center transition-colors hover:bg-white/[0.02]"
       style={{
-        gridTemplateColumns: "70px 90px 85px 1fr 140px 140px 1fr",
+        gridTemplateColumns: "70px 85px 80px 1fr 150px 120px 120px 1fr",
         borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
       }}
     >
@@ -721,6 +723,25 @@ function OperationRow({
           <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
             {op.modelo}
           </p>
+        )}
+      </div>
+
+      {/* Client Name */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {op.clientName ? (
+          <>
+            <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.6)" }} />
+            <span
+              className="text-sm font-medium truncate"
+              style={{ color: `rgba(255,255,255,${isCompleted ? "0.4" : "0.85"})` }}
+            >
+              {op.clientName}
+            </span>
+          </>
+        ) : (
+          <span className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+            —
+          </span>
         )}
       </div>
 

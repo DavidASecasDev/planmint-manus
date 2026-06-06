@@ -77,7 +77,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     // Get reservations where desde (delivery) or hasta (return) matches the target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
-      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id")
+      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, cliente_nombre, cliente_apellido")
       .eq("organization_id", organizationId)
       .neq("estado", "Cancelada")
       .or(`desde.gte.${targetDate}T00:00:00,hasta.gte.${targetDate}T00:00:00`)
@@ -141,6 +141,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       completed: boolean;
       assignedRentalName: string | null;
       assignedEscobaName: string | null;
+      clientName: string | null;
       enCamino: boolean;
       enCaminoAt: string | null;
     }> = [];
@@ -171,6 +172,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             completed: r.entrega_completada || false,
             assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
             assignedEscobaName: (() => { const eid = r.asignado_escoba_entrega_id || r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
+            clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
           });
@@ -202,6 +204,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             completed: r.devolucion_completada || false,
             assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
             assignedEscobaName: (() => { const eid = r.asignado_escoba_devolucion_id || r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
+            clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
           });
@@ -370,6 +373,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         completed: op.completed,
         assignedRentalName: op.assignedRentalName || null,
         assignedEscobaName: op.assignedEscobaName || null,
+        clientName: op.clientName || null,
         enCamino: op.enCamino || false,
         enCaminoAt: op.enCaminoAt || null,
       })),

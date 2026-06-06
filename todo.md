@@ -1068,3 +1068,4 @@
 - [x] TV Operaciones: Ocultar barra de scroll (CSS cosmético) para pantalla más limpia
 - [x] TV Operaciones: Añadir columna "Coche escoba" con nombre del acompañante
 - [x] TV Operaciones: Velocidad de scroll adaptativa según cantidad de operaciones
+- [x] TV Operaciones: Añadir columna "Cliente" con nombre completo del cliente en cada fila
