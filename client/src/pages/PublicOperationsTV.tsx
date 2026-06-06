@@ -281,7 +281,7 @@ export default function PublicOperationsTV() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: COLORS.navy }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: COLORS.navy }}>
       {/* ─── Header ────────────────────────────────────────────────────────── */}
       <header className="flex-shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
         <div className="max-w-[1920px] mx-auto px-8 py-4 flex items-center justify-between">
