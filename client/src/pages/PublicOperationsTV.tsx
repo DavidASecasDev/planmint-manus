@@ -35,6 +35,7 @@ interface OperationItem {
   type: "entrega" | "devolucion";
   time: string;
   location: string;
+  address: string | null;
   modelo: string;
   auto: string;
   completed: boolean;
@@ -526,7 +527,7 @@ function OperationList({
         <span>Tipo</span>
         <span>Vehículo</span>
         <span>Rental</span>
-        <span>Ubicación</span>
+        <span>Dirección</span>
       </div>
 
       {/* Rows */}
@@ -641,14 +642,14 @@ function OperationRow({
         )}
       </div>
 
-      {/* Location */}
+      {/* Address */}
       <div className="flex items-center gap-1.5 min-w-0">
         <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(201,169,110,0.4)" : COLORS.gold }} />
         <span
           className="text-sm truncate"
           style={{ color: `rgba(255,255,255,${isCompleted ? "0.35" : "0.7"})` }}
         >
-          {op.location}
+          {op.address || op.location}
         </span>
       </div>
     </div>
