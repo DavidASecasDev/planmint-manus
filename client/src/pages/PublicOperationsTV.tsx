@@ -645,7 +645,7 @@ function OperationRow({
       }}
     >
       {/* Time */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col">
         <span
           className={`${compact ? "text-base" : "text-xl"} font-mono font-bold tabular-nums`}
           style={{
@@ -660,6 +660,24 @@ function OperationRow({
         >
           {op.time}
         </span>
+        {!isCompleted && !op.enCamino && (() => {
+          const now = new Date();
+          const [h, m] = op.time.split(":").map(Number);
+          const opDate = new Date();
+          opDate.setHours(h, m, 0, 0);
+          const diffMin = Math.round((opDate.getTime() - now.getTime()) / 60000);
+          if (diffMin > 0 && diffMin <= 120) {
+            return (
+              <span
+                className={`${compact ? "text-[9px]" : "text-[10px]"} font-semibold`}
+                style={{ color: diffMin <= 15 ? "#fbbf24" : "rgba(255,255,255,0.45)" }}
+              >
+                en {diffMin} min
+              </span>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Type */}

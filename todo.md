@@ -1070,3 +1070,4 @@
 - [x] TV Operaciones: Velocidad de scroll adaptativa según cantidad de operaciones
 - [x] TV Operaciones: Añadir columna "Cliente" con nombre completo del cliente en cada fila
 - [x] TV Operaciones: Modo compacto automático (reduce padding, fuente y grid cuando hay más de 20 operaciones)
+- [x] TV Operaciones: Contador regresivo "en X min" junto a la hora para operaciones próximas (≤120 min, amarillo si ≤15 min)
