@@ -315,6 +315,12 @@
     background: hsl(207 40% 28%);
   }
 
+  /* ── Shimmer animation for progress bars ── */
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+
   /* ── PWA Install Banner animations ── */
   .animate-banner-enter {
     animation: banner-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
