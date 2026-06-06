@@ -122,7 +122,10 @@ export default function PublicOperationsTV() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currentTime, setCurrentTime] = useState(formatCurrentTime());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mainRef = useRef<HTMLElement | null>(null);
+  const scrollAnimRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Add noindex meta tag
   useEffect(() => {
@@ -151,6 +154,50 @@ export default function PublicOperationsTV() {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  // Auto-scroll: smoothly scroll down, pause at bottom, then jump back to top
+  useEffect(() => {
+    if (!autoScroll) {
+      if (scrollAnimRef.current) {
+        clearInterval(scrollAnimRef.current);
+        scrollAnimRef.current = null;
+      }
+      return;
+    }
+
+    const SCROLL_SPEED = 1; // pixels per tick
+    const TICK_MS = 30; // interval in ms (~33fps)
+    const PAUSE_AT_BOTTOM_MS = 4000; // pause 4s at bottom before resetting
+    const PAUSE_AT_TOP_MS = 3000; // pause 3s at top before scrolling again
+    let paused = false;
+
+    scrollAnimRef.current = setInterval(() => {
+      const el = mainRef.current;
+      if (!el || paused) return;
+
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (maxScroll <= 0) return; // Content fits, no scroll needed
+
+      if (el.scrollTop >= maxScroll - 2) {
+        // Reached bottom: pause, then reset to top
+        paused = true;
+        setTimeout(() => {
+          if (el) el.scrollTop = 0;
+          // Pause at top before resuming
+          setTimeout(() => { paused = false; }, PAUSE_AT_TOP_MS);
+        }, PAUSE_AT_BOTTOM_MS);
+      } else {
+        el.scrollTop += SCROLL_SPEED;
+      }
+    }, TICK_MS);
+
+    return () => {
+      if (scrollAnimRef.current) {
+        clearInterval(scrollAnimRef.current);
+        scrollAnimRef.current = null;
+      }
+    };
+  }, [autoScroll]);
 
   const toggleFullscreen = async () => {
     try {
@@ -301,6 +348,26 @@ export default function PublicOperationsTV() {
               </div>
             )}
 
+            {/* Auto-scroll toggle */}
+            <button
+              onClick={() => setAutoScroll(!autoScroll)}
+              className="p-3 rounded-xl transition-all hover:opacity-80"
+              style={{ backgroundColor: autoScroll ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.1)" }}
+              title={autoScroll ? "Pausar auto-scroll" : "Activar auto-scroll"}
+            >
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={autoScroll ? "#34d399" : COLORS.gold}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
+            </button>
+
             {/* Fullscreen toggle */}
             <button
               onClick={toggleFullscreen}
@@ -332,7 +399,7 @@ export default function PublicOperationsTV() {
       </header>
 
       {/* ─── Main Content ──────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 overflow-y-auto" style={{ scrollBehavior: "auto" }}>
         {loading && !data ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

@@ -1064,3 +1064,4 @@
 - [x] TV Operaciones: Cambiar diseño de chips compactos a lista vertical con filas claras (hora, tipo, matrícula, rental, ubicación) legible desde lejos
 - [x] TV Operaciones: Mostrar dirección completa en vez de nombre de lugar genérico
 - [x] TV Operaciones: Añadir columna Estado (Hecha/Pendiente/En ruta) con badge visual en cada fila
+- [x] TV Operaciones: Auto-scroll automático tipo teleprompter (baja suave, pausa abajo 4s, vuelve arriba, pausa 3s, repite) con botón para pausar/activar
