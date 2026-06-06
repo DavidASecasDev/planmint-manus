@@ -425,8 +425,11 @@ export default function PublicOperationsTV() {
               </p>
             </div>
           </div>
-        ) : (
-          <div className="max-w-[1920px] mx-auto px-8 py-5">
+        ) : (() => {
+          const totalOps = (data?.operations || []).length;
+          const compact = totalOps > 20;
+          return (
+          <div className={`max-w-[1920px] mx-auto px-8 ${compact ? "py-3" : "py-5"}`}>
             {/* ─── En Camino Section ──────────────────────────────────── */}
             {enCaminoOps.length > 0 && (
               <section className="mb-6">
@@ -437,7 +440,7 @@ export default function PublicOperationsTV() {
                   color="#60a5fa"
                   pulse
                 />
-                <OperationList ops={enCaminoOps} variant="enCamino" />
+                <OperationList ops={enCaminoOps} variant="enCamino" compact={compact} />
               </section>
             )}
 
@@ -451,7 +454,7 @@ export default function PublicOperationsTV() {
                   color="#f87171"
                   pulse
                 />
-                <OperationList ops={overdueOps} variant="overdue" />
+                <OperationList ops={overdueOps} variant="overdue" compact={compact} />
               </section>
             )}
 
@@ -479,7 +482,7 @@ export default function PublicOperationsTV() {
                       {group.ops.length}
                     </span>
                   </div>
-                  <OperationList ops={group.ops} variant="normal" />
+                  <OperationList ops={group.ops} variant="normal" compact={compact} />
                 </section>
               );
             })}
@@ -493,11 +496,12 @@ export default function PublicOperationsTV() {
                   count={completedOps.length}
                   color="#10b981"
                 />
-                <OperationList ops={completedOps} variant="completed" />
+                <OperationList ops={completedOps} variant="completed" compact={compact} />
               </section>
             )}
           </div>
-        )}
+          );
+        })()}
       </main>
 
       {/* ─── Footer ───────────────────────────────────────────────────────── */}
@@ -557,9 +561,11 @@ function SectionHeader({
 function OperationList({
   ops,
   variant,
+  compact = false,
 }: {
   ops: OperationItem[];
   variant: "enCamino" | "overdue" | "normal" | "completed";
+  compact?: boolean;
 }) {
   const getBorderColor = () => {
     switch (variant) {
@@ -586,9 +592,9 @@ function OperationList({
     >
       {/* Table header */}
       <div
-        className="grid gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
+        className={`grid gap-4 ${compact ? "px-3 py-1.5 text-[10px]" : "px-5 py-2.5 text-xs"} font-semibold uppercase tracking-wider`}
         style={{
-          gridTemplateColumns: "70px 85px 80px 1fr 150px 120px 120px 1fr",
+          gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
           color: "rgba(255,255,255,0.4)",
           borderBottom: `1px solid ${getBorderColor()}`,
           backgroundColor: "rgba(0,0,0,0.15)",
@@ -606,7 +612,7 @@ function OperationList({
 
       {/* Rows */}
       {ops.map((op, idx) => (
-        <OperationRow key={idx} op={op} variant={variant} isLast={idx === ops.length - 1} borderColor={getBorderColor()} />
+        <OperationRow key={idx} op={op} variant={variant} isLast={idx === ops.length - 1} borderColor={getBorderColor()} compact={compact} />
       ))}
     </div>
   );
@@ -618,11 +624,13 @@ function OperationRow({
   variant,
   isLast,
   borderColor,
+  compact = false,
 }: {
   op: OperationItem;
   variant: "enCamino" | "overdue" | "normal" | "completed";
   isLast: boolean;
   borderColor: string;
+  compact?: boolean;
 }) {
   const isEntrega = op.type === "entrega";
   const isCompleted = variant === "completed";
@@ -630,16 +638,16 @@ function OperationRow({
 
   return (
     <div
-      className="grid gap-4 px-5 py-3 items-center transition-colors hover:bg-white/[0.02]"
+      className={`grid gap-4 ${compact ? "px-3 py-1.5" : "px-5 py-3"} items-center transition-colors hover:bg-white/[0.02]`}
       style={{
-        gridTemplateColumns: "70px 85px 80px 1fr 150px 120px 120px 1fr",
+        gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
         borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
       }}
     >
       {/* Time */}
       <div className="flex items-center gap-2">
         <span
-          className="text-xl font-mono font-bold tabular-nums"
+          className={`${compact ? "text-base" : "text-xl"} font-mono font-bold tabular-nums`}
           style={{
             color: variant === "enCamino"
               ? "#60a5fa"
@@ -714,7 +722,7 @@ function OperationRow({
       {/* Vehicle */}
       <div className="min-w-0">
         <p
-          className="text-base font-bold truncate"
+          className={`${compact ? "text-sm" : "text-base"} font-bold truncate`}
           style={{ color: `rgba(255,255,255,${textOpacity})` }}
         >
           {op.auto || op.modelo}
