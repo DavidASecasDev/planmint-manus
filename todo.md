@@ -1052,3 +1052,4 @@
 - [x] Historial de preparaciones: tab "Historial" en página Preparación con tabla de completadas
 - [x] Historial de preparaciones: panel de métricas (tiempo medio, ranking preparadores, tendencias)
 - [x] Historial de preparaciones: filtro por período (semana, mes, trimestre)
+- [x] Optimizar módulo Preparación para dispositivos móviles (responsive layout, tablas scrollables, tarjetas adaptables)

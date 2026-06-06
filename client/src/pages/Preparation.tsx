@@ -143,6 +143,11 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function formatDateShort(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 function getUrgencyColor(deadlineAt: string): string {
   const now = Date.now();
   const deadline = new Date(deadlineAt).getTime();
@@ -201,13 +206,13 @@ function ActivePreparationsPanel() {
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Timer className="h-5 w-5" />
             Preparaciones en curso
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 px-4 sm:px-6">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </CardContent>
@@ -220,8 +225,8 @@ function ActivePreparationsPanel() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
+      <CardHeader className="px-4 sm:px-6">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
           <Timer className="h-5 w-5 text-blue-600" />
           Preparaciones en curso
           {activePreps.length > 0 && (
@@ -229,12 +234,12 @@ function ActivePreparationsPanel() {
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-4 sm:px-6">
         {activePreps.length === 0 && pendingPreps.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
-            <p className="font-medium">No hay preparaciones en curso</p>
-            <p className="text-sm">Los vehículos pendientes aparecerán aquí cuando se inicie su preparación</p>
+          <div className="text-center py-6 sm:py-8 text-muted-foreground">
+            <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 text-emerald-500" />
+            <p className="font-medium text-sm sm:text-base">No hay preparaciones en curso</p>
+            <p className="text-xs sm:text-sm">Los vehículos pendientes aparecerán aquí cuando se inicie su preparación</p>
           </div>
         )}
 
@@ -244,15 +249,15 @@ function ActivePreparationsPanel() {
           const urgencyClass = getUrgencyColor(prep.deadline_at);
 
           return (
-            <div key={prep.id} className={`border rounded-lg p-4 ${urgencyClass}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-lg font-mono">{prep.matricula}</span>
-                  {prep.modelo && <span className="text-sm opacity-80">{prep.modelo}</span>}
+            <div key={prep.id} className={`border rounded-lg p-3 sm:p-4 ${urgencyClass}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-2">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="font-bold text-base sm:text-lg font-mono">{prep.matricula}</span>
+                  {prep.modelo && <span className="text-xs sm:text-sm opacity-80 truncate">{prep.modelo}</span>}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span className="font-mono font-semibold">{formatElapsedTime(prep.started_at!)}</span>
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="font-mono font-semibold text-sm sm:text-base">{formatElapsedTime(prep.started_at!)}</span>
                 </div>
               </div>
 
@@ -261,15 +266,15 @@ function ActivePreparationsPanel() {
               )}
 
               <div className="mb-2">
-                <div className="flex justify-between text-sm mb-1">
+                <div className="flex justify-between text-xs sm:text-sm mb-1">
                   <span>{prep.completed_tasks}/{prep.total_tasks} tareas</span>
                   <span>{Math.round(progressPercent)}%</span>
                 </div>
                 <Progress value={progressPercent} className="h-2" />
               </div>
 
-              {/* Task list */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 mt-3">
+              {/* Task list - responsive grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 mt-3">
                 {prep.tasks
                   .filter(t => t.task_key !== 'inicio_prep')
                   .map((task) => {
@@ -278,13 +283,13 @@ function ActivePreparationsPanel() {
                     return (
                       <div
                         key={task.task_key}
-                        className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded ${
+                        className={`flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-1.5 sm:px-2 py-1 rounded ${
                           task.completed
                             ? 'bg-emerald-100 text-emerald-700 line-through'
                             : 'bg-white/50 text-current'
                         }`}
                       >
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                         <span className="truncate">{label}</span>
                       </div>
                     );
@@ -299,23 +304,23 @@ function ActivePreparationsPanel() {
           <>
             {activePreps.length > 0 && (
               <div className="border-t pt-3 mt-3">
-                <p className="text-sm font-medium text-muted-foreground mb-2">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-2">
                   Pendientes de iniciar ({pendingPreps.length})
                 </p>
               </div>
             )}
             {pendingPreps.map((prep) => (
-              <div key={prep.id} className="border rounded-lg p-3 bg-muted/30 flex items-center justify-between">
-                <div>
-                  <span className="font-bold font-mono">{prep.matricula}</span>
-                  {prep.modelo && <span className="text-sm text-muted-foreground ml-2">{prep.modelo}</span>}
+              <div key={prep.id} className="border rounded-lg p-3 bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-mono text-sm sm:text-base">{prep.matricula}</span>
+                  {prep.modelo && <span className="text-xs sm:text-sm text-muted-foreground truncate">{prep.modelo}</span>}
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => startMutation.mutate(prep.matricula)}
                   disabled={startMutation.isPending}
-                  className="gap-1"
+                  className="gap-1 w-full sm:w-auto"
                 >
                   <PlayCircle className="h-4 w-4" />
                   Iniciar
@@ -330,7 +335,7 @@ function ActivePreparationsPanel() {
 }
 
 // ============================================================================
-// History Panel with Performance Analytics
+// History Panel with Performance Analytics (Mobile-Friendly)
 // ============================================================================
 function HistoryPanel() {
   const { organization } = useAuth();
@@ -358,15 +363,15 @@ function HistoryPanel() {
   const maxTrendCount = Math.max(...(metrics?.daily_trend?.map(d => d.count) || [1]), 1);
 
   return (
-    <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Period selector - stacked on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
           <History className="h-5 w-5 text-blue-600" />
           Historial de preparaciones
         </h3>
         <Select value={period} onValueChange={(v) => { setPeriod(v); setPage(1); }}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -381,54 +386,54 @@ function HistoryPanel() {
 
       {isLoading ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 sm:h-24" />)}
           </div>
           <Skeleton className="h-48" />
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* KPI Cards - 2 cols on mobile, 4 on desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                  <BarChart3 className="h-4 w-4" />
-                  Total completadas
+              <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4 px-3 sm:px-6">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground text-[11px] sm:text-sm mb-1">
+                  <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="truncate">Total completadas</span>
                 </div>
-                <p className="text-2xl font-bold">{metrics?.total_completed || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold">{metrics?.total_completed || 0}</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                  <Clock className="h-4 w-4" />
-                  Tiempo medio
+              <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4 px-3 sm:px-6">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground text-[11px] sm:text-sm mb-1">
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="truncate">Tiempo medio</span>
                 </div>
-                <p className="text-2xl font-bold">{formatDuration(metrics?.avg_duration_minutes || null)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xl sm:text-2xl font-bold">{formatDuration(metrics?.avg_duration_minutes || null)}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
                   Min: {formatDuration(metrics?.min_duration_minutes || null)} / Max: {formatDuration(metrics?.max_duration_minutes || null)}
                 </p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                  <Target className="h-4 w-4" />
-                  Cumplimiento deadline
+              <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4 px-3 sm:px-6">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground text-[11px] sm:text-sm mb-1">
+                  <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="truncate">Cumplimiento</span>
                 </div>
-                <p className="text-2xl font-bold">
+                <p className="text-xl sm:text-2xl font-bold">
                   {metrics?.deadline_compliance_rate !== null ? `${metrics?.deadline_compliance_rate}%` : '—'}
                 </p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                  <TrendingUp className="h-4 w-4" />
-                  Media diaria
+              <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4 px-3 sm:px-6">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground text-[11px] sm:text-sm mb-1">
+                  <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <span className="truncate">Media diaria</span>
                 </div>
-                <p className="text-2xl font-bold">
+                <p className="text-xl sm:text-2xl font-bold">
                   {metrics?.daily_trend && metrics.daily_trend.length > 0
                     ? (metrics.total_completed / metrics.daily_trend.length).toFixed(1)
                     : '—'}
@@ -440,13 +445,13 @@ function HistoryPanel() {
           {/* Daily Trend Chart */}
           {metrics?.daily_trend && metrics.daily_trend.length > 0 && (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardHeader className="pb-2 px-4 sm:px-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Preparaciones completadas por día
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-[2px] h-24">
+              <CardContent className="px-4 sm:px-6">
+                <div className="flex items-end gap-[2px] h-20 sm:h-24">
                   {metrics.daily_trend.map((day, i) => {
                     const height = maxTrendCount > 0 ? (day.count / maxTrendCount) * 100 : 0;
                     const isToday = i === metrics.daily_trend.length - 1;
@@ -477,38 +482,38 @@ function HistoryPanel() {
           {/* Preparer Ranking */}
           {metrics?.preparer_ranking && metrics.preparer_ranking.length > 0 && (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CardHeader className="pb-2 px-4 sm:px-6">
+                <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
                   <Trophy className="h-4 w-4 text-amber-500" />
                   Ranking de preparadores
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 sm:px-6">
                 <div className="space-y-3">
                   {metrics.preparer_ranking.map((preparer, index) => {
                     const maxCount = metrics.preparer_ranking[0]?.completed_count || 1;
                     const barWidth = (preparer.completed_count / maxCount) * 100;
                     return (
-                      <div key={preparer.name} className="flex items-center gap-3">
-                        <span className={`text-sm font-bold w-6 text-center ${
+                      <div key={preparer.name} className="flex items-center gap-2 sm:gap-3">
+                        <span className={`text-xs sm:text-sm font-bold w-5 sm:w-6 text-center ${
                           index === 0 ? 'text-amber-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-700' : 'text-muted-foreground'
                         }`}>
                           #{index + 1}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium truncate">{preparer.name}</span>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>{preparer.completed_count} vehículos</span>
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <span className="text-xs sm:text-sm font-medium truncate">{preparer.name}</span>
+                            <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-muted-foreground shrink-0">
+                              <span>{preparer.completed_count}</span>
                               {preparer.avg_duration_minutes && (
-                                <span className="flex items-center gap-1">
+                                <span className="hidden sm:flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {formatDuration(preparer.avg_duration_minutes)}
                                 </span>
                               )}
                             </div>
                           </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
                                 index === 0 ? 'bg-amber-400' : index === 1 ? 'bg-gray-300' : index === 2 ? 'bg-amber-600' : 'bg-blue-300'
@@ -525,69 +530,106 @@ function HistoryPanel() {
             </Card>
           )}
 
-          {/* History Table */}
+          {/* History Table - Cards on mobile, table on desktop */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="pb-2 px-4 sm:px-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Detalle de preparaciones completadas
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               {items.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <History className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>No hay preparaciones completadas en este período</p>
+                <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                  <History className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay preparaciones completadas en este período</p>
                 </div>
               ) : (
                 <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Matrícula</TableHead>
-                        <TableHead>Modelo</TableHead>
-                        <TableHead>Completado por</TableHead>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Duración</TableHead>
-                        <TableHead>Deadline</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-mono font-bold">{item.matricula}</TableCell>
-                          <TableCell className="text-muted-foreground">{item.modelo || '—'}</TableCell>
-                          <TableCell>{item.completed_by_name}</TableCell>
-                          <TableCell className="text-sm">{formatDate(item.completed_at)}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono">
-                              {formatDuration(item.duration_minutes)}
+                  {/* Mobile: Card list */}
+                  <div className="block sm:hidden space-y-3">
+                    {items.map((item) => (
+                      <div key={item.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-bold text-sm">{item.matricula}</span>
+                          {item.met_deadline === null ? (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          ) : item.met_deadline ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] px-1.5 py-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                              A tiempo
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {item.met_deadline === null ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : item.met_deadline ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                A tiempo
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Retrasado
-                              </Badge>
-                            )}
-                          </TableCell>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] px-1.5 py-0.5">
+                              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                              Retrasado
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{item.modelo || '—'}</span>
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            {formatDuration(item.duration_minutes)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{item.completed_by_name}</span>
+                          <span>{formatDateShort(item.completed_at)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop: Table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Matrícula</TableHead>
+                          <TableHead>Modelo</TableHead>
+                          <TableHead>Completado por</TableHead>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Duración</TableHead>
+                          <TableHead>Deadline</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-mono font-bold">{item.matricula}</TableCell>
+                            <TableCell className="text-muted-foreground">{item.modelo || '—'}</TableCell>
+                            <TableCell>{item.completed_by_name}</TableCell>
+                            <TableCell className="text-sm">{formatDate(item.completed_at)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono">
+                                {formatDuration(item.duration_minutes)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {item.met_deadline === null ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : item.met_deadline ? (
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  A tiempo
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Retrasado
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
 
                   {/* Pagination */}
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4">
-                      <p className="text-sm text-muted-foreground">
-                        Página {page} de {totalPages} ({historyData?.total} total)
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Pág. {page}/{totalPages} ({historyData?.total})
                       </p>
                       <div className="flex gap-2">
                         <Button
@@ -635,41 +677,43 @@ export default function Preparation() {
         icon={SprayCan}
       />
 
-      <Tabs defaultValue="active" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="active" className="gap-1.5">
-            <Timer className="h-4 w-4" />
-            En curso
+      <Tabs defaultValue="active" className="mt-4 sm:mt-6">
+        <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+          <TabsTrigger value="active" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+            <Timer className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">En curso</span>
+            <span className="xs:hidden">Curso</span>
           </TabsTrigger>
-          <TabsTrigger value="list" className="gap-1.5">
-            <SprayCan className="h-4 w-4" />
+          <TabsTrigger value="list" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+            <SprayCan className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             Lista
           </TabsTrigger>
           {canViewProgress && (
-            <TabsTrigger value="history" className="gap-1.5">
-              <History className="h-4 w-4" />
-              Historial
+            <TabsTrigger value="history" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+              <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Historial</span>
+              <span className="xs:hidden">Hist.</span>
             </TabsTrigger>
           )}
         </TabsList>
 
-        <TabsContent value="active" className="mt-4 space-y-6">
+        <TabsContent value="active" className="mt-3 sm:mt-4 space-y-4 sm:space-y-6">
           {canViewProgress && <ActivePreparationsPanel />}
           {!canViewProgress && (
-            <div className="text-center py-12 text-muted-foreground">
-              <Timer className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium">No tienes permiso para ver las preparaciones en curso</p>
-              <p className="text-sm">Contacta con tu administrador para obtener acceso</p>
+            <div className="text-center py-8 sm:py-12 text-muted-foreground">
+              <Timer className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium text-sm sm:text-base">No tienes permiso para ver las preparaciones en curso</p>
+              <p className="text-xs sm:text-sm">Contacta con tu administrador para obtener acceso</p>
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="list" className="mt-4">
+        <TabsContent value="list" className="mt-3 sm:mt-4">
           <ManualPreparationList />
         </TabsContent>
 
         {canViewProgress && (
-          <TabsContent value="history" className="mt-4">
+          <TabsContent value="history" className="mt-3 sm:mt-4">
             <HistoryPanel />
           </TabsContent>
         )}
