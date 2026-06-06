@@ -456,7 +456,7 @@ export default function PublicOperationsTV() {
         );
       })()}
 
-      {/* ─── Scrollable Rows ───────────────────────────────────────────────── */}
+      {/* ─── Scrollable Rows (flat list, all operations sorted by time) ─── */}
       <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ scrollBehavior: "auto" }}>
         {loading && !data ? (
           <div className="flex items-center justify-center h-full">
@@ -482,77 +482,13 @@ export default function PublicOperationsTV() {
         ) : (() => {
           const totalOps = (data?.operations || []).length;
           const compact = totalOps > 20;
+          // Flat sorted list: all operations by time
+          const allOps = [...(data?.operations || [])].sort((a, b) => a.time.localeCompare(b.time));
           return (
-          <div className={`max-w-[1920px] mx-auto px-8 ${compact ? "py-2" : "py-3"}`}>
-            {/* ─── En Camino Section ──────────────────────────────────────── */}
-            {enCaminoOps.length > 0 && (
-              <section className="mb-4">
-                <SectionHeader
-                  icon={<Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />}
-                  label="En Camino"
-                  count={enCaminoOps.length}
-                  color="#60a5fa"
-                  pulse
-                />
-                <OperationRows ops={enCaminoOps} variant="enCamino" compact={compact} />
-              </section>
-            )}
-
-            {/* ─── Overdue Section ────────────────────────────────────────── */}
-            {overdueOps.length > 0 && (
-              <section className="mb-4">
-                <SectionHeader
-                  icon={<AlertTriangle className="w-5 h-5" style={{ color: "#ef4444" }} />}
-                  label="Retrasadas"
-                  count={overdueOps.length}
-                  color="#f87171"
-                  pulse
-                />
-                <OperationRows ops={overdueOps} variant="overdue" compact={compact} />
-              </section>
-            )}
-
-            {/* ─── Time Slot Groups ───────────────────────────────────────── */}
-            {slotGroups.map((group) => {
-              const config = TIME_SLOT_CONFIG[group.slot];
-              const Icon = config.icon;
-              return (
-                <section key={group.slot} className="mb-4">
-                  <div className="flex items-center gap-4 mb-2 py-1">
-                    <div className="flex items-center gap-3">
-                      <Icon className="w-5 h-5" style={{ color: COLORS.gold }} />
-                      <h2 className="text-lg font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
-                        {config.label}
-                      </h2>
-                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-                        {config.range}
-                      </span>
-                    </div>
-                    <div className="flex-1 h-px" style={{ backgroundColor: "rgba(201,169,110,0.2)" }} />
-                    <span
-                      className="text-sm font-bold px-3 py-1 rounded-full"
-                      style={{ backgroundColor: "rgba(201,169,110,0.1)", color: COLORS.gold }}
-                    >
-                      {group.ops.length}
-                    </span>
-                  </div>
-                  <OperationRows ops={group.ops} variant="normal" compact={compact} />
-                </section>
-              );
-            })}
-
-            {/* ─── Completed Section ──────────────────────────────────────── */}
-            {completedOps.length > 0 && (
-              <section className="mb-4">
-                <SectionHeader
-                  icon={<CheckCircle2 className="w-5 h-5" style={{ color: "#10b981" }} />}
-                  label="Completadas"
-                  count={completedOps.length}
-                  color="#10b981"
-                />
-                <OperationRows ops={completedOps} variant="completed" compact={compact} />
-              </section>
-            )}
+          <div className="max-w-[1920px] mx-auto">
+            {allOps.map((op, idx) => (
+              <OperationRow key={idx} op={op} variant={op.completed ? "completed" : op.enCamino ? "enCamino" : getTimeStatus(op.time) === "past" ? "overdue" : "normal"} isLast={idx === allOps.length - 1} borderColor="rgba(255,255,255,0.06)" compact={compact} />
+            ))}
           </div>
           );
         })()}
@@ -659,7 +595,7 @@ function OperationRow({
 
   return (
     <div
-      className={`grid gap-4 ${compact ? "px-3 py-1.5" : "px-5 py-3"} items-center transition-colors hover:bg-white/[0.02]`}
+      className={`grid gap-4 ${compact ? "px-11 py-1.5" : "px-16 py-3"} items-center transition-colors hover:bg-white/[0.02]`}
       style={{
         gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
         borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
