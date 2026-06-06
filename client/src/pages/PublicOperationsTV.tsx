@@ -57,14 +57,6 @@ interface OperationsData {
 
 type TimeSlot = "manana" | "mediodia" | "tarde";
 
-interface TimeSlotGroup {
-  slot: TimeSlot;
-  label: string;
-  icon: typeof Sunrise;
-  operations: OperationItem[];
-  range: string;
-}
-
 function getTimeSlot(timeStr: string): TimeSlot {
   const hour = parseInt(timeStr.split(":")[0], 10);
   if (hour < 13) return "manana";
@@ -114,6 +106,12 @@ function formatEnCaminoTime(enCaminoAt: string | null): string {
     return "";
   }
 }
+
+const TIME_SLOT_CONFIG: Record<TimeSlot, { label: string; icon: typeof Sunrise; range: string }> = {
+  manana: { label: "Mañana", icon: Sunrise, range: "07:00 – 12:59" },
+  mediodia: { label: "Mediodía", icon: Sun, range: "13:00 – 16:59" },
+  tarde: { label: "Tarde", icon: Sunset, range: "17:00 – 22:00" },
+};
 
 // ─── Main TV Dashboard Page ─────────────────────────────────────────────────
 export default function PublicOperationsTV() {
@@ -193,45 +191,28 @@ export default function PublicOperationsTV() {
     };
   }, [fetchData]);
 
-  // Group operations by time slot
-  const timeSlotGroups = useMemo((): TimeSlotGroup[] => {
-    if (!data) return [];
+  // Organize operations
+  const { enCaminoOps, overdueOps, slotGroups, completedOps, pendingCount } = useMemo(() => {
+    if (!data) return { enCaminoOps: [], overdueOps: [], slotGroups: [] as { slot: TimeSlot; ops: OperationItem[] }[], completedOps: [], pendingCount: 0 };
 
-    const pendingOps = data.operations.filter((op) => !op.completed);
+    const pending = data.operations.filter((op) => !op.completed);
+    const completed = data.operations.filter((op) => op.completed);
+    const enCamino = pending.filter((op) => op.enCamino);
+    const overdue = pending.filter((op) => !op.enCamino && getTimeStatus(op.time) === "past");
+    const remaining = pending.filter((op) => !op.enCamino && getTimeStatus(op.time) !== "past");
 
-    const groups: TimeSlotGroup[] = [
-      { slot: "manana", label: "Mañana", icon: Sunrise, operations: [], range: "07:00 – 12:59" },
-      { slot: "mediodia", label: "Mediodía", icon: Sun, operations: [], range: "13:00 – 16:59" },
-      { slot: "tarde", label: "Tarde", icon: Sunset, operations: [], range: "17:00 – 22:00" },
-    ];
-
-    for (const op of pendingOps) {
-      const slot = getTimeSlot(op.time);
-      const group = groups.find((g) => g.slot === slot);
-      if (group) group.operations.push(op);
+    // Group remaining by time slot
+    const slotMap: Record<TimeSlot, OperationItem[]> = { manana: [], mediodia: [], tarde: [] };
+    for (const op of remaining) {
+      slotMap[getTimeSlot(op.time)].push(op);
     }
 
-    return groups.filter((g) => g.operations.length > 0);
-  }, [data]);
+    const groups = (["manana", "mediodia", "tarde"] as TimeSlot[])
+      .filter((s) => slotMap[s].length > 0)
+      .map((s) => ({ slot: s, ops: slotMap[s] }));
 
-  const enCaminoOps = useMemo(() => {
-    if (!data) return [];
-    return data.operations.filter((op) => op.enCamino && !op.completed);
+    return { enCaminoOps: enCamino, overdueOps: overdue, slotGroups: groups, completedOps: completed, pendingCount: pending.length };
   }, [data]);
-
-  const completedOps = useMemo(() => {
-    if (!data) return [];
-    return data.operations.filter((op) => op.completed);
-  }, [data]);
-
-  const pendingOps = useMemo(() => {
-    if (!data) return [];
-    return data.operations.filter((op) => !op.completed);
-  }, [data]);
-
-  const overdueOps = useMemo(() => {
-    return pendingOps.filter((op) => getTimeStatus(op.time) === "past" && !op.enCamino);
-  }, [pendingOps]);
 
   if (error && !data) {
     return (
@@ -251,7 +232,7 @@ export default function PublicOperationsTV() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: COLORS.navy }}>
       {/* ─── Header ────────────────────────────────────────────────────────── */}
       <header className="flex-shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
-        <div className="max-w-[1920px] mx-auto px-8 py-5 flex items-center justify-between">
+        <div className="max-w-[1920px] mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="flex items-center gap-2">
               <span className="text-3xl font-bold tracking-tight" style={{ color: COLORS.white }}>
@@ -289,10 +270,10 @@ export default function PublicOperationsTV() {
               <div className="flex items-center gap-3">
                 {enCaminoOps.length > 0 && (
                   <div
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl animate-pulse"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
                     style={{ backgroundColor: "rgba(59,130,246,0.15)" }}
                   >
-                    <Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />
+                    <Navigation className="w-5 h-5 animate-pulse" style={{ color: "#3b82f6" }} />
                     <span className="text-xl font-bold" style={{ color: "#3b82f6" }}>
                       {enCaminoOps.length}
                     </span>
@@ -313,7 +294,7 @@ export default function PublicOperationsTV() {
                 >
                   <Clock className="w-5 h-5" style={{ color: COLORS.gold }} />
                   <span className="text-xl font-bold" style={{ color: COLORS.gold }}>
-                    {pendingOps.length}
+                    {pendingCount}
                   </span>
                 </div>
               </div>
@@ -350,7 +331,7 @@ export default function PublicOperationsTV() {
       </header>
 
       {/* ─── Main Content ──────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto">
         {loading && !data ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -373,80 +354,49 @@ export default function PublicOperationsTV() {
             </div>
           </div>
         ) : (
-          <div className="max-w-[1920px] mx-auto px-8 py-6 h-full flex flex-col gap-5 overflow-y-auto">
-            {/* ─── En Camino Section (always on top when active) ──────────── */}
+          <div className="max-w-[1920px] mx-auto px-8 py-5">
+            {/* ─── En Camino Section ──────────────────────────────────── */}
             {enCaminoOps.length > 0 && (
-              <section className="flex-shrink-0">
-                <div className="flex items-center gap-3 mb-4">
-                  <div
-                    className="w-3 h-3 rounded-full animate-pulse"
-                    style={{ backgroundColor: "#3b82f6" }}
-                  />
-                  <Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />
-                  <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: "#60a5fa" }}>
-                    En Camino
-                  </h2>
-                  <span
-                    className="text-sm font-bold px-3 py-1 rounded-full"
-                    style={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#60a5fa" }}
-                  >
-                    {enCaminoOps.length}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {enCaminoOps.map((op, idx) => (
-                    <OperationCard key={`encamino-${idx}`} op={op} highlight />
-                  ))}
-                </div>
+              <section className="mb-6">
+                <SectionHeader
+                  icon={<Navigation className="w-5 h-5" style={{ color: "#3b82f6" }} />}
+                  label="En Camino"
+                  count={enCaminoOps.length}
+                  color="#60a5fa"
+                  pulse
+                />
+                <OperationList ops={enCaminoOps} variant="enCamino" />
               </section>
             )}
 
-            {/* ─── Overdue Section ───────────────────────────────────────── */}
+            {/* ─── Overdue Section ────────────────────────────────────── */}
             {overdueOps.length > 0 && (
-              <section className="flex-shrink-0">
-                <div className="flex items-center gap-3 mb-4">
-                  <div
-                    className="w-3 h-3 rounded-full animate-pulse"
-                    style={{ backgroundColor: "#ef4444" }}
-                  />
-                  <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: "#f87171" }}>
-                    Atención — Operaciones retrasadas
-                  </h2>
-                  <span
-                    className="text-sm font-bold px-3 py-1 rounded-full"
-                    style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}
-                  >
-                    {overdueOps.length}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {overdueOps.map((op, idx) => (
-                    <OperationCard key={`overdue-${idx}`} op={op} highlight />
-                  ))}
-                </div>
+              <section className="mb-6">
+                <SectionHeader
+                  icon={<AlertTriangle className="w-5 h-5" style={{ color: "#ef4444" }} />}
+                  label="Retrasadas"
+                  count={overdueOps.length}
+                  color="#f87171"
+                  pulse
+                />
+                <OperationList ops={overdueOps} variant="overdue" />
               </section>
             )}
 
-            {/* ─── Time Slot Groups ──────────────────────────────────────── */}
-            {timeSlotGroups.map((group) => {
-              const Icon = group.icon;
-              // Filter out en_camino and overdue ops (already shown above)
-              const groupOps = group.operations.filter(
-                (op) => !op.enCamino && getTimeStatus(op.time) !== "past"
-              );
-              if (groupOps.length === 0) return null;
-
+            {/* ─── Time Slot Groups ───────────────────────────────────── */}
+            {slotGroups.map((group) => {
+              const config = TIME_SLOT_CONFIG[group.slot];
+              const Icon = config.icon;
               return (
-                <section key={group.slot} className="flex-shrink-0">
-                  {/* Time slot separator */}
-                  <div className="flex items-center gap-4 mb-4">
+                <section key={group.slot} className="mb-6">
+                  <div className="flex items-center gap-4 mb-3">
                     <div className="flex items-center gap-3">
-                      <Icon className="w-6 h-6" style={{ color: COLORS.gold }} />
-                      <h2 className="text-xl font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
-                        {group.label}
+                      <Icon className="w-5 h-5" style={{ color: COLORS.gold }} />
+                      <h2 className="text-lg font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
+                        {config.label}
                       </h2>
-                      <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
-                        {group.range}
+                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {config.range}
                       </span>
                     </div>
                     <div className="flex-1 h-px" style={{ backgroundColor: "rgba(201,169,110,0.2)" }} />
@@ -454,49 +404,31 @@ export default function PublicOperationsTV() {
                       className="text-sm font-bold px-3 py-1 rounded-full"
                       style={{ backgroundColor: "rgba(201,169,110,0.1)", color: COLORS.gold }}
                     >
-                      {groupOps.length}
+                      {group.ops.length}
                     </span>
                   </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {groupOps.map((op, idx) => (
-                      <OperationCard key={`${group.slot}-${idx}`} op={op} />
-                    ))}
-                  </div>
+                  <OperationList ops={group.ops} variant="normal" />
                 </section>
               );
             })}
 
-            {/* ─── Completed Operations (compact) ────────────────────────── */}
+            {/* ─── Completed Section ──────────────────────────────────── */}
             {completedOps.length > 0 && (
-              <section className="flex-shrink-0">
-                <div className="flex items-center gap-3 mb-3">
-                  <CheckCircle2 className="w-5 h-5" style={{ color: "#10b981" }} />
-                  <h2
-                    className="text-lg font-semibold uppercase tracking-wider"
-                    style={{ color: "rgba(16,185,129,0.7)" }}
-                  >
-                    Completadas hoy
-                  </h2>
-                  <span
-                    className="text-sm font-bold px-3 py-1 rounded-full"
-                    style={{ backgroundColor: "rgba(16,185,129,0.15)", color: "#10b981" }}
-                  >
-                    {completedOps.length}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {completedOps.map((op, idx) => (
-                    <CompletedChip key={`done-${idx}`} op={op} />
-                  ))}
-                </div>
+              <section className="mb-4">
+                <SectionHeader
+                  icon={<CheckCircle2 className="w-5 h-5" style={{ color: "#10b981" }} />}
+                  label="Completadas"
+                  count={completedOps.length}
+                  color="#10b981"
+                />
+                <OperationList ops={completedOps} variant="completed" />
               </section>
             )}
           </div>
         )}
       </main>
 
-      {/* ─── Footer (subtle) ───────────────────────────────────────────────── */}
+      {/* ─── Footer ───────────────────────────────────────────────────────── */}
       <footer className="flex-shrink-0 border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
         <div className="max-w-[1920px] mx-auto px-8 py-3 flex items-center justify-between">
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
@@ -513,177 +445,212 @@ export default function PublicOperationsTV() {
   );
 }
 
-// ─── Operation Card Component ───────────────────────────────────────────────
-function OperationCard({ op, highlight }: { op: OperationItem; highlight?: boolean }) {
-  const isEntrega = op.type === "entrega";
-  const status = getTimeStatus(op.time);
-  const isOverdue = status === "past" && !op.enCamino;
-
-  const borderColor = op.enCamino
-    ? "#3b82f6"
-    : isOverdue
-      ? "#ef4444"
-      : highlight
-        ? COLORS.gold
-        : "rgba(255,255,255,0.1)";
-
-  const bgColor = op.enCamino
-    ? "rgba(59,130,246,0.08)"
-    : isOverdue
-      ? "rgba(239,68,68,0.08)"
-      : highlight
-        ? "rgba(201,169,110,0.06)"
-        : "rgba(255,255,255,0.03)";
-
+// ─── Section Header ─────────────────────────────────────────────────────────
+function SectionHeader({
+  icon,
+  label,
+  count,
+  color,
+  pulse,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  color: string;
+  pulse?: boolean;
+}) {
   return (
-    <div
-      className="rounded-2xl border-2 overflow-hidden transition-all"
-      style={{
-        borderColor,
-        backgroundColor: bgColor,
-        boxShadow: op.enCamino
-          ? "0 0 20px rgba(59,130,246,0.15)"
-          : isOverdue
-            ? "0 0 20px rgba(239,68,68,0.15)"
-            : undefined,
-      }}
-    >
-      <div className="flex items-stretch">
-        {/* Type color bar */}
+    <div className="flex items-center gap-3 mb-3">
+      {pulse && (
         <div
-          className="w-2 flex-shrink-0"
-          style={{
-            backgroundColor: op.enCamino
-              ? "#3b82f6"
-              : isEntrega
-                ? "#16a34a"
-                : "#ea580c",
-          }}
+          className="w-2.5 h-2.5 rounded-full animate-pulse"
+          style={{ backgroundColor: color }}
         />
-
-        <div className="flex-1 px-5 py-4 flex items-center gap-4">
-          {/* Time */}
-          <div className="flex-shrink-0 text-center" style={{ minWidth: "70px" }}>
-            <p
-              className="text-3xl font-mono font-bold"
-              style={{ color: op.enCamino ? "#60a5fa" : isOverdue ? "#ef4444" : COLORS.white }}
-            >
-              {op.time}
-            </p>
-            {op.enCamino && (
-              <p className="text-xs font-semibold mt-1 animate-pulse" style={{ color: "#60a5fa" }}>
-                EN CAMINO
-              </p>
-            )}
-            {isOverdue && !op.enCamino && (
-              <p className="text-xs font-semibold mt-1" style={{ color: "#ef4444" }}>
-                RETRASADA
-              </p>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-14 flex-shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
-
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {/* Type badge */}
-              <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase"
-                style={{
-                  backgroundColor: isEntrega ? "rgba(22,163,74,0.15)" : "rgba(234,88,12,0.15)",
-                  color: isEntrega ? "#4ade80" : "#fb923c",
-                }}
-              >
-                {isEntrega ? (
-                  <ArrowDownToLine className="w-3 h-3" />
-                ) : (
-                  <ArrowUpFromLine className="w-3 h-3" />
-                )}
-                {isEntrega ? "Entrega" : "Devolución"}
-              </span>
-
-              {/* En Camino badge */}
-              {op.enCamino && (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold uppercase animate-pulse"
-                  style={{ backgroundColor: "rgba(59,130,246,0.2)", color: "#60a5fa" }}
-                >
-                  <Navigation className="w-3 h-3" />
-                  {formatEnCaminoTime(op.enCaminoAt) && `desde ${formatEnCaminoTime(op.enCaminoAt)}`}
-                </span>
-              )}
-            </div>
-
-            {/* Vehicle */}
-            <p className="text-xl font-bold truncate" style={{ color: COLORS.white }}>
-              {op.auto || op.modelo}
-            </p>
-            {op.auto && op.modelo && (
-              <p className="text-sm truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
-                {op.modelo}
-              </p>
-            )}
-          </div>
-
-          {/* Right side: Location + Assigned */}
-          <div className="flex-shrink-0 text-right max-w-[220px] flex flex-col gap-1.5">
-            {/* Assigned rental */}
-            {op.assignedRentalName && (
-              <div className="flex items-center gap-1.5 justify-end">
-                <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#a78bfa" }} />
-                <p
-                  className="text-sm font-semibold truncate"
-                  style={{ color: "#c4b5fd" }}
-                >
-                  {op.assignedRentalName}
-                </p>
-              </div>
-            )}
-            {/* Location */}
-            <div className="flex items-center gap-1.5 justify-end">
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: COLORS.gold }} />
-              <p
-                className="text-sm font-medium truncate"
-                style={{ color: "rgba(255,255,255,0.7)" }}
-              >
-                {op.location}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
+      {icon}
+      <h2 className="text-lg font-semibold uppercase tracking-wider" style={{ color }}>
+        {label}
+      </h2>
+      <span
+        className="text-sm font-bold px-3 py-1 rounded-full"
+        style={{ backgroundColor: `${color}20`, color }}
+      >
+        {count}
+      </span>
     </div>
   );
 }
 
-// ─── Completed Chip Component ───────────────────────────────────────────────
-function CompletedChip({ op }: { op: OperationItem }) {
-  const isEntrega = op.type === "entrega";
+// ─── Operation List (Table-like rows) ───────────────────────────────────────
+function OperationList({
+  ops,
+  variant,
+}: {
+  ops: OperationItem[];
+  variant: "enCamino" | "overdue" | "normal" | "completed";
+}) {
+  const getBorderColor = () => {
+    switch (variant) {
+      case "enCamino": return "rgba(59,130,246,0.3)";
+      case "overdue": return "rgba(239,68,68,0.3)";
+      case "completed": return "rgba(16,185,129,0.15)";
+      default: return "rgba(255,255,255,0.08)";
+    }
+  };
+
+  const getBgColor = () => {
+    switch (variant) {
+      case "enCamino": return "rgba(59,130,246,0.05)";
+      case "overdue": return "rgba(239,68,68,0.04)";
+      case "completed": return "rgba(16,185,129,0.03)";
+      default: return "rgba(255,255,255,0.02)";
+    }
+  };
+
   return (
     <div
-      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl"
-      style={{ backgroundColor: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}
+      className="rounded-xl border overflow-hidden"
+      style={{ borderColor: getBorderColor(), backgroundColor: getBgColor() }}
     >
-      <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#10b981" }} />
-      <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.6)" }}>
-        {op.time}
-      </span>
-      <span
-        className="text-xs font-bold"
-        style={{ color: isEntrega ? "#4ade80" : "#fb923c" }}
+      {/* Table header */}
+      <div
+        className="grid gap-4 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
+        style={{
+          gridTemplateColumns: "80px 100px 1fr 160px 1fr",
+          color: "rgba(255,255,255,0.4)",
+          borderBottom: `1px solid ${getBorderColor()}`,
+          backgroundColor: "rgba(0,0,0,0.15)",
+        }}
       >
-        {isEntrega ? "E" : "D"}
-      </span>
-      <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.8)" }}>
-        {op.auto || op.modelo}
-      </span>
-      {op.assignedRentalName && (
-        <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-          · {op.assignedRentalName}
+        <span>Hora</span>
+        <span>Tipo</span>
+        <span>Vehículo</span>
+        <span>Rental</span>
+        <span>Ubicación</span>
+      </div>
+
+      {/* Rows */}
+      {ops.map((op, idx) => (
+        <OperationRow key={idx} op={op} variant={variant} isLast={idx === ops.length - 1} borderColor={getBorderColor()} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Operation Row ──────────────────────────────────────────────────────────
+function OperationRow({
+  op,
+  variant,
+  isLast,
+  borderColor,
+}: {
+  op: OperationItem;
+  variant: "enCamino" | "overdue" | "normal" | "completed";
+  isLast: boolean;
+  borderColor: string;
+}) {
+  const isEntrega = op.type === "entrega";
+  const isCompleted = variant === "completed";
+  const textOpacity = isCompleted ? "0.5" : "0.9";
+
+  return (
+    <div
+      className="grid gap-4 px-5 py-3 items-center transition-colors hover:bg-white/[0.02]"
+      style={{
+        gridTemplateColumns: "80px 100px 1fr 160px 1fr",
+        borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
+      }}
+    >
+      {/* Time */}
+      <div className="flex items-center gap-2">
+        <span
+          className="text-xl font-mono font-bold tabular-nums"
+          style={{
+            color: variant === "enCamino"
+              ? "#60a5fa"
+              : variant === "overdue"
+                ? "#ef4444"
+                : isCompleted
+                  ? "rgba(255,255,255,0.4)"
+                  : COLORS.white,
+          }}
+        >
+          {op.time}
         </span>
-      )}
+      </div>
+
+      {/* Type */}
+      <div className="flex items-center">
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase"
+          style={{
+            backgroundColor: isEntrega ? "rgba(22,163,74,0.15)" : "rgba(234,88,12,0.15)",
+            color: isEntrega ? "#4ade80" : "#fb923c",
+            opacity: isCompleted ? 0.6 : 1,
+          }}
+        >
+          {isEntrega ? (
+            <ArrowDownToLine className="w-3 h-3" />
+          ) : (
+            <ArrowUpFromLine className="w-3 h-3" />
+          )}
+          {isEntrega ? "Entrega" : "Devol."}
+        </span>
+        {variant === "enCamino" && (
+          <span
+            className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase animate-pulse"
+            style={{ backgroundColor: "rgba(59,130,246,0.2)", color: "#60a5fa" }}
+          >
+            <Navigation className="w-2.5 h-2.5" />
+            {formatEnCaminoTime(op.enCaminoAt) || "EN RUTA"}
+          </span>
+        )}
+      </div>
+
+      {/* Vehicle */}
+      <div className="min-w-0">
+        <p
+          className="text-base font-bold truncate"
+          style={{ color: `rgba(255,255,255,${textOpacity})` }}
+        >
+          {op.auto || op.modelo}
+        </p>
+        {op.auto && op.modelo && (
+          <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+            {op.modelo}
+          </p>
+        )}
+      </div>
+
+      {/* Assigned Rental */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {op.assignedRentalName ? (
+          <>
+            <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(167,139,250,0.5)" : "#a78bfa" }} />
+            <span
+              className="text-sm font-semibold truncate"
+              style={{ color: isCompleted ? "rgba(196,181,253,0.5)" : "#c4b5fd" }}
+            >
+              {op.assignedRentalName}
+            </span>
+          </>
+        ) : (
+          <span className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Sin asignar
+          </span>
+        )}
+      </div>
+
+      {/* Location */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(201,169,110,0.4)" : COLORS.gold }} />
+        <span
+          className="text-sm truncate"
+          style={{ color: `rgba(255,255,255,${isCompleted ? "0.35" : "0.7"})` }}
+        >
+          {op.location}
+        </span>
+      </div>
     </div>
   );
 }
