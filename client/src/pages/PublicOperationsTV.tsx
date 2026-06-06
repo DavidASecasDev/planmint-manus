@@ -492,7 +492,7 @@ export default function PublicOperationsTV() {
               const Icon = config.icon;
               return (
                 <section key={group.slot} className="mb-6">
-                  <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-4 mb-3 sticky top-0 z-20 py-2" style={{ backgroundColor: COLORS.navy }}>
                     <div className="flex items-center gap-3">
                       <Icon className="w-5 h-5" style={{ color: COLORS.gold }} />
                       <h2 className="text-lg font-semibold uppercase tracking-wider" style={{ color: COLORS.gold }}>
@@ -564,7 +564,7 @@ function SectionHeader({
   pulse?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 mb-3">
+    <div className="flex items-center gap-3 mb-3 sticky top-0 z-20 py-2" style={{ backgroundColor: COLORS.navy }}>
       {pulse && (
         <div
           className="w-2.5 h-2.5 rounded-full animate-pulse"
@@ -618,14 +618,15 @@ function OperationList({
       className="rounded-xl border overflow-hidden"
       style={{ borderColor: getBorderColor(), backgroundColor: getBgColor() }}
     >
-      {/* Table header */}
+      {/* Table header - sticky */}
       <div
-        className={`grid gap-4 ${compact ? "px-3 py-1.5 text-[10px]" : "px-5 py-2.5 text-xs"} font-semibold uppercase tracking-wider`}
+        className={`grid gap-4 ${compact ? "px-3 py-1.5 text-[10px]" : "px-5 py-2.5 text-xs"} font-semibold uppercase tracking-wider sticky top-0 z-10`}
         style={{
           gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
           color: "rgba(255,255,255,0.4)",
           borderBottom: `1px solid ${getBorderColor()}`,
-          backgroundColor: "rgba(0,0,0,0.15)",
+          backgroundColor: getBgColor(),
+          backdropFilter: "blur(8px)",
         }}
       >
         <span>Hora</span>
