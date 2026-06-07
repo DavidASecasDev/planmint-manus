@@ -1098,3 +1098,4 @@
 - [x] Horarios: Drag & drop para reordenar empleados dentro de cada equipo (solo para usuarios con schedules.assign o schedules.manage)
 - [x] Horarios: DragOverlay para mostrar copia fantasma de la fila del empleado durante el arrastre
 - [x] Fix: Investigar y resolver refresco automático al volver a la pestaña - race condition en AuthContext donde hasLoadedInitialData (variable local) se reseteaba al re-ejecutarse useEffect, permitiendo que SIGNED_IN de visibilidad disparara profileLoading y el spinner de ProtectedRoute
+- [x] Fix: Preparación con 100% tareas completadas sigue en "En curso" - trigger DB auto_complete_preparation_on_vehicle_clean creado para marcar preparation_list como 'ready' cuando vehicle.status pasa a 'limpio'
