@@ -156,6 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Deduplication: track in-flight profile fetch to prevent double calls
   const profileFetchInFlight = useRef<Promise<void> | null>(null);
   const lastFetchedUserId = useRef<string | null>(null);
+  // Track whether initial data has been loaded (persists across useEffect re-runs)
+  const hasLoadedInitialDataRef = useRef(false);
 
 
   const fetchProfileData = useCallback(async (userId: string, accessToken?: string): Promise<Profile | null> => {
@@ -299,7 +301,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Use a single handler for all auth events including INITIAL_SESSION.
-    let hasLoadedInitialData = false;
+    // NOTE: hasLoadedInitialDataRef persists across useEffect re-runs to prevent
+    // the guard from being bypassed when loadUserData changes reference.
 
     const handleSession = (
       event: string,
@@ -329,15 +332,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 1. setProfileLoading(true) → ProtectedRoute shows full-screen spinner
         // 2. All child components unmount → form state is destroyed
         // 3. Profile reloads → components remount from scratch (user loses work)
-        if (event === 'SIGNED_IN' && hasLoadedInitialData && lastFetchedUserId.current === currentSession.user.id) {
+        if (event === 'SIGNED_IN' && hasLoadedInitialDataRef.current && lastFetchedUserId.current === currentSession.user.id) {
           console.log('[Auth] SIGNED_IN for same user (tab visibility recovery) — skipping profile reload');
           return;
         }
 
         // For INITIAL_SESSION and getSession: only load once (whichever fires first)
         if (event === 'INITIAL_SESSION' || event === '__GET_SESSION__') {
-          if (hasLoadedInitialData) return;
-          hasLoadedInitialData = true;
+          if (hasLoadedInitialDataRef.current) return;
+          hasLoadedInitialDataRef.current = true;
         }
 
         const accessToken = currentSession.access_token;
