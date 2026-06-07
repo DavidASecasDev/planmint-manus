@@ -1077,3 +1077,4 @@
 - [x] PublicPreparation: Hacer la lista de prioridad más obvia visualmente (numeración grande, orden más claro, diferenciación más marcada entre prioridades)
 - [x] PublicPreparation: Barra de progreso por vehículo mostrando tareas completadas/total (ej. 3/5)
 - [x] PublicPreparation: Animación de entrada sutil para nuevos vehículos (reemplazar bounce por slide-in suave)
+- [x] TV Operaciones: Indicador de estado de limpieza del vehículo (icono verde=limpio, ámbar=incompleto, rojo=sucio) junto a la matrícula

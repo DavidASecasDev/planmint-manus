@@ -16,6 +16,9 @@ import {
   Sunrise,
   Sun,
   Sunset,
+  Sparkles,
+  Droplets,
+  CircleDashed,
 } from "lucide-react";
 
 // ─── Corporate Colors (Azul Cars) ──────────────────────────────────────────
@@ -44,6 +47,7 @@ interface OperationItem {
   clientName: string | null;
   enCamino: boolean;
   enCaminoAt: string | null;
+  vehicleStatus: string | null;
 }
 
 interface OperationsData {
@@ -696,14 +700,17 @@ function OperationRow({
 
       {/* Vehicle */}
       <div className="min-w-0">
-        <p
-          className={`${compact ? "text-sm" : "text-base"} font-bold truncate`}
-          style={{ color: `rgba(255,255,255,${textOpacity})` }}
-        >
-          {op.auto || op.modelo}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} />
+          <p
+            className={`${compact ? "text-sm" : "text-base"} font-bold truncate`}
+            style={{ color: `rgba(255,255,255,${textOpacity})` }}
+          >
+            {op.auto || op.modelo}
+          </p>
+        </div>
         {op.auto && op.modelo && (
-          <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)", marginLeft: compact ? "18px" : "22px" }}>
             {op.modelo}
           </p>
         )}
@@ -778,4 +785,58 @@ function OperationRow({
       </div>
     </div>
   );
+}
+
+// ─── Vehicle Cleanliness Status Icon ────────────────────────────────────────
+function VehicleStatusIcon({
+  status,
+  completed,
+  compact = false,
+}: {
+  status: string | null;
+  completed: boolean;
+  compact?: boolean;
+}) {
+  const size = compact ? "w-3.5 h-3.5" : "w-4 h-4";
+  const opacity = completed ? 0.4 : 1;
+
+  if (!status) {
+    // Unknown status - show nothing
+    return null;
+  }
+
+  switch (status) {
+    case "limpio":
+      return (
+        <span className="flex-shrink-0" title="Limpio" style={{ opacity }}>
+          <Sparkles className={size} style={{ color: "#34d399" }} />
+        </span>
+      );
+    case "sucio":
+      return (
+        <span className="flex-shrink-0" title="Sucio" style={{ opacity }}>
+          <Droplets className={size} style={{ color: "#ef4444" }} />
+        </span>
+      );
+    case "incompleto":
+      return (
+        <span className="flex-shrink-0" title="Incompleto" style={{ opacity }}>
+          <CircleDashed className={size} style={{ color: "#f59e0b" }} />
+        </span>
+      );
+    case "alquilado":
+      return (
+        <span className="flex-shrink-0" title="Alquilado" style={{ opacity }}>
+          <Car className={size} style={{ color: "#60a5fa" }} />
+        </span>
+      );
+    case "en_servicio":
+      return (
+        <span className="flex-shrink-0" title="En servicio" style={{ opacity }}>
+          <Car className={size} style={{ color: "#a78bfa" }} />
+        </span>
+      );
+    default:
+      return null;
+  }
 }

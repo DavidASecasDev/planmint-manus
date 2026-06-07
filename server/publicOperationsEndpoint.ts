@@ -129,6 +129,22 @@ export async function handlePublicOperations(req: Request, res: Response) {
       });
     }
 
+    // ─── Fetch vehicle statuses for cleanliness indicator ─────────────────────
+    // Build a map: matricula (uppercase) -> status
+    const vehicleStatusMap = new Map<string, string>();
+    const { data: allVehicles } = await serviceClient
+      .from("vehicles")
+      .select("matricula, status")
+      .eq("organization_id", organizationId)
+      .eq("is_archived", false);
+    if (allVehicles) {
+      for (const v of allVehicles) {
+        if (v.matricula && v.status) {
+          vehicleStatusMap.set(v.matricula.toUpperCase().trim(), v.status);
+        }
+      }
+    }
+
     // Filter to only reservations that have operations on the target date
     const operations: Array<{
       type: "entrega" | "devolucion";
@@ -144,6 +160,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       clientName: string | null;
       enCamino: boolean;
       enCaminoAt: string | null;
+      vehicleStatus: string | null; // limpio, sucio, incompleto, alquilado, en_servicio
     }> = [];
 
     for (const r of reservations || []) {
@@ -175,6 +192,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
+            vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
           });
         }
       }
@@ -207,6 +225,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
+            vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
           });
         }
       }
@@ -376,6 +395,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         clientName: op.clientName || null,
         enCamino: op.enCamino || false,
         enCaminoAt: op.enCaminoAt || null,
+        vehicleStatus: op.vehicleStatus || null,
       })),
       hourly: hourlyWithLoad,
       recommendedSlots,
