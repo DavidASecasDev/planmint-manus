@@ -20,6 +20,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -544,8 +554,20 @@ export default function Schedules() {
     },
   });
 
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
+
   const handleTogglePublish = () => {
-    publishWeekMutation.mutate({ publish: !weekPublished });
+    if (weekPublished) {
+      // Show confirmation dialog before unpublishing
+      setShowUnpublishConfirm(true);
+    } else {
+      publishWeekMutation.mutate({ publish: true });
+    }
+  };
+
+  const handleConfirmUnpublish = () => {
+    setShowUnpublishConfirm(false);
+    publishWeekMutation.mutate({ publish: false });
   };
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -1024,6 +1046,24 @@ export default function Schedules() {
         </Dialog>
       </div>
     </TooltipProvider>
+
+    {/* Confirmation dialog for unpublishing */}
+    <AlertDialog open={showUnpublishConfirm} onOpenChange={setShowUnpublishConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Despublicar esta semana?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Los empleados dejarán de ver los horarios de esta semana hasta que la vuelvas a publicar. ¿Estás seguro?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmUnpublish} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Despublicar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </AppLayout>
   );
 }
