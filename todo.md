@@ -1074,3 +1074,4 @@
 - [x] TV Operaciones: Barra de progreso del día en el header (completadas/total con porcentaje, dorada normal, verde al 100%)
 - [x] TV Operaciones: Headers de sección y columnas sticky (fijos) mientras solo las filas de operaciones hacen scroll
 - [x] TV Operaciones: Columnas de encabezado (Hora, Tipo, Estado, etc.) fijas fuera del scroll — solo las filas de operaciones se mueven
+- [x] PublicPreparation: Hacer la lista de prioridad más obvia visualmente (numeración grande, orden más claro, diferenciación más marcada entre prioridades)

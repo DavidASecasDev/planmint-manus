@@ -419,101 +419,110 @@ export default function PublicPreparation() {
           </div>
         )}
 
-        {/* ─── Vehicle cards (TV-optimized: large, high contrast) ───────── */}
+        {/* ─── Vehicle cards (TV-optimized: large, high contrast, clear priority) ─ */}
         {items.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {items.map((item) => {
+          <div className="flex flex-col gap-4">
+            {items.map((item, index) => {
               const config = URGENCY_CONFIG[item.urgency];
               const timeLabel = formatDeadlineLabel(item.deadline_at);
               const timeStr = formatDeadlineTime(item.deadline_at);
               const isNew = newItemIds.has(item.id);
+              const isFirst = index === 0;
+              const isTop3 = index < 3;
 
               return (
                 <div
                   key={item.id}
-                  className={`rounded-2xl shadow-sm border-2 overflow-hidden transition-all ${config.pulse ? "animate-pulse" : ""}`}
+                  className={`rounded-2xl overflow-hidden transition-all ${config.pulse ? "animate-pulse" : ""}`}
                   style={{
                     backgroundColor: config.bg,
-                    borderColor: isNew ? config.barColor : config.border,
-                    boxShadow: isNew ? `0 0 20px ${config.barColor}40, 0 0 40px ${config.barColor}20` : undefined,
-                    transform: isNew ? "scale(1.02)" : undefined,
+                    borderLeft: `8px solid ${config.barColor}`,
+                    borderTop: `2px solid ${isNew ? config.barColor : config.border}`,
+                    borderRight: `2px solid ${isNew ? config.barColor : config.border}`,
+                    borderBottom: `2px solid ${isNew ? config.barColor : config.border}`,
+                    boxShadow: isNew
+                      ? `0 0 20px ${config.barColor}40, 0 0 40px ${config.barColor}20`
+                      : isFirst
+                        ? `0 4px 20px ${config.barColor}30`
+                        : "0 2px 8px rgba(0,0,0,0.06)",
+                    transform: isNew ? "scale(1.01)" : undefined,
                   }}
                 >
-                  <div className="flex items-stretch">
-                    {/* Urgency color bar (thick for TV visibility) */}
+                  <div className={`flex items-center ${isFirst ? "px-8 py-6" : isTop3 ? "px-7 py-5" : "px-6 py-4"} gap-5`}>
+                    {/* Priority number - large and prominent */}
                     <div
-                      className="w-3 flex-shrink-0"
-                      style={{ backgroundColor: config.barColor }}
-                    />
+                      className={`flex items-center justify-center flex-shrink-0 rounded-xl font-black ${isFirst ? "h-20 w-20 text-4xl" : isTop3 ? "h-16 w-16 text-3xl" : "h-14 w-14 text-2xl"}`}
+                      style={{
+                        backgroundColor: config.barColor,
+                        color: "#ffffff",
+                        boxShadow: `0 3px 10px ${config.barColor}50`,
+                      }}
+                    >
+                      {index + 1}
+                    </div>
 
-                    <div className="flex-1 px-6 py-5 flex items-center gap-5">
-                      {/* Urgency icon */}
-                      <div
-                        className="flex items-center justify-center h-16 w-16 rounded-2xl flex-shrink-0"
-                        style={{ backgroundColor: `${config.barColor}20` }}
+                    {/* Urgency badge - very visible */}
+                    <div
+                      className={`flex-shrink-0 flex flex-col items-center justify-center rounded-xl ${isFirst ? "px-5 py-3" : "px-4 py-2"}`}
+                      style={{
+                        backgroundColor: `${config.barColor}15`,
+                        border: `3px solid ${config.barColor}`,
+                      }}
+                    >
+                      {item.urgency === "critical" ? (
+                        <AlertTriangle className={`${isFirst ? "h-8 w-8" : "h-6 w-6"} mb-1`} style={{ color: config.barColor }} />
+                      ) : (
+                        <Clock className={`${isFirst ? "h-8 w-8" : "h-6 w-6"} mb-1`} style={{ color: config.barColor }} />
+                      )}
+                      <span
+                        className={`font-black uppercase ${isFirst ? "text-base" : "text-xs"}`}
+                        style={{ color: config.text }}
                       >
-                        {item.urgency === "critical" ? (
-                          <AlertTriangle className="h-9 w-9" style={{ color: config.barColor }} />
-                        ) : (
-                          <Clock className="h-9 w-9" style={{ color: config.barColor }} />
-                        )}
-                      </div>
+                        {config.label}
+                      </span>
+                    </div>
 
-                      {/* Vehicle info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <span
-                            className="font-black text-3xl tracking-wider"
-                            style={{ color: COLORS.navy }}
-                          >
-                            {item.matricula}
-                          </span>
-                          <span
-                            className="text-sm font-bold uppercase px-3 py-1 rounded-lg"
-                            style={{
-                              backgroundColor: `${config.barColor}20`,
-                              color: config.text,
-                              border: `2px solid ${config.border}`,
-                            }}
-                          >
-                            {config.label}
-                          </span>
-                          {isNew && (
-                            <span
-                              className="text-xs font-bold uppercase px-2 py-1 rounded-md animate-bounce"
-                              style={{
-                                backgroundColor: "#10b981",
-                                color: "#ffffff",
-                              }}
-                            >
-                              NUEVO
-                            </span>
-                          )}
-                        </div>
-                        {item.modelo && (
-                          <p className="text-xl font-medium truncate" style={{ color: COLORS.textLight }}>
-                            {item.modelo}
-                          </p>
-                        )}
-                        {item.notes && (
-                          <p className="text-lg mt-1 truncate italic" style={{ color: COLORS.textMuted }}>
-                            {item.notes}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Deadline (large for TV) */}
-                      <div className="flex-shrink-0 text-right">
-                        <p
-                          className="text-3xl font-bold"
-                          style={{ color: config.text }}
+                    {/* Vehicle info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1">
+                        <span
+                          className={`font-black tracking-wider ${isFirst ? "text-4xl" : isTop3 ? "text-3xl" : "text-2xl"}`}
+                          style={{ color: COLORS.navy }}
                         >
-                          {timeLabel}
-                        </p>
-                        <p className="text-xl font-medium mt-1" style={{ color: COLORS.textMuted }}>
-                          {timeStr}
-                        </p>
+                          {item.matricula}
+                        </span>
+                        {isNew && (
+                          <span
+                            className="text-xs font-bold uppercase px-2 py-1 rounded-md animate-bounce"
+                            style={{ backgroundColor: "#10b981", color: "#ffffff" }}
+                          >
+                            NUEVO
+                          </span>
+                        )}
                       </div>
+                      {item.modelo && (
+                        <p className={`font-medium truncate ${isFirst ? "text-xl" : "text-lg"}`} style={{ color: COLORS.textLight }}>
+                          {item.modelo}
+                        </p>
+                      )}
+                      {item.notes && (
+                        <p className="text-base mt-1 truncate italic" style={{ color: COLORS.textMuted }}>
+                          {item.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Deadline (large for TV) */}
+                    <div className="flex-shrink-0 text-right">
+                      <p
+                        className={`font-bold ${isFirst ? "text-4xl" : isTop3 ? "text-3xl" : "text-2xl"}`}
+                        style={{ color: config.text }}
+                      >
+                        {timeLabel}
+                      </p>
+                      <p className={`font-medium mt-1 ${isFirst ? "text-xl" : "text-lg"}`} style={{ color: COLORS.textMuted }}>
+                        {timeStr}
+                      </p>
                     </div>
                   </div>
                 </div>
