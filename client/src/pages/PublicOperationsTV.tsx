@@ -504,6 +504,32 @@ export default function PublicOperationsTV() {
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
             Actualización automática cada 60 segundos
           </p>
+
+          {/* Vehicle status legend */}
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>Estado vehículo:</span>
+            <div className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3" style={{ color: "#34d399" }} />
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Limpio</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Droplets className="w-3 h-3" style={{ color: "#ef4444" }} />
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Sucio</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <CircleDashed className="w-3 h-3" style={{ color: "#f59e0b" }} />
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Incompleto</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Car className="w-3 h-3" style={{ color: "#60a5fa" }} />
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Alquilado</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Car className="w-3 h-3" style={{ color: "#a78bfa" }} />
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>En servicio</span>
+            </div>
+          </div>
+
           {lastUpdated && (
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
               Última actualización: {lastUpdated.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
