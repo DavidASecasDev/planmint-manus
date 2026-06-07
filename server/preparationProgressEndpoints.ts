@@ -145,16 +145,34 @@ async function handleStartPreparation(req: Request, res: Response) {
     const { matricula } = req.body;
     if (!matricula) return res.status(400).json({ ok: false, error: "Missing matricula" });
 
-    // Find the vehicle
-    const { data: vehicle, error: vehicleError } = await sb
+    // Find the vehicle - try without is_archived filter first (some vehicles may have null)
+    const upperMatricula = matricula.toUpperCase().trim();
+    let vehicle: { id: string } | null = null;
+
+    // First try vehicles table (any non-archived)
+    const { data: v1 } = await sb
       .from("vehicles")
       .select("id")
       .eq("organization_id", organizationId)
-      .eq("matricula", matricula.toUpperCase().trim())
-      .eq("is_archived", false)
+      .eq("matricula", upperMatricula)
       .maybeSingle();
 
-    if (vehicleError || !vehicle) {
+    if (v1) {
+      vehicle = v1;
+    } else {
+      // Fallback: try fleet_vehicles
+      const { data: fv } = await sb
+        .from("fleet_vehicles")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("matricula", upperMatricula)
+        .maybeSingle();
+      if (fv) {
+        vehicle = fv;
+      }
+    }
+
+    if (!vehicle) {
       return res.status(404).json({ ok: false, error: "Vehicle not found" });
     }
 
