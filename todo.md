@@ -1081,3 +1081,5 @@
 - [x] TV Operaciones: Leyenda/tooltip explicando el significado de cada icono de estado de limpieza del vehículo
 - [x] TV Preparación: Filtrar vehículos con todas las tareas completadas (no mostrarlos como pendientes)
 - [x] TV Operaciones: Calcular icono de estado basándose en tareas de limpieza reales, no solo en vehicles.status
+- [x] TV Operaciones: Ocultar icono de estado de limpieza en devoluciones (es obvio que están alquilados)
+- [x] Auto-actualizar vehicles.status a 'limpio' cuando se completan todas las tareas de limpieza (trigger SQL en Supabase)

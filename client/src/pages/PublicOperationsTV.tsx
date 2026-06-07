@@ -507,7 +507,7 @@ export default function PublicOperationsTV() {
 
           {/* Vehicle status legend */}
           <div className="flex items-center gap-4">
-            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>Estado vehículo:</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>Estado limpieza:</span>
             <div className="flex items-center gap-1">
               <Sparkles className="w-3 h-3" style={{ color: "#34d399" }} />
               <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Limpio</span>
@@ -520,14 +520,7 @@ export default function PublicOperationsTV() {
               <CircleDashed className="w-3 h-3" style={{ color: "#f59e0b" }} />
               <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Incompleto</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Car className="w-3 h-3" style={{ color: "#60a5fa" }} />
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Alquilado</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Car className="w-3 h-3" style={{ color: "#a78bfa" }} />
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>En servicio</span>
-            </div>
+
           </div>
 
           {lastUpdated && (
@@ -727,7 +720,7 @@ function OperationRow({
       {/* Vehicle */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} />
+          {op.type === "entrega" && <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} />}
           <p
             className={`${compact ? "text-sm" : "text-base"} font-bold truncate`}
             style={{ color: `rgba(255,255,255,${textOpacity})` }}
