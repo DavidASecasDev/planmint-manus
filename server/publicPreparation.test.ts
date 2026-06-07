@@ -17,7 +17,7 @@ function createMockReqRes() {
   return { req, res };
 }
 
-// Helper to create a mock supabase client that handles both queries
+// Helper to create a mock supabase client that handles all queries
 function createMockClient(pendingResult: any, completedCountResult?: any) {
   const completedCount = completedCountResult ?? { count: 0, error: null };
 
@@ -49,6 +49,22 @@ function createMockClient(pendingResult: any, completedCountResult?: any) {
           }),
         };
       }
+    }
+    if (table === "vehicles") {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      };
+    }
+    if (table === "vehicle_cleaning_tasks") {
+      return {
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      };
     }
     return { select: vi.fn() };
   });
@@ -144,6 +160,8 @@ describe("handlePublicPreparation", () => {
       deadline_at: mockItems[0].deadline_at,
       notes: "Urgente",
       urgency: "critical",
+      total_tasks: 0,
+      completed_tasks: 0,
     });
   });
 

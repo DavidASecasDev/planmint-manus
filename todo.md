@@ -1075,3 +1075,5 @@
 - [x] TV Operaciones: Headers de sección y columnas sticky (fijos) mientras solo las filas de operaciones hacen scroll
 - [x] TV Operaciones: Columnas de encabezado (Hora, Tipo, Estado, etc.) fijas fuera del scroll — solo las filas de operaciones se mueven
 - [x] PublicPreparation: Hacer la lista de prioridad más obvia visualmente (numeración grande, orden más claro, diferenciación más marcada entre prioridades)
+- [x] PublicPreparation: Barra de progreso por vehículo mostrando tareas completadas/total (ej. 3/5)
+- [x] PublicPreparation: Animación de entrada sutil para nuevos vehículos (reemplazar bounce por slide-in suave)

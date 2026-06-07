@@ -46,7 +46,43 @@ export async function handlePublicPreparation(req: Request, res: Response) {
       // Non-critical, continue with 0
     }
 
-    // Add urgency level to each item
+    // Get vehicles for these matriculas to fetch task progress
+    const matriculas = (data || []).map((item) => item.matricula);
+    let vehicleTasksMap: Record<string, { total: number; completed: number }> = {};
+
+    if (matriculas.length > 0) {
+      const { data: vehicles } = await sb
+        .from("vehicles")
+        .select("id, matricula")
+        .eq("organization_id", AZUL_CARS_ORG_ID)
+        .in("matricula", matriculas);
+
+      if (vehicles && vehicles.length > 0) {
+        const vehicleIds = vehicles.map((v: any) => v.id);
+        const { data: tasks } = await sb
+          .from("vehicle_cleaning_tasks")
+          .select("vehicle_id, task_key, completed")
+          .in("vehicle_id", vehicleIds);
+
+        if (tasks) {
+          // Build map: matricula -> { total, completed } (excluding inicio_prep)
+          const vehicleIdToMatricula: Record<string, string> = {};
+          for (const v of vehicles) {
+            vehicleIdToMatricula[v.id] = v.matricula;
+          }
+          for (const task of tasks) {
+            if (task.task_key === "inicio_prep") continue;
+            const mat = vehicleIdToMatricula[task.vehicle_id];
+            if (!mat) continue;
+            if (!vehicleTasksMap[mat]) vehicleTasksMap[mat] = { total: 0, completed: 0 };
+            vehicleTasksMap[mat].total++;
+            if (task.completed) vehicleTasksMap[mat].completed++;
+          }
+        }
+      }
+    }
+
+    // Add urgency level and task progress to each item
     const now = Date.now();
     const items = (data || []).map((item) => {
       const diffMs = new Date(item.deadline_at).getTime() - now;
@@ -57,6 +93,8 @@ export async function handlePublicPreparation(req: Request, res: Response) {
       else if (diffHours < 12) urgency = "medium";
       else urgency = "low";
 
+      const taskProgress = vehicleTasksMap[item.matricula] || null;
+
       return {
         id: item.id,
         matricula: item.matricula,
@@ -64,6 +102,8 @@ export async function handlePublicPreparation(req: Request, res: Response) {
         deadline_at: item.deadline_at,
         notes: item.notes,
         urgency,
+        total_tasks: taskProgress?.total ?? 0,
+        completed_tasks: taskProgress?.completed ?? 0,
       };
     });
 

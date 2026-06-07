@@ -69,6 +69,8 @@ interface PreparationItem {
   deadline_at: string;
   notes: string | null;
   urgency: "critical" | "high" | "medium" | "low";
+  total_tasks: number;
+  completed_tasks: number;
 }
 
 function formatDeadlineTime(dateStr: string): string {
@@ -445,7 +447,7 @@ export default function PublicPreparation() {
                       : isFirst
                         ? `0 4px 20px ${config.barColor}30`
                         : "0 2px 8px rgba(0,0,0,0.06)",
-                    transform: isNew ? "scale(1.01)" : undefined,
+                    animation: isNew ? "slideInLeft 0.6s ease-out" : undefined,
                   }}
                 >
                   <div className={`flex items-center ${isFirst ? "px-8 py-6" : isTop3 ? "px-7 py-5" : "px-6 py-4"} gap-5`}>
@@ -493,8 +495,12 @@ export default function PublicPreparation() {
                         </span>
                         {isNew && (
                           <span
-                            className="text-xs font-bold uppercase px-2 py-1 rounded-md animate-bounce"
-                            style={{ backgroundColor: "#10b981", color: "#ffffff" }}
+                            className="text-xs font-bold uppercase px-2 py-1 rounded-md"
+                            style={{
+                              backgroundColor: "#10b981",
+                              color: "#ffffff",
+                              animation: "slideInRight 0.5s ease-out",
+                            }}
                           >
                             NUEVO
                           </span>
@@ -509,6 +515,29 @@ export default function PublicPreparation() {
                         <p className="text-base mt-1 truncate italic" style={{ color: COLORS.textMuted }}>
                           {item.notes}
                         </p>
+                      )}
+                      {/* Task progress bar */}
+                      {item.total_tasks > 0 && (
+                        <div className="mt-2 flex items-center gap-3">
+                          <div
+                            className={`flex-1 rounded-full overflow-hidden ${isFirst ? "h-3" : "h-2.5"}`}
+                            style={{ backgroundColor: `${config.barColor}20` }}
+                          >
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${item.total_tasks > 0 ? (item.completed_tasks / item.total_tasks) * 100 : 0}%`,
+                                backgroundColor: item.completed_tasks === item.total_tasks ? "#10b981" : config.barColor,
+                              }}
+                            />
+                          </div>
+                          <span
+                            className={`font-bold flex-shrink-0 ${isFirst ? "text-base" : "text-sm"}`}
+                            style={{ color: item.completed_tasks === item.total_tasks ? "#10b981" : config.text }}
+                          >
+                            {item.completed_tasks}/{item.total_tasks}
+                          </span>
+                        </div>
                       )}
                     </div>
 
