@@ -339,7 +339,15 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
         profiles: profiles || [],
         dailyCounts,
         teamsWithCustomOrder,
-        weekPublished: true,
+        weekPublished: await (async () => {
+          const { data: ws } = await sb
+            .from("schedule_week_status")
+            .select("status")
+            .eq("organization_id", orgId)
+            .eq("week_start", start_date)
+            .maybeSingle();
+          return (ws?.status || "draft") === "published";
+        })(),
       },
     });
   } catch (err: any) {

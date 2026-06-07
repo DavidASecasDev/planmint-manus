@@ -292,7 +292,7 @@ export default function Schedules() {
         schedules: raw.schedules || [],
         dayStats,
         teamsWithCustomOrder: raw.teamsWithCustomOrder || [],
-        weekPublished: raw.weekPublished ?? true,
+        weekPublished: raw.weekPublished ?? false,
       };
     },
     enabled: !!orgId && sessionReady,
