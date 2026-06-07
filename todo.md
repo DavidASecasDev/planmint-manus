@@ -1086,3 +1086,9 @@
 - [x] Fix is_archived null issue: provide SQL migration + update code filters to handle null
 - [x] Centralize ORG_SLUG_MAP and AZUL_CARS_ORG_ID imports in publicOperationsEndpoint, publicPreparationEndpoint, timelineEndpoint
 - [x] Add EXCLUDED_PLATES filter to publicOperationsEndpoint for consistency with timeline
+- [x] Horarios: Backend - endpoint para obtener/actualizar estado de publicación de semana (schedule_week_status)
+- [x] Horarios: Backend - modificar getWeeklySchedule para filtrar datos si la semana no está publicada (para usuarios sin schedules.manage)
+- [x] Horarios: Frontend - botón Publicar/Despublicar semana visible solo para admins
+- [x] Horarios: Frontend - badge Borrador/Publicado en la cabecera de la semana
+- [x] Horarios: Frontend - mensaje para empleados cuando la semana no está publicada
+- [x] Horarios: Añadir permiso schedules.publish en permissionDefinitions

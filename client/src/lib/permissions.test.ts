@@ -306,10 +306,10 @@ describe('Permission mapping structural integrity', () => {
     expect(fleet!.permissions).toHaveLength(3);
   });
 
-  it('schedules category has 6 permissions', () => {
+  it('schedules category has 7 permissions', () => {
     const schedules = PERMISSION_CATEGORIES.find(c => c.id === 'schedules');
     expect(schedules).toBeDefined();
-    expect(schedules!.permissions).toHaveLength(6);
+    expect(schedules!.permissions).toHaveLength(7);
   });
 
   it('total permission keys count is at least 97', () => {

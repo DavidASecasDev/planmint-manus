@@ -124,6 +124,7 @@ export type PermissionKey =
   | 'schedules.manage_templates'
   | 'schedules.view_directiva'
   | 'schedules.manage_notes'
+  | 'schedules.publish'
   | 'schedules.manage'
   // Preparation
   | 'preparation.view'

@@ -169,6 +169,7 @@ export default function Schedules() {
   const canManageTemplates = hasPermission('schedules.manage_templates');
   const canManage = hasPermission('schedules.manage');
   const canManageNotes = hasPermission('schedules.manage_notes');
+  const canPublish = hasPermission('schedules.publish');
   const canViewDirectiva = hasPermission('schedules.view_directiva');
 
   const capacityPanelRef = useRef<HTMLDivElement>(null);
@@ -220,6 +221,7 @@ export default function Schedules() {
           schedules: ScheduleEntry[];
           dailyCounts: Record<string, { entregas: number; devoluciones: number; transfers: number }>;
           teamsWithCustomOrder?: string[];
+          weekPublished?: boolean;
         };
       }>('get-weekly-schedule', {
         body: { organizationId: orgId, start_date: weekStart, end_date: weekEnd },
@@ -290,6 +292,7 @@ export default function Schedules() {
         schedules: raw.schedules || [],
         dayStats,
         teamsWithCustomOrder: raw.teamsWithCustomOrder || [],
+        weekPublished: raw.weekPublished ?? true,
       };
     },
     enabled: !!orgId && sessionReady,
@@ -320,6 +323,7 @@ export default function Schedules() {
     });
   const schedules = weeklyData?.schedules || [];
   const dayStats = weeklyData?.dayStats || {};
+  const weekPublished = weeklyData?.weekPublished ?? true;
 
   // ─── Schedule Notes (fetched once at parent, passed down) ───────────────
   const { noteLookup, upsertNote, deleteNote } = useScheduleNotes({
@@ -521,6 +525,29 @@ export default function Schedules() {
     },
   });
 
+  // ─── Publish / Unpublish Week ────────────────────────────────────────────
+
+  const publishWeekMutation = useMutation({
+    mutationFn: async (params: { publish: boolean }) => {
+      const res = await apiInvoke('publish-week', {
+        body: { organizationId: orgId, week_start: weekStart, publish: params.publish },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al publicar');
+      return res;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+      toast.success(variables.publish ? 'Semana publicada' : 'Semana despublicada (borrador)');
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleTogglePublish = () => {
+    publishWeekMutation.mutate({ publish: !weekPublished });
+  };
+
   // ─── Handlers ────────────────────────────────────────────────────────────
 
   const handleAssignShift = useCallback((userId: string, date: string, shiftTemplateId: string | null) => {
@@ -648,7 +675,43 @@ export default function Schedules() {
     <TooltipProvider>
       <div className="flex flex-col h-full">
         {/* ── Header ── */}
-        <div className="flex items-center justify-end px-2 py-3">
+        <div className="flex items-center justify-between px-2 py-3">
+          {/* Left: publish status */}
+          <div className="flex items-center gap-2">
+            {!isLoading && (
+              <Badge
+                variant={weekPublished ? 'default' : 'secondary'}
+                className={cn(
+                  'text-xs font-medium',
+                  weekPublished
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                )}
+              >
+                {weekPublished ? 'Publicado' : 'Borrador'}
+              </Badge>
+            )}
+            {canPublish && !isLoading && (
+              <Button
+                variant={weekPublished ? 'outline' : 'default'}
+                size="sm"
+                className="gap-1.5"
+                onClick={handleTogglePublish}
+                disabled={publishWeekMutation.isPending}
+              >
+                {publishWeekMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : weekPublished ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {weekPublished ? 'Despublicar' : 'Publicar'}
+              </Button>
+            )}
+          </div>
+
+          {/* Right: actions */}
           <div className="flex items-center gap-2">
             {/* Copy previous week — requires schedules.manage */}
             {canManage && (
@@ -806,6 +869,14 @@ export default function Schedules() {
               {[1, 2, 3].map(i => (
                 <Skeleton key={i} className="h-32 w-full rounded-xl" />
               ))}
+            </div>
+          ) : !weekPublished && !canManage && !canPublish ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <CalendarClock className="h-12 w-12 text-amber-400/60 mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground">Horarios no publicados</h3>
+              <p className="text-sm text-muted-foreground/60 mt-1">
+                Los horarios de esta semana aún no han sido publicados por el administrador.
+              </p>
             </div>
           ) : teams.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">

@@ -182,6 +182,37 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
       return res.status(400).json({ ok: false, error: "start_date and end_date are required" });
     }
 
+    // Check if user can manage schedules (admins see everything regardless of publish status)
+    const { allowed: canManageSchedules } = await checkUserPermission(sb, orgId, userId, "schedules.manage");
+    const { allowed: canPublishSchedules } = await checkUserPermission(sb, orgId, userId, "schedules.publish");
+    const isScheduleAdmin = canManageSchedules || canPublishSchedules;
+
+    // If user is NOT an admin, check if the week is published
+    if (!isScheduleAdmin) {
+      const { data: weekStatus } = await sb
+        .from("schedule_week_status")
+        .select("status")
+        .eq("organization_id", orgId)
+        .eq("week_start", start_date)
+        .maybeSingle();
+
+      const publishStatus = weekStatus?.status || "draft";
+      if (publishStatus !== "published") {
+        // Return empty data with a flag indicating the week is not published
+        return res.json({
+          ok: true,
+          data: {
+            schedules: [],
+            teamMembers: [],
+            profiles: [],
+            dailyCounts: {},
+            teamsWithCustomOrder: [],
+            weekPublished: false,
+          },
+        });
+      }
+    }
+
     // Get schedules for the date range
     const { data: schedules, error: schedError } = await sb
       .from("staff_schedules")
@@ -308,6 +339,7 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
         profiles: profiles || [],
         dailyCounts,
         teamsWithCustomOrder,
+        weekPublished: true,
       },
     });
   } catch (err: any) {
@@ -826,6 +858,99 @@ export async function handleReorderTeamMembers(req: Request, res: Response) {
   } catch (err: any) {
     if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
     console.error("[reorder-team-members]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+
+// ─── Schedule Week Publication ──────────────────────────────────────────────
+
+/** GET the publication status for a given week */
+export async function handleGetWeekPublishStatus(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    const { allowed: canView } = await checkUserPermission(sb, orgId, userId, "schedules.view");
+    if (!canView) return res.status(403).json({ ok: false, error: "No permission" });
+
+    const { week_start } = req.body;
+    if (!week_start) return res.status(400).json({ ok: false, error: "week_start is required" });
+
+    const { data, error } = await sb
+      .from("schedule_week_status")
+      .select("*")
+      .eq("organization_id", orgId)
+      .eq("week_start", week_start)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    // If no record exists, it's a draft (default)
+    const status = data?.status || "draft";
+    return res.json({
+      ok: true,
+      data: {
+        status,
+        published_at: data?.published_at || null,
+        published_by: data?.published_by || null,
+      },
+    });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[get-week-publish-status]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+/** Publish or unpublish a schedule week */
+export async function handlePublishWeek(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Only users with schedules.publish or schedules.manage can publish
+    const { allowed: canPublish } = await checkUserPermission(sb, orgId, userId, "schedules.publish");
+    const { allowed: canManage } = await checkUserPermission(sb, orgId, userId, "schedules.manage");
+    if (!canPublish && !canManage) {
+      return res.status(403).json({ ok: false, error: "No permission to publish schedules" });
+    }
+
+    const { week_start, action } = req.body; // action: 'publish' | 'unpublish'
+    if (!week_start) return res.status(400).json({ ok: false, error: "week_start is required" });
+    if (!action || !["publish", "unpublish"].includes(action)) {
+      return res.status(400).json({ ok: false, error: "action must be 'publish' or 'unpublish'" });
+    }
+
+    const newStatus = action === "publish" ? "published" : "draft";
+    const publishedAt = action === "publish" ? new Date().toISOString() : null;
+    const publishedBy = action === "publish" ? userId : null;
+
+    const { data, error } = await sb
+      .from("schedule_week_status")
+      .upsert(
+        {
+          organization_id: orgId,
+          week_start,
+          status: newStatus,
+          published_at: publishedAt,
+          published_by: publishedBy,
+        },
+        { onConflict: "organization_id,week_start" }
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({ ok: true, data });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[publish-week]", err);
     return res.status(500).json({ ok: false, error: err.message });
   }
 }
