@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, createContext, useContext } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -1093,6 +1093,11 @@ export default function Schedules() {
 
 // ─── Sortable Row Helpers ────────────────────────────────────────────────────
 
+const SortableRowContext = createContext<{
+  listeners?: Record<string, Function>;
+  attributes?: Record<string, any>;
+}>({});
+
 function SortableMemberRow({ memberId, canDrag, children }: { memberId: string; canDrag: boolean; children: React.ReactNode }) {
   const {
     attributes,
@@ -1104,23 +1109,28 @@ function SortableMemberRow({ memberId, canDrag, children }: { memberId: string; 
   } = useSortable({ id: memberId, disabled: !canDrag });
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative' as const,
-    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.4 : 1,
   };
 
   return (
-    <tr ref={setNodeRef} style={style} {...attributes} {...listeners} className="contents">
-      {children}
-    </tr>
+    <SortableRowContext.Provider value={{ listeners, attributes }}>
+      <tr ref={setNodeRef} style={style} className={cn("group hover:bg-muted/20 transition-colors", isDragging && "bg-muted/30")}>
+        {children}
+      </tr>
+    </SortableRowContext.Provider>
   );
 }
 
 function DragHandle() {
+  const { listeners, attributes } = useContext(SortableRowContext);
   return (
-    <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted/60">
+    <div
+      className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted/60"
+      {...listeners}
+      {...attributes}
+    >
       <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
     </div>
   );
@@ -1325,7 +1335,6 @@ function TeamScheduleGrid({
 
                 return (
                   <SortableMemberRow key={member.id} memberId={member.id} canDrag={!!onDragReorder}>
-                  <tr className="group hover:bg-muted/20 transition-colors">
                     {/* Name cell with drag handle and reorder buttons */}
                     <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 border-r border-border/30">
                       <div className="flex items-center gap-1.5">
@@ -1511,7 +1520,6 @@ function TeamScheduleGrid({
                         {weeklyHours > 0 ? formatHours(weeklyHours) : '—'}
                       </span>
                     </td>
-                  </tr>
                   </SortableMemberRow>
                 );
               })}
