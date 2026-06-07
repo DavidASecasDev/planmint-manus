@@ -720,7 +720,10 @@ function OperationRow({
       {/* Vehicle */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          {op.type === "entrega" && <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} />}
+          {/* Fixed-width slot for status icon to keep matriculas aligned */}
+          <span className={`flex-shrink-0 flex items-center justify-center ${compact ? "w-3.5" : "w-4"}`}>
+            {op.type === "entrega" ? <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} /> : null}
+          </span>
           <p
             className={`${compact ? "text-sm" : "text-base"} font-bold truncate`}
             style={{ color: `rgba(255,255,255,${textOpacity})` }}
@@ -729,7 +732,7 @@ function OperationRow({
           </p>
         </div>
         {op.auto && op.modelo && (
-          <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)", marginLeft: compact ? "18px" : "22px" }}>
+          <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)", marginLeft: compact ? "20px" : "24px" }}>
             {op.modelo}
           </p>
         )}
