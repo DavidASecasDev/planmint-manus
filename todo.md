@@ -1096,3 +1096,4 @@
 - [x] Fix: Publicar semana error "action must be 'publish' or 'unpublish'" - frontend enviaba campo 'publish' (boolean) pero backend esperaba campo 'action' (string)
 - [x] Horarios: Diálogo de confirmación antes de despublicar una semana para evitar accidentes
 - [x] Horarios: Drag & drop para reordenar empleados dentro de cada equipo (solo para usuarios con schedules.assign o schedules.manage)
+- [x] Horarios: DragOverlay para mostrar copia fantasma de la fila del empleado durante el arrastre

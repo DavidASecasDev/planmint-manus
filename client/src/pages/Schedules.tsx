@@ -63,6 +63,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -1195,7 +1197,15 @@ function TeamScheduleGrid({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  const [activeMember, setActiveMember] = useState<StaffMember | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const member = team.members.find(m => m.id === event.active.id);
+    setActiveMember(member || null);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveMember(null);
     const { active, over } = event;
     if (!over || active.id === over.id || !onDragReorder) return;
     const oldIndex = team.members.findIndex(m => m.id === active.id);
@@ -1241,7 +1251,7 @@ function TeamScheduleGrid({
       </div>
 
       <CardContent className="p-0">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
@@ -1583,6 +1593,22 @@ function TeamScheduleGrid({
             </tfoot>
           </table>
         </div>
+        <DragOverlay dropAnimation={null}>
+          {activeMember && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg shadow-xl">
+              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+                  {getInitials(activeMember.name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium">{activeMember.name}</span>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {formatHours(memberWeeklyHours.get(activeMember.id) || 0)}
+              </span>
+            </div>
+          )}
+        </DragOverlay>
         </DndContext>
       </CardContent>
     </Card>
