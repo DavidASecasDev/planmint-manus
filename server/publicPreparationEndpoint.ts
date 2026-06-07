@@ -83,8 +83,9 @@ export async function handlePublicPreparation(req: Request, res: Response) {
     }
 
     // Add urgency level and task progress to each item
+    // Filter out vehicles that have ALL tasks completed (they are effectively "limpio")
     const now = Date.now();
-    const items = (data || []).map((item) => {
+    const allItems = (data || []).map((item) => {
       const diffMs = new Date(item.deadline_at).getTime() - now;
       const diffHours = diffMs / (1000 * 60 * 60);
       let urgency: "critical" | "high" | "medium" | "low";
@@ -107,11 +108,22 @@ export async function handlePublicPreparation(req: Request, res: Response) {
       };
     });
 
+    // Exclude items where all tasks are completed (total > 0 && completed === total)
+    const items = allItems.filter((item) => {
+      if (item.total_tasks > 0 && item.completed_tasks >= item.total_tasks) {
+        return false; // All tasks done = vehicle is clean, don't show as pending
+      }
+      return true;
+    });
+
+    // Count filtered-out items as effectively completed today too
+    const autoCompletedCount = allItems.length - items.length;
+
     return res.json({
       ok: true,
       items,
       count: items.length,
-      completed_today: completedToday ?? 0,
+      completed_today: (completedToday ?? 0) + autoCompletedCount,
     });
   } catch (err: any) {
     console.error("[public-preparation] Error:", err?.message);

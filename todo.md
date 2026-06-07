@@ -1079,3 +1079,5 @@
 - [x] PublicPreparation: Animación de entrada sutil para nuevos vehículos (reemplazar bounce por slide-in suave)
 - [x] TV Operaciones: Indicador de estado de limpieza del vehículo (icono verde=limpio, ámbar=incompleto, rojo=sucio) junto a la matrícula
 - [x] TV Operaciones: Leyenda/tooltip explicando el significado de cada icono de estado de limpieza del vehículo
+- [x] TV Preparación: Filtrar vehículos con todas las tareas completadas (no mostrarlos como pendientes)
+- [x] TV Operaciones: Calcular icono de estado basándose en tareas de limpieza reales, no solo en vehicles.status

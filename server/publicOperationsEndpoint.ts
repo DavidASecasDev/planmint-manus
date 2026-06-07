@@ -130,17 +130,57 @@ export async function handlePublicOperations(req: Request, res: Response) {
     }
 
     // ─── Fetch vehicle statuses for cleanliness indicator ─────────────────────
-    // Build a map: matricula (uppercase) -> status
+    // Build a map: matricula (uppercase) -> effective status
+    // Uses task-based logic: if all cleaning tasks are completed -> "limpio"
+    // Otherwise falls back to vehicles.status
     const vehicleStatusMap = new Map<string, string>();
     const { data: allVehicles } = await serviceClient
       .from("vehicles")
-      .select("matricula, status")
+      .select("id, matricula, status")
       .eq("organization_id", organizationId)
       .eq("is_archived", false);
-    if (allVehicles) {
+
+    if (allVehicles && allVehicles.length > 0) {
+      // First set base status from vehicles table
       for (const v of allVehicles) {
         if (v.matricula && v.status) {
           vehicleStatusMap.set(v.matricula.toUpperCase().trim(), v.status);
+        }
+      }
+
+      // Now fetch cleaning tasks to override status for vehicles with all tasks done
+      const vehicleIds = allVehicles.map((v: any) => v.id);
+      const { data: cleaningTasks } = await serviceClient
+        .from("vehicle_cleaning_tasks")
+        .select("vehicle_id, task_key, completed")
+        .in("vehicle_id", vehicleIds);
+
+      if (cleaningTasks && cleaningTasks.length > 0) {
+        // Build map: vehicle_id -> { total, completed } (excluding inicio_prep)
+        const taskProgressByVehicle = new Map<string, { total: number; completed: number }>();
+        for (const task of cleaningTasks) {
+          if (task.task_key === "inicio_prep") continue;
+          const progress = taskProgressByVehicle.get(task.vehicle_id) || { total: 0, completed: 0 };
+          progress.total++;
+          if (task.completed) progress.completed++;
+          taskProgressByVehicle.set(task.vehicle_id, progress);
+        }
+
+        // Override status: if all tasks completed -> "limpio", if some -> "incompleto"
+        for (const v of allVehicles) {
+          if (!v.matricula) continue;
+          const progress = taskProgressByVehicle.get(v.id);
+          if (!progress || progress.total === 0) continue; // No tasks = keep original status
+          const key = v.matricula.toUpperCase().trim();
+          const currentStatus = vehicleStatusMap.get(key);
+          // Only override for sucio/incompleto vehicles (not alquilado/en_servicio)
+          if (currentStatus === "sucio" || currentStatus === "incompleto") {
+            if (progress.completed >= progress.total) {
+              vehicleStatusMap.set(key, "limpio");
+            } else if (progress.completed > 0) {
+              vehicleStatusMap.set(key, "incompleto");
+            }
+          }
         }
       }
     }
