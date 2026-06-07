@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getServiceClient } from "./supabaseAdmin";
+import { AZUL_CARS_ORG_ID } from "../shared/const";
 
 /**
  * Public Preparation List Endpoint
@@ -10,9 +11,6 @@ import { getServiceClient } from "./supabaseAdmin";
  * Also returns the count of items completed today for motivation.
  * No authentication required. Minimal data exposed (matricula, modelo, deadline, notes, urgency).
  */
-
-// Hardcoded Azul Cars org ID (same as in publicOperationsEndpoint.ts)
-const AZUL_CARS_ORG_ID = "a23a0d42-5af7-4cda-9955-569c10cc6714";
 
 export async function handlePublicPreparation(req: Request, res: Response) {
   try {

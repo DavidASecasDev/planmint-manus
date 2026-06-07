@@ -66,7 +66,7 @@ async function handleAddPreparationItem(req: Request, res: Response) {
       .select("status")
       .eq("organization_id", organizationId)
       .eq("matricula", matricula.toUpperCase().trim())
-      .eq("is_archived", false)
+      .or("is_archived.eq.false,is_archived.is.null")
       .maybeSingle();
 
     if (vehicleData) {

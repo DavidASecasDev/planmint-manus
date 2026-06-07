@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getServiceClient } from "./supabaseAdmin";
 import { getRentlyCredentials, getRentlyToken } from "./rentlyHub";
+import { ORG_SLUG_MAP, EXCLUDED_PLATES as EXCLUDED_PLATES_ARRAY } from "../shared/const";
 
 /**
  * Timeline Endpoint
@@ -14,12 +15,8 @@ import { getRentlyCredentials, getRentlyToken } from "./rentlyHub";
  * Authenticated version (via /api/timeline): full data with client names
  */
 
-const ORG_SLUG_MAP: Record<string, string> = {
-  "azul-ops": "a23a0d42-5af7-4cda-9955-569c10cc6714",
-};
-
-// Plates to exclude from Rently auto-discovery (archived/dummy vehicles)
-const EXCLUDED_PLATES = new Set(["6513MFG"]);
+// Convert array to Set for O(1) lookup in loops
+const EXCLUDED_PLATES = new Set(EXCLUDED_PLATES_ARRAY);
 
 // Color mapping for reservation statuses (matching Rently)
 // Custom category display order (as defined by the business)
@@ -329,7 +326,7 @@ export async function handlePublicTimeline(req: Request, res: Response) {
       .from("vehicles")
       .select("id, matricula, modelo, categoria, fleet_vehicle_id, status")
       .eq("organization_id", organizationId)
-      .eq("is_archived", false)
+      .or("is_archived.eq.false,is_archived.is.null")
       .order("matricula", { ascending: true });
 
     if (vehError) {
@@ -591,7 +588,7 @@ export async function handleAuthenticatedTimeline(req: Request, res: Response) {
       .from("vehicles")
       .select("id, matricula, modelo, categoria, fleet_vehicle_id, status")
       .eq("organization_id", organizationId)
-      .eq("is_archived", false)
+      .or("is_archived.eq.false,is_archived.is.null")
       .order("matricula", { ascending: true });
 
     if (vehError) {

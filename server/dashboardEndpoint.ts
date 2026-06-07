@@ -56,7 +56,7 @@ export async function handleGetOperationalDashboard(
         .from("vehicles")
         .select("status")
         .eq("organization_id", orgId)
-        .eq("is_archived", false),
+        .or("is_archived.eq.false,is_archived.is.null"),
       // 2. Active reservations count (not cancelled, not terminated, not archived)
       serviceClient
         .from("reservations")
@@ -118,7 +118,7 @@ export async function handleGetOperationalDashboard(
         .from("tasks")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", orgId)
-        .eq("is_archived", false)
+        .or("is_archived.eq.false,is_archived.is.null")
         .is("deleted_at", null)
         .in("status", ["pending", "in_progress"])
         .eq("priority", "urgent"),
@@ -127,7 +127,7 @@ export async function handleGetOperationalDashboard(
         .from("tasks")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", orgId)
-        .eq("is_archived", false)
+        .or("is_archived.eq.false,is_archived.is.null")
         .is("deleted_at", null)
         .in("status", ["pending", "in_progress"]),
       // 11. All dirty/incomplete vehicles
@@ -135,7 +135,7 @@ export async function handleGetOperationalDashboard(
         .from("vehicles")
         .select("id, matricula, modelo, status")
         .eq("organization_id", orgId)
-        .eq("is_archived", false)
+        .or("is_archived.eq.false,is_archived.is.null")
         .in("status", ["sucio", "incompleto"]),
       // 12. Upcoming reservations with vehicle info (for cross-referencing prep)
       serviceClient

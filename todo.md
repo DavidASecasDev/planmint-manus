@@ -1083,3 +1083,6 @@
 - [x] TV Operaciones: Calcular icono de estado basándose en tareas de limpieza reales, no solo en vehicles.status
 - [x] TV Operaciones: Ocultar icono de estado de limpieza en devoluciones (es obvio que están alquilados)
 - [x] Auto-actualizar vehicles.status a 'limpio' cuando se completan todas las tareas de limpieza (trigger SQL en Supabase)
+- [x] Fix is_archived null issue: provide SQL migration + update code filters to handle null
+- [x] Centralize ORG_SLUG_MAP and AZUL_CARS_ORG_ID imports in publicOperationsEndpoint, publicPreparationEndpoint, timelineEndpoint
+- [x] Add EXCLUDED_PLATES filter to publicOperationsEndpoint for consistency with timeline

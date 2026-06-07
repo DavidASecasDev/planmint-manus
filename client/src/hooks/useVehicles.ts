@@ -34,7 +34,7 @@ export function useVehicles() {
         .from('vehicles')
         .select('*')
         .eq('organization_id', orgId)
-        .eq('is_archived', false)
+        .or('is_archived.eq.false,is_archived.is.null')
         .order('matricula', { ascending: true });
 
       if (vehiclesError) throw vehiclesError;

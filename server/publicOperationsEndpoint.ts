@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getServiceClient } from "./supabaseAdmin";
+import { ORG_SLUG_MAP, EXCLUDED_PLATES } from "../shared/const";
 
 /**
  * Public Operations Endpoint
@@ -14,11 +15,6 @@ import { getServiceClient } from "./supabaseAdmin";
  * 
  * No authentication required. No sensitive data exposed.
  */
-
-// Mapping of org slugs to org IDs (simple approach - could be a DB table later)
-const ORG_SLUG_MAP: Record<string, string> = {
-  "azul-ops": "a23a0d42-5af7-4cda-9955-569c10cc6714",
-};
 
 interface HourlyOperation {
   hour: number;
@@ -138,7 +134,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       .from("vehicles")
       .select("id, matricula, status")
       .eq("organization_id", organizationId)
-      .eq("is_archived", false);
+      .or("is_archived.eq.false,is_archived.is.null");
 
     if (allVehicles && allVehicles.length > 0) {
       // First set base status from vehicles table
@@ -204,6 +200,10 @@ export async function handlePublicOperations(req: Request, res: Response) {
     }> = [];
 
     for (const r of reservations || []) {
+      // Skip excluded plates (dummy/test vehicles)
+      const plate = (r.auto || "").toUpperCase().trim();
+      if (EXCLUDED_PLATES.includes(plate)) continue;
+
       // Check if delivery is on target date
       const desdeDate = r.confirmed_entrega_datetime?.substring(0, 10) || r.desde?.substring(0, 10);
       if (desdeDate === targetDate) {
@@ -328,7 +328,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       .from("vehicles")
       .select("id, modelo, categoria, status, fleet_vehicle_id")
       .eq("organization_id", organizationId)
-      .eq("is_archived", false);
+      .or("is_archived.eq.false,is_archived.is.null");
 
     // Fetch fleet_vehicles to get marca for each vehicle
     let fleetMarcaMap = new Map<string, string>();
