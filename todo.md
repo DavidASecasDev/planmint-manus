@@ -1092,3 +1092,4 @@
 - [x] Horarios: Frontend - badge Borrador/Publicado en la cabecera de la semana
 - [x] Horarios: Frontend - mensaje para empleados cuando la semana no está publicada
 - [x] Horarios: Añadir permiso schedules.publish en permissionDefinitions
+- [x] Fix: Botón Publicar no visible - cambiar condición a schedules.manage OR schedules.publish (no requiere permiso separado en BD)

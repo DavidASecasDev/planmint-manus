@@ -691,7 +691,7 @@ export default function Schedules() {
                 {weekPublished ? 'Publicado' : 'Borrador'}
               </Badge>
             )}
-            {canPublish && !isLoading && (
+            {(canPublish || canManage) && !isLoading && (
               <Button
                 variant={weekPublished ? 'outline' : 'default'}
                 size="sm"
