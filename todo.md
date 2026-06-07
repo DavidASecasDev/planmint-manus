@@ -1093,3 +1093,4 @@
 - [x] Horarios: Frontend - mensaje para empleados cuando la semana no está publicada
 - [x] Horarios: Añadir permiso schedules.publish en permissionDefinitions
 - [x] Fix: Botón Publicar no visible - cambiar condición a schedules.manage OR schedules.publish (no requiere permiso separado en BD)
+- [x] Fix: Publicar semana error "action must be 'publish' or 'unpublish'" - frontend enviaba campo 'publish' (boolean) pero backend esperaba campo 'action' (string)

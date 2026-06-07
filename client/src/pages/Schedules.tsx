@@ -530,7 +530,7 @@ export default function Schedules() {
   const publishWeekMutation = useMutation({
     mutationFn: async (params: { publish: boolean }) => {
       const res = await apiInvoke('publish-week', {
-        body: { organizationId: orgId, week_start: weekStart, publish: params.publish },
+        body: { organizationId: orgId, week_start: weekStart, action: params.publish ? 'publish' : 'unpublish' },
       });
       if (res.error) throw new Error(res.error.message || 'Error al publicar');
       return res;
