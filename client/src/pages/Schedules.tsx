@@ -52,9 +52,25 @@ import {
   AlertTriangle,
   ChevronDown,
   ArrowUpDown,
+  GripVertical,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { WeeklyCapacityPanel } from '@/components/WeeklyCapacityPanel';
 import { useScheduleNotes } from '@/hooks/useScheduleNotes';
 import type { ScheduleNote } from '@/hooks/useScheduleNotes';
@@ -408,6 +424,10 @@ export default function Schedules() {
     [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
     const ordered_user_ids = newMembers.map(m => m.id);
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
+  };
+
+  const handleDragReorder = (teamId: string, orderedUserIds: string[]) => {
+    reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
   };
 
   const createTemplateMutation = useMutation({
@@ -922,7 +942,8 @@ export default function Schedules() {
                   onSelectCell={setSelectedCell}
                   onAssignShift={handleAssignShift}
                   canAssign={canAssign}
-                  onReorderMember={canAssign ? handleReorderMember : undefined}
+                  onReorderMember={(canAssign || canManage) ? handleReorderMember : undefined}
+                  onDragReorder={(canAssign || canManage) ? handleDragReorder : undefined}
                   canManageNotes={canManageNotes}
                   noteLookup={noteLookup}
                   onSaveNote={handleSaveNote}
@@ -1068,6 +1089,41 @@ export default function Schedules() {
   );
 }
 
+// ─── Sortable Row Helpers ────────────────────────────────────────────────────
+
+function SortableMemberRow({ memberId, canDrag, children }: { memberId: string; canDrag: boolean; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: memberId, disabled: !canDrag });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative' as const,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} {...attributes} {...listeners} className="contents">
+      {children}
+    </tr>
+  );
+}
+
+function DragHandle() {
+  return (
+    <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted/60">
+      <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+    </div>
+  );
+}
+
 // ─── Team Schedule Grid ──────────────────────────────────────────────────────
 
 interface TeamScheduleGridProps {
@@ -1081,6 +1137,7 @@ interface TeamScheduleGridProps {
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
+  onDragReorder?: (teamId: string, orderedUserIds: string[]) => void;
   canManageNotes: boolean;
   noteLookup: Map<string, ScheduleNote>;
   onSaveNote: (date: string, content: string, userId: string) => void;
@@ -1100,6 +1157,7 @@ function TeamScheduleGrid({
   onAssignShift,
   canAssign,
   onReorderMember,
+  onDragReorder,
   canManageNotes,
   noteLookup,
   onSaveNote,
@@ -1131,6 +1189,23 @@ function TeamScheduleGrid({
     memberWeeklyHours.forEach(h => { total += h; });
     return total;
   }, [memberWeeklyHours]);
+
+  // DnD sensors for drag-and-drop reordering
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onDragReorder) return;
+    const oldIndex = team.members.findIndex(m => m.id === active.id);
+    const newIndex = team.members.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(team.members, oldIndex, newIndex);
+    onDragReorder(team.team_id, reordered.map(m => m.id));
+  };
+
+  const memberIds = useMemo(() => team.members.map(m => m.id), [team.members]);
 
   return (
     <Card className="overflow-hidden border-border/40">
@@ -1166,6 +1241,7 @@ function TeamScheduleGrid({
       </div>
 
       <CardContent className="p-0">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
@@ -1230,6 +1306,7 @@ function TeamScheduleGrid({
                 </th>
               </tr>
             </thead>
+            <SortableContext items={memberIds} strategy={verticalListSortingStrategy}>
             <tbody>
               {team.members.map((member, memberIndex) => {
                 const weeklyHours = memberWeeklyHours.get(member.id) || 0;
@@ -1237,12 +1314,17 @@ function TeamScheduleGrid({
                 const isLast = memberIndex === team.members.length - 1;
 
                 return (
-                  <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
-                    {/* Name cell with reorder buttons */}
+                  <SortableMemberRow key={member.id} memberId={member.id} canDrag={!!onDragReorder}>
+                  <tr className="group hover:bg-muted/20 transition-colors">
+                    {/* Name cell with drag handle and reorder buttons */}
                     <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 border-r border-border/30">
                       <div className="flex items-center gap-1.5">
-                        {/* Reorder buttons — visible on hover */}
-                        {onReorderMember && team.members.length > 1 && (
+                        {/* Drag handle — visible on hover when DnD is enabled */}
+                        {onDragReorder && team.members.length > 1 && (
+                          <DragHandle />
+                        )}
+                        {/* Reorder buttons — visible on hover (fallback for non-DnD) */}
+                        {onReorderMember && !onDragReorder && team.members.length > 1 && (
                           <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => onReorderMember(team.team_id, team.members, memberIndex, 'up')}
@@ -1420,6 +1502,7 @@ function TeamScheduleGrid({
                       </span>
                     </td>
                   </tr>
+                  </SortableMemberRow>
                 );
               })}
               {team.members.length === 0 && (
@@ -1431,6 +1514,7 @@ function TeamScheduleGrid({
               )}
 
             </tbody>
+            </SortableContext>
             {/* Staff count summary row with tooltips */}
             <tfoot>
               <tr className="bg-muted/30 border-t border-border/40">
@@ -1499,6 +1583,7 @@ function TeamScheduleGrid({
             </tfoot>
           </table>
         </div>
+        </DndContext>
       </CardContent>
     </Card>
   );
