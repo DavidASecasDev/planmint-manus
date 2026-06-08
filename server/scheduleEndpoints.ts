@@ -962,3 +962,153 @@ export async function handlePublishWeek(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: err.message });
   }
 }
+
+
+// ─── Swap Schedules Between Two Users ──────────────────────────────────────
+
+/**
+ * POST /api/swap-user-schedules
+ * Swaps all schedule entries (shifts) between two users for a given date range.
+ * This is used when reordering: the name moves but the shifts stay in their row.
+ * Body: { user_a_id, user_b_id, start_date, end_date }
+ */
+export async function handleSwapUserSchedules(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Permission: schedules.manage or schedules.assign
+    const { allowed: canManage } = await checkUserPermission(sb, orgId, userId, "schedules.assign");
+    if (!canManage) return res.status(403).json({ ok: false, error: "No permission to manage schedules" });
+
+    const { user_a_id, user_b_id, start_date, end_date } = req.body;
+    if (!user_a_id || !user_b_id || !start_date || !end_date) {
+      return res.status(400).json({ ok: false, error: "user_a_id, user_b_id, start_date, and end_date are required" });
+    }
+
+    if (user_a_id === user_b_id) {
+      return res.json({ ok: true, message: "Same user, nothing to swap" });
+    }
+
+    // Fetch all schedules for both users in the date range
+    const { data: schedulesA, error: errA } = await sb
+      .from("staff_schedules")
+      .select("*")
+      .eq("organization_id", orgId)
+      .eq("user_id", user_a_id)
+      .gte("date", start_date)
+      .lte("date", end_date);
+
+    if (errA) throw errA;
+
+    const { data: schedulesB, error: errB } = await sb
+      .from("staff_schedules")
+      .select("*")
+      .eq("organization_id", orgId)
+      .eq("user_id", user_b_id)
+      .gte("date", start_date)
+      .lte("date", end_date);
+
+    if (errB) throw errB;
+
+    const now = new Date().toISOString();
+
+    // Build maps by date for easy lookup
+    const mapA = new Map<string, any>();
+    for (const s of (schedulesA || [])) mapA.set(s.date, s);
+
+    const mapB = new Map<string, any>();
+    for (const s of (schedulesB || [])) mapB.set(s.date, s);
+
+    // Collect all dates involved
+    const allDates = new Set<string>();
+    for (const s of (schedulesA || [])) allDates.add(s.date);
+    for (const s of (schedulesB || [])) allDates.add(s.date);
+
+    // For each date, swap the shift_template_id and team_id between users
+    const upsertRows: any[] = [];
+    const deleteRows: { user_id: string; date: string }[] = [];
+
+    for (const date of Array.from(allDates)) {
+      const entryA = mapA.get(date);
+      const entryB = mapB.get(date);
+
+      if (entryA && entryB) {
+        // Both have entries: swap shift_template_id and team_id
+        upsertRows.push({
+          organization_id: orgId,
+          user_id: user_a_id,
+          date,
+          shift_template_id: entryB.shift_template_id,
+          team_id: entryB.team_id,
+          notes: entryB.notes,
+          created_by: userId,
+          updated_at: now,
+        });
+        upsertRows.push({
+          organization_id: orgId,
+          user_id: user_b_id,
+          date,
+          shift_template_id: entryA.shift_template_id,
+          team_id: entryA.team_id,
+          notes: entryA.notes,
+          created_by: userId,
+          updated_at: now,
+        });
+      } else if (entryA && !entryB) {
+        // A has entry, B doesn't: move A's shift to B, delete A's
+        upsertRows.push({
+          organization_id: orgId,
+          user_id: user_b_id,
+          date,
+          shift_template_id: entryA.shift_template_id,
+          team_id: entryA.team_id,
+          notes: entryA.notes,
+          created_by: userId,
+          updated_at: now,
+        });
+        deleteRows.push({ user_id: user_a_id, date });
+      } else if (!entryA && entryB) {
+        // B has entry, A doesn't: move B's shift to A, delete B's
+        upsertRows.push({
+          organization_id: orgId,
+          user_id: user_a_id,
+          date,
+          shift_template_id: entryB.shift_template_id,
+          team_id: entryB.team_id,
+          notes: entryB.notes,
+          created_by: userId,
+          updated_at: now,
+        });
+        deleteRows.push({ user_id: user_b_id, date });
+      }
+    }
+
+    // Execute upserts
+    if (upsertRows.length > 0) {
+      const { error: upsertErr } = await sb
+        .from("staff_schedules")
+        .upsert(upsertRows, { onConflict: "organization_id,user_id,date" });
+      if (upsertErr) throw upsertErr;
+    }
+
+    // Execute deletes (for cases where one user had a shift and the other didn't)
+    for (const del of deleteRows) {
+      const { error: delErr } = await sb
+        .from("staff_schedules")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("user_id", del.user_id)
+        .eq("date", del.date);
+      if (delErr) throw delErr;
+    }
+
+    return res.json({ ok: true, swapped_dates: allDates.size });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[swap-user-schedules]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}

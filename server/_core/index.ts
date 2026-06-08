@@ -115,6 +115,7 @@ import {
   handleBulkUpsertSchedules,
   handleGetAvailableStaff,
   handleReorderTeamMembers,
+  handleSwapUserSchedules,
   handleGetScheduleNotes,
   handleUpsertScheduleNote,
   handleDeleteScheduleNote,
@@ -311,6 +312,7 @@ async function startServer() {
   app.post("/api/upsert-schedule", handleUpsertSchedule);
   app.post("/api/bulk-upsert-schedules", handleBulkUpsertSchedules);
   app.post("/api/reorder-team-members", handleReorderTeamMembers);
+  app.post("/api/swap-user-schedules", handleSwapUserSchedules);
   app.post("/api/get-week-publish-status", handleGetWeekPublishStatus);
   app.post("/api/publish-week", handlePublishWeek);
   app.post("/api/get-schedule-notes", handleGetScheduleNotes);
