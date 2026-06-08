@@ -1107,3 +1107,5 @@
 - [x] Feature: Botón "Deshacer" temporal (toast) tras intercambiar horarios al reordenar, que permita revertir el swap durante unos segundos
 - [x] Fix: Reordenar empleados debe ser SOLO visual (mover nombres), sin intercambiar horarios — eliminar swap logic completamente
 - [x] Fix: Restaurar swap de horarios al reordenar — al mover un nombre, los turnos se intercambian en la BD para que queden fijos en su posición de fila
+- [x] Feature: Drag & drop multi-posición — al arrastrar más de una posición, rotar horarios de todas las posiciones intermedias (no solo swap con destino)
+- [x] Feature: Indicador visual durante drag mostrando qué horarios heredará el empleado en su nueva posición

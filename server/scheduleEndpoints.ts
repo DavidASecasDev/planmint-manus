@@ -1112,3 +1112,132 @@ export async function handleSwapUserSchedules(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: err.message });
   }
 }
+
+
+// ─── Rotate Schedules Among Multiple Users ──────────────────────────────────────
+
+/**
+ * POST /api/rotate-user-schedules
+ * Rotates schedule entries among a list of users for a given date range.
+ * Used when dragging a user multiple positions: all intermediate users' shifts rotate.
+ * 
+ * Example: if user_ids = [A, B, C, D] (the new order after drag),
+ * and the drag moved the user from position 3 (D) to position 0:
+ * - A gets B's old shifts
+ * - B gets C's old shifts  
+ * - C gets D's old shifts
+ * - D gets A's old shifts (the dragged user inherits the first position's shifts)
+ *
+ * Body: { user_ids: string[], start_date: string, end_date: string }
+ * user_ids should be the list of users whose schedules need to be rotated,
+ * in their ORIGINAL order (before the drag). The rotation shifts each user's
+ * schedule to the next user in the list, with the last user getting the first user's schedule.
+ */
+export async function handleRotateUserSchedules(req: Request, res: Response) {
+  try {
+    const { userId, organizationId: orgId } = await authenticateSupabaseRequest(req.headers.authorization);
+    if (!orgId) return res.status(400).json({ ok: false, error: "No organization" });
+
+    const sb = getServiceClient();
+
+    // Permission: schedules.assign
+    const { allowed: canManage } = await checkUserPermission(sb, orgId, userId, "schedules.assign");
+    if (!canManage) return res.status(403).json({ ok: false, error: "No permission to manage schedules" });
+
+    const { user_ids, start_date, end_date } = req.body;
+    if (!Array.isArray(user_ids) || user_ids.length < 2 || !start_date || !end_date) {
+      return res.status(400).json({ ok: false, error: "user_ids (array of 2+), start_date, and end_date are required" });
+    }
+
+    // If only 2 users, delegate to swap logic
+    if (user_ids.length === 2) {
+      // Reuse swap logic inline
+      const [user_a_id, user_b_id] = user_ids;
+      req.body = { user_a_id, user_b_id, start_date, end_date };
+      return handleSwapUserSchedules(req, res);
+    }
+
+    // Fetch all schedules for all involved users in the date range
+    const { data: allSchedules, error: fetchErr } = await sb
+      .from("staff_schedules")
+      .select("*")
+      .eq("organization_id", orgId)
+      .in("user_id", user_ids)
+      .gte("date", start_date)
+      .lte("date", end_date);
+
+    if (fetchErr) throw fetchErr;
+
+    // Build a map: user_id -> date -> schedule entry
+    const scheduleMap = new Map<string, Map<string, any>>();
+    for (const uid of user_ids) {
+      scheduleMap.set(uid, new Map());
+    }
+    for (const s of (allSchedules || [])) {
+      const userMap = scheduleMap.get(s.user_id);
+      if (userMap) userMap.set(s.date, s);
+    }
+
+    // Collect all dates involved
+    const allDates = new Set<string>();
+    for (const s of (allSchedules || [])) allDates.add(s.date);
+
+    const now = new Date().toISOString();
+    const upsertRows: any[] = [];
+    const deleteRows: { user_id: string; date: string }[] = [];
+
+    // Rotation: user_ids[0] gets user_ids[1]'s shifts, user_ids[1] gets user_ids[2]'s shifts, ..., last gets first's shifts
+    // This means: each user at position i gets the shifts from user at position (i+1) % length
+    for (const date of Array.from(allDates)) {
+      for (let i = 0; i < user_ids.length; i++) {
+        const targetUserId = user_ids[i]; // This user will receive...
+        const sourceUserId = user_ids[(i + 1) % user_ids.length]; // ...this user's shifts
+        const sourceEntry = scheduleMap.get(sourceUserId)?.get(date);
+
+        if (sourceEntry) {
+          upsertRows.push({
+            organization_id: orgId,
+            user_id: targetUserId,
+            date,
+            shift_template_id: sourceEntry.shift_template_id,
+            team_id: sourceEntry.team_id,
+            notes: sourceEntry.notes,
+            created_by: userId,
+            updated_at: now,
+          });
+        } else {
+          // Source has no entry for this date: delete target's entry if it exists
+          const targetEntry = scheduleMap.get(targetUserId)?.get(date);
+          if (targetEntry) {
+            deleteRows.push({ user_id: targetUserId, date });
+          }
+        }
+      }
+    }
+
+    // Execute upserts
+    if (upsertRows.length > 0) {
+      const { error: upsertErr } = await sb
+        .from("staff_schedules")
+        .upsert(upsertRows, { onConflict: "organization_id,user_id,date" });
+      if (upsertErr) throw upsertErr;
+    }
+
+    // Execute deletes
+    for (const del of deleteRows) {
+      const { error: delErr } = await sb
+        .from("staff_schedules")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("user_id", del.user_id)
+        .eq("date", del.date);
+      if (delErr) throw delErr;
+    }
+
+    return res.json({ ok: true, rotated_users: user_ids.length, rotated_dates: allDates.size });
+  } catch (err: any) {
+    if (err instanceof AuthError) return res.status(401).json({ ok: false, error: err.message });
+    console.error("[rotate-user-schedules]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
