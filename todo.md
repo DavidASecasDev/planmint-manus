@@ -1106,3 +1106,4 @@
 - [x] Fix: Al reordenar empleados en Horarios (drag & drop), solo debe moverse el nombre/posición, los turnos asignados deben quedarse fijos en su fila original
 - [x] Feature: Botón "Deshacer" temporal (toast) tras intercambiar horarios al reordenar, que permita revertir el swap durante unos segundos
 - [x] Fix: Reordenar empleados debe ser SOLO visual (mover nombres), sin intercambiar horarios — eliminar swap logic completamente
+- [x] Fix: Restaurar swap de horarios al reordenar — al mover un nombre, los turnos se intercambian en la BD para que queden fijos en su posición de fila

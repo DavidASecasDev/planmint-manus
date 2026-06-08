@@ -418,18 +418,49 @@ export default function Schedules() {
     },
   });
 
+  // Mutation to swap schedules between two users for the current week
+  // This ensures that when names are reordered, the shifts stay in their row positions
+  const swapSchedulesMutation = useMutation({
+    mutationFn: async (params: { user_a_id: string; user_b_id: string }) => {
+      const res = await apiInvoke('swap-user-schedules', {
+        body: {
+          user_a_id: params.user_a_id,
+          user_b_id: params.user_b_id,
+          start_date: weekStart,
+          end_date: weekEnd,
+        },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al intercambiar horarios');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
   const handleReorderMember = (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => {
     const newMembers = [...members];
     const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
     if (targetIndex < 0 || targetIndex >= newMembers.length) return;
-    // Only change visual order — shifts stay in their row positions
+    const movingUser = members[memberIndex];
+    const targetUser = members[targetIndex];
+    // Swap their schedules so shifts stay in their row positions
+    swapSchedulesMutation.mutate({ user_a_id: movingUser.id, user_b_id: targetUser.id });
+    // Update visual order
     [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
     const ordered_user_ids = newMembers.map(m => m.id);
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
   };
 
-  const handleDragReorder = (teamId: string, orderedUserIds: string[]) => {
-    // Only change visual order — shifts stay in their row positions
+  const handleDragReorder = (teamId: string, orderedUserIds: string[], oldIndex: number, newIndex: number, members: StaffMember[]) => {
+    const movingUser = members[oldIndex];
+    const targetUser = members[newIndex];
+    // Swap their schedules so shifts stay in their row positions
+    swapSchedulesMutation.mutate({ user_a_id: movingUser.id, user_b_id: targetUser.id });
+    // Update visual order
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
   };
 
@@ -1150,7 +1181,7 @@ interface TeamScheduleGridProps {
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
-  onDragReorder?: (teamId: string, orderedUserIds: string[]) => void;
+  onDragReorder?: (teamId: string, orderedUserIds: string[], oldIndex: number, newIndex: number, members: StaffMember[]) => void;
   canManageNotes: boolean;
   noteLookup: Map<string, ScheduleNote>;
   onSaveNote: (date: string, content: string, userId: string) => void;
@@ -1223,7 +1254,7 @@ function TeamScheduleGrid({
     const newIndex = team.members.findIndex(m => m.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(team.members, oldIndex, newIndex);
-    onDragReorder(team.team_id, reordered.map(m => m.id));
+    onDragReorder(team.team_id, reordered.map(m => m.id), oldIndex, newIndex, team.members);
   };
 
   const memberIds = useMemo(() => team.members.map(m => m.id), [team.members]);
