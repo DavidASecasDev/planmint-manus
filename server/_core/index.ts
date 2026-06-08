@@ -156,6 +156,7 @@ import {
 } from "../movementsEndpoint";
 import { handleRepairRentlyPoll } from "../repairRentlyPoll";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
+import { handleLogManualMovementEdit, handleGetManualMovementHistory } from "../manualMovementHistoryEndpoint";
 import {
   handleGetPreparationList,
   handleAddPreparationItem,
@@ -380,6 +381,10 @@ async function startServer() {
   app.post("/api/log-reservation-status-change", handleLogReservationStatusChange);
   app.post("/api/get-reactivated-reservation-ids", handleGetReactivatedReservationIds);
   app.post("/api/get-reactivated-reservations", handleGetReactivatedReservations);
+
+  // Manual movement edit history
+  app.post("/api/log-manual-movement-edit", handleLogManualMovementEdit);
+  app.post("/api/get-manual-movement-history", handleGetManualMovementHistory);
 
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);

@@ -42,6 +42,7 @@ import { ReservationEquipmentSection } from './ReservationEquipmentSection';
 import { ReservationStatusHistory } from './ReservationStatusHistory';
 import { RentlyActionsBar } from './RentlyActionsBar';
 import { RentlyActionHistory } from './RentlyActionHistory';
+import { ManualMovementEditHistory } from './ManualMovementEditHistory';
 
 interface ReservationDetailSheetProps {
   reservation: Reservation | null;
@@ -580,6 +581,10 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange, onActi
             {/* === TAB: Historial === */}
             <TabsContent value="historial" className="px-6 py-4 space-y-4 mt-0">
               <ReservationStatusHistory reservationId={r.id} />
+              <ManualMovementEditHistory
+                reservationId={r.id}
+                externalReservationId={r.external_reservation_id}
+              />
             </TabsContent>
 
             {/* === TAB: Rently Actions === */}

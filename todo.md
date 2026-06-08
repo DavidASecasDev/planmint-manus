@@ -1102,3 +1102,4 @@
 - [x] Fix: Movimientos manuales (transfers y MANUAL-xxx) no visibles para miembros del equipo en la vista Programación - causa: query usaba .gte('hasta',...) que excluía registros con hasta=null, corregido con .or() para incluir ambos casos
 - [x] Fix URGENTE: La página sigue refrescándose al cambiar de pestaña - fix doble capa: 1) hasLoadedInitialDataRef se marca true para TODOS los eventos que llaman loadUserData, 2) hasCompletedFirstLoadRef (nuevo ref) previene setProfileLoading(true) después de la primera carga exitosa, evitando que ProtectedRoute desmonte componentes
 - [x] Feature: Editar movimientos manuales (entregas, devoluciones, transfers con IDs MANUAL-xxx) — botón lápiz en columna acciones, diálogo con todos los campos editables (tipo, fecha/hora, cliente, vehículo, lugar, notas)
+- [x] Feature: Historial de cambios para movimientos manuales — tabla en Supabase, registro automático al editar, UI timeline en detalle

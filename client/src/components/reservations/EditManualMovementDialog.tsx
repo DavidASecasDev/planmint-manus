@@ -27,10 +27,19 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useReservations } from '@/hooks/useReservations';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { Reservation } from '@/types/reservations';
 
 type TipoOperacion = 'Entrega' | 'Devolución' | 'Transfer';
+
+interface FieldChange {
+  field: string;
+  label: string;
+  old_value: string | null;
+  new_value: string | null;
+}
 
 interface EditManualMovementDialogProps {
   reservation: Reservation;
@@ -40,6 +49,7 @@ interface EditManualMovementDialogProps {
 
 export function EditManualMovementDialog({ reservation, open, onOpenChange }: EditManualMovementDialogProps) {
   const { updateReservation } = useReservations();
+  const { profile } = useAuth();
 
   // Determine the current tipo based on reservation data
   const getCurrentTipo = (): TipoOperacion => {
@@ -50,11 +60,10 @@ export function EditManualMovementDialog({ reservation, open, onOpenChange }: Ed
 
   // Extract date and time from the reservation
   const getDateAndTime = () => {
-    // For Entrega/Transfer, the date is in 'desde'; for Devolución, in 'hasta'
     const tipo = getCurrentTipo();
     const dateStr = tipo === 'Devolución' ? reservation.hasta : reservation.desde;
     if (!dateStr) return { date: undefined as Date | undefined, time: '10:00' };
-    
+
     try {
       const parsed = parseISO(dateStr);
       return {
@@ -103,6 +112,77 @@ export function EditManualMovementDialog({ reservation, open, onOpenChange }: Ed
     }
   }, [open, reservation.id]);
 
+  /**
+   * Compute the list of field changes between old and new values.
+   */
+  const computeChanges = (updateData: Record<string, unknown>): FieldChange[] => {
+    const changes: FieldChange[] = [];
+
+    const fieldLabels: Record<string, string> = {
+      tipo_actividad: 'Tipo de operación',
+      cliente_nombre: 'Nombre',
+      cliente_apellido: 'Apellido',
+      telefono: 'Teléfono',
+      email: 'Email',
+      modelo: 'Modelo',
+      auto: 'Matrícula',
+      notas: 'Notas',
+      desde: 'Fecha/Hora',
+      hasta: 'Fecha/Hora',
+      lugar_entrega: 'Lugar',
+      lugar_devolucion: 'Lugar',
+    };
+
+    // Compare each field
+    const oldValues: Record<string, string | null> = {
+      tipo_actividad: reservation.tipo_actividad || null,
+      cliente_nombre: reservation.cliente_nombre || null,
+      cliente_apellido: reservation.cliente_apellido || null,
+      telefono: reservation.telefono || null,
+      email: reservation.email || null,
+      modelo: reservation.modelo || null,
+      auto: reservation.auto || null,
+      notas: reservation.notas || null,
+      desde: reservation.desde || null,
+      hasta: reservation.hasta || null,
+      lugar_entrega: reservation.lugar_entrega || null,
+      lugar_devolucion: reservation.lugar_devolucion || null,
+    };
+
+    for (const [field, newValue] of Object.entries(updateData)) {
+      if (!(field in fieldLabels)) continue;
+
+      const oldVal = oldValues[field] || null;
+      const newVal = (newValue as string) || null;
+
+      // Normalize for comparison
+      const oldNorm = oldVal?.trim() || null;
+      const newNorm = newVal?.trim() || null;
+
+      if (oldNorm !== newNorm) {
+        // Format dates for display
+        let displayOld = oldNorm;
+        let displayNew = newNorm;
+
+        if ((field === 'desde' || field === 'hasta') && displayOld) {
+          try { displayOld = format(parseISO(displayOld), 'dd/MM/yyyy HH:mm'); } catch { /* keep raw */ }
+        }
+        if ((field === 'desde' || field === 'hasta') && displayNew) {
+          try { displayNew = format(parseISO(displayNew), 'dd/MM/yyyy HH:mm'); } catch { /* keep raw */ }
+        }
+
+        changes.push({
+          field,
+          label: fieldLabels[field] || field,
+          old_value: displayOld,
+          new_value: displayNew,
+        });
+      }
+    }
+
+    return changes;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -146,12 +226,29 @@ export function EditManualMovementDialog({ reservation, open, onOpenChange }: Ed
       updateData.lugar_devolucion = lugar || null;
     }
 
+    // Compute changes before submitting
+    const changes = computeChanges(updateData);
+
     updateReservation.mutate(
       { id: reservation.id, data: updateData as any },
       {
         onSuccess: () => {
           toast.success('Movimiento actualizado correctamente');
           onOpenChange(false);
+
+          // Log changes to history (fire-and-forget)
+          if (changes.length > 0) {
+            apiInvoke('log-manual-movement-edit', {
+              body: {
+                reservation_id: reservation.id,
+                external_reservation_id: reservation.external_reservation_id || null,
+                changes,
+                changed_by_name: profile?.name || null,
+              },
+            }).catch((err) => {
+              console.error('[EditManualMovement] Failed to log history:', err);
+            });
+          }
         },
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : 'Error al actualizar');
