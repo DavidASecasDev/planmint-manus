@@ -1104,3 +1104,4 @@
 - [x] Feature: Editar movimientos manuales (entregas, devoluciones, transfers con IDs MANUAL-xxx) — botón lápiz en columna acciones, diálogo con todos los campos editables (tipo, fecha/hora, cliente, vehículo, lugar, notas)
 - [x] Feature: Historial de cambios para movimientos manuales — tabla en Supabase, registro automático al editar, UI timeline en detalle
 - [x] Fix: Al reordenar empleados en Horarios (drag & drop), solo debe moverse el nombre/posición, los turnos asignados deben quedarse fijos en su fila original
+- [x] Feature: Botón "Deshacer" temporal (toast) tras intercambiar horarios al reordenar, que permita revertir el swap durante unos segundos

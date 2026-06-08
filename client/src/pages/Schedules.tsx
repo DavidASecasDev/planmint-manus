@@ -440,6 +440,22 @@ export default function Schedules() {
     },
   });
 
+  // Execute swap with undo toast
+  const executeSwapWithUndo = (userAId: string, userBId: string, userAName: string, userBName: string) => {
+    swapSchedulesMutation.mutate({ user_a_id: userAId, user_b_id: userBId });
+    toast(`Horarios intercambiados: ${userAName} ↔ ${userBName}`, {
+      duration: 6000,
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          // Swap again to revert (swap is its own inverse)
+          swapSchedulesMutation.mutate({ user_a_id: userAId, user_b_id: userBId });
+          toast.success('Intercambio deshecho');
+        },
+      },
+    });
+  };
+
   const handleReorderMember = (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => {
     const newMembers = [...members];
     const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
@@ -447,8 +463,8 @@ export default function Schedules() {
     // The user being moved and the user in the target position
     const movingUser = members[memberIndex];
     const targetUser = members[targetIndex];
-    // Swap their schedules for the week (shifts stay in their row)
-    swapSchedulesMutation.mutate({ user_a_id: movingUser.id, user_b_id: targetUser.id });
+    // Swap their schedules for the week (shifts stay in their row) with undo option
+    executeSwapWithUndo(movingUser.id, targetUser.id, movingUser.name, targetUser.name);
     // Also update visual order
     [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
     const ordered_user_ids = newMembers.map(m => m.id);
@@ -456,10 +472,10 @@ export default function Schedules() {
   };
 
   const handleDragReorder = (teamId: string, orderedUserIds: string[], oldIndex: number, newIndex: number, members: StaffMember[]) => {
-    // Swap schedules between the dragged user and the user at the target position
+    // Swap schedules between the dragged user and the user at the target position with undo option
     const movingUser = members[oldIndex];
     const targetUser = members[newIndex];
-    swapSchedulesMutation.mutate({ user_a_id: movingUser.id, user_b_id: targetUser.id });
+    executeSwapWithUndo(movingUser.id, targetUser.id, movingUser.name, targetUser.name);
     // Also update visual order
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
   };
