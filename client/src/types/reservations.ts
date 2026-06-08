@@ -231,6 +231,11 @@ export interface CreateReservationData {
 }
 
 export interface UpdateReservationData {
+  // Datos de cliente
+  cliente_nombre?: string | null;
+  cliente_apellido?: string | null;
+  telefono?: string | null;
+  email?: string | null;
   // Fechas editables
   desde?: string | null;
   hasta?: string | null;

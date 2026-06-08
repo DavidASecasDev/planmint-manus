@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ import { AddressAutocompleteCell } from './AddressAutocompleteCell';
 import { apiInvoke } from '@/lib/apiClient';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
+import { EditManualMovementDialog } from './EditManualMovementDialog';
 import { ArchivedReservationsSheet } from './ArchivedReservationsSheet';
 import { DailyTimeSlotSummary } from './DailyTimeSlotSummary';
 import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
@@ -408,6 +409,8 @@ export function ReservationsTable() {
   const [showArchivedSheet, setShowArchivedSheet] = useState(false);
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [editManualReservation, setEditManualReservation] = useState<Reservation | null>(null);
+  const [showEditManualDialog, setShowEditManualDialog] = useState(false);
 
   // Track "Llegüé" state per operation (rowId -> { realMinutes, loading })
   const [llegoState, setLlegoState] = useState<Record<string, { realMinutes: number; estimatedMinutes: number | null }>>({});
@@ -2158,6 +2161,20 @@ export function ReservationsTable() {
                           )}
                           {col.type === 'actions' && col.key === 'actions' && (
                             <div className="flex items-center gap-0.5">
+                              {isFullAccess && row.reservation.external_reservation_id?.startsWith('MANUAL-') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => {
+                                    setEditManualReservation(row.reservation);
+                                    setShowEditManualDialog(true);
+                                  }}
+                                  title="Editar movimiento manual"
+                                >
+                                  <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                                </Button>
+                              )}
                               {isFullAccess && (
                                 <Button
                                   variant="ghost"
@@ -2191,6 +2208,18 @@ export function ReservationsTable() {
         open={showDetailSheet}
         onOpenChange={setShowDetailSheet}
       />
+
+      {/* Edit Manual Movement Dialog */}
+      {editManualReservation && (
+        <EditManualMovementDialog
+          reservation={editManualReservation}
+          open={showEditManualDialog}
+          onOpenChange={(open) => {
+            setShowEditManualDialog(open);
+            if (!open) setEditManualReservation(null);
+          }}
+        />
+      )}
 
       {/* Archived Reservations Sheet */}
       <ArchivedReservationsSheet
