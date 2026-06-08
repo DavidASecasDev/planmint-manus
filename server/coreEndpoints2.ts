@@ -288,16 +288,20 @@ export async function handleGetReservationsOperational(
 
     // Apply server-side date filter if provided
     // Match reservations where the reservation period overlaps with the requested range
+    // Also include reservations with hasta=null (manual operations/transfers) if desde falls in range
     if (dateFrom && dateTo) {
-      // Reservation overlaps [dateFrom, dateTo] if: desde <= dateTo AND hasta >= dateFrom
-      query = query
-        .lte("desde", `${dateTo}T23:59:59`)
-        .gte("hasta", `${dateFrom}T00:00:00`);
+      // Reservation overlaps [dateFrom, dateTo] if:
+      //   (desde <= dateTo AND hasta >= dateFrom) OR (hasta IS NULL AND desde within range)
+      query = query.or(
+        `and(desde.lte.${dateTo}T23:59:59,hasta.gte.${dateFrom}T00:00:00),` +
+        `and(desde.gte.${dateFrom}T00:00:00,desde.lte.${dateTo}T23:59:59,hasta.is.null)`
+      );
     } else if (dateFrom) {
-      // Single day: reservation overlaps if desde <= dateFrom end AND hasta >= dateFrom start
-      query = query
-        .lte("desde", `${dateFrom}T23:59:59`)
-        .gte("hasta", `${dateFrom}T00:00:00`);
+      // Single day: include overlapping reservations + manual ops (hasta=null) with desde on that day
+      query = query.or(
+        `and(desde.lte.${dateFrom}T23:59:59,hasta.gte.${dateFrom}T00:00:00),` +
+        `and(desde.gte.${dateFrom}T00:00:00,desde.lte.${dateFrom}T23:59:59,hasta.is.null)`
+      );
     }
     // If no date filter, fetch all (backwards compatible)
 

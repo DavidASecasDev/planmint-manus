@@ -1099,3 +1099,4 @@
 - [x] Horarios: DragOverlay para mostrar copia fantasma de la fila del empleado durante el arrastre
 - [x] Fix: Investigar y resolver refresco automático al volver a la pestaña - race condition en AuthContext donde hasLoadedInitialData (variable local) se reseteaba al re-ejecutarse useEffect, permitiendo que SIGNED_IN de visibilidad disparara profileLoading y el spinner de ProtectedRoute
 - [x] Fix: Preparación con 100% tareas completadas sigue en "En curso" - trigger DB auto_complete_preparation_on_vehicle_clean creado para marcar preparation_list como 'ready' cuando vehicle.status pasa a 'limpio'
+- [x] Fix: Movimientos manuales (transfers y MANUAL-xxx) no visibles para miembros del equipo en la vista Programación - causa: query usaba .gte('hasta',...) que excluía registros con hasta=null, corregido con .or() para incluir ambos casos
