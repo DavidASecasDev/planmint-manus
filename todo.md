@@ -1105,3 +1105,4 @@
 - [x] Feature: Historial de cambios para movimientos manuales — tabla en Supabase, registro automático al editar, UI timeline en detalle
 - [x] Fix: Al reordenar empleados en Horarios (drag & drop), solo debe moverse el nombre/posición, los turnos asignados deben quedarse fijos en su fila original
 - [x] Feature: Botón "Deshacer" temporal (toast) tras intercambiar horarios al reordenar, que permita revertir el swap durante unos segundos
+- [x] Fix: Reordenar empleados debe ser SOLO visual (mover nombres), sin intercambiar horarios — eliminar swap logic completamente
