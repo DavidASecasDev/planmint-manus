@@ -1109,3 +1109,7 @@
 - [x] Fix: Restaurar swap de horarios al reordenar — al mover un nombre, los turnos se intercambian en la BD para que queden fijos en su posición de fila
 - [x] Feature: Drag & drop multi-posición — al arrastrar más de una posición, rotar horarios de todas las posiciones intermedias (no solo swap con destino)
 - [x] Feature: Indicador visual durante drag mostrando qué horarios heredará el empleado en su nueva posición
+- [x] REDISEÑO: Desacoplar nombres y horarios — mover nombres NO mueve horarios, mover horarios NO mueve nombres
+- [x] Eliminar toda lógica de swap/rotate de horarios al reordenar nombres
+- [x] Implementar reordenación de nombres puramente visual (solo cambia orden de display)
+- [x] Implementar movimiento independiente de filas de horarios entre posiciones

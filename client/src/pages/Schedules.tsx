@@ -64,7 +64,6 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragOverEvent,
   DragOverlay,
 } from '@dnd-kit/core';
 import {
@@ -419,52 +418,51 @@ export default function Schedules() {
     },
   });
 
-  // Mutation to rotate schedules among multiple users for the current week
-  // This ensures that when names are reordered, the shifts stay in their row positions
-  const rotateSchedulesMutation = useMutation({
-    mutationFn: async (params: { user_ids: string[] }) => {
-      const res = await apiInvoke('rotate-user-schedules', {
+  const handleReorderMember = (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => {
+    const newMembers = [...members];
+    const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
+    if (targetIndex < 0 || targetIndex >= newMembers.length) return;
+    // Only change visual order — shifts are NOT touched
+    [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
+    const ordered_user_ids = newMembers.map(m => m.id);
+    reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
+  };
+
+  const handleDragReorder = (teamId: string, orderedUserIds: string[]) => {
+    // Only change visual order — shifts are NOT touched
+    reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
+  };
+
+  // Mutation to swap shifts between two users (independent of name reorder)
+  const swapShiftsMutation = useMutation({
+    mutationFn: async (params: { user_a_id: string; user_b_id: string }) => {
+      const res = await apiInvoke('swap-user-schedules', {
         body: {
-          user_ids: params.user_ids,
+          user_a_id: params.user_a_id,
+          user_b_id: params.user_b_id,
           start_date: weekStart,
           end_date: weekEnd,
         },
       });
-      if (res.error) throw new Error(res.error.message || 'Error al rotar horarios');
+      if (res.error) throw new Error(res.error.message || 'Error al intercambiar horarios');
       return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+      toast.success('Horarios intercambiados');
     },
     onError: (err: Error) => {
       toast.error(err.message);
     },
   });
 
-  const handleReorderMember = (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => {
-    const newMembers = [...members];
+  const handleSwapShifts = (_teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
-    if (targetIndex < 0 || targetIndex >= newMembers.length) return;
-    const movingUser = members[memberIndex];
-    const targetUser = members[targetIndex];
-    // Rotate schedules between the two users (swap = rotate with 2 users)
-    rotateSchedulesMutation.mutate({ user_ids: [movingUser.id, targetUser.id] });
-    // Update visual order
-    [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
-    const ordered_user_ids = newMembers.map(m => m.id);
-    reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
-  };
-
-  const handleDragReorder = (teamId: string, orderedUserIds: string[], oldIndex: number, newIndex: number, members: StaffMember[]) => {
-    // Get the range of users affected by the drag (from oldIndex to newIndex inclusive)
-    const start = Math.min(oldIndex, newIndex);
-    const end = Math.max(oldIndex, newIndex);
-    // Extract the user_ids in their ORIGINAL order (before the drag)
-    const affectedUserIds = members.slice(start, end + 1).map(m => m.id);
-    // Rotate schedules among all affected users
-    rotateSchedulesMutation.mutate({ user_ids: affectedUserIds });
-    // Update visual order
-    reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
+    if (targetIndex < 0 || targetIndex >= members.length) return;
+    const userA = members[memberIndex];
+    const userB = members[targetIndex];
+    // Swap shifts between the two users — names are NOT touched
+    swapShiftsMutation.mutate({ user_a_id: userA.id, user_b_id: userB.id });
   };
 
   const createTemplateMutation = useMutation({
@@ -981,6 +979,7 @@ export default function Schedules() {
                   canAssign={canAssign}
                   onReorderMember={(canAssign || canManage) ? handleReorderMember : undefined}
                   onDragReorder={(canAssign || canManage) ? handleDragReorder : undefined}
+                  onSwapShifts={(canAssign || canManage) ? handleSwapShifts : undefined}
                   canManageNotes={canManageNotes}
                   noteLookup={noteLookup}
                   onSaveNote={handleSaveNote}
@@ -1184,7 +1183,8 @@ interface TeamScheduleGridProps {
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
-  onDragReorder?: (teamId: string, orderedUserIds: string[], oldIndex: number, newIndex: number, members: StaffMember[]) => void;
+  onDragReorder?: (teamId: string, orderedUserIds: string[]) => void;
+  onSwapShifts?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
   canManageNotes: boolean;
   noteLookup: Map<string, ScheduleNote>;
   onSaveNote: (date: string, content: string, userId: string) => void;
@@ -1205,6 +1205,7 @@ function TeamScheduleGrid({
   canAssign,
   onReorderMember,
   onDragReorder,
+  onSwapShifts,
   canManageNotes,
   noteLookup,
   onSaveNote,
@@ -1243,28 +1244,20 @@ function TeamScheduleGrid({
   );
 
   const [activeMember, setActiveMember] = useState<StaffMember | null>(null);
-  const [overMemberId, setOverMemberId] = useState<string | null>(null);
-
   const handleDragStart = (event: DragStartEvent) => {
     const member = team.members.find(m => m.id === event.active.id);
     setActiveMember(member || null);
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    setOverMemberId(over ? String(over.id) : null);
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveMember(null);
-    setOverMemberId(null);
     const { active, over } = event;
     if (!over || active.id === over.id || !onDragReorder) return;
     const oldIndex = team.members.findIndex(m => m.id === active.id);
     const newIndex = team.members.findIndex(m => m.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(team.members, oldIndex, newIndex);
-    onDragReorder(team.team_id, reordered.map(m => m.id), oldIndex, newIndex, team.members);
+    onDragReorder(team.team_id, reordered.map(m => m.id));
   };
 
   const memberIds = useMemo(() => team.members.map(m => m.id), [team.members]);
@@ -1303,7 +1296,7 @@ function TeamScheduleGrid({
       </div>
 
       <CardContent className="p-0">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
@@ -1553,14 +1546,42 @@ function TeamScheduleGrid({
                         </td>
                       );
                     })}
-                    {/* Weekly hours cell */}
-                    <td className="px-3 py-1.5 text-center border-l border-border/30 bg-muted/10">
-                      <span className={cn(
-                        "text-sm font-semibold tabular-nums",
-                        weeklyHours > 0 ? "text-foreground" : "text-muted-foreground/30"
-                      )}>
-                        {weeklyHours > 0 ? formatHours(weeklyHours) : '—'}
-                      </span>
+                    {/* Weekly hours cell with shift swap arrows */}
+                    <td className="px-2 py-1.5 text-center border-l border-border/30 bg-muted/10">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          weeklyHours > 0 ? "text-foreground" : "text-muted-foreground/30"
+                        )}>
+                          {weeklyHours > 0 ? formatHours(weeklyHours) : '—'}
+                        </span>
+                        {onSwapShifts && team.members.length > 1 && (
+                          <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                            <button
+                              onClick={() => onSwapShifts(team.team_id, team.members, memberIndex, 'up')}
+                              disabled={isFirst}
+                              title="Mover horario arriba"
+                              className={cn(
+                                "p-0 h-3.5 w-3.5 flex items-center justify-center rounded-sm transition-colors",
+                                isFirst ? "text-muted-foreground/20 cursor-default" : "text-orange-500 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950"
+                              )}
+                            >
+                              <ChevronLeft className="h-3 w-3 rotate-90" />
+                            </button>
+                            <button
+                              onClick={() => onSwapShifts(team.team_id, team.members, memberIndex, 'down')}
+                              disabled={isLast}
+                              title="Mover horario abajo"
+                              className={cn(
+                                "p-0 h-3.5 w-3.5 flex items-center justify-center rounded-sm transition-colors",
+                                isLast ? "text-muted-foreground/20 cursor-default" : "text-orange-500 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950"
+                              )}
+                            >
+                              <ChevronRight className="h-3 w-3 rotate-90" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </SortableMemberRow>
                 );
@@ -1644,65 +1665,17 @@ function TeamScheduleGrid({
           </table>
         </div>
         <DragOverlay dropAnimation={null}>
-          {activeMember && (() => {
-            // Determine which member's shifts the dragged employee will inherit
-            const targetMember = overMemberId && overMemberId !== activeMember.id
-              ? team.members.find(m => m.id === overMemberId)
-              : null;
-            // Get the target's shifts for the week to show as preview
-            const previewShifts = targetMember ? weekDates.map(d => {
-              const dateStr = formatDateISO(d);
-              const entry = scheduleLookup.get(`${targetMember.id}__${dateStr}`);
-              const shift = entry?.shift_template_id
-                ? shiftTemplates.find(t => t.id === entry.shift_template_id)
-                : null;
-              return shift;
-            }) : null;
-
-            return (
-              <div className="bg-background border border-border rounded-lg shadow-xl overflow-hidden">
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
-                      {getInitials(activeMember.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium">{activeMember.name}</span>
-                  {targetMember && (
-                    <span className="text-xs text-muted-foreground ml-1">
-                      → hereda horario de {targetMember.name.split(' ')[0]}
-                    </span>
-                  )}
-                </div>
-                {previewShifts && (
-                  <div className="flex items-center gap-1 px-3 pb-2">
-                    {previewShifts.map((shift, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "flex-1 text-center text-[10px] font-medium rounded py-0.5 px-0.5 min-w-[60px]",
-                          shift
-                            ? shift.is_day_off
-                              ? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                              : "bg-primary/10 text-primary border border-primary/20"
-                            : "bg-muted/50 text-muted-foreground"
-                        )}
-                      >
-                        {shift
-                          ? shift.is_day_off
-                            ? shift.name
-                            : shift.start_time && shift.end_time
-                              ? `${shift.start_time.slice(0, 5)}\u2013${shift.end_time.slice(0, 5)}`
-                              : shift.name
-                          : '\u2014'}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {activeMember && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg shadow-xl">
+              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+                  {getInitials(activeMember.name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium">{activeMember.name}</span>
+            </div>
+          )}
         </DragOverlay>
         </DndContext>
       </CardContent>
