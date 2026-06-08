@@ -158,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const lastFetchedUserId = useRef<string | null>(null);
   // Track whether initial data has been loaded (persists across useEffect re-runs)
   const hasLoadedInitialDataRef = useRef(false);
+  const hasCompletedFirstLoadRef = useRef(false);
 
 
   const fetchProfileData = useCallback(async (userId: string, accessToken?: string): Promise<Profile | null> => {
@@ -225,7 +226,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const fetchPromise = (async () => {
       try {
-        setProfileLoading(true);
+        // CRITICAL: Only show the full-screen loading spinner on the FIRST load.
+        // hasCompletedFirstLoadRef is a ref (not state) so it's always current inside
+        // this useCallback closure without needing to be in the dependency array.
+        // After the first successful load, subsequent calls (e.g., from tab visibility
+        // SIGNED_IN events that somehow bypass the guard) will NOT show the spinner,
+        // preventing ProtectedRoute from unmounting all child components.
+        if (!hasCompletedFirstLoadRef.current) {
+          setProfileLoading(true);
+        }
 
         const profileData = await fetchProfileData(userId, accessToken);
         setProfile(profileData);
@@ -277,6 +286,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileLoading(false);
         // Session is fully ready: token validated + profile loaded
         setSessionReady(true);
+        // Mark that we've completed at least one full profile load.
+        // This ref is used to prevent showing the full-screen spinner on
+        // subsequent loads (e.g., if a SIGNED_IN event somehow bypasses guards).
+        hasCompletedFirstLoadRef.current = true;
         profileFetchInFlight.current = null;
       }
     })();
@@ -340,8 +353,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // For INITIAL_SESSION and getSession: only load once (whichever fires first)
         if (event === 'INITIAL_SESSION' || event === '__GET_SESSION__') {
           if (hasLoadedInitialDataRef.current) return;
-          hasLoadedInitialDataRef.current = true;
         }
+
+        // Mark as loaded for ALL events that proceed past the guards above.
+        // This ensures that subsequent SIGNED_IN events from tab visibility
+        // changes are always caught by the guard, regardless of which event
+        // type loaded the data first (INITIAL_SESSION, __GET_SESSION__, or SIGNED_IN).
+        hasLoadedInitialDataRef.current = true;
 
         const accessToken = currentSession.access_token;
 
