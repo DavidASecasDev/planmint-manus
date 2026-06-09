@@ -70,14 +70,18 @@ export async function handlePublicOperations(req: Request, res: Response) {
     const serviceClient = getServiceClient();
 
     // ─── 1. Fetch operations for the target date ─────────────────────────────
-    // Get reservations where desde (delivery) or hasta (return) matches the target date
+    // Get reservations where desde (delivery) or hasta (return) falls on the target date
+    // Use a single OR filter that captures:
+    // 1. desde is on target date (for entregas and transfers)
+    // 2. hasta is on target date (for devoluciones)
+    // 3. confirmed_entrega_datetime is on target date
+    // 4. confirmed_devolucion_datetime is on target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
       .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, cliente_nombre, cliente_apellido")
       .eq("organization_id", organizationId)
-      .neq("estado", "Cancelada")
-      .or(`desde.gte.${targetDate}T00:00:00,hasta.gte.${targetDate}T00:00:00`)
-      .or(`desde.lte.${targetDate}T23:59:59,hasta.lte.${targetDate}T23:59:59`);
+      .or("estado.neq.Cancelada,estado.is.null")
+      .or(`and(desde.gte.${targetDate}T00:00:00,desde.lte.${targetDate}T23:59:59),and(hasta.gte.${targetDate}T00:00:00,hasta.lte.${targetDate}T23:59:59),and(confirmed_entrega_datetime.gte.${targetDate}T00:00:00,confirmed_entrega_datetime.lte.${targetDate}T23:59:59),and(confirmed_devolucion_datetime.gte.${targetDate}T00:00:00,confirmed_devolucion_datetime.lte.${targetDate}T23:59:59)`);
 
     if (resError) {
       console.error("[public-ops] Error fetching reservations:", resError);
