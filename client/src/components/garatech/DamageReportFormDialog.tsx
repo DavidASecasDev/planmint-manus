@@ -1,79 +1,44 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { VehicleSelect } from '@/components/garatech/VehicleSelect';
-import { useDamageReports } from '@/hooks/useDamageReports';
-import type { DamageReportFormData } from '@/types/garatech';
+import { FileText } from 'lucide-react';
 
 interface DamageReportFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * This dialog now redirects to the full wizard page for creating damage reports,
+ * which includes the before/after photo steps.
+ */
 export function DamageReportFormDialog({ open, onOpenChange }: DamageReportFormDialogProps) {
-  const { createReport } = useDamageReports();
+  const navigate = useNavigate();
 
-  const [form, setForm] = useState<DamageReportFormData>({
-    vehicle_id: '',
-    damage_date: new Date().toISOString().slice(0, 10),
-    customer_name: '',
-    customer_document: '',
-    notes: '',
-  });
-
-  useEffect(() => {
-    if (open) {
-      setForm({ vehicle_id: '', damage_date: new Date().toISOString().slice(0, 10), customer_name: '', customer_document: '', notes: '' });
-    }
-  }, [open]);
-
-  const handleSubmit = async () => {
-    if (!form.vehicle_id || !form.damage_date) return;
-    try {
-      await createReport.mutateAsync(form);
-      onOpenChange(false);
-    } catch (error) {}
+  const handleGoToWizard = () => {
+    onOpenChange(false);
+    navigate('/garatech/damages/new');
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Nuevo Informe de Daños</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Vehículo *</Label>
-              <VehicleSelect
-                value={form.vehicle_id}
-                onValueChange={(v) => setForm({ ...form, vehicle_id: v })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fecha del daño *</Label>
-              <Input type="date" value={form.damage_date} onChange={(e) => setForm({ ...form, damage_date: e.target.value })} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Nombre cliente</Label>
-              <Input value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Documento cliente</Label>
-              <Input value={form.customer_document} onChange={(e) => setForm({ ...form, customer_document: e.target.value })} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Notas</Label>
-            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
-          </div>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Nuevo Informe de Daños</DialogTitle>
+          <DialogDescription>
+            El formulario de creación incluye pasos para subir fotos del antes y después del daño.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center py-4 gap-3">
+          <FileText className="h-10 w-10 text-primary" />
+          <p className="text-sm text-muted-foreground text-center">
+            Se abrirá el asistente completo con todos los pasos necesarios.
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={!form.vehicle_id || !form.damage_date}>Crear Informe</Button>
+          <Button onClick={handleGoToWizard}>Continuar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

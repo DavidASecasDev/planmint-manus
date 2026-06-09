@@ -39,6 +39,8 @@ export function useDamageReports() {
         collection_notes: r.collection_notes,
         payment_gateway: r.payment_gateway,
         payment_reference: r.payment_reference,
+        photos_before: r.photos_before || [],
+        photos_after: r.photos_after || [],
       })) as DamageReport[];
     },
     enabled: !!orgId,

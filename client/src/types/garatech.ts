@@ -411,6 +411,9 @@ export interface DamageReport {
   collection_notes?: string | null;
   payment_gateway?: 'stripe' | 'redsys' | null;
   payment_reference?: string | null;
+  // Before/after photos
+  photos_before?: string[] | null;
+  photos_after?: string[] | null;
   created_at: string;
   updated_at: string;
   // Relations
@@ -463,6 +466,8 @@ export interface DamageReportFormData {
   vehicle_model?: string;
   vehicle_brand?: string;
   notes?: string;
+  photos_before?: string[];
+  photos_after?: string[];
 }
 
 export interface DamageReportItemFormData {

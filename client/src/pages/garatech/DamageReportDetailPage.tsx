@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, FileText, Pencil, X, Plus, Trash2, CheckCircle, Banknote, CheckCheck, Car, Download, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, FileText, Pencil, X, Plus, Trash2, CheckCircle, Banknote, CheckCheck, Car, Download, Image as ImageIcon, Camera } from 'lucide-react';
 import { DamageReportItemDialog } from '@/components/garatech/DamageReportItemDialog';
 import { CollectPaymentDialog } from '@/components/garatech/CollectPaymentDialog';
 import { DamageReportEditForm } from '@/components/garatech/damage-report-detail/DamageReportEditForm';
@@ -273,6 +273,63 @@ export default function DamageReportDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Before/After Photos */}
+            {((report.photos_before && report.photos_before.length > 0) || (report.photos_after && report.photos_after.length > 0)) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Fotografías del vehículo</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Before photos */}
+                  {report.photos_before && report.photos_before.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Camera className="h-4 w-4 text-blue-500" />
+                        <p className="text-sm font-medium">Antes del daño</p>
+                        <span className="text-xs text-muted-foreground">({report.photos_before.length} fotos)</span>
+                      </div>
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {report.photos_before.map((url, idx) => (
+                          <a
+                            key={`before-${idx}`}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="aspect-square rounded-lg overflow-hidden border-2 border-blue-200 dark:border-blue-800 hover:ring-2 hover:ring-blue-500 transition-all"
+                          >
+                            <img src={url} alt={`Antes ${idx + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* After photos */}
+                  {report.photos_after && report.photos_after.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Camera className="h-4 w-4 text-orange-500" />
+                        <p className="text-sm font-medium">Después del daño</p>
+                        <span className="text-xs text-muted-foreground">({report.photos_after.length} fotos)</span>
+                      </div>
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {report.photos_after.map((url, idx) => (
+                          <a
+                            key={`after-${idx}`}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="aspect-square rounded-lg overflow-hidden border-2 border-orange-200 dark:border-orange-800 hover:ring-2 hover:ring-orange-500 transition-all"
+                          >
+                            <img src={url} alt={`Después ${idx + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Items */}
             <Card>
