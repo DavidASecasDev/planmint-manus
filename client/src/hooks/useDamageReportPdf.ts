@@ -47,6 +47,8 @@ const PDF_TRANSLATIONS = {
     damage: 'Daño',
     taxIdLabel: 'CIF:',
     phoneLabel: 'Tel:',
+    photosBefore: 'Fotografías ANTES del daño',
+    photosAfter: 'Fotografías DESPUÉS del daño',
   },
   en: {
     title: 'DAMAGE REPORT',
@@ -83,6 +85,8 @@ const PDF_TRANSLATIONS = {
     damage: 'Damage',
     taxIdLabel: 'Tax ID:',
     phoneLabel: 'Phone:',
+    photosBefore: 'Photographs BEFORE the damage',
+    photosAfter: 'Photographs AFTER the damage',
   },
 } as const;
 
@@ -559,6 +563,91 @@ export function useDamageReportPdf() {
         yPos += notesLines.length * 4 + 8;
       }
 
+
+      // ---------------------------------------------------------------
+      // BEFORE / AFTER PHOTOS — report-level vehicle condition photos
+      // ---------------------------------------------------------------
+      const beforePhotos = report.photos_before || [];
+      const afterPhotos = report.photos_after || [];
+      const hasBeforeAfter = beforePhotos.length > 0 || afterPhotos.length > 0;
+
+      if (hasBeforeAfter) {
+        const baPhotoMaxW = (contentWidth - 8) / 2;
+        const baPhotoMaxH = 55;
+        const BA_ROW_GAP = 6;
+        const BA_PLACEHOLDER_H = 30;
+
+        const renderPhotoGallery = async (title: string, urls: string[]) => {
+          if (urls.length === 0) return;
+
+          yPos = ensureSpace(pdf, yPos, 30);
+
+          pdf.setFontSize(10);
+          pdf.setFont(PDF_FONT, 'bold');
+          pdf.setTextColor(...COLORS.navy);
+          pdf.text(title, MARGIN_LEFT, yPos);
+          yPos += 3;
+          drawHLine(pdf, yPos, COLORS.gold, 0.5);
+          yPos += 8;
+
+          const loadedImgs: Array<{ base64: string | null; drawW: number; drawH: number }> = [];
+          for (const url of urls) {
+            try {
+              const imgBase64 = await loadImageAsBase64(url);
+              if (imgBase64) {
+                const imgProps = pdf.getImageProperties(imgBase64);
+                const ratio = imgProps.width / imgProps.height;
+                let drawW = baPhotoMaxW;
+                let drawH = drawW / ratio;
+                if (drawH > baPhotoMaxH) {
+                  drawH = baPhotoMaxH;
+                  drawW = drawH * ratio;
+                }
+                loadedImgs.push({ base64: imgBase64, drawW, drawH });
+              } else {
+                loadedImgs.push({ base64: null, drawW: baPhotoMaxW, drawH: BA_PLACEHOLDER_H });
+              }
+            } catch {
+              loadedImgs.push({ base64: null, drawW: baPhotoMaxW, drawH: BA_PLACEHOLDER_H });
+            }
+          }
+
+          const rows: Array<Array<{ base64: string | null; drawW: number; drawH: number }>> = [];
+          for (let i = 0; i < loadedImgs.length; i += 2) {
+            rows.push(loadedImgs.slice(i, i + 2));
+          }
+
+          for (const row of rows) {
+            const rowH = Math.max(...row.map(img => img.drawH));
+            yPos = ensureSpace(pdf, yPos, rowH + BA_ROW_GAP);
+
+            row.forEach((img, colIdx) => {
+              const xPos = MARGIN_LEFT + colIdx * (baPhotoMaxW + 8);
+              if (img.base64) {
+                pdf.setDrawColor(...COLORS.border);
+                pdf.setLineWidth(0.3);
+                pdf.roundedRect(xPos - 1, yPos - 1, img.drawW + 2, img.drawH + 2, 1, 1, 'S');
+                pdf.addImage(img.base64, 'JPEG', xPos, yPos, img.drawW, img.drawH);
+              } else {
+                pdf.setFillColor(...COLORS.bgSubtle);
+                pdf.setDrawColor(...COLORS.border);
+                pdf.roundedRect(xPos, yPos, baPhotoMaxW, BA_PLACEHOLDER_H, 1, 1, 'FD');
+                pdf.setFontSize(7);
+                pdf.setFont(PDF_FONT, 'normal');
+                pdf.setTextColor(...COLORS.lightGray);
+                pdf.text(t.imageUnavailable, xPos + baPhotoMaxW / 2, yPos + 16, { align: 'center' });
+              }
+            });
+
+            yPos += rowH + BA_ROW_GAP;
+          }
+
+          yPos += 4;
+        };
+
+        await renderPhotoGallery(t.photosBefore, beforePhotos);
+        await renderPhotoGallery(t.photosAfter, afterPhotos);
+      }
       // ─────────────────────────────────────────────────────────
       // PHOTOGRAPHS — aspect-ratio preserved, 2-col grid
       // Proper page-break handling: calculate real row height BEFORE drawing
@@ -586,7 +675,7 @@ export function useDamageReportPdf() {
         for (const item of itemsWithPhotos) {
           const itemLabel = (lang === 'en' ? (item.catalog_item?.name_en || item.catalog_item?.name_es) : item.catalog_item?.name_es) || item.custom_description || t.damage;
           const locationLabel = getLocationLabel(item.location_on_vehicle, lang);
-          const subtitleText = `${itemLabel} — ${locationLabel}`;
+          const subtitleText = (locationLabel && locationLabel !== '--') ? `${itemLabel} — ${locationLabel}` : itemLabel;
 
           const photoUrls = item.photo_urls || [];
 

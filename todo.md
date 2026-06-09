@@ -1115,9 +1115,11 @@
 - [x] Implementar movimiento independiente de filas de horarios entre posiciones
 - [x] Fix: Los transfers/operaciones manuales (MANUAL-xxx) deben aparecer en la página /ops/operaciones
 - [x] Excluir operaciones archivadas (archived_at != null) de la página de operaciones TV (/ops/operaciones)
-- [ ] Informes de daños: Añadir sección de fotos 'antes del daño' y 'después del daño' al formulario de creación
-- [ ] Informes de daños: Añadir columnas photos_before y photos_after a la tabla damage_reports en Supabase
-- [ ] Informes de daños: Mostrar fotos antes/después en la vista de detalle del informe
+- [x] Informes de daños: Añadir sección de fotos 'antes del daño' y 'después del daño' al formulario de creación
+- [x] Informes de daños: Añadir columnas photos_before y photos_after a la tabla damage_reports en Supabase
+- [x] Informes de daños: Mostrar fotos antes/después en la vista de detalle del informe
 - [x] Añadir paso de fotos antes/después en formulario de nuevo informe de daños (wizard 3 pasos)
 - [x] Mostrar fotos antes/después en la vista de detalle del informe
 - [x] Redirigir DamageReportFormDialog al wizard completo
+- [x] PDF Daños: Añadir sección de fotos antes/después del vehículo al PDF generado
+- [x] PDF Daños: Corregir título de fotos que muestra guiones cuando no hay ubicación
