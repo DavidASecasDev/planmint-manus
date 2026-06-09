@@ -1113,3 +1113,4 @@
 - [x] Eliminar toda lógica de swap/rotate de horarios al reordenar nombres
 - [x] Implementar reordenación de nombres puramente visual (solo cambia orden de display)
 - [x] Implementar movimiento independiente de filas de horarios entre posiciones
+- [x] Fix: Los transfers/operaciones manuales (MANUAL-xxx) deben aparecer en la página /ops/operaciones

@@ -73,7 +73,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     // Get reservations where desde (delivery) or hasta (return) matches the target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
-      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, cliente_nombre, cliente_apellido")
+      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, cliente_nombre, cliente_apellido")
       .eq("organization_id", organizationId)
       .neq("estado", "Cancelada")
       .or(`desde.gte.${targetDate}T00:00:00,hasta.gte.${targetDate}T00:00:00`)
@@ -183,7 +183,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
 
     // Filter to only reservations that have operations on the target date
     const operations: Array<{
-      type: "entrega" | "devolucion";
+      type: "entrega" | "devolucion" | "transfer";
       hour: number;
       hourMinute: string; // "HH:MM" format
       location: string;
@@ -203,6 +203,41 @@ export async function handlePublicOperations(req: Request, res: Response) {
       // Skip excluded plates (dummy/test vehicles)
       const plate = (r.auto || "").toUpperCase().trim();
       if (EXCLUDED_PLATES.includes(plate)) continue;
+
+      // Handle transfers (tipo_actividad = 'Transfer') - they only use desde as the transfer datetime
+      if (r.tipo_actividad === 'Transfer') {
+        const transferDate = r.confirmed_entrega_datetime?.substring(0, 10) || r.desde?.substring(0, 10);
+        if (transferDate === targetDate) {
+          const transferTime = r.confirmed_entrega_datetime || r.desde;
+          const hour = transferTime ? parseInt(transferTime.substring(11, 13)) || 0 : 0;
+          const minutes = transferTime ? parseInt(transferTime.substring(14, 16)) || 0 : 0;
+          const location = r.lugar_entrega || r.lugar_devolucion || "Sin ubicación";
+          const address = r.lugar_entrega_direccion || r.lugar_devolucion_direccion || null;
+
+          if (!locationFilter || locationFilter === "all" || location.toLowerCase().includes(locationFilter.toLowerCase())) {
+            const assigneeId = r.asignado_rental_id;
+            const enCaminoKey = `${r.id}_entrega`;
+            const enCaminoRec = enCaminoMap.get(enCaminoKey);
+            operations.push({
+              type: "transfer",
+              hour,
+              hourMinute: `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+              location,
+              address,
+              modelo: r.modelo || "Desconocido",
+              auto: r.auto || "",
+              completed: r.transfer_completado || false,
+              assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
+              assignedEscobaName: (() => { const eid = r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
+              clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
+              enCamino: !!enCaminoRec,
+              enCaminoAt: enCaminoRec?.en_camino_at || null,
+              vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
+            });
+          }
+        }
+        continue; // Skip normal entrega/devolucion processing for transfers
+      }
 
       // Check if delivery is on target date
       const desdeDate = r.confirmed_entrega_datetime?.substring(0, 10) || r.desde?.substring(0, 10);
@@ -280,7 +315,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     for (const op of operations) {
       const hourData = hourlyMap.get(op.hour);
       if (hourData) {
-        if (op.type === "entrega") hourData.entregas++;
+        if (op.type === "entrega" || op.type === "transfer") hourData.entregas++;
         else hourData.devoluciones++;
         hourData.total++;
         if (!hourData.locations.includes(op.location)) {
@@ -290,7 +325,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         // Operations outside 7-22 range
         hourlyMap.set(op.hour, {
           hour: op.hour,
-          entregas: op.type === "entrega" ? 1 : 0,
+          entregas: (op.type === "entrega" || op.type === "transfer") ? 1 : 0,
           devoluciones: op.type === "devolucion" ? 1 : 0,
           total: 1,
           locations: [op.location],
@@ -419,6 +454,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         totalOperations: operations.length,
         totalEntregas: operations.filter(o => o.type === "entrega").length,
         totalDevoluciones: operations.filter(o => o.type === "devolucion").length,
+        totalTransfers: operations.filter(o => o.type === "transfer").length,
         completedOps: operations.filter(o => o.completed).length,
         pendingOps: operations.filter(o => !o.completed).length,
       },

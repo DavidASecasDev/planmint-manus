@@ -10,6 +10,7 @@ import {
   Minimize,
   ArrowDownToLine,
   ArrowUpFromLine,
+  ArrowRightLeft,
   MapPin,
   Navigation,
   User,
@@ -35,7 +36,7 @@ const COLORS = {
 };
 
 interface OperationItem {
-  type: "entrega" | "devolucion";
+  type: "entrega" | "devolucion" | "transfer";
   time: string;
   location: string;
   address: string | null;
@@ -56,6 +57,7 @@ interface OperationsData {
     totalOperations: number;
     totalEntregas: number;
     totalDevoluciones: number;
+    totalTransfers?: number;
     completedOps: number;
     pendingOps: number;
   };
@@ -613,6 +615,7 @@ function OperationRow({
   compact?: boolean;
 }) {
   const isEntrega = op.type === "entrega";
+  const isTransfer = op.type === "transfer";
   const isCompleted = variant === "completed";
   const textOpacity = isCompleted ? "0.5" : "0.9";
 
@@ -665,17 +668,19 @@ function OperationRow({
         <span
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase"
           style={{
-            backgroundColor: isEntrega ? "rgba(22,163,74,0.15)" : "rgba(234,88,12,0.15)",
-            color: isEntrega ? "#4ade80" : "#fb923c",
+            backgroundColor: isTransfer ? "rgba(99,102,241,0.15)" : isEntrega ? "rgba(22,163,74,0.15)" : "rgba(234,88,12,0.15)",
+            color: isTransfer ? "#a5b4fc" : isEntrega ? "#4ade80" : "#fb923c",
             opacity: isCompleted ? 0.6 : 1,
           }}
         >
-          {isEntrega ? (
+          {isTransfer ? (
+            <ArrowRightLeft className="w-3 h-3" />
+          ) : isEntrega ? (
             <ArrowDownToLine className="w-3 h-3" />
           ) : (
             <ArrowUpFromLine className="w-3 h-3" />
           )}
-          {isEntrega ? "Entrega" : "Devol."}
+          {isTransfer ? "Transfer" : isEntrega ? "Entrega" : "Devol."}
         </span>
         {variant === "enCamino" && (
           <span
@@ -722,7 +727,7 @@ function OperationRow({
         <div className="flex items-center gap-1.5">
           {/* Fixed-width slot for status icon to keep matriculas aligned */}
           <span className={`flex-shrink-0 flex items-center justify-center ${compact ? "w-3.5" : "w-4"}`}>
-            {op.type === "entrega" ? <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} /> : null}
+            {(op.type === "entrega" || op.type === "transfer") ? <VehicleStatusIcon status={op.vehicleStatus} completed={isCompleted} compact={compact} /> : null}
           </span>
           <p
             className={`${compact ? "text-sm" : "text-base"} font-bold truncate`}
