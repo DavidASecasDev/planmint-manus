@@ -1130,3 +1130,5 @@
 - [x] Stock Productos: Lista de reportes pendientes y resueltos con gestión admin
 - [x] Stock Productos: Añadir navegación en sidebar bajo Preparación y badge de avisos pendientes
 - [x] Stock Productos: Gestión de categorías de productos (admin)
+- [ ] Stock Productos: Corregir bug 'Reportado por: Desconocido' - guardar y mostrar correctamente el usuario que reporta
+- [ ] Stock Productos: Crear lista de productos habituales seleccionables al reportar falta (tabla + UI selector)

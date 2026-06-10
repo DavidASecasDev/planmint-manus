@@ -186,18 +186,44 @@ describe("Product Stock Endpoints", () => {
       expect(res.json).toHaveBeenCalledWith({ ok: true, data: newReport });
     });
 
-    it("should return 400 if no category_id provided", async () => {
+    it("should return 400 if no category_id and no product_name provided", async () => {
       (checkUserPermission as any).mockResolvedValue({ allowed: true });
 
       (getServiceClient as any).mockReturnValue({});
 
-      const req = mockReq({ product_name: "Sonax" });
+      const req = mockReq({});
       const res = mockRes();
 
       await handleCreateShortageReport(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ ok: false, error: "Debes seleccionar una categoría" });
+      expect(res.json).toHaveBeenCalledWith({ ok: false, error: "Debes seleccionar una categoría o indicar el nombre del producto" });
+    });
+
+    it("should allow creating report with product_name but no category_id", async () => {
+      const newReport = { id: "report-2", category_id: null, product_name: "Sonax" };
+
+      (checkUserPermission as any).mockResolvedValue({ allowed: true });
+
+      const mockSingle = vi.fn().mockResolvedValue({ data: newReport, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
+
+      (getServiceClient as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          insert: mockInsert,
+        }),
+      });
+
+      const req = mockReq({
+        product_name: "Sonax",
+        product_brand: "Sonax GmbH",
+      });
+      const res = mockRes();
+
+      await handleCreateShortageReport(req, res);
+
+      expect(res.json).toHaveBeenCalledWith({ ok: true, data: newReport });
     });
   });
 

@@ -1,7 +1,7 @@
-/*
+/**
  * Stock Productos — Gestión de faltas de producto
  * El equipo de preparación puede reportar productos que faltan.
- * Los admins pueden gestionar categorías y marcar como resuelto.
+ * Los admins pueden gestionar categorías, productos habituales y marcar como resuelto.
  */
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +12,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { apiInvoke } from '@/lib/apiClient';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage } from '@/lib/imageCompression';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import {
   Package, Plus, CheckCircle2, Clock, AlertTriangle,
-  Camera, Trash2, Settings2, Edit2, X, Image as ImageIcon,
+  Camera, Trash2, Settings2, Edit2, X, List, ShoppingCart,
 } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -54,6 +54,16 @@ interface ProductCategory {
   id: string;
   name: string;
   icon: string | null;
+  created_at: string;
+}
+
+interface HabitualProduct {
+  id: string;
+  category_id: string | null;
+  category_name: string | null;
+  name: string;
+  brand: string | null;
+  photo_url: string | null;
   created_at: string;
 }
 
@@ -81,6 +91,7 @@ export default function StockProductos() {
 
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [showProductsDialog, setShowProductsDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [deletingReport, setDeletingReport] = useState<string | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
@@ -91,6 +102,18 @@ export default function StockProductos() {
     queryKey: ['product-categories', organization?.id],
     queryFn: async () => {
       const result = await apiInvoke<{ ok: boolean; data: ProductCategory[] }>('product-categories', {
+        body: {},
+      });
+      if (result.error || !result.data?.ok) throw new Error(result.error?.message || 'Error');
+      return result.data.data;
+    },
+    enabled: !!organization?.id,
+  });
+
+  const { data: habitualProducts = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['habitual-products', organization?.id],
+    queryFn: async () => {
+      const result = await apiInvoke<{ ok: boolean; data: HabitualProduct[] }>('habitual-products', {
         body: {},
       });
       if (result.error || !result.data?.ok) throw new Error(result.error?.message || 'Error');
@@ -187,7 +210,7 @@ export default function StockProductos() {
         />
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card className="border-border/50 shadow-sm">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
@@ -221,6 +244,17 @@ export default function StockProductos() {
               </div>
             </CardContent>
           </Card>
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <List className="h-4.5 w-4.5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{habitualProducts.length}</p>
+                <p className="text-xs text-muted-foreground">Productos</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Action buttons */}
@@ -230,10 +264,16 @@ export default function StockProductos() {
             Reportar Falta
           </Button>
           {isAdmin && (
-            <Button variant="outline" onClick={() => { setEditingCategory(null); setShowCategoryDialog(true); }} className="gap-2">
-              <Settings2 className="h-4 w-4" />
-              Gestionar Categorías
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => setShowProductsDialog(true)} className="gap-2">
+                <List className="h-4 w-4" />
+                Productos Habituales
+              </Button>
+              <Button variant="outline" onClick={() => { setEditingCategory(null); setShowCategoryDialog(true); }} className="gap-2">
+                <Settings2 className="h-4 w-4" />
+                Gestionar Categorías
+              </Button>
+            </>
           )}
         </div>
 
@@ -311,8 +351,19 @@ export default function StockProductos() {
           open={showReportDialog}
           onOpenChange={setShowReportDialog}
           categories={categories}
+          habitualProducts={habitualProducts}
           organizationId={organization?.id || ''}
         />
+
+        {/* Habitual products management dialog */}
+        {isAdmin && (
+          <HabitualProductsDialog
+            open={showProductsDialog}
+            onOpenChange={setShowProductsDialog}
+            categories={categories}
+            organizationId={organization?.id || ''}
+          />
+        )}
 
         {/* Category management dialog */}
         {isAdmin && (
@@ -473,20 +524,24 @@ function ReportCard({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Report Form Dialog
+// Report Form Dialog — with habitual product quick-select
 // ═══════════════════════════════════════════════════════════════════════════════
 function ReportFormDialog({
   open,
   onOpenChange,
   categories,
+  habitualProducts,
   organizationId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   categories: ProductCategory[];
+  habitualProducts: HabitualProduct[];
   organizationId: string;
 }) {
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState<'select' | 'manual'>('select');
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [productName, setProductName] = useState('');
   const [productBrand, setProductBrand] = useState('');
@@ -496,12 +551,24 @@ function ReportFormDialog({
   const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
+    setMode('select');
+    setSelectedProductId('');
     setCategoryId('');
     setProductName('');
     setProductBrand('');
     setNotes('');
     setPhotoFile(null);
     setPhotoPreviewUrl(null);
+  };
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    const product = habitualProducts.find(p => p.id === productId);
+    if (product) {
+      setProductName(product.name);
+      setProductBrand(product.brand || '');
+      setCategoryId(product.category_id || '');
+    }
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -518,7 +585,11 @@ function ReportFormDialog({
   };
 
   const handleSubmit = async () => {
-    if (!categoryId && !productName) {
+    if (mode === 'select' && !selectedProductId) {
+      toast({ title: 'Error', description: 'Selecciona un producto de la lista', variant: 'destructive' });
+      return;
+    }
+    if (mode === 'manual' && !categoryId && !productName) {
       toast({ title: 'Error', description: 'Selecciona una categoría o escribe el nombre del producto', variant: 'destructive' });
       return;
     }
@@ -573,7 +644,7 @@ function ReportFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
@@ -582,40 +653,113 @@ function ReportFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Category select */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Categoría</label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar categoría..." />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Mode toggle */}
+          <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
+            <button
+              onClick={() => { setMode('select'); setSelectedProductId(''); setProductName(''); setProductBrand(''); setCategoryId(''); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === 'select' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              De la lista
+            </button>
+            <button
+              onClick={() => { setMode('manual'); setSelectedProductId(''); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === 'manual' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Manual
+            </button>
           </div>
 
-          {/* Product name */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Nombre del producto</label>
-            <Input
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="Ej: Limpiacristales, Ambientador..."
-            />
-          </div>
+          {mode === 'select' ? (
+            /* Quick select from habitual products */
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Seleccionar producto</label>
+              {habitualProducts.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-border rounded-lg">
+                  <List className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No hay productos habituales configurados</p>
+                  <p className="text-xs text-muted-foreground mt-1">Un admin puede añadirlos desde "Productos Habituales"</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-border/50 rounded-lg p-2">
+                  {habitualProducts.map(product => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleSelectProduct(product.id)}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${
+                        selectedProductId === product.id
+                          ? 'bg-primary/10 border border-primary/30'
+                          : 'hover:bg-muted/50 border border-transparent'
+                      }`}
+                    >
+                      {product.photo_url ? (
+                        <img src={product.photo_url} alt="" className="h-10 w-10 rounded-md object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                        <div className="flex items-center gap-2">
+                          {product.brand && <span className="text-xs text-muted-foreground">{product.brand}</span>}
+                          {product.category_name && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{product.category_name}</Badge>
+                          )}
+                        </div>
+                      </div>
+                      {selectedProductId === product.id && (
+                        <CheckCircle2 className="h-4 w-4 text-primary ml-auto flex-shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Manual entry */
+            <>
+              {/* Category select */}
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Categoría</label>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar categoría..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Brand */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Marca (opcional)</label>
-            <Input
-              value={productBrand}
-              onChange={(e) => setProductBrand(e.target.value)}
-              placeholder="Ej: Sonax, Meguiars..."
-            />
-          </div>
+              {/* Product name */}
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Nombre del producto</label>
+                <Input
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="Ej: Limpiacristales, Ambientador..."
+                />
+              </div>
+
+              {/* Brand */}
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Marca (opcional)</label>
+                <Input
+                  value={productBrand}
+                  onChange={(e) => setProductBrand(e.target.value)}
+                  placeholder="Ej: Sonax, Meguiars..."
+                />
+              </div>
+            </>
+          )}
 
           {/* Photo */}
           <div>
@@ -661,6 +805,243 @@ function ReportFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Habitual Products Management Dialog (admin)
+// ═══════════════════════════════════════════════════════════════════════════════
+function HabitualProductsDialog({
+  open,
+  onOpenChange,
+  categories,
+  organizationId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  categories: ProductCategory[];
+  organizationId: string;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['habitual-products', organizationId],
+    queryFn: async () => {
+      const result = await apiInvoke<{ ok: boolean; data: HabitualProduct[] }>('habitual-products', {
+        body: {},
+      });
+      if (result.error || !result.data?.ok) throw new Error(result.error?.message || 'Error');
+      return result.data.data;
+    },
+    enabled: !!organizationId && open,
+  });
+
+  const resetForm = () => {
+    setName('');
+    setBrand('');
+    setCategoryId('');
+    setPhotoFile(null);
+    setPhotoPreviewUrl(null);
+  };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file, { maxDimension: 600, quality: 0.8 });
+      setPhotoFile(compressed.file);
+      setPhotoPreviewUrl(URL.createObjectURL(compressed.file));
+    } catch {
+      setPhotoFile(file);
+      setPhotoPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      toast({ title: 'Error', description: 'El nombre es obligatorio', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      let photoUrl: string | null = null;
+      if (photoFile) {
+        const ext = photoFile.name.split('.').pop() || 'jpg';
+        const path = `${organizationId}/habitual-products/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('damage-report-photos')
+          .upload(path, photoFile, { upsert: true });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('damage-report-photos')
+            .getPublicUrl(path);
+          photoUrl = urlData.publicUrl;
+        }
+      }
+
+      const result = await apiInvoke<{ ok: boolean }>('create-habitual-product', {
+        body: {
+          name: name.trim(),
+          brand: brand.trim() || null,
+          category_id: categoryId || null,
+          photo_url: photoUrl,
+        },
+      });
+      if (result.error || !result.data?.ok) throw new Error(result.error?.message || 'Error');
+      queryClient.invalidateQueries({ queryKey: ['habitual-products'] });
+      resetForm();
+      toast({ title: 'Creado', description: 'Producto habitual añadido' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await apiInvoke<{ ok: boolean }>('delete-habitual-product', { body: { id } });
+      if (result.error || !result.data?.ok) throw new Error(result.error?.message || 'Error');
+      queryClient.invalidateQueries({ queryKey: ['habitual-products'] });
+      setDeletingId(null);
+      toast({ title: 'Eliminado', description: 'Producto eliminado de la lista' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <List className="h-5 w-5 text-blue-500" />
+              Productos Habituales
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Add new product form */}
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="p-4 space-y-3">
+                <p className="text-sm font-medium text-foreground">Añadir producto</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nombre *"
+                  />
+                  <Input
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    placeholder="Marca (opcional)"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Categoría (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {photoPreviewUrl ? (
+                    <div className="relative">
+                      <img src={photoPreviewUrl} alt="" className="h-9 w-9 rounded-md object-cover border" />
+                      <button
+                        onClick={() => { setPhotoFile(null); setPhotoPreviewUrl(null); }}
+                        className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center h-9 w-9 border border-dashed border-border rounded-md cursor-pointer hover:bg-muted/50">
+                      <Camera className="h-4 w-4 text-muted-foreground" />
+                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                    </label>
+                  )}
+                </div>
+                <Button onClick={handleCreate} disabled={saving || !name.trim()} size="sm" className="w-full gap-2">
+                  <Plus className="h-3.5 w-3.5" />
+                  {saving ? 'Guardando...' : 'Añadir Producto'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Product list */}
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {isLoading ? (
+                <Skeleton className="h-14 w-full" />
+              ) : products.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No hay productos habituales. Añade los que tu equipo usa frecuentemente.
+                </p>
+              ) : (
+                products.map(product => (
+                  <div key={product.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 hover:bg-muted/30">
+                    {product.photo_url ? (
+                      <img src={product.photo_url} alt="" className="h-10 w-10 rounded-md object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                      <div className="flex items-center gap-2">
+                        {product.brand && <span className="text-xs text-muted-foreground">{product.brand}</span>}
+                        {product.category_name && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{product.category_name}</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => setDeletingId(product.id)} className="h-7 w-7 p-0 text-red-500 flex-shrink-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará de la lista de productos habituales.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deletingId && handleDelete(deletingId)}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

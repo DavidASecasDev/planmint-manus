@@ -183,6 +183,10 @@ import {
   handleResolveShortageReport,
   handleUnresolveShortageReport,
   handleDeleteShortageReport,
+  handleGetHabitualProducts,
+  handleCreateHabitualProduct,
+  handleUpdateHabitualProduct,
+  handleDeleteHabitualProduct,
 } from "../productStockEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -400,6 +404,10 @@ async function startServer() {
   app.post("/api/resolve-shortage-report", handleResolveShortageReport);
   app.post("/api/unresolve-shortage-report", handleUnresolveShortageReport);
   app.post("/api/delete-shortage-report", handleDeleteShortageReport);
+  app.post("/api/habitual-products", handleGetHabitualProducts);
+  app.post("/api/create-habitual-product", handleCreateHabitualProduct);
+  app.post("/api/update-habitual-product", handleUpdateHabitualProduct);
+  app.post("/api/delete-habitual-product", handleDeleteHabitualProduct);
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);
