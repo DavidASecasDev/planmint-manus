@@ -25,6 +25,12 @@ export function AppLayout({ children, title, fullWidth = false }: AppLayoutProps
   
   useRealtimeNotifications();
 
+  // Update browser tab title
+  useEffect(() => {
+    document.title = title ? `PlanMint | ${title}` : 'PlanMint';
+    return () => { document.title = 'PlanMint'; };
+  }, [title]);
+
   useEffect(() => {
     if (conflicts.length > 0 && !currentConflict) {
       setCurrentConflict(conflicts[0]);
