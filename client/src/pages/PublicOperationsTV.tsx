@@ -20,6 +20,7 @@ import {
   Sparkles,
   Droplets,
   CircleDashed,
+  Wrench,
 } from "lucide-react";
 
 // ─── Corporate Colors (Azul Cars) ──────────────────────────────────────────
@@ -49,6 +50,7 @@ interface OperationItem {
   enCamino: boolean;
   enCaminoAt: string | null;
   vehicleStatus: string | null;
+  isManualVehicle?: boolean;
 }
 
 interface OperationsData {
@@ -735,6 +737,11 @@ function OperationRow({
           >
             {op.auto || op.modelo}
           </p>
+          {op.isManualVehicle && (
+            <span className="flex-shrink-0" title="Vehículo manual (no en flota)">
+              <Wrench className={`${compact ? "w-3 h-3" : "w-3.5 h-3.5"}`} style={{ color: isCompleted ? "rgba(251,191,36,0.4)" : "#fbbf24" }} />
+            </span>
+          )}
         </div>
         {op.auto && op.modelo && (
           <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)", marginLeft: compact ? "20px" : "24px" }}>

@@ -78,7 +78,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     // 4. confirmed_devolucion_datetime is on target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
-      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, cliente_nombre, cliente_apellido")
+      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, asignado_rental_team_id, asignado_rental_entrega_team_id, asignado_rental_devolucion_team_id, asignado_escoba_team_id, asignado_escoba_entrega_team_id, asignado_escoba_devolucion_team_id, cliente_nombre, cliente_apellido")
       .eq("organization_id", organizationId)
       .or("estado.neq.Cancelada,estado.is.null")
       .is("archived_at", null)
@@ -109,6 +109,30 @@ export async function handlePublicOperations(req: Request, res: Response) {
       if (profiles) {
         for (const p of profiles) {
           if (p.name) profileNameMap.set(p.id, p.name);
+        }
+      }
+    }
+
+    // ─── Fetch team names for team assignments ───────────────────────────────
+    const allTeamIds = new Set<string>();
+    for (const r of reservations || []) {
+      if (r.asignado_rental_team_id) allTeamIds.add(r.asignado_rental_team_id);
+      if (r.asignado_rental_entrega_team_id) allTeamIds.add(r.asignado_rental_entrega_team_id);
+      if (r.asignado_rental_devolucion_team_id) allTeamIds.add(r.asignado_rental_devolucion_team_id);
+      if (r.asignado_escoba_team_id) allTeamIds.add(r.asignado_escoba_team_id);
+      if (r.asignado_escoba_entrega_team_id) allTeamIds.add(r.asignado_escoba_entrega_team_id);
+      if (r.asignado_escoba_devolucion_team_id) allTeamIds.add(r.asignado_escoba_devolucion_team_id);
+    }
+
+    let teamNameMap = new Map<string, string>();
+    if (allTeamIds.size > 0) {
+      const { data: teams } = await serviceClient
+        .from("teams")
+        .select("id, name")
+        .in("id", Array.from(allTeamIds));
+      if (teams) {
+        for (const t of teams) {
+          if (t.name) teamNameMap.set(t.id, t.name);
         }
       }
     }
@@ -186,6 +210,24 @@ export async function handlePublicOperations(req: Request, res: Response) {
       }
     }
 
+    // ─── Build set of known fleet plates for manual vehicle detection ─────────
+    const knownFleetPlates = new Set<string>();
+    if (allVehicles) {
+      for (const v of allVehicles) {
+        if (v.matricula) knownFleetPlates.add(v.matricula.replace(/\s+/g, "").toUpperCase());
+      }
+    }
+    // Also check fleet_vehicles table (source of truth)
+    const { data: fleetVehiclesList } = await serviceClient
+      .from("fleet_vehicles")
+      .select("matricula")
+      .eq("organization_id", organizationId);
+    if (fleetVehiclesList) {
+      for (const fv of fleetVehiclesList) {
+        if (fv.matricula) knownFleetPlates.add(fv.matricula.replace(/\s+/g, "").toUpperCase());
+      }
+    }
+
     // Filter to only reservations that have operations on the target date
     const operations: Array<{
       type: "entrega" | "devolucion" | "transfer";
@@ -202,6 +244,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       enCamino: boolean;
       enCaminoAt: string | null;
       vehicleStatus: string | null; // limpio, sucio, incompleto, alquilado, en_servicio
+      isManualVehicle: boolean;
     }> = [];
 
     for (const r of reservations || []) {
@@ -232,12 +275,13 @@ export async function handlePublicOperations(req: Request, res: Response) {
               modelo: r.modelo || "Desconocido",
               auto: r.auto || "",
               completed: r.transfer_completado || false,
-              assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
-              assignedEscobaName: (() => { const eid = r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
+              assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : (r.asignado_rental_team_id ? (teamNameMap.get(r.asignado_rental_team_id) || null) : null),
+              assignedEscobaName: (() => { const eid = r.asignado_escoba_id; if (eid) return profileNameMap.get(eid) || null; const tid = r.asignado_escoba_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
               clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
               enCamino: !!enCaminoRec,
               enCaminoAt: enCaminoRec?.en_camino_at || null,
               vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
+              isManualVehicle: r.auto ? !knownFleetPlates.has(r.auto.replace(/\s+/g, "").toUpperCase()) : false,
             });
           }
         }
@@ -267,12 +311,13 @@ export async function handlePublicOperations(req: Request, res: Response) {
             modelo: r.modelo || "Desconocido",
             auto: r.auto || "",
             completed: r.entrega_completada || false,
-            assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
-            assignedEscobaName: (() => { const eid = r.asignado_escoba_entrega_id || r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
+            assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : (() => { const tid = r.asignado_rental_entrega_team_id || r.asignado_rental_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
+            assignedEscobaName: (() => { const eid = r.asignado_escoba_entrega_id || r.asignado_escoba_id; if (eid) return profileNameMap.get(eid) || null; const tid = r.asignado_escoba_entrega_team_id || r.asignado_escoba_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
             clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
             vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
+            isManualVehicle: r.auto ? !knownFleetPlates.has(r.auto.replace(/\s+/g, "").toUpperCase()) : false,
           });
         }
       }
@@ -300,12 +345,13 @@ export async function handlePublicOperations(req: Request, res: Response) {
             modelo: r.modelo || "Desconocido",
             auto: r.auto || "",
             completed: r.devolucion_completada || false,
-            assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : null,
-            assignedEscobaName: (() => { const eid = r.asignado_escoba_devolucion_id || r.asignado_escoba_id; return eid ? (profileNameMap.get(eid) || null) : null; })(),
+            assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : (() => { const tid = r.asignado_rental_devolucion_team_id || r.asignado_rental_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
+            assignedEscobaName: (() => { const eid = r.asignado_escoba_devolucion_id || r.asignado_escoba_id; if (eid) return profileNameMap.get(eid) || null; const tid = r.asignado_escoba_devolucion_team_id || r.asignado_escoba_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
             clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
             vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
+            isManualVehicle: r.auto ? !knownFleetPlates.has(r.auto.replace(/\s+/g, "").toUpperCase()) : false,
           });
         }
       }
@@ -477,6 +523,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         enCamino: op.enCamino || false,
         enCaminoAt: op.enCaminoAt || null,
         vehicleStatus: op.vehicleStatus || null,
+        isManualVehicle: op.isManualVehicle || false,
       })),
       hourly: hourlyWithLoad,
       recommendedSlots,

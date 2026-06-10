@@ -1130,5 +1130,7 @@
 - [x] Stock Productos: Lista de reportes pendientes y resueltos con gestión admin
 - [x] Stock Productos: Añadir navegación en sidebar bajo Preparación y badge de avisos pendientes
 - [x] Stock Productos: Gestión de categorías de productos (admin)
-- [ ] Stock Productos: Corregir bug 'Reportado por: Desconocido' - guardar y mostrar correctamente el usuario que reporta
-- [ ] Stock Productos: Crear lista de productos habituales seleccionables al reportar falta (tabla + UI selector)
+- [x] Stock Productos: Corregir bug 'Reportado por: Desconocido' - guardar y mostrar correctamente el usuario que reporta
+- [x] Stock Productos: Crear lista de productos habituales seleccionables al reportar falta (tabla + UI selector)
+- [x] Operaciones TV: Corregir bug de equipo asignado que aparece como 'Sin asignar' en /ops/operaciones
+- [x] Operaciones: Añadir icono de 'coche manual' cuando el vehículo no se reconoce en la flota
