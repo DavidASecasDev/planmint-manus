@@ -1123,4 +1123,10 @@
 - [x] Redirigir DamageReportFormDialog al wizard completo
 - [x] PDF Daños: Añadir sección de fotos antes/después del vehículo al PDF generado
 - [x] PDF Daños: Corregir título de fotos que muestra guiones cuando no hay ubicación
-- [ ] Preparación: Añadir casilla de 'Aeropuerto' en cada coche para indicar si debe llevarse al aeropuerto
+- [x] Preparación: Añadir casilla de 'Aeropuerto' en cada coche para indicar si debe llevarse al aeropuerto
+- [x] Stock Productos: Crear tablas product_categories y product_shortage_reports en Supabase
+- [x] Stock Productos: Crear endpoints backend (CRUD categorías, crear/listar/resolver reportes)
+- [x] Stock Productos: Página UI con formulario para reportar falta de producto (categoría, nombre/marca, foto)
+- [x] Stock Productos: Lista de reportes pendientes y resueltos con gestión admin
+- [x] Stock Productos: Añadir navegación en sidebar bajo Preparación y badge de avisos pendientes
+- [x] Stock Productos: Gestión de categorías de productos (admin)

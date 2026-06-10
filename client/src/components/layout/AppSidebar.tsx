@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -96,6 +96,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/lost-found': 'lost_found',
   '/timeline': 'reservations',
   '/preparation': 'preparation',
+  '/stock-productos': 'preparation',
 };
 
 // Garatech submenu items with permission gates
@@ -162,6 +163,7 @@ const menuItems = [
   { title: 'Timeline', url: '/timeline', icon: GanttChart },
   { title: 'Mapa En Camino', url: '/live-map', icon: MapPin },
   { title: 'Preparación', url: '/preparation', icon: SprayCan },
+  { title: 'Stock Productos', url: '/stock-productos', icon: Package },
   { title: 'Estado Coches', url: '/vehicles', icon: Car },
   { title: 'Movimientos', url: '/movements', icon: Route },
   { title: 'Recordatorios', url: '/reminders', icon: Bell },
@@ -203,6 +205,21 @@ export function AppSidebar() {
       });
       if (result.error || !result.data?.ok) return 0;
       return result.data.data.filter((i: { status: string }) => i.status === 'pending').length;
+    },
+    enabled: !!orgId,
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  const { data: shortageCount = 0 } = useQuery({
+    queryKey: ['shortage-count', orgId],
+    queryFn: async () => {
+      if (!orgId) return 0;
+      const result = await apiInvoke<{ ok: boolean; count: number }>('product-shortage-reports-count', {
+        body: {},
+      });
+      if (result.error || !result.data?.ok) return 0;
+      return result.data.count;
     },
     enabled: !!orgId,
     refetchInterval: 60000,
@@ -505,6 +522,11 @@ export function AppSidebar() {
                                   {!isCollapsed && item.url === '/dashboard' && prepCount > 0 && (
                                     <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-orange-500 text-[10px] font-bold text-white">
                                       {prepCount}
+                                    </span>
+                                  )}
+                                  {!isCollapsed && item.url === '/stock-productos' && shortageCount > 0 && (
+                                    <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-[10px] font-bold text-white">
+                                      {shortageCount}
                                     </span>
                                   )}
                                 </NavLink>

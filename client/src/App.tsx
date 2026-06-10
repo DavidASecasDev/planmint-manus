@@ -71,6 +71,7 @@ const DailyTasks = lazy(() => import("./pages/DailyTasks"));
 const TimeTracking = lazy(() => import("./pages/TimeTracking"));
 const VehicleStatus = lazy(() => import("./pages/VehicleStatus"));
 const Preparation = lazy(() => import("./pages/Preparation"));
+const StockProductos = lazy(() => import("./pages/StockProductos"));
 
 // Templates
 const Templates = lazy(() => import("./pages/Templates"));
@@ -329,6 +330,20 @@ function QueryRecovery() {
                     moduleDescription="El módulo de Preparación no está habilitado para tu organización."
                   >
                     <Preparation />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/stock-productos" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute 
+                    moduleKey="preparation" 
+                    moduleName="Stock Productos"
+                    moduleDescription="El módulo de Preparación no está habilitado para tu organización."
+                  >
+                    <StockProductos />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

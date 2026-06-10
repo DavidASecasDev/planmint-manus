@@ -172,6 +172,18 @@ import {
   handleStartPreparation,
 } from "../preparationProgressEndpoints";
 import { handleGetPreparationHistory } from "../preparationHistoryEndpoints";
+import {
+  handleGetProductCategories,
+  handleCreateProductCategory,
+  handleUpdateProductCategory,
+  handleDeleteProductCategory,
+  handleGetShortageReports,
+  handleGetShortageReportsCount,
+  handleCreateShortageReport,
+  handleResolveShortageReport,
+  handleUnresolveShortageReport,
+  handleDeleteShortageReport,
+} from "../productStockEndpoints";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -376,6 +388,18 @@ async function startServer() {
   app.post("/api/get-preparation-progress", handleGetPreparationProgress);
   app.post("/api/start-preparation", handleStartPreparation);
   app.post("/api/get-preparation-history", handleGetPreparationHistory);
+
+  // Product stock management
+  app.post("/api/product-categories", handleGetProductCategories);
+  app.post("/api/create-product-category", handleCreateProductCategory);
+  app.post("/api/update-product-category", handleUpdateProductCategory);
+  app.post("/api/delete-product-category", handleDeleteProductCategory);
+  app.post("/api/product-shortage-reports", handleGetShortageReports);
+  app.post("/api/product-shortage-reports-count", handleGetShortageReportsCount);
+  app.post("/api/create-shortage-report", handleCreateShortageReport);
+  app.post("/api/resolve-shortage-report", handleResolveShortageReport);
+  app.post("/api/unresolve-shortage-report", handleUnresolveShortageReport);
+  app.post("/api/delete-shortage-report", handleDeleteShortageReport);
 
   // Transfer automation engine
   app.post("/api/fire-transfer-automation", handleFireTransferAutomation);
