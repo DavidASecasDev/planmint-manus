@@ -449,7 +449,7 @@ export default function PublicOperationsTV() {
           <div
             className={`flex-shrink-0 max-w-[1920px] mx-auto w-full grid gap-4 ${compact ? "px-11 py-1.5 text-[10px]" : "px-16 py-2.5 text-xs"} font-semibold uppercase tracking-wider`}
             style={{
-              gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
+              gridTemplateColumns: compact ? "60px 85px 85px 1fr 130px 100px 100px 1fr" : "70px 100px 100px 1fr 150px 120px 120px 1fr",
               color: "rgba(255,255,255,0.5)",
               borderBottom: "1px solid rgba(255,255,255,0.1)",
               backgroundColor: "rgba(0,0,0,0.3)",
@@ -628,7 +628,7 @@ function OperationRow({
     <div
       className={`grid gap-4 ${compact ? "px-11 py-3" : "px-16 py-5"} items-center transition-colors hover:bg-white/[0.02]`}
       style={{
-        gridTemplateColumns: compact ? "60px 75px 70px 1fr 130px 100px 100px 1fr" : "70px 85px 80px 1fr 150px 120px 120px 1fr",
+        gridTemplateColumns: compact ? "60px 85px 85px 1fr 130px 100px 100px 1fr" : "70px 100px 100px 1fr 150px 120px 120px 1fr",
         borderBottom: isLast ? "none" : `1px solid ${borderColor}`,
       }}
     >
