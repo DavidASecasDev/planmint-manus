@@ -16,6 +16,7 @@ import { RepairHistoryTab } from '@/components/garatech/repair-detail/RepairHist
 import { RepairPhotosTab } from '@/components/garatech/repair-detail/RepairPhotosTab';
 import { RepairInvoicesTab } from '@/components/garatech/repair-detail/RepairInvoicesTab';
 import { RepairSyncLogTab } from '@/components/garatech/repair-detail/RepairSyncLogTab';
+import { RepairDamagesTab } from '@/components/garatech/repair-detail/RepairDamagesTab';
 import { REPAIR_STATUS_LABELS, REPAIR_STATUS_COLORS, REPAIR_TYPE_LABELS } from '@/types/garatech';
 import type { Repair } from '@/types/garatech';
 
@@ -163,6 +164,7 @@ export default function RepairDetail() {
         <Tabs defaultValue="general" className="w-full">
           <TabsList>
             <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="damages">Daños</TabsTrigger>
             <TabsTrigger value="comments">Comentarios</TabsTrigger>
             <TabsTrigger value="history">Historial</TabsTrigger>
             <TabsTrigger value="photos">Fotos</TabsTrigger>
@@ -176,6 +178,14 @@ export default function RepairDetail() {
               isEditing={isEditing}
               onSave={() => setIsEditing(false)}
               onCancel={() => setIsEditing(false)}
+            />
+          </TabsContent>
+          <TabsContent value="damages">
+            <RepairDamagesTab
+              repairId={repair.id}
+              vehicleId={repair.vehicle_id}
+              repairStatus={repair.status}
+              canManage={canManage}
             />
           </TabsContent>
           <TabsContent value="comments">

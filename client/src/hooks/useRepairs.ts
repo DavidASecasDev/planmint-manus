@@ -128,6 +128,15 @@ export function useRepairs() {
       }
       const { error } = await supabaseQuery.from('repairs').update(updates).eq('id', id);
       if (error) throw error;
+
+      // When repair is finalized, mark all linked damages as repaired
+      if (data.status === 'finalizado' && previousStatus !== 'finalizado') {
+        await supabaseQuery
+          .from('fleet_vehicle_damages')
+          .update({ status: 'reparado', resolved_at: new Date().toISOString() } as any)
+          .eq('repair_id', id);
+      }
+
       return { id, data, previousStatus };
     },
     onSuccess: (result) => {

@@ -1136,3 +1136,7 @@
 - [x] Operaciones: Añadir icono de 'coche manual' cuando el vehículo no se reconoce en la flota
 - [x] Operaciones TV: Diferenciar visualmente equipos vs individuos — icono Users (grupo) cuando el nombre proviene de un equipo, icono User cuando es individual
 - [x] Títulos de pestañas del navegador: Mostrar "PlanMint | [Módulo]" en cada página (ej. "PlanMint | Reservas", "PlanMint | Operaciones")
+- [x] Garatech: Añadir pestaña "Daños del Vehículo" en detalle de reparación mostrando historial de fleet_vehicle_damages
+- [x] Garatech: Permitir vincular un daño pendiente del historial a la reparación actual (escribir repair_id en fleet_vehicle_damages)
+- [x] Garatech: Al vincular daño a reparación, cambiar status del daño a 'en_reparacion'
+- [x] Garatech: Al finalizar reparación, marcar daños vinculados como 'reparado'
