@@ -168,7 +168,6 @@ const menuItems = [
   { title: 'Programación', url: '/reservations', icon: CarFront },
   { title: 'Timeline', url: '/timeline', icon: GanttChart },
   { title: 'Mapa En Camino', url: '/live-map', icon: MapPin },
-  { title: 'Preparación', url: '/preparation', icon: SprayCan },
   { title: 'Estado Coches', url: '/vehicles', icon: Car },
   { title: 'Movimientos', url: '/movements', icon: Route },
   { title: 'Recordatorios', url: '/reminders', icon: Bell },
@@ -334,6 +333,7 @@ export function AppSidebar() {
     isActive: boolean,
     subItems: Array<{ title: string; url: string; icon: React.ElementType; permission?: string }>,
     filterFn?: (item: any) => boolean,
+    badgeCount?: number,
   ) => {
     const Icon = icon;
     return (
@@ -350,6 +350,11 @@ export function AppSidebar() {
                   {!isCollapsed && (
                     <>
                       <span className="flex-1 text-left">{label}</span>
+                      {badgeCount && badgeCount > 0 ? (
+                        <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-orange-500 text-[10px] font-bold text-white">
+                          {badgeCount}
+                        </span>
+                      ) : null}
                       <ChevronDown className={cn(
                         "h-4 w-4 transition-transform duration-200 text-current",
                         isOpen && "rotate-180"
@@ -527,11 +532,7 @@ export function AppSidebar() {
                                 >
                                   <item.icon className="h-[18px] w-[18px] shrink-0" />
                                   {!isCollapsed && <span>{item.title}</span>}
-                                  {!isCollapsed && item.url === '/preparation' && (prepCount + shortageCount) > 0 && (
-                                    <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-orange-500 text-[10px] font-bold text-white">
-                                      {prepCount + shortageCount}
-                                    </span>
-                                  )}
+
                                 </NavLink>
                               </SidebarMenuButton>
                             </span>
@@ -545,9 +546,11 @@ export function AppSidebar() {
                       </DockItem>
 
                       {/* Collapsible sub-menus are OUTSIDE DockItem so they don't scale */}
-                      {item.url === '/preparation' && renderCollapsibleMenu(
+                      {item.url === '/live-map' && renderCollapsibleMenu(
                         'Preparación', SprayCan, preparationOpen, setPreparationOpen, isPreparationActive,
                         preparationSubItems,
+                        undefined,
+                        prepCount + shortageCount,
                       )}
 
                       {item.url === '/dashboard' && renderCollapsibleMenu(
