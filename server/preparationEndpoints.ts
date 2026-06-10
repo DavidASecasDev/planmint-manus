@@ -55,7 +55,7 @@ async function handleAddPreparationItem(req: Request, res: Response) {
     const { allowed: canManage } = await checkUserPermission(sb, organizationId, userId, "preparation.manage");
     if (!canManage) return res.status(403).json({ ok: false, error: "No permission to manage preparation list" });
 
-    const { matricula, modelo, deadline_at, notes } = req.body;
+    const { matricula, modelo, deadline_at, notes, is_airport } = req.body;
     if (!matricula || !deadline_at) {
       return res.status(400).json({ ok: false, error: "Missing required fields (matricula, deadline_at)" });
     }
@@ -110,6 +110,7 @@ async function handleAddPreparationItem(req: Request, res: Response) {
         notes: notes || null,
         added_by: userId,
         status: "pending",
+        is_airport: is_airport || false,
       })
       .select()
       .single();
@@ -264,7 +265,7 @@ async function handleUpdatePreparationItem(req: Request, res: Response) {
     const { allowed: canManage } = await checkUserPermission(sb, organizationId, userId, "preparation.manage");
     if (!canManage) return res.status(403).json({ ok: false, error: "No permission to manage preparation list" });
 
-    const { itemId, deadline_at, notes, matricula, modelo } = req.body;
+    const { itemId, deadline_at, notes, matricula, modelo, is_airport } = req.body;
     if (!itemId) return res.status(400).json({ ok: false, error: "Missing itemId" });
 
     const updates: Record<string, any> = { updated_at: new Date().toISOString() };
@@ -272,6 +273,7 @@ async function handleUpdatePreparationItem(req: Request, res: Response) {
     if (notes !== undefined) updates.notes = notes;
     if (matricula !== undefined) updates.matricula = matricula.toUpperCase().trim();
     if (modelo !== undefined) updates.modelo = modelo;
+    if (is_airport !== undefined) updates.is_airport = is_airport;
 
     const { data, error } = await sb
       .from("preparation_list")

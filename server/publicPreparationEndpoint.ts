@@ -19,7 +19,7 @@ export async function handlePublicPreparation(req: Request, res: Response) {
     // Get all pending items for Azul Cars, ordered by deadline (most urgent first)
     const { data, error } = await sb
       .from("preparation_list")
-      .select("id, matricula, modelo, deadline_at, notes, status, created_at")
+      .select("id, matricula, modelo, deadline_at, notes, status, created_at, is_airport")
       .eq("organization_id", AZUL_CARS_ORG_ID)
       .eq("status", "pending")
       .order("deadline_at", { ascending: true });
@@ -103,6 +103,7 @@ export async function handlePublicPreparation(req: Request, res: Response) {
         urgency,
         total_tasks: taskProgress?.total ?? 0,
         completed_tasks: taskProgress?.completed ?? 0,
+        is_airport: item.is_airport || false,
       };
     });
 

@@ -162,6 +162,7 @@ describe("handlePublicPreparation", () => {
       urgency: "critical",
       total_tasks: 0,
       completed_tasks: 0,
+      is_airport: false,
     });
   });
 

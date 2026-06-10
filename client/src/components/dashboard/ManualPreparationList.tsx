@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import {
-  Plus, Check, Trash2, Clock, AlertTriangle, Car, CheckCircle2, Undo2, Pencil,
+  Plus, Check, Trash2, Clock, AlertTriangle, Car, CheckCircle2, Undo2, Pencil, Plane,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface PreparationItem {
   id: string;
@@ -26,6 +27,7 @@ interface PreparationItem {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  is_airport: boolean;
 }
 
 interface FleetVehicleOption {
@@ -208,6 +210,7 @@ export function ManualPreparationList() {
   const [formModelo, setFormModelo] = useState('');
   const [formDeadline, setFormDeadline] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formIsAirport, setFormIsAirport] = useState(false);
 
   // Fetch vehicles that actually need preparation (sucio or incompleto only)
   const { data: fleetVehicles = [] } = useQuery<FleetVehicleOption[]>({
@@ -250,7 +253,7 @@ export function ManualPreparationList() {
 
   // Add item mutation
   const addMutation = useMutation({
-    mutationFn: async (params: { matricula: string; modelo: string; deadline_at: string; notes: string }) => {
+    mutationFn: async (params: { matricula: string; modelo: string; deadline_at: string; notes: string; is_airport: boolean }) => {
       const result = await apiInvoke<{ ok: boolean; error?: string }>('add-preparation-item', {
         body: { organizationId, ...params },
       });
@@ -317,7 +320,7 @@ export function ManualPreparationList() {
 
   // Update item mutation
   const updateMutation = useMutation({
-    mutationFn: async (params: { itemId: string; matricula?: string; modelo?: string; deadline_at?: string; notes?: string }) => {
+    mutationFn: async (params: { itemId: string; matricula?: string; modelo?: string; deadline_at?: string; notes?: string; is_airport?: boolean }) => {
       const result = await apiInvoke<{ ok: boolean; error?: string }>('update-preparation-item', {
         body: params,
       });
@@ -340,6 +343,7 @@ export function ManualPreparationList() {
     setFormModelo('');
     setFormDeadline('');
     setFormNotes('');
+    setFormIsAirport(false);
   };
 
   const handleAdd = () => {
@@ -349,6 +353,7 @@ export function ManualPreparationList() {
       modelo: formModelo.trim(),
       deadline_at: new Date(formDeadline).toISOString(),
       notes: formNotes.trim(),
+      is_airport: formIsAirport,
     });
   };
 
@@ -360,6 +365,7 @@ export function ManualPreparationList() {
       modelo: formModelo.trim(),
       deadline_at: new Date(formDeadline).toISOString(),
       notes: formNotes.trim(),
+      is_airport: formIsAirport,
     });
   };
 
@@ -371,6 +377,7 @@ export function ManualPreparationList() {
     const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     setFormDeadline(localDate);
     setFormNotes(item.notes || '');
+    setFormIsAirport(item.is_airport || false);
   };
 
   const handleSelectVehicle = (v: FleetVehicleOption) => {
@@ -481,6 +488,12 @@ export function ManualPreparationList() {
                     <div className="flex flex-col min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-foreground text-xs sm:text-sm">{item.matricula}</span>
+                        {item.is_airport && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-sky-600 bg-sky-500/10 px-1.5 py-0.5 rounded">
+                            <Plane className="h-2.5 w-2.5" />
+                            PMI
+                          </span>
+                        )}
                       </div>
                       {item.modelo && (
                         <span className="text-[11px] text-muted-foreground truncate">{item.modelo}</span>
@@ -617,6 +630,17 @@ export function ManualPreparationList() {
                 placeholder="Ej: Lavar exterior, revisar presión..."
                 className="mt-1"
               />
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <Checkbox
+                id="is_airport"
+                checked={formIsAirport}
+                onCheckedChange={(checked) => setFormIsAirport(checked === true)}
+              />
+              <label htmlFor="is_airport" className="text-sm font-medium text-foreground flex items-center gap-2 cursor-pointer">
+                <Plane className="h-4 w-4 text-sky-500" />
+                Llevar al aeropuerto
+              </label>
             </div>
           </div>
           <DialogFooter>

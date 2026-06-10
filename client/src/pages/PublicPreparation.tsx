@@ -11,6 +11,7 @@ import {
   Maximize,
   Minimize,
   Trophy,
+  Plane,
 } from "lucide-react";
 
 // ─── Corporate Colors ───────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ interface PreparationItem {
   urgency: "critical" | "high" | "medium" | "low";
   total_tasks: number;
   completed_tasks: number;
+  is_airport: boolean;
 }
 
 function formatDeadlineTime(dateStr: string): string {
@@ -493,6 +495,19 @@ export default function PublicPreparation() {
                         >
                           {item.matricula}
                         </span>
+                        {item.is_airport && (
+                          <span
+                            className={`inline-flex items-center gap-1.5 font-bold uppercase rounded-lg ${isFirst ? "text-sm px-3 py-1.5" : "text-xs px-2.5 py-1"}`}
+                            style={{
+                              backgroundColor: "#0ea5e9",
+                              color: "#ffffff",
+                              boxShadow: "0 2px 8px rgba(14,165,233,0.4)",
+                            }}
+                          >
+                            <Plane className={`${isFirst ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
+                            AEROPUERTO
+                          </span>
+                        )}
                         {isNew && (
                           <span
                             className="text-xs font-bold uppercase px-2 py-1 rounded-md"

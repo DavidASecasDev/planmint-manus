@@ -1123,3 +1123,4 @@
 - [x] Redirigir DamageReportFormDialog al wizard completo
 - [x] PDF Daños: Añadir sección de fotos antes/después del vehículo al PDF generado
 - [x] PDF Daños: Corregir título de fotos que muestra guiones cuando no hay ubicación
+- [ ] Preparación: Añadir casilla de 'Aeropuerto' en cada coche para indicar si debe llevarse al aeropuerto
