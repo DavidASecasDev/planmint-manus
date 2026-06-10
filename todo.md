@@ -1140,3 +1140,4 @@
 - [x] Garatech: Permitir vincular un daño pendiente del historial a la reparación actual (escribir repair_id en fleet_vehicle_damages)
 - [x] Garatech: Al vincular daño a reparación, cambiar status del daño a 'en_reparacion'
 - [x] Garatech: Al finalizar reparación, marcar daños vinculados como 'reparado'
+- [x] Garatech: Botón "Crear reparación" en la vista de daños del vehículo que cree una reparación pre-vinculada al daño seleccionado

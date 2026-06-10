@@ -17,6 +17,8 @@ import { FLEET_DAMAGE_STATUS_OPTIONS, DAMAGE_ZONES } from '@/types/fleet';
 import type { FleetVehicleDamage, FleetDamageStatus } from '@/types/fleet';
 import { DamageDetailSheet } from '@/components/fleet/DamageDetailSheet';
 import { AddDamageDialog } from '@/components/fleet/AddDamageDialog';
+import { RepairFormDialog } from '@/components/garatech/RepairFormDialog';
+import type { RepairFormData } from '@/types/garatech';
 import { toast } from 'sonner';
 
 interface DamageWithVehicle {
@@ -105,6 +107,9 @@ export default function FleetDamages() {
   const [vehicleSelectorOpen, setVehicleSelectorOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<FleetVehicleOption | null>(null);
   const [addDamageOpen, setAddDamageOpen] = useState(false);
+  const [repairDialogOpen, setRepairDialogOpen] = useState(false);
+  const [repairPrefill, setRepairPrefill] = useState<Partial<RepairFormData> | undefined>(undefined);
+  const [pendingDamageForRepair, setPendingDamageForRepair] = useState<string | null>(null);
 
   const { data: damages = [], isLoading } = useQuery({
     queryKey: ['fleet-all-damages', orgId],
@@ -238,6 +243,37 @@ export default function FleetDamages() {
     if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ['fleet-all-damages'] });
     toast.success('Daño registrado');
+  };
+
+  const handleCreateRepairFromDamage = async (damage: FleetVehicleDamage) => {
+    const { data: vehicleData } = await supabase
+      .from('vehicles')
+      .select('id')
+      .eq('fleet_vehicle_id', damage.fleet_vehicle_id)
+      .limit(1)
+      .single();
+
+    const vehicleId = vehicleData?.id || '';
+    const desc = `Reparación: ${damage.zona.replace(/_/g, ' ')}${damage.pieza ? ` - ${damage.pieza}` : ''}${damage.descripcion ? ` (${damage.descripcion})` : ''}`;
+
+    setRepairPrefill({
+      vehicle_id: vehicleId,
+      repair_type: 'reparacion',
+      description: desc,
+    });
+    setPendingDamageForRepair(damage.id);
+    setRepairDialogOpen(true);
+  };
+
+  const handleRepairCreated = async (repairId: string) => {
+    if (pendingDamageForRepair) {
+      await supabase
+        .from('fleet_vehicle_damages')
+        .update({ repair_id: repairId, status: 'en_reparacion' } as any)
+        .eq('id', pendingDamageForRepair);
+      queryClient.invalidateQueries({ queryKey: ['fleet-all-damages'] });
+      setPendingDamageForRepair(null);
+    }
   };
 
   // Unique vehicles for filter
@@ -430,6 +466,14 @@ export default function FleetDamages() {
         onDelete={(id) => deleteMutation.mutate(id)}
         onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
         onCreateReport={handleCreateReport}
+        onCreateRepair={handleCreateRepairFromDamage}
+      />
+
+      <RepairFormDialog
+        open={repairDialogOpen}
+        onOpenChange={setRepairDialogOpen}
+        prefill={repairPrefill}
+        onCreated={handleRepairCreated}
       />
 
       {/* Vehicle selector dialog for global "Registrar Daño" */}

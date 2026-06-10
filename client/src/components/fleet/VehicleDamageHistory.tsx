@@ -9,8 +9,11 @@ import { useFleetDamages } from '@/hooks/useFleetDamages';
 import { VehicleCroquis } from './VehicleCroquis';
 import { DamageDetailSheet } from './DamageDetailSheet';
 import { AddDamageDialog } from './AddDamageDialog';
+import { RepairFormDialog } from '@/components/garatech/RepairFormDialog';
 import { FLEET_DAMAGE_STATUS_OPTIONS } from '@/types/fleet';
 import type { FleetVehicleDamage } from '@/types/fleet';
+import type { RepairFormData } from '@/types/garatech';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
@@ -26,6 +29,9 @@ export function VehicleDamageHistory({ fleetVehicleId, organizationId, vehiclePl
   const [selectedDamage, setSelectedDamage] = useState<FleetVehicleDamage | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [repairDialogOpen, setRepairDialogOpen] = useState(false);
+  const [repairPrefill, setRepairPrefill] = useState<Partial<RepairFormData> | undefined>(undefined);
+  const [pendingDamageForRepair, setPendingDamageForRepair] = useState<string | null>(null);
 
   const handleDamageClick = (damage: FleetVehicleDamage) => {
     setSelectedDamage(damage);
@@ -38,6 +44,38 @@ export function VehicleDamageHistory({ fleetVehicleId, organizationId, vehiclePl
 
   const handleDelete = (id: string) => {
     deleteDamage.mutate(id);
+  };
+
+  const handleCreateRepair = async (damage: FleetVehicleDamage) => {
+    // Find the vehicle_id (from vehicles table) that has this fleet_vehicle_id
+    const { data: vehicleData } = await supabaseQuery
+      .from('vehicles')
+      .select('id')
+      .eq('fleet_vehicle_id', fleetVehicleId)
+      .limit(1)
+      .single();
+
+    const vehicleId = vehicleData?.id || '';
+    const desc = `Reparación: ${damage.zona.replace(/_/g, ' ')}${damage.pieza ? ` - ${damage.pieza}` : ''}${damage.descripcion ? ` (${damage.descripcion})` : ''}`;
+
+    setRepairPrefill({
+      vehicle_id: vehicleId,
+      repair_type: 'reparacion',
+      description: desc,
+    });
+    setPendingDamageForRepair(damage.id);
+    setRepairDialogOpen(true);
+  };
+
+  const handleRepairCreated = async (repairId: string) => {
+    // Link the damage to the newly created repair
+    if (pendingDamageForRepair) {
+      await supabaseQuery
+        .from('fleet_vehicle_damages')
+        .update({ repair_id: repairId, status: 'en_reparacion' } as any)
+        .eq('id', pendingDamageForRepair);
+      setPendingDamageForRepair(null);
+    }
   };
 
   return (
@@ -151,6 +189,7 @@ export function VehicleDamageHistory({ fleetVehicleId, organizationId, vehiclePl
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDelete={handleDelete}
+        onCreateRepair={handleCreateRepair}
       />
 
       <AddDamageDialog
@@ -160,6 +199,13 @@ export function VehicleDamageHistory({ fleetVehicleId, organizationId, vehiclePl
         organizationId={organizationId}
         vehiclePlate={vehiclePlate}
         onSubmit={handleAddDamage}
+      />
+
+      <RepairFormDialog
+        open={repairDialogOpen}
+        onOpenChange={setRepairDialogOpen}
+        prefill={repairPrefill}
+        onCreated={handleRepairCreated}
       />
     </motion.div>
   );

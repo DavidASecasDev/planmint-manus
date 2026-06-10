@@ -15,9 +15,13 @@ interface RepairFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   repair?: Repair | null;
+  /** Pre-fill fields when creating from a damage */
+  prefill?: Partial<RepairFormData>;
+  /** Called after successful creation with the new repair ID */
+  onCreated?: (repairId: string) => void;
 }
 
-export function RepairFormDialog({ open, onOpenChange, repair }: RepairFormDialogProps) {
+export function RepairFormDialog({ open, onOpenChange, repair, prefill, onCreated }: RepairFormDialogProps) {
 
   const { activeWorkshops } = useWorkshops();
   const { createRepair, updateRepair } = useRepairs();
@@ -50,18 +54,18 @@ export function RepairFormDialog({ open, onOpenChange, repair }: RepairFormDialo
       });
     } else {
       setForm({
-        vehicle_id: '',
-        workshop_id: '',
-        repair_type: 'reparacion',
-        description: '',
-        status: 'pendiente_aprobacion',
-        scheduled_date: '',
-        cost_estimate: 0,
-        km_at_repair: 0,
-        notes: '',
+        vehicle_id: prefill?.vehicle_id || '',
+        workshop_id: prefill?.workshop_id || '',
+        repair_type: prefill?.repair_type || 'reparacion',
+        description: prefill?.description || '',
+        status: prefill?.status || 'pendiente_aprobacion',
+        scheduled_date: prefill?.scheduled_date || '',
+        cost_estimate: prefill?.cost_estimate || 0,
+        km_at_repair: prefill?.km_at_repair || 0,
+        notes: prefill?.notes || '',
       });
     }
-  }, [repair, open]);
+  }, [repair, open, prefill]);
 
   const handleSubmit = async () => {
     if (!form.description) {
@@ -72,7 +76,10 @@ export function RepairFormDialog({ open, onOpenChange, repair }: RepairFormDialo
       if (isEditing && repair) {
         await updateRepair.mutateAsync({ id: repair.id, data: form, previousStatus: repair.status });
       } else {
-        await createRepair.mutateAsync(form);
+        const result = await createRepair.mutateAsync(form);
+        if (result?.id && onCreated) {
+          onCreated(result.id);
+        }
       }
       onOpenChange(false);
     } catch (error) {

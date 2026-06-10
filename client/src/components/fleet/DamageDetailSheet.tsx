@@ -15,16 +15,18 @@ interface DamageDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onDelete?: (id: string) => void;
   onCreateReport?: (damage: FleetVehicleDamage) => void;
+  onCreateRepair?: (damage: FleetVehicleDamage) => void;
   onStatusChange?: (id: string, status: FleetDamageStatus) => void;
 }
 
-export function DamageDetailSheet({ damage, open, onOpenChange, onDelete, onCreateReport, onStatusChange }: DamageDetailSheetProps) {
+export function DamageDetailSheet({ damage, open, onOpenChange, onDelete, onCreateReport, onCreateRepair, onStatusChange }: DamageDetailSheetProps) {
   const { isOwner } = usePermissions();
   if (!damage) return null;
 
   const statusOpt = FLEET_DAMAGE_STATUS_OPTIONS.find(o => o.value === damage.status);
   const canDelete = isOwner || damage.status === 'reparado';
   const canCreateReport = damage.origin_type === 'reserva' && !damage.has_premium_coverage && !damage.damage_report_id;
+  const canCreateRepair = damage.status !== 'reparado' && !damage.repair_id;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -109,6 +111,17 @@ export function DamageDetailSheet({ damage, open, onOpenChange, onDelete, onCrea
                 <FileText className="h-3.5 w-3.5 inline mr-1" />
                 Informe de cobro vinculado
               </div>
+            )}
+
+            {canCreateRepair && onCreateRepair && (
+              <Button
+                variant="outline"
+                className="w-full rounded-2xl h-11"
+                onClick={() => { onCreateRepair(damage); onOpenChange(false); }}
+              >
+                <Wrench className="h-4 w-4 mr-2" />
+                Crear Reparación
+              </Button>
             )}
 
             {damage.repair_id && (

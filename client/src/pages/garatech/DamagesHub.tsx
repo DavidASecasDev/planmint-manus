@@ -17,6 +17,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DamageDetailSheet } from '@/components/fleet/DamageDetailSheet';
 import { AddDamageDialog } from '@/components/fleet/AddDamageDialog';
+import { RepairFormDialog } from '@/components/garatech/RepairFormDialog';
+import type { RepairFormData } from '@/types/garatech';
 import { useDamageReports } from '@/hooks/useDamageReports';
 import { FLEET_DAMAGE_STATUS_OPTIONS, DAMAGE_ZONES } from '@/types/fleet';
 import { DAMAGE_REPORT_STATUS_COLORS, DAMAGE_REPORT_STATUS_LABELS } from '@/types/garatech';
@@ -164,6 +166,9 @@ function DamageRegistryTab() {
   const [vehicleSelectorOpen, setVehicleSelectorOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<FleetVehicleOption | null>(null);
   const [addDamageOpen, setAddDamageOpen] = useState(false);
+  const [repairDialogOpen, setRepairDialogOpen] = useState(false);
+  const [repairPrefill, setRepairPrefill] = useState<Partial<RepairFormData> | undefined>(undefined);
+  const [pendingDamageForRepair, setPendingDamageForRepair] = useState<string | null>(null);
 
   const { data: damages = [], isLoading } = useQuery({
     queryKey: ['fleet-all-damages', orgId],
@@ -290,6 +295,38 @@ function DamageRegistryTab() {
     if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ['fleet-all-damages'] });
     toast.success('Daño registrado');
+  };
+
+  const handleCreateRepair = async (damage: FleetVehicleDamage) => {
+    // Find the vehicle_id (from vehicles table) that has this fleet_vehicle_id
+    const { data: vehicleData } = await supabase
+      .from('vehicles')
+      .select('id')
+      .eq('fleet_vehicle_id', damage.fleet_vehicle_id)
+      .limit(1)
+      .single();
+
+    const vehicleId = vehicleData?.id || '';
+    const desc = `Reparación: ${damage.zona.replace(/_/g, ' ')}${damage.pieza ? ` - ${damage.pieza}` : ''}${damage.descripcion ? ` (${damage.descripcion})` : ''}`;
+
+    setRepairPrefill({
+      vehicle_id: vehicleId,
+      repair_type: 'reparacion',
+      description: desc,
+    });
+    setPendingDamageForRepair(damage.id);
+    setRepairDialogOpen(true);
+  };
+
+  const handleRepairCreated = async (repairId: string) => {
+    if (pendingDamageForRepair) {
+      await supabase
+        .from('fleet_vehicle_damages')
+        .update({ repair_id: repairId, status: 'en_reparacion' } as any)
+        .eq('id', pendingDamageForRepair);
+      queryClient.invalidateQueries({ queryKey: ['fleet-all-damages'] });
+      setPendingDamageForRepair(null);
+    }
   };
 
   const vehicleOptions = useMemo(() => {
@@ -479,6 +516,14 @@ function DamageRegistryTab() {
         onDelete={(id) => deleteMutation.mutate(id)}
         onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
         onCreateReport={handleCreateReport}
+        onCreateRepair={handleCreateRepair}
+      />
+
+      <RepairFormDialog
+        open={repairDialogOpen}
+        onOpenChange={setRepairDialogOpen}
+        prefill={repairPrefill}
+        onCreated={handleRepairCreated}
       />
 
       <Dialog open={vehicleSelectorOpen} onOpenChange={setVehicleSelectorOpen}>
