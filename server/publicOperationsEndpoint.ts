@@ -240,6 +240,8 @@ export async function handlePublicOperations(req: Request, res: Response) {
       completed: boolean;
       assignedRentalName: string | null;
       assignedEscobaName: string | null;
+      isTeamRental: boolean;
+      isTeamEscoba: boolean;
       clientName: string | null;
       enCamino: boolean;
       enCaminoAt: string | null;
@@ -277,6 +279,8 @@ export async function handlePublicOperations(req: Request, res: Response) {
               completed: r.transfer_completado || false,
               assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : (r.asignado_rental_team_id ? (teamNameMap.get(r.asignado_rental_team_id) || null) : null),
               assignedEscobaName: (() => { const eid = r.asignado_escoba_id; if (eid) return profileNameMap.get(eid) || null; const tid = r.asignado_escoba_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
+              isTeamRental: !assigneeId && !!r.asignado_rental_team_id,
+              isTeamEscoba: !r.asignado_escoba_id && !!r.asignado_escoba_team_id,
               clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
               enCamino: !!enCaminoRec,
               enCaminoAt: enCaminoRec?.en_camino_at || null,
@@ -313,6 +317,8 @@ export async function handlePublicOperations(req: Request, res: Response) {
             completed: r.entrega_completada || false,
             assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : (() => { const tid = r.asignado_rental_entrega_team_id || r.asignado_rental_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
             assignedEscobaName: (() => { const eid = r.asignado_escoba_entrega_id || r.asignado_escoba_id; if (eid) return profileNameMap.get(eid) || null; const tid = r.asignado_escoba_entrega_team_id || r.asignado_escoba_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
+            isTeamRental: !assigneeId && !!(r.asignado_rental_entrega_team_id || r.asignado_rental_team_id),
+            isTeamEscoba: !(r.asignado_escoba_entrega_id || r.asignado_escoba_id) && !!(r.asignado_escoba_entrega_team_id || r.asignado_escoba_team_id),
             clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
@@ -347,6 +353,8 @@ export async function handlePublicOperations(req: Request, res: Response) {
             completed: r.devolucion_completada || false,
             assignedRentalName: assigneeId ? (profileNameMap.get(assigneeId) || null) : (() => { const tid = r.asignado_rental_devolucion_team_id || r.asignado_rental_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
             assignedEscobaName: (() => { const eid = r.asignado_escoba_devolucion_id || r.asignado_escoba_id; if (eid) return profileNameMap.get(eid) || null; const tid = r.asignado_escoba_devolucion_team_id || r.asignado_escoba_team_id; return tid ? (teamNameMap.get(tid) || null) : null; })(),
+            isTeamRental: !assigneeId && !!(r.asignado_rental_devolucion_team_id || r.asignado_rental_team_id),
+            isTeamEscoba: !(r.asignado_escoba_devolucion_id || r.asignado_escoba_id) && !!(r.asignado_escoba_devolucion_team_id || r.asignado_escoba_team_id),
             clientName: [r.cliente_nombre, r.cliente_apellido].filter(Boolean).join(" ") || null,
             enCamino: !!enCaminoRec,
             enCaminoAt: enCaminoRec?.en_camino_at || null,
@@ -519,6 +527,8 @@ export async function handlePublicOperations(req: Request, res: Response) {
         completed: op.completed,
         assignedRentalName: op.assignedRentalName || null,
         assignedEscobaName: op.assignedEscobaName || null,
+        isTeamRental: op.isTeamRental || false,
+        isTeamEscoba: op.isTeamEscoba || false,
         clientName: op.clientName || null,
         enCamino: op.enCamino || false,
         enCaminoAt: op.enCaminoAt || null,

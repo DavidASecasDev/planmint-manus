@@ -1134,3 +1134,4 @@
 - [x] Stock Productos: Crear lista de productos habituales seleccionables al reportar falta (tabla + UI selector)
 - [x] Operaciones TV: Corregir bug de equipo asignado que aparece como 'Sin asignar' en /ops/operaciones
 - [x] Operaciones: Añadir icono de 'coche manual' cuando el vehículo no se reconoce en la flota
+- [x] Operaciones TV: Diferenciar visualmente equipos vs individuos — icono Users (grupo) cuando el nombre proviene de un equipo, icono User cuando es individual

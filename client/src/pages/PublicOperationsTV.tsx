@@ -14,6 +14,7 @@ import {
   MapPin,
   Navigation,
   User,
+  Users,
   Sunrise,
   Sun,
   Sunset,
@@ -46,6 +47,8 @@ interface OperationItem {
   completed: boolean;
   assignedRentalName: string | null;
   assignedEscobaName: string | null;
+  isTeamRental?: boolean;
+  isTeamEscoba?: boolean;
   clientName: string | null;
   enCamino: boolean;
   enCaminoAt: string | null;
@@ -773,7 +776,11 @@ function OperationRow({
       <div className="flex items-center gap-1.5 min-w-0">
         {op.assignedRentalName ? (
           <>
-            <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(167,139,250,0.5)" : "#a78bfa" }} />
+            {op.isTeamRental ? (
+              <Users className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(167,139,250,0.5)" : "#a78bfa" }} />
+            ) : (
+              <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(167,139,250,0.5)" : "#a78bfa" }} />
+            )}
             <span
               className="text-sm font-semibold truncate"
               style={{ color: isCompleted ? "rgba(196,181,253,0.5)" : "#c4b5fd" }}
@@ -792,7 +799,11 @@ function OperationRow({
       <div className="flex items-center gap-1.5 min-w-0">
         {op.assignedEscobaName ? (
           <>
-            <Car className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(52,211,153,0.5)" : "#34d399" }} />
+            {op.isTeamEscoba ? (
+              <Users className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(52,211,153,0.5)" : "#34d399" }} />
+            ) : (
+              <Car className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(52,211,153,0.5)" : "#34d399" }} />
+            )}
             <span
               className="text-sm font-semibold truncate"
               style={{ color: isCompleted ? "rgba(110,231,183,0.5)" : "#6ee7b7" }}
