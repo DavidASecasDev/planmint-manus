@@ -99,6 +99,12 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/stock-productos': 'preparation',
 };
 
+// Preparation submenu items
+const preparationSubItems = [
+  { title: 'Preparación', url: '/preparation', icon: SprayCan },
+  { title: 'Stock Productos', url: '/stock-productos', icon: Package },
+];
+
 // Garatech submenu items with permission gates
 const garatechSubItems = [
   { title: 'Dashboard', url: '/garatech', icon: LayoutDashboard },
@@ -163,7 +169,6 @@ const menuItems = [
   { title: 'Timeline', url: '/timeline', icon: GanttChart },
   { title: 'Mapa En Camino', url: '/live-map', icon: MapPin },
   { title: 'Preparación', url: '/preparation', icon: SprayCan },
-  { title: 'Stock Productos', url: '/stock-productos', icon: Package },
   { title: 'Estado Coches', url: '/vehicles', icon: Car },
   { title: 'Movimientos', url: '/movements', icon: Route },
   { title: 'Recordatorios', url: '/reminders', icon: Bell },
@@ -234,11 +239,13 @@ export function AppSidebar() {
   const location = useLocation();
   const isCollapsed = state === 'collapsed';
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [preparationOpen, setPreparationOpen] = useState(location.pathname.startsWith('/preparation') || location.pathname.startsWith('/stock-productos'));
   const [garatechOpen, setGaratechOpen] = useState(location.pathname.startsWith('/garatech'));
   const [transfersOpen, setTransfersOpen] = useState(location.pathname.startsWith('/transfers'));
   const [tasksOpen, setTasksOpen] = useState(location.pathname.startsWith('/tasks'));
   const [fleetOpen, setFleetOpen] = useState(location.pathname.startsWith('/fleet'));
 
+  const isPreparationActive = location.pathname.startsWith('/preparation') || location.pathname.startsWith('/stock-productos');
   const isGaratechActive = location.pathname.startsWith('/garatech');
   const isTransfersActive = location.pathname.startsWith('/transfers');
   const isTasksActive = location.pathname.startsWith('/tasks');
@@ -252,6 +259,7 @@ export function AppSidebar() {
   }, [location.pathname, isMobile, setOpenMobile]);
 
   useEffect(() => {
+    if (location.pathname.startsWith('/preparation') || location.pathname.startsWith('/stock-productos')) setPreparationOpen(true);
     if (location.pathname.startsWith('/garatech')) setGaratechOpen(true);
     if (location.pathname.startsWith('/transfers')) setTransfersOpen(true);
     if (location.pathname.startsWith('/tasks')) setTasksOpen(true);
@@ -519,14 +527,9 @@ export function AppSidebar() {
                                 >
                                   <item.icon className="h-[18px] w-[18px] shrink-0" />
                                   {!isCollapsed && <span>{item.title}</span>}
-                                  {!isCollapsed && item.url === '/dashboard' && prepCount > 0 && (
+                                  {!isCollapsed && item.url === '/preparation' && (prepCount + shortageCount) > 0 && (
                                     <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-orange-500 text-[10px] font-bold text-white">
-                                      {prepCount}
-                                    </span>
-                                  )}
-                                  {!isCollapsed && item.url === '/stock-productos' && shortageCount > 0 && (
-                                    <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-[10px] font-bold text-white">
-                                      {shortageCount}
+                                      {prepCount + shortageCount}
                                     </span>
                                   )}
                                 </NavLink>
@@ -542,6 +545,11 @@ export function AppSidebar() {
                       </DockItem>
 
                       {/* Collapsible sub-menus are OUTSIDE DockItem so they don't scale */}
+                      {item.url === '/preparation' && renderCollapsibleMenu(
+                        'Preparación', SprayCan, preparationOpen, setPreparationOpen, isPreparationActive,
+                        preparationSubItems,
+                      )}
+
                       {item.url === '/dashboard' && renderCollapsibleMenu(
                         'Tareas', ClipboardList, tasksOpen, setTasksOpen, isTasksActive,
                         tasksSubItems,
