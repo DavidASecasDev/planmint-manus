@@ -1201,3 +1201,8 @@
 - [x] Parking: Integrar asignación de plaza como último paso en el flujo de preparación
 - [x] Parking: Liberación automática de plaza cuando vehículo cambia a estado "alquilado"
 - [x] Parking: Registrar ruta y entrada en navegación sidebar
+- [x] Parking: Ejecutar seed de 110 plazas en 5 zonas en Supabase
+- [x] Parking: Notificación automática cuando una zona supere el 90% de ocupación
+- [x] Parking: Tipo de notificación `parking_full` integrado en bell, página de notificaciones y toast
+- [x] Parking: Deep-link desde notificaciones a /fleet/parking
+- [x] Registrar cron job `geofence-battery-check` en Manus Heartbeat (cada 2 min)

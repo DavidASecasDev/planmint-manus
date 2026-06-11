@@ -193,6 +193,7 @@ function getToastAction(
     en_camino: `/live-map`,
     geofence: `/fleet/gps`,
     fleet_vehicle: `/fleet/gps`,
+    parking_zone: `/fleet/parking`,
   };
 
   const route = routes[entity_type];

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow, ParkingSquare } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +33,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   en_camino_alert: Navigation,
   geofence_alert: MapPin,
   low_battery_alert: BatteryLow,
+  parking_full: ParkingSquare,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -52,6 +53,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   en_camino_alert: 'text-emerald-500 bg-emerald-500/10',
   geofence_alert: 'text-cyan-500 bg-cyan-500/10',
   low_battery_alert: 'text-red-500 bg-red-500/10',
+  parking_full: 'text-amber-500 bg-amber-500/10',
 };
 
 const TYPE_LABELS: Record<NotificationType, string> = {
@@ -71,6 +73,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   en_camino_alert: 'En Camino',
   geofence_alert: 'Geocerca',
   low_battery_alert: 'Batería Baja',
+  parking_full: 'Parking Lleno',
 };
 
 export default function Notifications() {
@@ -108,6 +111,7 @@ export default function Notifications() {
       invitation: `/admin/members`,
       geofence: `/fleet/gps`,
       fleet_vehicle: `/fleet/gps`,
+      parking_zone: `/fleet/parking`,
     };
     const route = routes[entity_type];
     if (route) {

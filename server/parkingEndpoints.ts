@@ -249,6 +249,63 @@ export async function handleAssignParkingSpot(req: Request, res: Response) {
       performed_by: userId,
     });
 
+    // Check zone occupancy and notify if >= 90%
+    try {
+      const { data: zoneSpots } = await sb
+        .from("parking_spots")
+        .select("id, status")
+        .eq("zone_id", spot.zone_id)
+        .eq("organization_id", organizationId);
+
+      if (zoneSpots && zoneSpots.length > 0) {
+        const totalSpots = zoneSpots.length;
+        const occupiedSpots = zoneSpots.filter((s: any) => s.status === "occupied").length;
+        const occupancyRate = occupiedSpots / totalSpots;
+
+        if (occupancyRate >= 0.9) {
+          // Get zone name
+          const { data: zone } = await sb
+            .from("parking_zones")
+            .select("name")
+            .eq("id", spot.zone_id)
+            .single();
+
+          const zoneName = zone?.name || "Zona desconocida";
+          const pct = Math.round(occupancyRate * 100);
+
+          // Notify owner
+          const { notifyOwner } = await import("./_core/notification");
+          notifyOwner({
+            title: `\u26a0\ufe0f Parking: ${zoneName} al ${pct}% de capacidad`,
+            content: `La zona "${zoneName}" tiene ${occupiedSpots}/${totalSpots} plazas ocupadas. Considera redirigir veh\u00edculos a otra zona.`,
+          });
+
+          // In-app notifications for all members
+          const { data: members } = await sb
+            .from("organization_members")
+            .select("user_id")
+            .eq("organization_id", organizationId)
+            .eq("status", "active");
+
+          if (members && members.length > 0) {
+            const notifications = members.map((m: { user_id: string }) => ({
+              organization_id: organizationId,
+              user_id: m.user_id,
+              type: "parking_full" as const,
+              title: `\u26a0\ufe0f ${zoneName} al ${pct}% de capacidad`,
+              body: `${occupiedSpots}/${totalSpots} plazas ocupadas. Considera redirigir veh\u00edculos a otra zona.`,
+              entity_type: "parking_zone",
+              entity_id: spot.zone_id,
+            }));
+            await sb.from("notifications").insert(notifications);
+          }
+        }
+      }
+    } catch (notifErr) {
+      // Non-blocking: don't fail the assignment if notification fails
+      console.warn("[parking/assign] Occupancy notification error:", notifErr);
+    }
+
     return res.json({ ok: true });
   } catch (err: any) {
     if (err instanceof AuthError) return res.status(err.status).json({ ok: false, error: err.message });

@@ -4,7 +4,7 @@
  * Bell icon: muted-foreground | Badge: gold accent
  * Popover: popover bg | foreground text
  */
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow, ParkingSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -37,6 +37,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   en_camino_alert: Navigation,
   geofence_alert: MapPin,
   low_battery_alert: BatteryLow,
+  parking_full: ParkingSquare,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -56,6 +57,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   en_camino_alert: '#10B981',
   geofence_alert: '#06B6D4',
   low_battery_alert: '#EF4444',
+  parking_full: '#F59E0B',
 };
 
 export function NotificationBell() {
@@ -82,6 +84,9 @@ export function NotificationBell() {
       invitation: `/admin/members`,
       vehicle_prep: `/vehicles`,
       equipment: `/fleet/equipment`,
+      geofence: `/fleet/gps`,
+      fleet_vehicle: `/fleet/gps`,
+      parking_zone: `/fleet/parking`,
     };
     const route = routes[entity_type];
     if (route) {
