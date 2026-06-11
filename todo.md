@@ -1191,3 +1191,6 @@
 - [x] Dashboard Estado Flota: Crear página UI con tabla/grid mostrando batería, último reporte, km recorridos por vehículo
 - [x] Dashboard Estado Flota: Indicadores visuales de estado (online/offline, batería baja, sin reportar hace mucho)
 - [x] Dashboard Estado Flota: Registrar ruta y entrada en navegación sidebar bajo Flota
+- [x] Dashboard Estado Flota: Endpoint backend para km diarios por vehículo (últimos 7/30 días)
+- [x] Dashboard Estado Flota: Gráfico de barras/líneas con km diarios por vehículo (Recharts)
+- [x] Dashboard Estado Flota: Selector de período (última semana / último mes) y selector de vehículo

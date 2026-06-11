@@ -200,6 +200,7 @@ import {
   handleTraccarVehicleByPlate,
   handleTraccarRouteHistory,
   handleTraccarFleetStatus,
+  handleTraccarFleetDailyKm,
 } from "../traccarEndpoint";
 import {
   handleListGeofences,
@@ -453,6 +454,7 @@ async function startServer() {
   app.post("/api/traccar/vehicle-by-plate", handleTraccarVehicleByPlate);
   app.post("/api/traccar/route-history", handleTraccarRouteHistory);
   app.post("/api/traccar/fleet-status", handleTraccarFleetStatus);
+  app.post("/api/traccar/fleet-daily-km", handleTraccarFleetDailyKm);
 
 
   // ─── Geofences ───────────────────────────────────────────────────────────

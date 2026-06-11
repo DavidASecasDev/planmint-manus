@@ -7,7 +7,7 @@
  * - Online/offline status
  * - Summary KPI cards at the top
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiInvoke } from '@/lib/apiClient';
@@ -21,6 +21,30 @@ import {
   AlertTriangle, Activity, Gauge, Navigation, Signal, SignalLow
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend, LineChart, Line,
+} from 'recharts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+// Helper to format ISO date string to short display format
+function formatChartDate(isoDate: string): string {
+  const [, month, day] = isoDate.split('-');
+  return `${day}/${month}`;
+}
+
+// Chart color palette for multi-vehicle line chart
+const CHART_COLORS = [
+  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+  '#06B6D4', '#F97316', '#EC4899',
+];
 import {
   Tooltip,
   TooltipContent,
@@ -116,6 +140,10 @@ export default function FleetStatusPage() {
   const [sortField, setSortField] = useState<SortField>('status');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'lowBattery' | 'noReport'>('all');
+  const [chartPeriod, setChartPeriod] = useState<'7' | '14' | '30'>('7');
+  const [chartVehicle, setChartVehicle] = useState<string>('all');
+  const [chartData, setChartData] = useState<Array<{ date: string; vehicleId: string; matricula: string; km: number }>>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const fetchFleetStatus = useCallback(async (showRefreshing = false) => {
     if (!orgId) return;
@@ -150,6 +178,90 @@ export default function FleetStatusPage() {
     const interval = setInterval(() => fetchFleetStatus(true), 30000);
     return () => clearInterval(interval);
   }, [fetchFleetStatus]);
+
+  // Fetch chart data
+  const fetchChartData = useCallback(async () => {
+    if (!orgId) return;
+    setChartLoading(true);
+    try {
+      const body: Record<string, unknown> = { organization_id: orgId, days: Number(chartPeriod) };
+      if (chartVehicle !== 'all') {
+        const v = vehicles.find(veh => veh.id === chartVehicle);
+        if (v) body.device_id = v.id; // We'll filter client-side instead
+      }
+      const resp = await apiInvoke<{
+        ok: boolean;
+        data: Array<{ date: string; vehicleId: string; matricula: string; km: number }>;
+      }>('traccar/fleet-daily-km', { body });
+      if (resp.data && resp.data.ok) {
+        setChartData(resp.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching chart data:', err);
+    } finally {
+      setChartLoading(false);
+    }
+  }, [orgId, chartPeriod, vehicles, chartVehicle]);
+
+  useEffect(() => {
+    if (vehicles.length > 0) fetchChartData();
+  }, [fetchChartData, vehicles.length]);
+
+  // Process chart data for Recharts
+  const processedChartData = useMemo(() => {
+    if (chartData.length === 0) return [];
+
+    // Filter by selected vehicle if needed
+    const filtered = chartVehicle === 'all'
+      ? chartData
+      : chartData.filter(d => d.vehicleId === chartVehicle);
+
+    if (chartVehicle !== 'all') {
+      // Single vehicle: simple date → km
+      return filtered.map(d => ({
+        date: formatChartDate(d.date),
+        km: d.km,
+      }));
+    }
+
+    // All vehicles: aggregate total km per day
+    const dayMap = new Map<string, number>();
+    for (const d of filtered) {
+      dayMap.set(d.date, (dayMap.get(d.date) || 0) + d.km);
+    }
+    return Array.from(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, km]) => ({ date: formatChartDate(date), km: Math.round(km * 10) / 10 }));
+  }, [chartData, chartVehicle]);
+
+  // Per-vehicle breakdown for multi-line chart
+  const perVehicleChartData = useMemo(() => {
+    if (chartData.length === 0 || chartVehicle !== 'all') return null;
+    // Get unique vehicles (top 10 by total km)
+    const vehicleKmTotals = new Map<string, { matricula: string; total: number }>();
+    for (const d of chartData) {
+      const existing = vehicleKmTotals.get(d.vehicleId) || { matricula: d.matricula, total: 0 };
+      existing.total += d.km;
+      vehicleKmTotals.set(d.vehicleId, existing);
+    }
+    const topVehicles = Array.from(vehicleKmTotals.entries())
+      .sort(([, a], [, b]) => b.total - a.total)
+      .slice(0, 8);
+
+    // Build date-indexed data
+    const dates = Array.from(new Set(chartData.map(d => d.date))).sort();
+    return {
+      vehicles: topVehicles.map(([id, v]) => ({ id, matricula: v.matricula })),
+      data: dates.map(date => {
+        const row: Record<string, unknown> = { date: formatChartDate(date) };
+        for (const [vId, vInfo] of topVehicles) {
+          const entry = chartData.find(d => d.date === date && d.vehicleId === vId);
+          row[vInfo.matricula] = entry ? Math.round(entry.km * 10) / 10 : 0;
+        }
+        return row;
+      }),
+    };
+  }, [chartData, chartVehicle]);
 
   // Filter and sort
   const filteredVehicles = vehicles
@@ -327,6 +439,139 @@ export default function FleetStatusPage() {
                 No se encontraron vehículos con los filtros aplicados
               </div>
             )}
+          </Card>
+        )}
+
+        {/* ── Daily Km Chart Section ── */}
+        {vehicles.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">Kilómetros Diarios</CardTitle>
+                  <CardDescription>
+                    {chartVehicle === 'all'
+                      ? 'Km totales de la flota por día'
+                      : `Km recorridos por ${vehicles.find(v => v.id === chartVehicle)?.matricula || 'vehículo'}`}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={chartPeriod} onValueChange={(v) => setChartPeriod(v as '7' | '14' | '30')}>
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">Última semana</SelectItem>
+                      <SelectItem value="14">Últimos 14 días</SelectItem>
+                      <SelectItem value="30">Último mes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={chartVehicle} onValueChange={setChartVehicle}>
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {vehicles.map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.matricula}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {chartLoading ? (
+                <div className="h-72 flex items-center justify-center">
+                  <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : processedChartData.length === 0 ? (
+                <div className="h-72 flex flex-col items-center justify-center text-gray-400">
+                  <Activity className="h-10 w-10 mb-2" />
+                  <p className="text-sm">Sin datos de recorrido para este período</p>
+                </div>
+              ) : chartVehicle !== 'all' ? (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={processedChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 11 }} />
+                      <YAxis className="text-xs" tick={{ fontSize: 11 }} unit=" km" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                        }}
+                        formatter={(value: number) => [`${value} km`, 'Distancia']}
+                      />
+                      <Bar
+                        dataKey="km"
+                        name="Km recorridos"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : perVehicleChartData ? (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={perVehicleChartData.data}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 11 }} />
+                      <YAxis className="text-xs" tick={{ fontSize: 11 }} unit=" km" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      {perVehicleChartData.vehicles.map((v, i) => (
+                        <Line
+                          key={v.id}
+                          type="monotone"
+                          dataKey={v.matricula}
+                          stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                          strokeWidth={2}
+                          dot={{ r: 3 }}
+                          activeDot={{ r: 5 }}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={processedChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 11 }} />
+                      <YAxis className="text-xs" tick={{ fontSize: 11 }} unit=" km" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                        }}
+                        formatter={(value: number) => [`${value} km`, 'Total Flota']}
+                      />
+                      <Bar
+                        dataKey="km"
+                        name="Km totales"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
           </Card>
         )}
       </div>

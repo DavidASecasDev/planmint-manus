@@ -809,3 +809,155 @@ export async function handleTraccarFleetStatus(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
   }
 }
+
+/**
+ * POST /api/traccar/fleet-daily-km
+ * Get daily km traveled for one or all linked fleet vehicles over a date range.
+ * Uses Traccar's /api/reports/summary endpoint which returns per-device daily summaries.
+ * 
+ * Body: { organization_id, device_id?, days?: number }
+ * - device_id: optional, if omitted returns data for all linked vehicles
+ * - days: number of days to look back (default 7, max 30)
+ * 
+ * Returns: { ok, data: Array<{ date, vehicleId, matricula, km }> }
+ */
+export async function handleTraccarFleetDailyKm(req: Request, res: Response) {
+  try {
+    const { organization_id, device_id, days = 7 } = req.body;
+    if (!organization_id) {
+      return res.status(400).json({ ok: false, error: 'organization_id required' });
+    }
+
+    const numDays = Math.min(Math.max(Number(days) || 7, 1), 30);
+    const sb = getServiceClient();
+
+    // Get Traccar credentials
+    const credentials = await getTraccarCredentials(organization_id);
+    if (!credentials) {
+      return res.status(400).json({ ok: false, error: 'Traccar no configurado' });
+    }
+
+    // Get linked fleet vehicles
+    let query = sb
+      .from('fleet_vehicles')
+      .select('id, matricula, traccar_device_id')
+      .eq('organization_id', organization_id)
+      .not('traccar_device_id', 'is', null);
+
+    if (device_id) {
+      query = query.eq('traccar_device_id', device_id);
+    }
+
+    const { data: fleetVehicles, error: fvError } = await query.order('matricula');
+    if (fvError || !fleetVehicles || fleetVehicles.length === 0) {
+      return res.json({ ok: true, data: [], vehicles: [] });
+    }
+
+    // Calculate date range
+    const now = new Date();
+    const toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const fromDate = new Date(toDate);
+    fromDate.setDate(fromDate.getDate() - numDays + 1);
+    fromDate.setHours(0, 0, 0, 0);
+
+    const encodedFrom = encodeURIComponent(fromDate.toISOString());
+    const encodedTo = encodeURIComponent(toDate.toISOString());
+
+    // Fetch route data for each vehicle in parallel (max 10 concurrent)
+    const results: Array<{ date: string; vehicleId: string; matricula: string; km: number }> = [];
+    const vehicleList: Array<{ id: string; matricula: string; deviceId: string }> = [];
+
+    // Process vehicles in batches of 5 to avoid overwhelming Traccar
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < fleetVehicles.length; i += BATCH_SIZE) {
+      const batch = fleetVehicles.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (fv) => {
+        const deviceId = fv.traccar_device_id;
+        vehicleList.push({ id: fv.id, matricula: fv.matricula, deviceId });
+
+        // Try Traccar's summary report first (more efficient)
+        const summaryPath = `/reports/summary?deviceId=${deviceId}&from=${encodedFrom}&to=${encodedTo}&daily=true`;
+        const summaryResult = await traccarFetch(credentials, summaryPath);
+
+        if (summaryResult.ok && Array.isArray(summaryResult.data)) {
+          // Traccar summary report returns daily entries with distance
+          const summaries = summaryResult.data as Array<{
+            deviceId: number;
+            distance: number; // meters
+            startTime: string;
+            endTime: string;
+          }>;
+
+          for (const s of summaries) {
+            const dateStr = s.startTime ? s.startTime.split('T')[0] : null;
+            if (dateStr) {
+              results.push({
+                date: dateStr,
+                vehicleId: fv.id,
+                matricula: fv.matricula,
+                km: Math.round((s.distance || 0) / 1000 * 100) / 100,
+              });
+            }
+          }
+        } else {
+          // Fallback: use route reports and calculate distance manually per day
+          const routePath = `/reports/route?deviceId=${deviceId}&from=${encodedFrom}&to=${encodedTo}`;
+          const routeResult = await traccarFetch(credentials, routePath);
+
+          if (routeResult.ok && Array.isArray(routeResult.data)) {
+            const positions = (routeResult.data as Array<{
+              latitude: number;
+              longitude: number;
+              fixTime: string;
+              valid: boolean;
+            }>).filter(p => p.valid && p.latitude !== 0 && p.longitude !== 0);
+
+            // Group positions by day and calculate distance
+            const dayMap = new Map<string, Array<{ lat: number; lng: number }>>();
+            for (const p of positions) {
+              const dateStr = p.fixTime.split('T')[0];
+              if (!dayMap.has(dateStr)) dayMap.set(dateStr, []);
+              dayMap.get(dateStr)!.push({ lat: p.latitude, lng: p.longitude });
+            }
+
+            for (const [dateStr, dayPositions] of Array.from(dayMap)) {
+              let distKm = 0;
+              for (let j = 1; j < dayPositions.length; j++) {
+                const prev = dayPositions[j - 1];
+                const curr = dayPositions[j];
+                const R = 6371;
+                const dLat = (curr.lat - prev.lat) * Math.PI / 180;
+                const dLon = (curr.lng - prev.lng) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(prev.lat * Math.PI / 180) * Math.cos(curr.lat * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                distKm += R * c;
+              }
+              results.push({
+                date: dateStr,
+                vehicleId: fv.id,
+                matricula: fv.matricula,
+                km: Math.round(distKm * 100) / 100,
+              });
+            }
+          }
+        }
+      }));
+    }
+
+    // Sort results by date
+    results.sort((a, b) => a.date.localeCompare(b.date));
+
+    return res.json({
+      ok: true,
+      data: results,
+      vehicles: vehicleList,
+      dateRange: { from: fromDate.toISOString().split('T')[0], to: toDate.toISOString().split('T')[0] },
+    });
+  } catch (err) {
+    console.error('[traccar/fleet-daily-km] Error:', err);
+    return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
+  }
+}
