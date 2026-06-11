@@ -1185,3 +1185,5 @@
 - [x] Tests para la lógica de detección geofence y el endpoint scheduled
 - [x] GPS Flota: Mostrar nivel de batería del dispositivo GPS (attributes.batteryLevel de Traccar)
 - [x] GPS Flota: Reducir auto-refresh de 30s a 10s para mayor tiempo real
+- [x] Mapa En Camino: Cambiar a Leaflet/OpenStreetMap con mismos tiles que GPS Flota (estilo Google Maps)
+- [x] Alerta automática de batería baja: Notificar cuando un dispositivo GPS baje del 15%

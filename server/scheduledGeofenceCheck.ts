@@ -220,13 +220,14 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
           continue;
         }
 
-        // Build device_id → position map
-        const positionMap = new Map<string, { latitude: number; longitude: number; speed: number }>();
+        // Build device_id → position map (includes battery level)
+        const positionMap = new Map<string, { latitude: number; longitude: number; speed: number; batteryLevel: number | null }>();
         for (const pos of positions) {
           positionMap.set(String(pos.deviceId), {
             latitude: pos.latitude,
             longitude: pos.longitude,
             speed: pos.speed || 0,
+            batteryLevel: pos.attributes?.batteryLevel ?? null,
           });
         }
 
@@ -348,6 +349,68 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
                   last_transition_at: hasTransition ? new Date().toISOString() : null,
                 });
             }
+          }
+        }
+
+        // ── Low Battery Check ──
+        // Check all vehicles for battery < 15% with 4-hour cooldown to avoid spam
+        const LOW_BATTERY_THRESHOLD = 15;
+        const BATTERY_ALERT_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+        for (const vehicle of vehicles) {
+          const deviceId = String(vehicle.traccar_device_id);
+          const position = positionMap.get(deviceId);
+
+          if (!position || position.batteryLevel === null || position.batteryLevel >= LOW_BATTERY_THRESHOLD) {
+            continue;
+          }
+
+          // Check cooldown: don't alert again within 4 hours for the same device
+          const cooldownCutoff = new Date(Date.now() - BATTERY_ALERT_COOLDOWN_MS).toISOString();
+          const { data: recentBatteryAlert } = await serviceClient
+            .from("notifications")
+            .select("id")
+            .eq("organization_id", orgId)
+            .eq("type", "low_battery_alert")
+            .eq("entity_id", vehicle.id)
+            .gte("created_at", cooldownCutoff)
+            .limit(1);
+
+          if (recentBatteryAlert && recentBatteryAlert.length > 0) {
+            continue; // Already alerted recently
+          }
+
+          // Send push notification to owner
+          const batteryPct = Math.round(position.batteryLevel);
+          notifyOwner({
+            title: `⚠️ Batería baja: ${vehicle.matricula} (${batteryPct}%)`,
+            content: `El dispositivo GPS del vehículo ${vehicle.matricula} tiene solo ${batteryPct}% de batería. Se recomienda cargarlo pronto para evitar pérdida de seguimiento.`,
+          }).catch(err => console.warn("[geofence-check] Battery notification error:", err));
+
+          // Create in-app notifications for all team members
+          try {
+            const { data: members } = await serviceClient
+              .from("organization_members")
+              .select("user_id")
+              .eq("organization_id", orgId)
+              .eq("status", "active");
+
+            if (members && members.length > 0) {
+              const notifications = members.map((m: { user_id: string }) => ({
+                organization_id: orgId,
+                user_id: m.user_id,
+                type: "low_battery_alert",
+                title: `⚠️ Batería baja: ${vehicle.matricula} (${batteryPct}%)`,
+                body: `El GPS del vehículo ${vehicle.matricula} tiene ${batteryPct}% de batería. Cargar pronto.`,
+                entity_type: "fleet_vehicle",
+                entity_id: vehicle.id,
+              }));
+
+              await serviceClient.from("notifications").insert(notifications);
+              orgAlerts++;
+            }
+          } catch (batteryNotifErr) {
+            console.warn("[geofence-check] Battery in-app notification error:", batteryNotifErr);
           }
         }
       } catch (err: any) {

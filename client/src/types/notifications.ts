@@ -1,5 +1,5 @@
-export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'transfer_status_change' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert' | 'transfer_stale_alert' | 'invitation_sent' | 'invitation_accepted' | 'equipment_shortage' | 'en_camino_alert' | 'geofence_alert';
-export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep' | 'invitation' | 'equipment' | 'en_camino' | 'geofence';
+export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'transfer_status_change' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert' | 'transfer_stale_alert' | 'invitation_sent' | 'invitation_accepted' | 'equipment_shortage' | 'en_camino_alert' | 'geofence_alert' | 'low_battery_alert';
+export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep' | 'invitation' | 'equipment' | 'en_camino' | 'geofence' | 'fleet_vehicle';
 
 export interface Notification {
   id: string;
