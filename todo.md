@@ -1171,3 +1171,5 @@
 - [x] GPS Flota: Endpoint para obtener historial de posiciones de un dispositivo (ruta del día)
 - [x] GPS Flota: Dibujar polyline de la ruta del día en el mapa al hacer click en "Ver ruta"
 - [x] GPS Flota: Selector de fechas para historial de rutas anteriores
+- [x] GPS Flota: Cambiar tiles del mapa a estilo Google Maps (como FindCarGPS) para aspecto más premium y familiar
+- [x] GPS Flota: Añadir date picker en el panel de detalle para consultar rutas de días anteriores

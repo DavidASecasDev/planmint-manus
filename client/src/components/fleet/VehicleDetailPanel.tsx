@@ -15,6 +15,7 @@ import {
   X, Car, Navigation, Clock, Gauge, MapPin, Route,
   Play, Pause, RotateCcw, ExternalLink, Crosshair,
   TrendingUp, Timer, Fuel, Zap, ChevronDown, ChevronUp,
+  CalendarDays,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -93,6 +94,8 @@ export function VehicleDetailPanel({
   const [routeLoading, setRouteLoading] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(''); // YYYY-MM-DD
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Playback state
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -111,14 +114,25 @@ export function VehicleDetailPanel({
     onRouteClear?.();
   }, [vehicle?.id]);
 
-  // Fetch route history for today
-  const fetchTodayRoute = useCallback(async () => {
+  // Fetch route history for a specific date (or today)
+  const fetchRouteForDate = useCallback(async (dateStr?: string) => {
     if (!vehicle || !orgId) return;
     setRouteLoading(true);
     try {
-      const now = new Date();
-      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const to = now.toISOString();
+      let from: string;
+      let to: string;
+      if (dateStr) {
+        // Specific date: full day
+        const d = new Date(dateStr + 'T00:00:00');
+        from = d.toISOString();
+        const dEnd = new Date(dateStr + 'T23:59:59');
+        to = dEnd.toISOString();
+      } else {
+        // Today
+        const now = new Date();
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        to = now.toISOString();
+      }
 
       const { data } = await apiInvoke<{
         ok: boolean;
@@ -140,6 +154,10 @@ export function VehicleDetailPanel({
         setShowRoute(true);
         setCurrentIndex(data.positions.length - 1);
         onRouteLoaded?.(data.positions);
+      } else {
+        setRoutePositions([]);
+        setRouteSummary(null);
+        setShowRoute(true);
       }
     } catch (err) {
       console.error('[VehicleDetailPanel] Error fetching route:', err);
@@ -147,6 +165,8 @@ export function VehicleDetailPanel({
       setRouteLoading(false);
     }
   }, [vehicle, orgId, onRouteLoaded]);
+
+  const fetchTodayRoute = useCallback(() => fetchRouteForDate(), [fetchRouteForDate]);
 
   // Playback timer
   useEffect(() => {
@@ -197,6 +217,7 @@ export function VehicleDetailPanel({
     setRouteSummary(null);
     setPlaying(false);
     setCurrentIndex(0);
+    setSelectedDate('');
     onRouteClear?.();
   }, [onRouteClear]);
 
@@ -356,13 +377,30 @@ export function VehicleDetailPanel({
           <div className="grid grid-cols-2 gap-2">
             <Button
               size="sm"
-              variant={showRoute ? 'default' : 'outline'}
+              variant={showRoute && !selectedDate ? 'default' : 'outline'}
               className="h-9 text-xs gap-1.5"
-              onClick={showRoute ? clearRoute : fetchTodayRoute}
+              onClick={() => {
+                if (showRoute && !selectedDate) {
+                  clearRoute();
+                  setSelectedDate('');
+                } else {
+                  setSelectedDate('');
+                  fetchTodayRoute();
+                }
+              }}
               disabled={routeLoading}
             >
               <Route className="h-3.5 w-3.5" />
-              {routeLoading ? 'Cargando...' : showRoute ? 'Ocultar ruta' : 'Ruta de hoy'}
+              {routeLoading && !selectedDate ? 'Cargando...' : showRoute && !selectedDate ? 'Ocultar ruta' : 'Ruta de hoy'}
+            </Button>
+            <Button
+              size="sm"
+              variant={showDatePicker ? 'default' : 'outline'}
+              className="h-9 text-xs gap-1.5"
+              onClick={() => setShowDatePicker(!showDatePicker)}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Historial
             </Button>
             <Button
               size="sm"
@@ -376,18 +414,99 @@ export function VehicleDetailPanel({
             <Button
               size="sm"
               variant="outline"
-              className="h-9 text-xs gap-1.5 col-span-2"
+              className="h-9 text-xs gap-1.5"
               onClick={() => window.open(`/fleet/${vehicle.id}`, '_blank')}
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Ver ficha del vehículo
+              Ver ficha
             </Button>
           </div>
+
+          {/* Date picker for route history */}
+          <AnimatePresence>
+            {showDatePicker && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/30">
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                    Seleccionar fecha para ver ruta
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      max={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="flex-1 h-9 px-3 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-9 px-3"
+                      disabled={!selectedDate || routeLoading}
+                      onClick={() => {
+                        fetchRouteForDate(selectedDate);
+                        setShowDatePicker(false);
+                      }}
+                    >
+                      {routeLoading ? 'Cargando...' : 'Ver ruta'}
+                    </Button>
+                  </div>
+                  {/* Quick date buttons */}
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {[0, 1, 2, 3, 4, 5, 6].map((daysAgo) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - daysAgo);
+                      const dateStr = d.toISOString().split('T')[0];
+                      const label = daysAgo === 0 ? 'Hoy' : daysAgo === 1 ? 'Ayer' : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+                      return (
+                        <button
+                          key={daysAgo}
+                          onClick={() => {
+                            setSelectedDate(dateStr);
+                            fetchRouteForDate(dateStr);
+                            setShowDatePicker(false);
+                          }}
+                          className={cn(
+                            'px-2 py-1 text-xs rounded-md border transition-colors',
+                            selectedDate === dateStr
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background border-border hover:bg-accent'
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Route summary + playback ── */}
         {showRoute && routePositions.length > 0 && (
           <div className="flex-1 overflow-y-auto p-4">
+            {/* Date label for historical routes */}
+            {selectedDate && (
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-medium text-foreground">
+                  Ruta del {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => { clearRoute(); setSelectedDate(''); }}
+                  className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             {/* Summary stats */}
             {routeSummary && (
               <div className="grid grid-cols-2 gap-2 mb-4">
@@ -513,7 +632,10 @@ export function VehicleDetailPanel({
             <Route className="h-10 w-10 text-muted-foreground/20 mb-3" />
             <p className="text-sm font-medium text-muted-foreground">Sin datos de ruta</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              No hay posiciones registradas para hoy
+              {selectedDate
+                ? `No hay posiciones registradas para el ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                : 'No hay posiciones registradas para hoy'
+              }
             </p>
           </div>
         )}
