@@ -1,6 +1,7 @@
 /**
- * Parking Map — Clean schematic SVG layout of the Azul Cars campa
- * Recreates the physical layout as a professional blueprint-style diagram.
+ * Parking Map — Clean schematic SVG layout matching the real Azul Cars campa
+ * Based on the aerial photo: landscape orientation, nave with X roof at top,
+ * spots positioned exactly as in the real layout.
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -25,12 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Car, ParkingSquare, MapPin, RefreshCw,
   History, Search, X, AlertTriangle, CircleDot,
@@ -81,80 +76,94 @@ interface ParkingHistoryItem {
   performed_at: string;
 }
 
-// ─── SVG Layout Constants ───────────────────────────────────────────────────
-// The SVG viewBox is 1200 x 900 to give us plenty of room
-const SVG_W = 1200;
-const SVG_H = 900;
+// ─── SVG Layout ─────────────────────────────────────────────────────────────
+// ViewBox: 1400 x 1000 (landscape, matching the real proportions)
+const SVG_W = 1400;
+const SVG_H = 1000;
 
-// Spot dimensions
-const SPOT_W = 34;
-const SPOT_H = 28;
-const GAP = 2;
+// Spot size
+const SW = 36; // spot width
+const SH = 30; // spot height
+const G = 3;   // gap between spots
 
-// ─── Spot coordinate generator ──────────────────────────────────────────────
+/**
+ * Build spot coordinates matching the real aerial layout:
+ * 
+ * The campa is roughly:
+ * - Top: Nave structure (blue roof with X pattern)
+ * - Top-left under nave: "Sucios" zone (not numbered spots)
+ * - Far left column: 96-110 (vertical, single column)
+ * - Left pair columns: 70-95 (vertical, 2 cols, 13 rows)
+ * - Center-left pair columns: 44-69 (vertical, 2 cols, 13 rows)
+ * - Top-right: 1-11 (horizontal row)
+ * - Center-right: 12-19 (row), 20-27 (row below)
+ * - Bottom-right: 28-35 (row), 36-43 (row below)
+ * - Center-right area: Oficina Azul Cars building
+ * - Bottom-center: SALIDA (exit)
+ * - Right edge: Camí Fondo road
+ * - Bottom edge: Son Maiferit road
+ */
 function buildSpotCoords(): Map<number, { x: number; y: number; w: number; h: number }> {
   const coords = new Map<number, { x: number; y: number; w: number; h: number }>();
 
-  // ─── Plazas 1-11: Top-right horizontal row ────────────────────────
-  // In the real layout these are at the top-right, horizontal
-  const row1X = 640;
-  const row1Y = 260;
-  for (let i = 0; i < 11; i++) {
-    coords.set(i + 1, { x: row1X + i * (SPOT_W + GAP), y: row1Y, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 12-19: Center block, row 1 ────────────────────────────
-  const centerX = 640;
-  const centerY1 = 420;
-  for (let i = 0; i < 8; i++) {
-    coords.set(12 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY1, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 20-27: Center block, row 2 ────────────────────────────
-  const centerY2 = centerY1 + SPOT_H + GAP;
-  for (let i = 0; i < 8; i++) {
-    coords.set(20 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY2, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 28-35: Center block, row 3 ────────────────────────────
-  const centerY3 = centerY2 + SPOT_H + 40;
-  for (let i = 0; i < 8; i++) {
-    coords.set(28 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY3, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 36-43: Center block, row 4 ────────────────────────────
-  const centerY4 = centerY3 + SPOT_H + GAP;
-  for (let i = 0; i < 8; i++) {
-    coords.set(36 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY4, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 44-69: Two columns center-left ────────────────────────
-  // Pairs: 44,45 / 46,47 / ... / 68,69 (13 rows, 2 cols)
-  const col44X1 = 480;
-  const col44X2 = col44X1 + SPOT_W + GAP;
-  const col44StartY = 240;
-  for (let i = 0; i < 13; i++) {
-    const y = col44StartY + i * (SPOT_H + GAP);
-    coords.set(44 + i * 2, { x: col44X1, y, w: SPOT_W, h: SPOT_H });
-    coords.set(45 + i * 2, { x: col44X2, y, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 70-95: Two columns left ───────────────────────────────
-  // Pairs: 70,71 / 72,73 / ... / 94,95 (13 rows, 2 cols)
-  const col70X1 = 300;
-  const col70X2 = col70X1 + SPOT_W + GAP;
-  const col70StartY = 240;
-  for (let i = 0; i < 13; i++) {
-    const y = col70StartY + i * (SPOT_H + GAP);
-    coords.set(70 + i * 2, { x: col70X1, y, w: SPOT_W, h: SPOT_H });
-    coords.set(71 + i * 2, { x: col70X2, y, w: SPOT_W, h: SPOT_H });
-  }
-
-  // ─── Plazas 96-110: Single column far-left ────────────────────────
-  const col96X = 180;
-  const col96StartY = 240;
+  // ─── Plazas 96-110: Far-left single column ────────────────────────
+  // Vertical column, spots stacked top to bottom
+  const col96X = 120;
+  const col96StartY = 330;
   for (let i = 0; i < 15; i++) {
-    coords.set(96 + i, { x: col96X, y: col96StartY + i * (SPOT_H + GAP), w: SPOT_W, h: SPOT_H });
+    coords.set(96 + i, { x: col96X, y: col96StartY + i * (SH + G), w: SW, h: SH });
+  }
+
+  // ─── Plazas 70-95: Two paired columns (left area) ─────────────────
+  // 13 rows × 2 cols: 70,71 / 72,73 / ... / 94,95
+  const col70X = 230;
+  const col70StartY = 330;
+  for (let i = 0; i < 13; i++) {
+    const y = col70StartY + i * (SH + G);
+    coords.set(70 + i * 2, { x: col70X, y, w: SW, h: SH });
+    coords.set(71 + i * 2, { x: col70X + SW + G, y, w: SW, h: SH });
+  }
+
+  // ─── Plazas 44-69: Two paired columns (center-left) ───────────────
+  // 13 rows × 2 cols: 44,45 / 46,47 / ... / 68,69
+  const col44X = 400;
+  const col44StartY = 330;
+  for (let i = 0; i < 13; i++) {
+    const y = col44StartY + i * (SH + G);
+    coords.set(44 + i * 2, { x: col44X, y, w: SW, h: SH });
+    coords.set(45 + i * 2, { x: col44X + SW + G, y, w: SW, h: SH });
+  }
+
+  // ─── Plazas 1-11: Top-right horizontal row ────────────────────────
+  const row1X = 700;
+  const row1Y = 310;
+  for (let i = 0; i < 11; i++) {
+    coords.set(i + 1, { x: row1X + i * (SW + G), y: row1Y, w: SW, h: SH });
+  }
+
+  // ─── Plazas 12-19: Center-right, first row ────────────────────────
+  const centerRightX = 640;
+  const row12Y = 480;
+  for (let i = 0; i < 8; i++) {
+    coords.set(12 + i, { x: centerRightX + i * (SW + G), y: row12Y, w: SW, h: SH });
+  }
+
+  // ─── Plazas 20-27: Center-right, second row ───────────────────────
+  const row20Y = row12Y + SH + G;
+  for (let i = 0; i < 8; i++) {
+    coords.set(20 + i, { x: centerRightX + i * (SW + G), y: row20Y, w: SW, h: SH });
+  }
+
+  // ─── Plazas 28-35: Bottom-right, first row ────────────────────────
+  const row28Y = 640;
+  for (let i = 0; i < 8; i++) {
+    coords.set(28 + i, { x: centerRightX + i * (SW + G), y: row28Y, w: SW, h: SH });
+  }
+
+  // ─── Plazas 36-43: Bottom-right, second row ───────────────────────
+  const row36Y = row28Y + SH + G;
+  for (let i = 0; i < 8; i++) {
+    coords.set(36 + i, { x: centerRightX + i * (SW + G), y: row36Y, w: SW, h: SH });
   }
 
   return coords;
@@ -235,7 +244,7 @@ export default function Parking() {
     return overview.zones.flatMap(z => z.spots);
   }, [overview]);
 
-  // Create a map of spot_number -> spot for quick lookup
+  // Map spot_number -> spot
   const spotByNumber = useMemo(() => {
     const map = new Map<number, ParkingSpot>();
     allSpots.forEach(s => map.set(s.spot_number, s));
@@ -395,178 +404,207 @@ export default function Parking() {
 
       {/* ─── SVG PARKING MAP ──────────────────────────────────────────── */}
       {!isLoading && overview && (
-        <TooltipProvider delayDuration={200}>
-          <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
-            <svg
-              viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-              className="w-full h-auto bg-[#2563a8]"
-              style={{ minHeight: '500px' }}
-            >
-              {/* Background decorative elements */}
-              {/* Road border (white band at bottom) */}
-              <rect x="0" y={SVG_H - 50} width={SVG_W} height="50" fill="#e5e7eb" />
-              <text x={SVG_W - 80} y={SVG_H - 20} fontSize="12" fill="#6b7280" fontFamily="sans-serif">
-                Camí Fondo
-              </text>
-              <text x={SVG_W / 2 - 40} y={SVG_H - 20} fontSize="12" fill="#6b7280" fontFamily="sans-serif">
-                Son Maiferit
-              </text>
+        <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
+          <svg
+            viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+            className="w-full h-auto"
+            style={{ minHeight: '450px', maxHeight: '75vh' }}
+          >
+            {/* ─── Background ─────────────────────────────────────────── */}
+            <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#3b82f6" />
 
-              {/* Zona Sucios label */}
-              <rect x="380" y="80" width="180" height="140" rx="4" fill="#1e4a7a" stroke="#3b82f6" strokeWidth="1" strokeDasharray="4 2" />
-              <text x="470" y="155" fontSize="14" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
-                SUCIOS
-              </text>
+            {/* ─── Nave / Roof structure (top area with X pattern) ─────── */}
+            <rect x="350" y="20" width="900" height="250" fill="#2563a8" stroke="#1d4ed8" strokeWidth="2" />
+            {/* X pattern on roof */}
+            <line x1="350" y1="20" x2="1250" y2="270" stroke="#1e40af" strokeWidth="3" opacity="0.5" />
+            <line x1="1250" y1="20" x2="350" y2="270" stroke="#1e40af" strokeWidth="3" opacity="0.5" />
+            {/* Diamond pattern lines */}
+            <line x1="800" y1="20" x2="350" y2="145" stroke="#1e40af" strokeWidth="1.5" opacity="0.3" />
+            <line x1="800" y1="20" x2="1250" y2="145" stroke="#1e40af" strokeWidth="1.5" opacity="0.3" />
+            <line x1="800" y1="270" x2="350" y2="145" stroke="#1e40af" strokeWidth="1.5" opacity="0.3" />
+            <line x1="800" y1="270" x2="1250" y2="145" stroke="#1e40af" strokeWidth="1.5" opacity="0.3" />
 
-              {/* Oficina Azul Cars */}
-              <rect x="750" y="320" width="140" height="80" rx="4" fill="#1e3a5f" stroke="#60a5fa" strokeWidth="1" />
-              <text x="820" y="360" fontSize="11" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle">
-                Azul Cars
-              </text>
-              <text x="820" y="378" fontSize="10" fill="#7dd3fc" fontFamily="sans-serif" textAnchor="middle">
-                Oficina
-              </text>
+            {/* ─── Zona Sucios (top-left, under nave) ─────────────────── */}
+            <rect x="380" y="100" width="160" height="180" rx="3" fill="#1e3a5f" stroke="#60a5fa" strokeWidth="1.5" strokeDasharray="5 3" />
+            <text x="460" y="130" fontSize="13" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold" transform="rotate(-90, 460, 190)">
+              Sucios
+            </text>
+            {/* Small car icons in sucios */}
+            {[0, 1, 2, 3, 4].map(i => (
+              <rect key={`sucios-${i}`} x="420" y={130 + i * 28} width="80" height="22" rx="2" fill="#1e4a7a" stroke="#475569" strokeWidth="0.5" />
+            ))}
 
-              {/* SALIDA marker */}
-              <rect x="540" y={SVG_H - 100} width="50" height="40" rx="3" fill="#991b1b" />
-              <text x="565" y={SVG_H - 75} fontSize="9" fill="white" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
-                SALIDA
-              </text>
-              {/* Arrow down */}
-              <polygon points="565,810 555,800 575,800" fill="#991b1b" />
+            {/* ─── Oficina Azul Cars (center-right) ───────────────────── */}
+            <rect x="740" y="370" width="160" height="90" rx="4" fill="#1e3a5f" stroke="#60a5fa" strokeWidth="1.5" />
+            <circle cx="790" cy="405" r="8" fill="none" stroke="#93c5fd" strokeWidth="1" />
+            <circle cx="790" cy="405" r="3" fill="#93c5fd" />
+            <text x="820" y="415" fontSize="12" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
+              Azul Cars
+            </text>
+            <text x="820" y="435" fontSize="10" fill="#7dd3fc" fontFamily="sans-serif" textAnchor="middle">
+              Oficina
+            </text>
 
-              {/* ─── Render all parking spots ─────────────────────────── */}
-              {Array.from(SPOT_COORDS.entries()).map(([num, pos]) => {
-                const spot = spotByNumber.get(num);
-                const isOccupied = spot?.status === 'occupied';
-                const isFree = !spot || spot.status === 'free';
-                const isBlocked = spot?.status === 'blocked';
-                const isReserved = spot?.status === 'reserved';
-                const isHighlighted = highlightedSpotNum === num;
+            {/* ─── Road: Right edge (Camí Fondo) ──────────────────────── */}
+            <rect x={SVG_W - 60} y="0" width="60" height={SVG_H} fill="#d1d5db" />
+            <text x={SVG_W - 30} y={SVG_H / 2} fontSize="13" fill="#6b7280" fontFamily="sans-serif" textAnchor="middle" fontWeight="500" transform={`rotate(-90, ${SVG_W - 30}, ${SVG_H / 2})`}>
+              Camí Fondo
+            </text>
 
-                // Colors
-                let fill = '#ffffff'; // free = white
-                let stroke = '#94a3b8';
-                let textColor = '#1e293b';
+            {/* ─── Road: Bottom edge (Son Maiferit) ───────────────────── */}
+            <rect x="0" y={SVG_H - 50} width={SVG_W} height="50" fill="#d1d5db" />
+            <text x={SVG_W / 2} y={SVG_H - 20} fontSize="13" fill="#6b7280" fontFamily="sans-serif" textAnchor="middle" fontWeight="500">
+              Son Maiferit
+            </text>
 
-                if (isOccupied) {
-                  fill = '#ef4444';
-                  stroke = '#b91c1c';
-                  textColor = '#ffffff';
-                } else if (isBlocked) {
-                  fill = '#6b7280';
-                  stroke = '#4b5563';
-                  textColor = '#ffffff';
-                } else if (isReserved) {
-                  fill = '#f59e0b';
-                  stroke = '#d97706';
-                  textColor = '#1e293b';
-                }
+            {/* ─── Trees (decorative, left and bottom) ────────────────── */}
+            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+              <circle key={`tree-left-${i}`} cx={30 + i * 15} cy={SVG_H - 60} r="12" fill="#166534" opacity="0.6" />
+            ))}
+            {[0, 1, 2, 3, 4, 5].map(i => (
+              <circle key={`tree-top-${i}`} cx={30 + i * 18} cy={40 + i * 20} r="14" fill="#166534" opacity="0.5" />
+            ))}
 
-                return (
-                  <g
-                    key={num}
-                    onClick={() => spot && handleSpotClick(spot)}
-                    className="cursor-pointer"
-                    style={{ transition: 'transform 0.1s' }}
-                  >
-                    {/* Highlight ring */}
-                    {isHighlighted && (
-                      <rect
-                        x={pos.x - 3}
-                        y={pos.y - 3}
-                        width={pos.w + 6}
-                        height={pos.h + 6}
-                        rx="4"
-                        fill="none"
-                        stroke="#facc15"
-                        strokeWidth="3"
-                        className="animate-pulse"
-                      />
-                    )}
+            {/* ─── SALIDA (exit, bottom-center) ───────────────────────── */}
+            <rect x="530" y={SVG_H - 110} width="55" height="50" rx="4" fill="#7f1d1d" />
+            <text x="557" y={SVG_H - 85} fontSize="10" fill="white" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
+              SALIDA
+            </text>
+            {/* Arrow down */}
+            <polygon points="557,910 547,900 567,900" fill="#dc2626" />
 
-                    {/* Spot rectangle */}
+            {/* ─── Planet Space label (top-right) ─────────────────────── */}
+            <text x="1150" y="200" fontSize="10" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle" opacity="0.7">
+              Planet Space
+            </text>
+            <text x="1150" y="215" fontSize="9" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle" opacity="0.7">
+              of Terrace N2
+            </text>
+
+            {/* ─── Render all parking spots ────────────────────────────── */}
+            {Array.from(SPOT_COORDS.entries()).map(([num, pos]) => {
+              const spot = spotByNumber.get(num);
+              const isOccupied = spot?.status === 'occupied';
+              const isBlocked = spot?.status === 'blocked';
+              const isReserved = spot?.status === 'reserved';
+              const isHighlighted = highlightedSpotNum === num;
+
+              // Colors
+              let fill = '#ffffff';
+              let stroke = '#94a3b8';
+              let textColor = '#1e293b';
+
+              if (isOccupied) {
+                fill = '#dc2626';
+                stroke = '#991b1b';
+                textColor = '#ffffff';
+              } else if (isBlocked) {
+                fill = '#6b7280';
+                stroke = '#4b5563';
+                textColor = '#ffffff';
+              } else if (isReserved) {
+                fill = '#f59e0b';
+                stroke = '#d97706';
+                textColor = '#1e293b';
+              }
+
+              return (
+                <g
+                  key={num}
+                  onClick={() => spot && handleSpotClick(spot)}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  {/* Highlight ring */}
+                  {isHighlighted && (
                     <rect
-                      x={pos.x}
-                      y={pos.y}
-                      width={pos.w}
-                      height={pos.h}
-                      rx="2"
-                      fill={fill}
-                      stroke={stroke}
-                      strokeWidth="1"
+                      x={pos.x - 4}
+                      y={pos.y - 4}
+                      width={pos.w + 8}
+                      height={pos.h + 8}
+                      rx="5"
+                      fill="none"
+                      stroke="#facc15"
+                      strokeWidth="3"
+                      className="animate-pulse"
                     />
+                  )}
 
-                    {/* Spot number or plate */}
-                    {isOccupied && spot?.vehicle_matricula ? (
-                      <text
-                        x={pos.x + pos.w / 2}
-                        y={pos.y + pos.h / 2 + 4}
-                        fontSize="7"
-                        fill={textColor}
-                        fontFamily="monospace"
-                        textAnchor="middle"
-                        fontWeight="bold"
-                      >
-                        {spot.vehicle_matricula.length > 7
-                          ? spot.vehicle_matricula.slice(-7)
-                          : spot.vehicle_matricula}
-                      </text>
-                    ) : (
-                      <text
-                        x={pos.x + pos.w / 2}
-                        y={pos.y + pos.h / 2 + 4}
-                        fontSize="9"
-                        fill={textColor}
-                        fontFamily="sans-serif"
-                        textAnchor="middle"
-                        fontWeight="600"
-                      >
-                        {num}
-                      </text>
-                    )}
+                  {/* Spot rectangle */}
+                  <rect
+                    x={pos.x}
+                    y={pos.y}
+                    width={pos.w}
+                    height={pos.h}
+                    rx="2"
+                    fill={fill}
+                    stroke={stroke}
+                    strokeWidth="1.2"
+                  />
 
-                    {/* Hover area (invisible, larger hit target) */}
-                    <rect
-                      x={pos.x - 1}
-                      y={pos.y - 1}
-                      width={pos.w + 2}
-                      height={pos.h + 2}
-                      fill="transparent"
-                      className="hover:opacity-80"
+                  {/* Spot number or plate */}
+                  {isOccupied && spot?.vehicle_matricula ? (
+                    <text
+                      x={pos.x + pos.w / 2}
+                      y={pos.y + pos.h / 2 + 4}
+                      fontSize="7"
+                      fill={textColor}
+                      fontFamily="monospace"
+                      textAnchor="middle"
+                      fontWeight="bold"
                     >
-                      <title>
-                        {isOccupied
-                          ? `Plaza ${num} — ${spot?.vehicle_matricula || 'Ocupada'}`
-                          : `Plaza ${num} — Libre`}
-                      </title>
-                    </rect>
-                  </g>
-                );
-              })}
-            </svg>
+                      {spot.vehicle_matricula.length > 6
+                        ? spot.vehicle_matricula.slice(-6)
+                        : spot.vehicle_matricula}
+                    </text>
+                  ) : (
+                    <text
+                      x={pos.x + pos.w / 2}
+                      y={pos.y + pos.h / 2 + 4}
+                      fontSize="10"
+                      fill={textColor}
+                      fontFamily="sans-serif"
+                      textAnchor="middle"
+                      fontWeight="600"
+                    >
+                      {num}
+                    </text>
+                  )}
 
-            {/* Legend bar */}
-            <div className="flex items-center gap-5 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-3 rounded-sm bg-white border border-slate-300" />
-                <span>Libre</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-3 rounded-sm bg-red-500 border border-red-700" />
-                <span>Ocupada</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-3 rounded-sm bg-amber-400 border border-amber-600" />
-                <span>Reservada</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-3 rounded-sm bg-gray-500 border border-gray-700" />
-                <span>Bloqueada</span>
-              </div>
+                  {/* Tooltip via title */}
+                  <title>
+                    {isOccupied
+                      ? `Plaza ${num} — ${spot?.vehicle_matricula || 'Ocupada'}${spot?.occupied_at ? ` (desde ${new Date(spot.occupied_at).toLocaleString('es-ES')})` : ''}`
+                      : isBlocked
+                      ? `Plaza ${num} — Bloqueada`
+                      : isReserved
+                      ? `Plaza ${num} — Reservada`
+                      : `Plaza ${num} — Libre`}
+                  </title>
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Legend bar */}
+          <div className="flex items-center gap-5 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-3 rounded-sm bg-white border border-slate-400" />
+              <span>Libre</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-3 rounded-sm bg-red-600 border border-red-800" />
+              <span>Ocupada</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-3 rounded-sm bg-amber-400 border border-amber-600" />
+              <span>Reservada</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-3 rounded-sm bg-gray-500 border border-gray-700" />
+              <span>Bloqueada</span>
             </div>
           </div>
-        </TooltipProvider>
+        </div>
       )}
 
       {/* Release Confirm Dialog */}
