@@ -1,6 +1,7 @@
 /**
  * Parking Map — Visual layout of the Azul Cars campa
- * Realistic top-down parking lot view with bay-style spots and lanes
+ * Uses the real aerial photo as background with interactive spots
+ * positioned to match the physical layout exactly.
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -28,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import {
   Car, ParkingSquare, MapPin, RefreshCw,
-  History, CircleDot, AlertTriangle, Search, X,
+  History, Search, X, AlertTriangle, CircleDot,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -76,6 +77,105 @@ interface ParkingHistoryItem {
   performed_at: string;
 }
 
+// ─── Spot Position Map ──────────────────────────────────────────────────────
+// Positions are in percentage (%) relative to the background image dimensions
+// Based on the real aerial photo of the Azul Cars campa
+// Image aspect ratio: ~1230x960 (width x height)
+
+interface SpotPosition {
+  x: number; // % from left
+  y: number; // % from top
+  w: number; // width in %
+  h: number; // height in %
+}
+
+function getSpotPositions(): Map<number, SpotPosition> {
+  const positions = new Map<number, SpotPosition>();
+
+  // Spot dimensions (approximate)
+  const spotW = 3.8; // width %
+  const spotH = 4.2; // height %
+  const spotWnarrow = 3.2;
+  const spotHnarrow = 3.8;
+
+  // ─── Plazas 1-11: Top right horizontal row ───────────────────────
+  const row1Y = 33;
+  const row1StartX = 57;
+  const row1Gap = 4.0;
+  for (let i = 0; i < 11; i++) {
+    positions.set(i + 1, { x: row1StartX + i * row1Gap, y: row1Y, w: spotW, h: spotH });
+  }
+
+  // ─── Plazas 12-19: Center row 1 ──────────────────────────────────
+  const row2Y = 52;
+  const row2StartX = 57;
+  for (let i = 0; i < 8; i++) {
+    positions.set(12 + i, { x: row2StartX + i * row1Gap, y: row2Y, w: spotW, h: spotH });
+  }
+
+  // ─── Plazas 20-27: Center row 2 ──────────────────────────────────
+  const row3Y = 57;
+  const row3StartX = 57;
+  for (let i = 0; i < 8; i++) {
+    positions.set(20 + i, { x: row3StartX + i * row1Gap, y: row3Y, w: spotW, h: spotH });
+  }
+
+  // ─── Plazas 28-35: Center row 3 ──────────────────────────────────
+  const row4Y = 66;
+  const row4StartX = 57;
+  for (let i = 0; i < 8; i++) {
+    positions.set(28 + i, { x: row4StartX + i * row1Gap, y: row4Y, w: spotW, h: spotH });
+  }
+
+  // ─── Plazas 36-43: Center row 4 (bottom) ─────────────────────────
+  const row5Y = 71;
+  const row5StartX = 57;
+  for (let i = 0; i < 8; i++) {
+    positions.set(36 + i, { x: row5StartX + i * row1Gap, y: row5Y, w: spotW, h: spotH });
+  }
+
+  // ─── Plazas 44-69: Two columns center-left ───────────────────────
+  // Column pair: 44,45 / 46,47 / 48,49 ... / 68,69
+  const col44StartY = 28;
+  const col44X1 = 37;
+  const col44X2 = 41.5;
+  const col44Gap = 4.5;
+  for (let i = 0; i < 13; i++) {
+    const leftNum = 44 + i * 2;
+    const rightNum = 45 + i * 2;
+    positions.set(leftNum, { x: col44X1, y: col44StartY + i * col44Gap, w: spotWnarrow, h: spotHnarrow });
+    positions.set(rightNum, { x: col44X2, y: col44StartY + i * col44Gap, w: spotWnarrow, h: spotHnarrow });
+  }
+
+  // ─── Plazas 70-95: Two columns left ──────────────────────────────
+  // Column pair: 70,71 / 72,73 ... / 94,95
+  const col70StartY = 28;
+  const col70X1 = 20;
+  const col70X2 = 24.5;
+  const col70Gap = 4.5;
+  for (let i = 0; i < 13; i++) {
+    const leftNum = 70 + i * 2;
+    const rightNum = 71 + i * 2;
+    positions.set(leftNum, { x: col70X1, y: col70StartY + i * col70Gap, w: spotWnarrow, h: spotHnarrow });
+    positions.set(rightNum, { x: col70X2, y: col70StartY + i * col70Gap, w: spotWnarrow, h: spotHnarrow });
+  }
+
+  // ─── Plazas 96-110: Single column far left ───────────────────────
+  const col96StartY = 26;
+  const col96X = 10;
+  const col96Gap = 4.5;
+  for (let i = 0; i < 15; i++) {
+    positions.set(96 + i, { x: col96X, y: col96StartY + i * col96Gap, w: spotWnarrow, h: spotHnarrow });
+  }
+
+  return positions;
+}
+
+const SPOT_POSITIONS = getSpotPositions();
+
+// Background image URL
+const PARKING_BG_URL = '/manus-storage/parking-layout-azulcars_b682d8b9.png';
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function Parking() {
   const { user } = useAuth();
@@ -83,7 +183,6 @@ export default function Parking() {
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
-  const [selectedZoneFilter, setSelectedZoneFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedSpotId, setHighlightedSpotId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,6 +241,12 @@ export default function Parking() {
     },
   });
 
+  // Flatten all spots from all zones
+  const allSpots = useMemo(() => {
+    if (!overview) return [];
+    return overview.zones.flatMap(z => z.spots);
+  }, [overview]);
+
   // Search for a vehicle by plate and highlight its spot
   const searchResult = useMemo(() => {
     if (!searchQuery.trim() || !overview) return null;
@@ -173,13 +278,6 @@ export default function Parking() {
       setHighlightedSpotId(null);
     }
   }, [searchResult]);
-
-  // Filtered zones
-  const filteredZones = useMemo(() => {
-    if (!overview) return [];
-    if (selectedZoneFilter === 'all') return overview.zones;
-    return overview.zones.filter(z => z.id === selectedZoneFilter);
-  }, [overview, selectedZoneFilter]);
 
   // If no zones exist, show setup button
   if (!isLoading && overview && overview.zones.length === 0) {
@@ -238,17 +336,6 @@ export default function Parking() {
                 </button>
               )}
             </div>
-            <Select value={selectedZoneFilter} onValueChange={setSelectedZoneFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Todas las zonas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las zonas</SelectItem>
-                {overview?.zones.map(z => (
-                  <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button variant="outline" size="icon" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -323,28 +410,100 @@ export default function Parking() {
       {/* Loading state */}
       {isLoading && (
         <div className="space-y-4">
-          <Skeleton className="h-48 rounded-lg" />
-          <Skeleton className="h-48 rounded-lg" />
+          <Skeleton className="h-[500px] rounded-lg" />
         </div>
       )}
 
-      {/* Parking Zones — Realistic Layout */}
-      <div className="space-y-6">
-        {filteredZones.map(zone => (
-          <ParkingZoneMap
-            key={zone.id}
-            zone={zone}
-            highlightedSpotId={highlightedSpotId}
-            onSpotClick={(spot) => {
-              setSelectedSpot(spot);
-              if (spot.status === 'free') {
-                setShowAssignDialog(true);
-              }
-            }}
-            onRelease={(spot) => releaseMutation.mutate(spot.id)}
-          />
-        ))}
-      </div>
+      {/* ─── PARKING MAP WITH REAL LAYOUT ─────────────────────────────── */}
+      {!isLoading && overview && (
+        <div className="rounded-xl border border-border/60 overflow-hidden bg-slate-100 dark:bg-slate-900">
+          {/* Map container - maintains aspect ratio of the image */}
+          <div className="relative w-full" style={{ paddingBottom: '78%' }}>
+            {/* Background image */}
+            <img
+              src={PARKING_BG_URL}
+              alt="Plano Parking Azul Cars"
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+            />
+
+            {/* Interactive spots overlay */}
+            {allSpots.map(spot => {
+              const pos = SPOT_POSITIONS.get(spot.spot_number);
+              if (!pos) return null;
+
+              const isOccupied = spot.status === 'occupied';
+              const isFree = spot.status === 'free';
+              const isHighlighted = highlightedSpotId === spot.id;
+
+              return (
+                <button
+                  key={spot.id}
+                  id={`parking-spot-${spot.id}`}
+                  onClick={() => {
+                    if (isOccupied) {
+                      setSelectedSpot(spot);
+                      // Show info or release
+                      releaseMutation.mutate(spot.id);
+                    } else if (isFree) {
+                      setSelectedSpot(spot);
+                      setShowAssignDialog(true);
+                    }
+                  }}
+                  title={
+                    isOccupied
+                      ? `Plaza ${spot.spot_number} — ${spot.vehicle_matricula}\nClick para liberar`
+                      : `Plaza ${spot.spot_number} — Libre\nClick para asignar`
+                  }
+                  className={cn(
+                    "absolute flex items-center justify-center rounded-sm transition-all duration-150 text-[7px] font-bold leading-none",
+                    "hover:z-20 hover:scale-110 focus:outline-none focus:z-20",
+                    isOccupied && "bg-red-500/85 text-white border border-red-700/50 shadow-sm hover:bg-red-600",
+                    isFree && "bg-emerald-400/70 text-emerald-900 border border-emerald-600/40 hover:bg-emerald-500/80",
+                    spot.status === 'blocked' && "bg-gray-500/70 text-white border border-gray-700/50 cursor-not-allowed",
+                    spot.status === 'reserved' && "bg-amber-400/80 text-amber-900 border border-amber-600/50",
+                    isHighlighted && "ring-3 ring-yellow-300 shadow-lg shadow-yellow-400/50 z-30 animate-pulse scale-125"
+                  )}
+                  style={{
+                    left: `${pos.x}%`,
+                    top: `${pos.y}%`,
+                    width: `${pos.w}%`,
+                    height: `${pos.h}%`,
+                  }}
+                >
+                  {isOccupied ? (
+                    <span className="truncate px-0.5 text-[6px] font-mono font-bold">
+                      {spot.vehicle_matricula || spot.spot_number}
+                    </span>
+                  ) : (
+                    <span>{spot.spot_number}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 px-4 py-2 bg-white/90 dark:bg-slate-900/90 border-t border-border/40 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-emerald-400/70 border border-emerald-600/40" />
+              <span>Libre</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-red-500/85 border border-red-700/50" />
+              <span>Ocupada</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-amber-400/80 border border-amber-600/50" />
+              <span>Reservada</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-gray-500/70 border border-gray-700/50" />
+              <span>Bloqueada</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assign Dialog */}
       <AssignSpotDialog
@@ -391,190 +550,6 @@ export default function Parking() {
         </DialogContent>
       </Dialog>
     </AppLayout>
-  );
-}
-
-// ─── Parking Zone Map (Realistic Layout) ───────────────────────────────────
-function ParkingZoneMap({
-  zone,
-  highlightedSpotId,
-  onSpotClick,
-  onRelease,
-}: {
-  zone: ParkingZone;
-  highlightedSpotId?: string | null;
-  onSpotClick: (spot: ParkingSpot) => void;
-  onRelease: (spot: ParkingSpot) => void;
-}) {
-  const maxRow = Math.max(...zone.spots.map(s => s.grid_row ?? 0), 0);
-  const maxCol = Math.max(...zone.spots.map(s => s.grid_col ?? 0), 0);
-
-  // Group spots by row for a row-based layout with lanes between
-  const spotsByRow = useMemo(() => {
-    const rows: Map<number, ParkingSpot[]> = new Map();
-    zone.spots.forEach(spot => {
-      const row = spot.grid_row ?? 0;
-      if (!rows.has(row)) rows.set(row, []);
-      rows.get(row)!.push(spot);
-    });
-    // Sort spots within each row by column
-    rows.forEach(spots => spots.sort((a, b) => (a.grid_col ?? 0) - (b.grid_col ?? 0)));
-    return rows;
-  }, [zone.spots]);
-
-  const freeCount = zone.spots.filter(s => s.status === 'free').length;
-  const occupiedCount = zone.spots.filter(s => s.status === 'occupied').length;
-  const totalCount = zone.spots.length;
-
-  // Get sorted row keys
-  const rowKeys = Array.from(spotsByRow.keys()).sort((a, b) => a - b);
-
-  return (
-    <div className="rounded-xl border border-border/60 bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
-      {/* Zone header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-white dark:bg-slate-900">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-3 h-3 rounded-sm"
-            style={{ backgroundColor: zone.color }}
-          />
-          <span className="text-sm font-semibold">{zone.name}</span>
-          {zone.description && (
-            <span className="text-xs text-muted-foreground">({zone.description})</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{freeCount} libres</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-blue-600 dark:text-blue-400 font-medium">{occupiedCount}/{totalCount}</span>
-        </div>
-      </div>
-
-      {/* Parking lot area */}
-      <div className="p-3 overflow-x-auto">
-        <div className="min-w-fit">
-          {rowKeys.map((rowIdx, i) => {
-            const spots = spotsByRow.get(rowIdx) || [];
-            return (
-              <div key={rowIdx}>
-                {/* Row of parking bays */}
-                <div className="flex gap-px">
-                  {spots.map(spot => (
-                    <ParkingBay
-                      key={spot.id}
-                      spot={spot}
-                      zoneColor={zone.color}
-                      isHighlighted={highlightedSpotId === spot.id}
-                      onClick={() => {
-                        if (spot.status === 'occupied') {
-                          onRelease(spot);
-                        } else if (spot.status === 'free') {
-                          onSpotClick(spot);
-                        }
-                      }}
-                    />
-                  ))}
-                </div>
-                {/* Lane/road between rows */}
-                {i < rowKeys.length - 1 && (
-                  <div className="h-3 bg-slate-200 dark:bg-slate-700/50 my-0.5 rounded-sm relative overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-center">
-                      <div className="w-full border-t border-dashed border-slate-300 dark:border-slate-600" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Parking Bay (Single Spot — Realistic) ─────────────────────────────────
-function ParkingBay({
-  spot,
-  zoneColor,
-  isHighlighted,
-  onClick,
-}: {
-  spot: ParkingSpot;
-  zoneColor: string;
-  isHighlighted?: boolean;
-  onClick: () => void;
-}) {
-  const isOccupied = spot.status === 'occupied';
-  const isFree = spot.status === 'free';
-  const isBlocked = spot.status === 'blocked';
-
-  return (
-    <button
-      id={`parking-spot-${spot.id}`}
-      onClick={onClick}
-      disabled={isBlocked}
-      title={
-        isOccupied
-          ? `Plaza ${spot.spot_number} — ${spot.vehicle_matricula} (click para liberar)`
-          : isFree
-          ? `Plaza ${spot.spot_number} — Libre (click para asignar)`
-          : `Plaza ${spot.spot_number} — ${spot.status}`
-      }
-      className={cn(
-        "relative w-[72px] h-[40px] border flex flex-col items-center justify-center transition-all duration-100",
-        "focus:outline-none focus:z-10",
-        // Occupied: dark background with car
-        isOccupied && "bg-slate-700 dark:bg-slate-600 border-slate-800 dark:border-slate-500 hover:bg-slate-600 cursor-pointer",
-        // Free: light with line markings
-        isFree && "bg-slate-100 dark:bg-slate-800/40 border-slate-300 dark:border-slate-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:border-emerald-400 cursor-pointer",
-        // Blocked
-        isBlocked && "bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800 opacity-60 cursor-not-allowed",
-        // Reserved
-        spot.status === 'reserved' && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700",
-        // Highlighted (search result)
-        isHighlighted && "ring-3 ring-yellow-400 ring-offset-1 shadow-lg shadow-yellow-300/40 z-20 animate-pulse"
-      )}
-    >
-      {/* Spot number — top left corner */}
-      <span className={cn(
-        "absolute top-0 left-0.5 text-[8px] font-bold leading-none",
-        isOccupied ? "text-slate-400" : "text-slate-400 dark:text-slate-500"
-      )}>
-        {spot.spot_number}
-      </span>
-
-      {/* Occupied: show car silhouette + plate */}
-      {isOccupied && (
-        <div className="flex flex-col items-center gap-0">
-          {/* Car top-down silhouette */}
-          <svg width="20" height="12" viewBox="0 0 20 12" className="text-slate-300 dark:text-slate-400 mb-px">
-            <rect x="2" y="1" width="16" height="10" rx="3" fill="currentColor" opacity="0.6" />
-            <rect x="4" y="0" width="12" height="4" rx="2" fill="currentColor" opacity="0.4" />
-            <rect x="4" y="8" width="12" height="4" rx="2" fill="currentColor" opacity="0.4" />
-            <circle cx="4" cy="2" r="1.5" fill="currentColor" />
-            <circle cx="16" cy="2" r="1.5" fill="currentColor" />
-            <circle cx="4" cy="10" r="1.5" fill="currentColor" />
-            <circle cx="16" cy="10" r="1.5" fill="currentColor" />
-          </svg>
-          {/* Plate */}
-          {spot.vehicle_matricula && (
-            <span className="font-mono font-bold text-[8px] text-white leading-none tracking-tight truncate max-w-[66px]">
-              {spot.vehicle_matricula}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Free: just the number is visible, subtle P */}
-      {isFree && (
-        <span className="text-[10px] font-medium text-slate-300 dark:text-slate-600">P</span>
-      )}
-
-      {/* Blocked */}
-      {isBlocked && (
-        <X className="h-3 w-3 text-red-400" />
-      )}
-    </button>
   );
 }
 
