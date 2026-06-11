@@ -3,7 +3,7 @@
  * Shows zones with numbered spots, occupancy status, and vehicle plates
  * Designed as a realistic top-down parking lot view
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select';
 import {
   Car, ParkingSquare, MapPin, RefreshCw,
-  History, CircleDot, AlertTriangle, LayoutGrid, List,
+  History, CircleDot, AlertTriangle, LayoutGrid, List, Search, X,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -87,6 +87,9 @@ export default function Parking() {
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [selectedZoneFilter, setSelectedZoneFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedSpotId, setHighlightedSpotId] = useState<string | null>(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch parking overview
   const { data: overview, isLoading, refetch } = useQuery({
@@ -142,6 +145,40 @@ export default function Parking() {
     },
   });
 
+  // Search for a vehicle by plate and highlight its spot
+  const searchResult = useMemo(() => {
+    if (!searchQuery.trim() || !overview) return null;
+    const q = searchQuery.trim().toLowerCase();
+    for (const zone of overview.zones) {
+      for (const spot of zone.spots) {
+        if (spot.status === 'occupied' && spot.vehicle_matricula &&
+            spot.vehicle_matricula.toLowerCase().includes(q)) {
+          return { spot, zoneName: zone.name, zoneColor: zone.color };
+        }
+      }
+    }
+    return null;
+  }, [searchQuery, overview]);
+
+  // When search result changes, highlight the spot
+  useEffect(() => {
+    if (searchResult) {
+      setHighlightedSpotId(searchResult.spot.id);
+      // Auto-scroll to the spot element
+      setTimeout(() => {
+        const el = document.getElementById(`parking-spot-${searchResult.spot.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      // Clear highlight after 5 seconds
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedSpotId(null), 5000);
+    } else {
+      setHighlightedSpotId(null);
+    }
+  }, [searchResult]);
+
   // Filtered zones
   const filteredZones = useMemo(() => {
     if (!overview) return [];
@@ -183,6 +220,29 @@ export default function Parking() {
         icon={ParkingSquare}
         actions={
           <div className="flex items-center gap-2">
+            {/* Search by plate */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar matrícula..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(
+                  "h-9 w-[160px] rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
+                  searchQuery && searchResult && "ring-2 ring-emerald-500/50 border-emerald-400",
+                  searchQuery && !searchResult && "ring-2 ring-red-500/30 border-red-300"
+                )}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setHighlightedSpotId(null); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             {/* View mode toggle */}
             <div className="flex items-center border border-border rounded-lg overflow-hidden">
               <button
@@ -227,6 +287,39 @@ export default function Parking() {
         }
       />
 
+      {/* Search result banner */}
+      {searchQuery.trim() && (
+        <div className={cn(
+          "mb-4 px-4 py-2.5 rounded-lg border text-sm flex items-center gap-3",
+          searchResult
+            ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800"
+            : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+        )}>
+          {searchResult ? (
+            <>
+              <Car className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>
+                <span className="font-mono font-bold">{searchResult.spot.vehicle_matricula}</span>
+                {' '}está en{' '}
+                <span className="font-semibold">Plaza {searchResult.spot.spot_number}</span>
+                {' '}—{' '}
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: searchResult.zoneColor }} />
+                  {searchResult.zoneName}
+                </span>
+              </span>
+            </>
+          ) : (
+            <>
+              <Search className="h-4 w-4 text-red-500 shrink-0" />
+              <span className="text-red-700 dark:text-red-300">
+                No se encontró ningún vehículo con "{searchQuery}"
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Summary KPIs */}
       {overview && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -254,6 +347,7 @@ export default function Parking() {
               <ParkingZoneMap
                 key={zone.id}
                 zone={zone}
+                highlightedSpotId={highlightedSpotId}
                 onSpotClick={(spot) => {
                   setSelectedSpot(spot);
                   if (spot.status === 'free') {
@@ -345,10 +439,12 @@ function ParkingZoneMap({
   zone,
   onSpotClick,
   onRelease,
+  highlightedSpotId,
 }: {
   zone: ParkingZone;
   onSpotClick: (spot: ParkingSpot) => void;
   onRelease: (spot: ParkingSpot) => void;
+  highlightedSpotId?: string | null;
 }) {
   const maxRow = Math.max(...zone.spots.map(s => s.grid_row ?? 0), 0);
   const maxCol = Math.max(...zone.spots.map(s => s.grid_col ?? 0), 0);
@@ -413,6 +509,7 @@ function ParkingZoneMap({
                   key={spot.id}
                   spot={spot}
                   zoneColor={zone.color}
+                  isHighlighted={highlightedSpotId === spot.id}
                   onClick={() => {
                     if (spot.status === 'occupied') {
                       onRelease(spot);
@@ -435,10 +532,12 @@ function ParkingBay({
   spot,
   zoneColor,
   onClick,
+  isHighlighted,
 }: {
   spot: ParkingSpot;
   zoneColor: string;
   onClick: () => void;
+  isHighlighted?: boolean;
 }) {
   const isOccupied = spot.status === 'occupied';
   const isFree = spot.status === 'free';
@@ -465,6 +564,7 @@ function ParkingBay({
     <Tooltip>
       <TooltipTrigger asChild>
         <button
+          id={`parking-spot-${spot.id}`}
           onClick={onClick}
           disabled={isBlocked}
           className={cn(
@@ -473,7 +573,8 @@ function ParkingBay({
             isOccupied && "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-md cursor-pointer",
             isFree && "bg-emerald-50 dark:bg-emerald-950/20 border-dashed border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 cursor-pointer",
             isBlocked && "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 opacity-50 cursor-not-allowed",
-            spot.status === 'reserved' && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700"
+            spot.status === 'reserved' && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700",
+            isHighlighted && "ring-4 ring-yellow-400 ring-offset-1 border-yellow-400 shadow-lg shadow-yellow-200/50 dark:shadow-yellow-900/30 animate-pulse z-10"
           )}
         >
           {/* Spot number badge */}

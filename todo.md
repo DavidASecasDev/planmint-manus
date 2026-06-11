@@ -1215,3 +1215,6 @@
 - [x] Parking: Vista lista con tabla de plazas ocupadas y botón liberar
 - [x] Parking: Toggle entre vista plano y vista lista
 - [x] Parking: Tooltip con info y tiempo de ocupación
+- [x] Parking: Campo de búsqueda rápida por matrícula en el header
+- [x] Parking: Resaltar la plaza encontrada en el mapa al buscar
+- [x] Parking: Mostrar zona y número de plaza en resultado de búsqueda
