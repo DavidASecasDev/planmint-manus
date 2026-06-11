@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +31,7 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   invitation_sent: Mail,
   invitation_accepted: UserPlus,
   en_camino_alert: Navigation,
+  geofence_alert: MapPin,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -48,6 +49,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   invitation_sent: 'text-purple-500 bg-purple-500/10',
   invitation_accepted: 'text-emerald-500 bg-emerald-500/10',
   en_camino_alert: 'text-emerald-500 bg-emerald-500/10',
+  geofence_alert: 'text-cyan-500 bg-cyan-500/10',
 };
 
 const TYPE_LABELS: Record<NotificationType, string> = {
@@ -65,6 +67,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   invitation_sent: 'Invitación Enviada',
   invitation_accepted: 'Invitación Aceptada',
   en_camino_alert: 'En Camino',
+  geofence_alert: 'Geocerca',
 };
 
 export default function Notifications() {
@@ -100,6 +103,7 @@ export default function Notifications() {
       accident: `/garatech/accidents/${entity_id}`,
       damage_report: `/garatech/reports/${entity_id}`,
       invitation: `/admin/members`,
+      geofence: `/fleet/gps`,
     };
     const route = routes[entity_type];
     if (route) {

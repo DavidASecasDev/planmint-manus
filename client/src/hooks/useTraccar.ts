@@ -23,6 +23,8 @@ export interface TraccarPosition {
   deviceTime: string;
   valid: boolean;
   altitude: number;
+  batteryLevel?: number; // 0-100 from Traccar attributes.batteryLevel
+  attributes?: Record<string, unknown>;
 }
 
 export interface TraccarSettings {

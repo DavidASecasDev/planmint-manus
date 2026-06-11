@@ -20,6 +20,7 @@ import { useTraccar, TraccarDevice, TraccarPosition } from '@/hooks/useTraccar';
 import { useFleetVehicles } from '@/hooks/useFleetVehicles';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useGeofences, Geofence, GeofenceCoordinate } from '@/hooks/useGeofences';
+import { useGeofenceAlerts, GeofenceAlert } from '@/hooks/useGeofenceAlerts';
 import { AnimatedMarker } from '@/components/map/AnimatedMarker';
 import { VehicleDetailPanel } from '@/components/fleet/VehicleDetailPanel';
 import { Button } from '@/components/ui/button';
@@ -60,12 +61,12 @@ interface FleetVehicleGPS {
 }
 
 type FilterStatus = 'all' | 'online' | 'offline';
-type SidebarTab = 'vehicles' | 'geofences';
+type SidebarTab = 'vehicles' | 'geofences' | 'alerts';
 
 // ── Constants ──
 const MALLORCA_CENTER: [number, number] = [39.5696, 2.6502];
 const DEFAULT_ZOOM = 11;
-const REFRESH_INTERVAL = 30_000;
+const REFRESH_INTERVAL = 10_000; // 10s auto-refresh for near real-time tracking
 
 // ── Vehicle marker icon builder ──
 function createVehicleIcon(isOnline: boolean, isSelected: boolean, course: number = 0): L.DivIcon {
@@ -197,6 +198,7 @@ export default function FleetGPS() {
   const { vehicles, isLoading: vehiclesLoading } = useFleetVehicles();
   const { isAdmin, hasPermission, isLoading: permissionsLoading } = usePermissions();
   const { geofences, loading: geofencesLoading, createGeofence, updateGeofence, deleteGeofence, fetchGeofences } = useGeofences();
+  const { alerts: geofenceAlerts, loading: alertsLoading, fetchAlerts: fetchGeofenceAlerts } = useGeofenceAlerts();
 
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [search, setSearch] = useState('');
@@ -275,6 +277,7 @@ export default function FleetGPS() {
             deviceTime: position.deviceTime,
             valid: position.valid,
             altitude: position.altitude,
+            batteryLevel: (position as any).attributes?.batteryLevel ?? undefined,
           } : undefined,
         };
       });
@@ -496,6 +499,23 @@ export default function FleetGPS() {
                     <Pentagon className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
                     Geocercas
                   </button>
+                  <button
+                    onClick={() => setSidebarTab('alerts')}
+                    className={cn(
+                      "flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-all relative",
+                      sidebarTab === 'alerts'
+                        ? "bg-white shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <ShieldAlert className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                    Alertas
+                    {geofenceAlerts.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                        {geofenceAlerts.length > 9 ? '9+' : geofenceAlerts.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {sidebarTab === 'vehicles' && (
@@ -666,6 +686,36 @@ export default function FleetGPS() {
                             }
                           }}
                           onFocus={() => handleFocusGeofence(geofence)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {sidebarTab === 'alerts' && (
+                  <div className="p-2 space-y-1">
+                    {alertsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : geofenceAlerts.length === 0 ? (
+                      <div className="text-center py-12 px-4">
+                        <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-muted-foreground/20" />
+                        <p className="text-sm text-muted-foreground mb-2">Sin alertas</p>
+                        <p className="text-xs text-muted-foreground">
+                          Las alertas aparecerán cuando un vehículo entre o salga de una geocerca activa
+                        </p>
+                      </div>
+                    ) : (
+                      geofenceAlerts.map(alert => (
+                        <AlertCard
+                          key={alert.id}
+                          alert={alert}
+                          onClick={() => {
+                            if (alert.latitude && alert.longitude) {
+                              setMapTarget({ center: [alert.latitude, alert.longitude], zoom: 16 });
+                            }
+                          }}
                         />
                       ))
                     )}
@@ -948,12 +998,28 @@ function VehicleCard({
           </p>
         </div>
 
-        {/* Status badge */}
-        <div className={cn(
-          "px-2 py-0.5 rounded-full text-[10px] font-semibold",
-          isOnline ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
-        )}>
-          {isOnline ? 'ON' : 'OFF'}
+        {/* Battery + Status */}
+        <div className="flex items-center gap-1.5">
+          {vehicle.position?.batteryLevel != null && (
+            <div className={cn(
+              "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold",
+              vehicle.position.batteryLevel > 40 ? "bg-green-50 text-green-700" :
+              vehicle.position.batteryLevel > 15 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
+            )}>
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="1" y="6" width="18" height="12" rx="2" />
+                <line x1="23" y1="10" x2="23" y2="14" />
+                <rect x="3" y="8" width={`${Math.max(2, vehicle.position.batteryLevel * 14 / 100)}`} height="8" rx="1" fill="currentColor" opacity="0.6" />
+              </svg>
+              {Math.round(vehicle.position.batteryLevel)}%
+            </div>
+          )}
+          <div className={cn(
+            "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+            isOnline ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
+          )}>
+            {isOnline ? 'ON' : 'OFF'}
+          </div>
         </div>
       </div>
 
@@ -1036,6 +1102,70 @@ function GeofenceCard({
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Alert Card Component ──
+function AlertCard({
+  alert,
+  onClick,
+}: {
+  alert: GeofenceAlert;
+  onClick: () => void;
+}) {
+  const isEnter = alert.event_type === 'enter';
+  const timeStr = new Date(alert.triggered_at).toLocaleString('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return (
+    <div
+      onClick={onClick}
+      className="p-3 rounded-xl border bg-white border-transparent hover:border-border/50 transition-all cursor-pointer"
+    >
+      <div className="flex items-center gap-3">
+        {/* Event icon */}
+        <div className={cn(
+          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+          isEnter ? "bg-blue-50 border-2 border-blue-300" : "bg-orange-50 border-2 border-orange-300"
+        )}>
+          {isEnter ? (
+            <Navigation className="h-3.5 w-3.5 text-blue-600" style={{ transform: 'rotate(45deg)' }} />
+          ) : (
+            <Navigation className="h-3.5 w-3.5 text-orange-600" style={{ transform: 'rotate(-135deg)' }} />
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold">{alert.vehicle_plate || 'Desconocido'}</span>
+            <Badge variant="outline" className={cn(
+              "text-[9px] px-1.5 py-0",
+              isEnter ? "border-blue-200 text-blue-700 bg-blue-50" : "border-orange-200 text-orange-700 bg-orange-50"
+            )}>
+              {isEnter ? '↗ Entrada' : '↙ Salida'}
+            </Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            {alert.geofence_name || 'Geocerca'}
+          </p>
+        </div>
+
+        {/* Time */}
+        <div className="text-right shrink-0">
+          <p className="text-[10px] text-muted-foreground">{timeStr}</p>
+          {alert.speed != null && alert.speed > 0 && (
+            <p className="text-[10px] text-muted-foreground/60">
+              {Math.round(alert.speed * 1.852)} km/h
+            </p>
+          )}
         </div>
       </div>
     </div>

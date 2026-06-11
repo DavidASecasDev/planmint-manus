@@ -1173,3 +1173,15 @@
 - [x] GPS Flota: Selector de fechas para historial de rutas anteriores
 - [x] GPS Flota: Cambiar tiles del mapa a estilo Google Maps (como FindCarGPS) para aspecto más premium y familiar
 - [x] GPS Flota: Añadir date picker en el panel de detalle para consultar rutas de días anteriores
+- [x] Crear tabla `geofences` en Supabase para persistencia de geocercas
+- [x] Crear tabla `geofence_alerts` en Supabase para historial de alertas
+- [x] Crear tabla `geofence_vehicle_state` en Supabase para tracking de estado (dentro/fuera)
+- [x] Implementar endpoint scheduled `/api/scheduled/geofence-check` que verifica posiciones vs geocercas
+- [x] Lógica de detección: point-in-circle y point-in-polygon para determinar entrada/salida
+- [x] Enviar notificación push (notifyOwner) cuando un vehículo entra/sale de una geocerca
+- [x] Crear notificaciones in-app para todos los miembros con permiso fleet.gps
+- [x] UI: Panel de alertas de geocercas en la página GPS Flota (historial de alertas recientes)
+- [x] UI: Indicador visual en el sidebar cuando hay alertas nuevas
+- [x] Tests para la lógica de detección geofence y el endpoint scheduled
+- [x] GPS Flota: Mostrar nivel de batería del dispositivo GPS (attributes.batteryLevel de Traccar)
+- [x] GPS Flota: Reducir auto-refresh de 30s a 10s para mayor tiempo real

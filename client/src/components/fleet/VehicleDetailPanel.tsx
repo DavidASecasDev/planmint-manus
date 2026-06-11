@@ -15,7 +15,7 @@ import {
   X, Car, Navigation, Clock, Gauge, MapPin, Route,
   Play, Pause, RotateCcw, ExternalLink, Crosshair,
   TrendingUp, Timer, Fuel, Zap, ChevronDown, ChevronUp,
-  CalendarDays,
+  CalendarDays, BatteryFull, BatteryMedium, BatteryLow, BatteryWarning,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +39,7 @@ interface VehicleData {
     deviceTime: string;
     valid: boolean;
     altitude: number;
+    batteryLevel?: number;
   };
   device?: {
     status: string;
@@ -313,6 +314,45 @@ export function VehicleDetailPanel({
               <p className="text-[10px] text-muted-foreground">m alt.</p>
             </div>
           </div>
+
+          {/* Battery level */}
+          {vehicle.position?.batteryLevel != null && (
+            <div className="flex items-center gap-2 mb-3 bg-muted/30 rounded-lg px-3 py-2">
+              {vehicle.position.batteryLevel > 75 ? (
+                <BatteryFull className="h-4 w-4 text-green-500" />
+              ) : vehicle.position.batteryLevel > 40 ? (
+                <BatteryMedium className="h-4 w-4 text-amber-500" />
+              ) : vehicle.position.batteryLevel > 15 ? (
+                <BatteryLow className="h-4 w-4 text-orange-500" />
+              ) : (
+                <BatteryWarning className="h-4 w-4 text-red-500" />
+              )}
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Batería GPS</span>
+                  <span className={cn(
+                    "text-xs font-bold tabular-nums",
+                    vehicle.position.batteryLevel > 75 ? 'text-green-500' :
+                    vehicle.position.batteryLevel > 40 ? 'text-amber-500' :
+                    vehicle.position.batteryLevel > 15 ? 'text-orange-500' : 'text-red-500'
+                  )}>
+                    {Math.round(vehicle.position.batteryLevel)}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5 mt-1">
+                  <div
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      vehicle.position.batteryLevel > 75 ? 'bg-green-500' :
+                      vehicle.position.batteryLevel > 40 ? 'bg-amber-500' :
+                      vehicle.position.batteryLevel > 15 ? 'bg-orange-500' : 'bg-red-500'
+                    )}
+                    style={{ width: `${vehicle.position.batteryLevel}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Address */}
           {vehicle.position?.address && (

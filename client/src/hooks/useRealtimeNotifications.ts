@@ -191,6 +191,7 @@ function getToastAction(
     vehicle_prep: `/vehicle-status`,
     invitation: `/admin/members`,
     en_camino: `/live-map`,
+    geofence: `/fleet/gps`,
   };
 
   const route = routes[entity_type];

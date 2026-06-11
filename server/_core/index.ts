@@ -145,6 +145,7 @@ import { handleFireTransferAutomation } from "../transferAutomationEndpoint";
 import { handleScheduledLostFoundExpiry } from "../scheduledLostFoundExpiry";
 import { handleScheduledRentlyPoll } from "../scheduledRentlyPoll";
 import { handleScheduledRentlyEnrich } from "../scheduledRentlyEnrich";
+import { handleScheduledGeofenceCheck } from "../scheduledGeofenceCheck";
 import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
 import { handleRepairServiceSync } from "../repairServiceSync";
 import {
@@ -462,6 +463,7 @@ async function startServer() {
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);
   app.post("/api/scheduled/rently-poll", handleScheduledRentlyPoll);
   app.post("/api/scheduled/rently-enrich", handleScheduledRentlyEnrich);
+  app.post("/api/scheduled/geofence-check", handleScheduledGeofenceCheck);
 
   // Open Graph meta tags for /track/:token (must be before SPA catch-all)
   const { trackingOgMiddleware } = await import("../trackingOgMiddleware");
