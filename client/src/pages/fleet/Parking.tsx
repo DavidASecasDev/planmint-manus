@@ -1,9 +1,7 @@
 /**
- * Parking Map — Uses the real aerial photo as background with interactive spots
- * overlaid precisely on top of each blue rectangle in the image.
- * 
- * The image dimensions are ~1200×1050. We use percentage-based positioning
- * so spots align with the blue rectangles regardless of container size.
+ * Parking Map — Pure SVG schematic of the Azul Cars campa.
+ * No background image. All elements are SVG shapes.
+ * Scales perfectly at any resolution (1080p, 1440p, 4K).
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -78,154 +76,307 @@ interface ParkingHistoryItem {
   performed_at: string;
 }
 
-// ─── Background image ───────────────────────────────────────────────────────
-const PARKING_BG_IMAGE = '/manus-storage/parking-layout-v3_026ec2a1.png';
-
-// ─── Spot Position Map ──────────────────────────────────────────────────────
-// Positions are in percentage (%) relative to the image container.
-// Each spot: { left, top, width, height } in %
-// Carefully mapped from the aerial photo with blue rectangles.
-//
-// Image analysis (approx 1200×1050 px):
-// - The lot boundary (red line) starts at roughly x=15,y=15 to x=1185,y=1035
-// - Effective content area: ~1170 wide × ~1020 tall
-//
-// Spot groups identified from the image:
-// 1. TOP-CENTER COLUMN (Sucios): ~8 spots, vertical column between the naves
-//    Approx x=355-400, y=80-420 → left≈30%, top≈8-40%, each spot ~3.8%×3%
-//
-// 2. TOP-RIGHT ROW: 11 spots horizontal (1-11)
-//    Approx x=620-1100, y=230-290 → left≈52-92%, top≈22%, each spot ~3.5%×5%
-//
-// 3. LEFT COLUMN (96-110): 15 spots, single vertical column
-//    Approx x=15-80, y=320-920 → left≈1.5%, top≈30-88%, each spot ~5.5%×3.5%
-//
-// 4. LEFT-CENTER BLOCK (70-95): 2 columns × 13 rows
-//    Approx x=115-270, y=320-920 → left≈10-22%, top≈30-88%
-//
-// 5. CENTER BLOCK (44-69): 2 columns × 13 rows
-//    Approx x=330-490, y=320-920 → left≈28-41%, top≈30-88%
-//
-// 6. CENTER-RIGHT BLOCK (12-19, 20-27): 2 rows × 8 spots
-//    Approx x=520-860, y=470-600 → left≈43-72%, top≈45-57%
-//
-// 7. BOTTOM-RIGHT BLOCK (28-35, 36-43): 2 rows × 8 spots
-//    Approx x=520-860, y=680-810 → left≈43-72%, top≈65-77%
-
-interface SpotPosition {
-  left: number;  // % from left
-  top: number;   // % from top
-  width: number; // % width
-  height: number; // % height
+// ─── SVG Spot Geometry ──────────────────────────────────────────────────────
+// ViewBox: 1200 × 820 (landscape)
+// All coordinates are in SVG units (not percentages).
+interface SpotRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
-function buildSpotPositions(): Map<number, SpotPosition> {
-  const positions = new Map<number, SpotPosition>();
+function buildSpotGeometry(): Map<number, SpotRect> {
+  const spots = new Map<number, SpotRect>();
 
-  // Spot dimensions (in %)
-  const hSpotW = 5.2;   // horizontal spot width
-  const hSpotH = 3.2;   // horizontal spot height
-  const vSpotW = 3.5;   // vertical spot width
-  const vSpotH = 5.0;   // vertical spot height
-  const vGap = 0.4;     // vertical gap between spots
-  const hGap = 0.3;     // horizontal gap between spots
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SUCIOS (111-118): Vertical column of 8 horizontal spots
-  // Between the naves, top-center area
-  // ═══════════════════════════════════════════════════════════════════════════
-  const xSucios = 30.5;
-  const ySuciosStart = 8.5;
-  for (let i = 0; i < 8; i++) {
-    positions.set(111 + i, {
-      left: xSucios,
-      top: ySuciosStart + i * (hSpotH + vGap),
-      width: hSpotW - 1,
-      height: hSpotH - 0.5,
-    });
-  }
+  // Spot sizes
+  const hW = 52; // horizontal spot width
+  const hH = 26; // horizontal spot height
+  const vW = 30; // vertical spot width
+  const vH = 50; // vertical spot height
+  const gap = 3; // gap between spots
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PLAZAS 1-11: Horizontal row of 11 vertical spots (top-right)
+  // SPOTS 96-110: Single column, far left, horizontal orientation
+  // 15 spots stacked vertically
   // ═══════════════════════════════════════════════════════════════════════════
-  const x1Start = 53;
-  const y1 = 22;
-  for (let i = 0; i < 11; i++) {
-    positions.set(1 + i, {
-      left: x1Start + i * (vSpotW + hGap),
-      top: y1,
-      width: vSpotW,
-      height: vSpotH,
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PLAZAS 96-110: Single vertical column (far left)
-  // 15 horizontal spots stacked vertically
-  // ═══════════════════════════════════════════════════════════════════════════
-  const x96 = 1.5;
-  const y96Start = 31;
+  const x96 = 30;
+  const y96Start = 220;
   for (let i = 0; i < 15; i++) {
-    positions.set(96 + i, {
-      left: x96,
-      top: y96Start + i * (hSpotH + vGap),
-      width: hSpotW,
-      height: hSpotH,
+    spots.set(96 + i, {
+      x: x96,
+      y: y96Start + i * (hH + gap),
+      w: hW,
+      h: hH,
     });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PLAZAS 70-95: Two vertical columns × 13 rows (left-center)
-  // Pairs: 70,71 / 72,73 / ... / 94,95
+  // SPOTS 70-95: Two paired columns, left-center, horizontal orientation
+  // Pairs: 70,71 / 72,73 / ... / 94,95 (13 rows × 2 cols)
   // ═══════════════════════════════════════════════════════════════════════════
-  const x70col1 = 10.5;
-  const x70col2 = x70col1 + hSpotW + hGap;
-  const y70Start = 31;
+  const x70col1 = 120;
+  const x70col2 = x70col1 + hW + gap;
+  const y70Start = 220;
   for (let i = 0; i < 13; i++) {
-    const y = y70Start + i * (hSpotH + vGap);
-    positions.set(70 + i * 2, { left: x70col1, top: y, width: hSpotW, height: hSpotH });
-    positions.set(71 + i * 2, { left: x70col2, top: y, width: hSpotW, height: hSpotH });
+    const y = y70Start + i * (hH + gap);
+    spots.set(70 + i * 2, { x: x70col1, y, w: hW, h: hH });
+    spots.set(71 + i * 2, { x: x70col2, y, w: hW, h: hH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PLAZAS 44-69: Two vertical columns × 13 rows (center)
-  // Pairs: 44,45 / 46,47 / ... / 68,69
+  // SPOTS 44-69: Two paired columns, center-left, horizontal orientation
+  // Pairs: 44,45 / 46,47 / ... / 68,69 (13 rows × 2 cols)
   // ═══════════════════════════════════════════════════════════════════════════
-  const x44col1 = 28.5;
-  const x44col2 = x44col1 + hSpotW + hGap;
-  const y44Start = 31;
+  const x44col1 = 280;
+  const x44col2 = x44col1 + hW + gap;
+  const y44Start = 220;
   for (let i = 0; i < 13; i++) {
-    const y = y44Start + i * (hSpotH + vGap);
-    positions.set(44 + i * 2, { left: x44col1, top: y, width: hSpotW, height: hSpotH });
-    positions.set(45 + i * 2, { left: x44col2, top: y, width: hSpotW, height: hSpotH });
+    const y = y44Start + i * (hH + gap);
+    spots.set(44 + i * 2, { x: x44col1, y, w: hW, h: hH });
+    spots.set(45 + i * 2, { x: x44col2, y, w: hW, h: hH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PLAZAS 12-19 y 20-27: Two horizontal rows × 8 vertical spots (center-right)
+  // SPOTS 1-11: Horizontal row of vertical spots, top-right area
   // ═══════════════════════════════════════════════════════════════════════════
-  const x12Start = 44;
-  const y12 = 45;
-  const y20 = y12 + vSpotH + vGap;
+  const x1Start = 540;
+  const y1 = 160;
+  for (let i = 0; i < 11; i++) {
+    spots.set(1 + i, {
+      x: x1Start + i * (vW + gap),
+      y: y1,
+      w: vW,
+      h: vH,
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPOTS 12-19 & 20-27: Two rows of vertical spots, center-right
+  // ═══════════════════════════════════════════════════════════════════════════
+  const x12Start = 540;
+  const y12 = 310;
+  const y20 = y12 + vH + gap;
   for (let i = 0; i < 8; i++) {
-    positions.set(12 + i, { left: x12Start + i * (vSpotW + hGap), top: y12, width: vSpotW, height: vSpotH });
-    positions.set(20 + i, { left: x12Start + i * (vSpotW + hGap), top: y20, width: vSpotW, height: vSpotH });
+    spots.set(12 + i, { x: x12Start + i * (vW + gap), y: y12, w: vW, h: vH });
+    spots.set(20 + i, { x: x12Start + i * (vW + gap), y: y20, w: vW, h: vH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PLAZAS 28-35 y 36-43: Two horizontal rows × 8 vertical spots (bottom-right)
+  // SPOTS 28-35 & 36-43: Two rows of vertical spots, bottom-right
   // ═══════════════════════════════════════════════════════════════════════════
-  const x28Start = 44;
-  const y28 = 65;
-  const y36 = y28 + vSpotH + vGap;
+  const x28Start = 540;
+  const y28 = 490;
+  const y36 = y28 + vH + gap;
   for (let i = 0; i < 8; i++) {
-    positions.set(28 + i, { left: x28Start + i * (vSpotW + hGap), top: y28, width: vSpotW, height: vSpotH });
-    positions.set(36 + i, { left: x28Start + i * (vSpotW + hGap), top: y36, width: vSpotW, height: vSpotH });
+    spots.set(28 + i, { x: x28Start + i * (vW + gap), y: y28, w: vW, h: vH });
+    spots.set(36 + i, { x: x28Start + i * (vW + gap), y: y36, w: vW, h: vH });
   }
 
-  return positions;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPOTS 111-118: Sucios column, between naves, near top-center
+  // Horizontal orientation, stacked vertically
+  // ═══════════════════════════════════════════════════════════════════════════
+  const xSucios = 380;
+  const ySuciosStart = 55;
+  for (let i = 0; i < 8; i++) {
+    spots.set(111 + i, {
+      x: xSucios,
+      y: ySuciosStart + i * (hH + gap),
+      w: hW,
+      h: hH,
+    });
+  }
+
+  return spots;
 }
 
-const SPOT_POSITIONS = buildSpotPositions();
+const SPOT_GEOMETRY = buildSpotGeometry();
+
+// ─── SVG Parking Map Component ──────────────────────────────────────────────
+function ParkingMapSVG({
+  spotByNumber,
+  highlightedSpotNum,
+  onSpotClick,
+}: {
+  spotByNumber: Map<number, ParkingSpot>;
+  highlightedSpotNum: number | null;
+  onSpotClick: (spot: ParkingSpot) => void;
+}) {
+  return (
+    <svg
+      viewBox="0 0 1200 820"
+      className="w-full h-auto"
+      style={{ maxHeight: '75vh' }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* ─── Defs: highlight animation ─── */}
+      <defs>
+        <style>{`
+          @keyframes pulseHighlight {
+            0%, 100% { stroke-opacity: 1; stroke-width: 3; }
+            50% { stroke-opacity: 0.4; stroke-width: 5; }
+          }
+          .spot-highlight {
+            animation: pulseHighlight 1s ease-in-out infinite;
+          }
+        `}</style>
+      </defs>
+
+      {/* ─── Background: asphalt ─── */}
+      <rect x="0" y="0" width="1200" height="820" fill="#374151" rx="8" />
+
+      {/* ─── Lot boundary ─── */}
+      <rect
+        x="15" y="15" width="1170" height="790"
+        fill="none" stroke="#6b7280" strokeWidth="2" strokeDasharray="8 4" rx="6"
+      />
+
+      {/* ─── Buildings / Naves (top) ─── */}
+      <rect x="30" y="30" width="340" height="160" fill="#4b5563" stroke="#9ca3af" strokeWidth="1.5" rx="3" />
+      <text x="200" y="115" textAnchor="middle" fill="#d1d5db" fontSize="14" fontWeight="600">NAVES / TALLER</text>
+      {/* Roof pattern */}
+      <line x1="30" y1="30" x2="200" y2="110" stroke="#6b7280" strokeWidth="0.8" />
+      <line x1="200" y1="110" x2="370" y2="30" stroke="#6b7280" strokeWidth="0.8" />
+      <line x1="30" y1="110" x2="200" y2="190" stroke="#6b7280" strokeWidth="0.8" />
+      <line x1="200" y1="190" x2="370" y2="110" stroke="#6b7280" strokeWidth="0.8" />
+
+      {/* ─── Sucios zone label ─── */}
+      <rect x="370" y="30" width="70" height="18" fill="#92400e" rx="3" />
+      <text x="405" y="43" textAnchor="middle" fill="#fef3c7" fontSize="9" fontWeight="700">SUCIOS</text>
+
+      {/* ─── Oficina Azul Cars ─── */}
+      <rect x="820" y="280" width="140" height="80" fill="#1e3a5f" stroke="#60a5fa" strokeWidth="1.5" rx="4" />
+      <text x="890" y="315" textAnchor="middle" fill="#93c5fd" fontSize="11" fontWeight="600">OFICINA</text>
+      <text x="890" y="332" textAnchor="middle" fill="#bfdbfe" fontSize="10">Azul Cars</text>
+
+      {/* ─── Exit / SALIDA (bottom-center) ─── */}
+      <rect x="530" y="740" width="120" height="40" fill="#065f46" stroke="#34d399" strokeWidth="1.5" rx="4" />
+      <text x="590" y="763" textAnchor="middle" fill="#a7f3d0" fontSize="12" fontWeight="700">SALIDA ↓</text>
+      {/* Arrow */}
+      <polygon points="580,785 600,800 590,800 590,810 570,810 570,800 560,800" fill="#34d399" opacity="0.7" />
+
+      {/* ─── Road: Camí Fondo (right side) ─── */}
+      <rect x="1050" y="30" width="120" height="760" fill="#1f2937" stroke="#4b5563" strokeWidth="1" rx="3" />
+      <text x="1110" y="420" textAnchor="middle" fill="#9ca3af" fontSize="11" fontWeight="500"
+        transform="rotate(90, 1110, 420)">CAMÍ FONDO</text>
+
+      {/* ─── Road: Son Maiferit (bottom) ─── */}
+      <rect x="30" y="780" width="1000" height="25" fill="#1f2937" stroke="#4b5563" strokeWidth="1" rx="3" />
+      <text x="530" y="797" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="500">SON MAIFERIT</text>
+
+      {/* ─── Driving lanes (dashed lines) ─── */}
+      {/* Horizontal lane between naves and parking */}
+      <line x1="30" y1="200" x2="1040" y2="200" stroke="#6b7280" strokeWidth="1" strokeDasharray="6 4" />
+      {/* Vertical lane between columns 96 and 70-95 */}
+      <line x1="95" y1="210" x2="95" y2="660" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
+      {/* Vertical lane between 70-95 and 44-69 */}
+      <line x1="240" y1="210" x2="240" y2="660" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
+      {/* Vertical lane between 44-69 and right blocks */}
+      <line x1="400" y1="210" x2="400" y2="660" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
+      {/* Horizontal lane below spots 1-11 */}
+      <line x1="530" y1="220" x2="920" y2="220" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
+
+      {/* ─── Zone labels ─── */}
+      <text x="56" y="210" fill="#9ca3af" fontSize="8" fontWeight="500">96-110</text>
+      <text x="155" y="210" fill="#9ca3af" fontSize="8" fontWeight="500">70-95</text>
+      <text x="310" y="210" fill="#9ca3af" fontSize="8" fontWeight="500">44-69</text>
+      <text x="680" y="150" fill="#9ca3af" fontSize="8" fontWeight="500">1-11</text>
+      <text x="640" y="300" fill="#9ca3af" fontSize="8" fontWeight="500">12-27</text>
+      <text x="640" y="480" fill="#9ca3af" fontSize="8" fontWeight="500">28-43</text>
+
+      {/* ─── Decorative trees ─── */}
+      {[
+        [980, 200], [1000, 350], [980, 500], [1000, 650],
+        [450, 700], [550, 700], [650, 700], [750, 700],
+      ].map(([cx, cy], i) => (
+        <circle key={`tree-${i}`} cx={cx} cy={cy} r="8" fill="#166534" opacity="0.6" />
+      ))}
+
+      {/* ─── Parking Spots ─── */}
+      {Array.from(SPOT_GEOMETRY.entries()).map(([num, rect]) => {
+        const spot = spotByNumber.get(num);
+        const isOccupied = spot?.status === 'occupied';
+        const isBlocked = spot?.status === 'blocked';
+        const isReserved = spot?.status === 'reserved';
+        const isHighlighted = highlightedSpotNum === num;
+
+        let fillColor = '#22c55e'; // green (free)
+        let strokeColor = '#16a34a';
+        if (isOccupied) {
+          fillColor = '#dc2626';
+          strokeColor = '#991b1b';
+        } else if (isBlocked) {
+          fillColor = '#6b7280';
+          strokeColor = '#4b5563';
+        } else if (isReserved) {
+          fillColor = '#3b82f6';
+          strokeColor = '#1d4ed8';
+        }
+
+        // Determine text content
+        let label = String(num);
+        if (isOccupied && spot?.vehicle_matricula) {
+          const plate = spot.vehicle_matricula;
+          label = plate.length > 7 ? plate.slice(-7) : plate;
+        }
+
+        // Font size based on spot orientation
+        const isHorizontal = rect.w > rect.h;
+        const fontSize = isOccupied && spot?.vehicle_matricula
+          ? (isHorizontal ? 8 : 7)
+          : (isHorizontal ? 9 : 8);
+
+        return (
+          <g
+            key={num}
+            onClick={() => spot && onSpotClick(spot)}
+            style={{ cursor: spot ? 'pointer' : 'default' }}
+            className="transition-opacity hover:opacity-80"
+          >
+            <rect
+              x={rect.x}
+              y={rect.y}
+              width={rect.w}
+              height={rect.h}
+              fill={fillColor}
+              stroke={strokeColor}
+              strokeWidth="1.2"
+              rx="2"
+            />
+            {/* Highlight ring */}
+            {isHighlighted && (
+              <rect
+                x={rect.x - 3}
+                y={rect.y - 3}
+                width={rect.w + 6}
+                height={rect.h + 6}
+                fill="none"
+                stroke="#facc15"
+                strokeWidth="3"
+                rx="4"
+                className="spot-highlight"
+              />
+            )}
+            {/* Label text */}
+            <text
+              x={rect.x + rect.w / 2}
+              y={rect.y + rect.h / 2 + fontSize / 3}
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize={fontSize}
+              fontWeight="700"
+              fontFamily="ui-monospace, monospace"
+              style={{ pointerEvents: 'none' }}
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function Parking() {
@@ -446,87 +597,14 @@ export default function Parking() {
 
       {isLoading && <Skeleton className="h-[500px] rounded-xl" />}
 
-      {/* ─── PARKING MAP WITH IMAGE BACKGROUND ─────────────────────── */}
+      {/* ─── PURE SVG PARKING MAP ─────────────────────────────────── */}
       {!isLoading && overview && (
         <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
-          <div
-            className="relative w-full"
-            style={{
-              backgroundImage: `url(${PARKING_BG_IMAGE})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              // Maintain aspect ratio of the image (~1200×1050 ≈ 1.14:1)
-              paddingBottom: '87.5%',
-            }}
-          >
-            {/* Render interactive spots on top of the image */}
-            {Array.from(SPOT_POSITIONS.entries()).map(([num, pos]) => {
-              const spot = spotByNumber.get(num);
-              const isOccupied = spot?.status === 'occupied';
-              const isBlocked = spot?.status === 'blocked';
-              const isReserved = spot?.status === 'reserved';
-              const isHighlighted = highlightedSpotNum === num;
-
-              let bgColor = 'rgba(34, 197, 94, 0.85)'; // green (free)
-              let borderColor = 'rgba(22, 163, 74, 1)';
-              let textColor = '#ffffff';
-
-              if (isOccupied) {
-                bgColor = 'rgba(220, 38, 38, 0.9)'; // red
-                borderColor = 'rgba(185, 28, 28, 1)';
-                textColor = '#ffffff';
-              } else if (isBlocked) {
-                bgColor = 'rgba(107, 114, 128, 0.85)';
-                borderColor = 'rgba(75, 85, 99, 1)';
-                textColor = '#ffffff';
-              } else if (isReserved) {
-                bgColor = 'rgba(59, 130, 246, 0.85)';
-                borderColor = 'rgba(37, 99, 235, 1)';
-                textColor = '#ffffff';
-              }
-
-              return (
-                <div
-                  key={num}
-                  onClick={() => spot && handleSpotClick(spot)}
-                  className={cn(
-                    "absolute flex items-center justify-center cursor-pointer rounded-[2px] transition-all duration-150 hover:scale-105 hover:z-10",
-                    isHighlighted && "ring-2 ring-yellow-400 ring-offset-1 animate-pulse z-20"
-                  )}
-                  style={{
-                    left: `${pos.left}%`,
-                    top: `${pos.top}%`,
-                    width: `${pos.width}%`,
-                    height: `${pos.height}%`,
-                    backgroundColor: bgColor,
-                    border: `1.5px solid ${borderColor}`,
-                  }}
-                  title={
-                    isOccupied
-                      ? `Plaza ${num} — ${spot?.vehicle_matricula || 'Ocupada'}${spot?.occupied_at ? ` (desde ${new Date(spot.occupied_at).toLocaleString('es-ES')})` : ''}`
-                      : isBlocked ? `Plaza ${num} — Bloqueada`
-                      : isReserved ? `Plaza ${num} — Reservada`
-                      : `Plaza ${num} — Libre`
-                  }
-                >
-                  <span
-                    className="font-bold leading-none text-center select-none"
-                    style={{
-                      color: textColor,
-                      fontSize: 'clamp(6px, 0.9vw, 11px)',
-                    }}
-                  >
-                    {isOccupied && spot?.vehicle_matricula
-                      ? (spot.vehicle_matricula.length > 7
-                          ? spot.vehicle_matricula.slice(-7)
-                          : spot.vehicle_matricula)
-                      : num}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <ParkingMapSVG
+            spotByNumber={spotByNumber}
+            highlightedSpotNum={highlightedSpotNum}
+            onSpotClick={handleSpotClick}
+          />
 
           {/* Legend */}
           <div className="flex items-center gap-5 px-4 py-2.5 bg-white dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">

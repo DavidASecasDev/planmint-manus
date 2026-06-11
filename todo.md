@@ -1223,3 +1223,4 @@
 - [x] Parking: Columna "Sucios" funcional con plazas interactivas (asignar/liberar coches) - spots 111-118
 - [x] Parking: Mover columna Sucios pegada a la pared derecha de la nave (junto al borde)
 - [x] Parking: Usar nueva imagen del plano (foto aérea con plazas azules) como fondo y superponer plazas interactivas numeradas encima de cada rectángulo azul
+- [x] Parking: Reescribir mapa como SVG puro (sin imagen de fondo) — vectores escalables a cualquier resolución (1080p, 1440p, 4K)
