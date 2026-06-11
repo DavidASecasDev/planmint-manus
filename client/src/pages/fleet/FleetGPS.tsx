@@ -1,22 +1,26 @@
 /**
- * GPS Flota v2 — Premium fleet GPS tracking with Google Maps + Geofences
+ * GPS Flota v3 — Premium fleet GPS tracking with Leaflet + OpenStreetMap + Geofences
  * 
  * Features:
- * - Google Maps with custom styling and vehicle markers
+ * - Leaflet with OpenStreetMap tiles (same style as Traccar/FindCarGPS)
  * - Premium glassmorphism sidebar with vehicle list
- * - Geofence management (create/edit/delete circles & polygons)
- * - Real-time vehicle tracking with auto-refresh
+ * - Geofence management (create/edit/delete circles & polygons) via leaflet-draw
+ * - Real-time vehicle tracking with auto-refresh + animated markers
  * - Vehicle detail panel on selection
  * - Permission-gated access (fleet.gps)
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Circle as LCircle, Polygon as LPolygon, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw';
+import 'leaflet-draw/dist/leaflet.draw.css';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useTraccar, TraccarDevice, TraccarPosition } from '@/hooks/useTraccar';
 import { useFleetVehicles } from '@/hooks/useFleetVehicles';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import { useGeofences, Geofence, GeofenceCoordinate } from '@/hooks/useGeofences';
-import { Navigate } from 'react-router-dom';
+import { AnimatedMarker } from '@/components/map/AnimatedMarker';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -31,17 +35,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   MapPin, RefreshCw, Wifi, WifiOff, Navigation, Car, Loader2,
   Search, Satellite, Clock, Gauge, ChevronLeft, ChevronRight,
   Radio, ShieldAlert, Plus, Trash2, Edit2, Eye, EyeOff,
-  Pentagon, Circle, AlertTriangle, X, Settings2, Layers
+  Pentagon, Circle, AlertTriangle, X, Settings2, Layers, Crosshair
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,47 +59,132 @@ type FilterStatus = 'all' | 'online' | 'offline';
 type SidebarTab = 'vehicles' | 'geofences';
 
 // ── Constants ──
-const MALLORCA_CENTER = { lat: 39.5696, lng: 2.6502 };
+const MALLORCA_CENTER: [number, number] = [39.5696, 2.6502];
 const DEFAULT_ZOOM = 11;
 const REFRESH_INTERVAL = 30_000;
 
-// Google Maps dark-ish style for a premium look
-const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
-  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
-  { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
-  { featureType: 'transit.station', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9d6e0' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
-];
-
-// ── Vehicle marker SVG ──
-function createVehicleSvg(isOnline: boolean, isSelected: boolean, course: number = 0): string {
+// ── Vehicle marker icon builder ──
+function createVehicleIcon(isOnline: boolean, isSelected: boolean, course: number = 0): L.DivIcon {
   const color = isOnline ? '#22c55e' : '#94a3b8';
   const borderColor = isSelected ? '#c9a96e' : 'white';
   const size = isSelected ? 44 : 36;
+  const shadowSize = isSelected ? 52 : 44;
   const rotation = course || 0;
 
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  const svg = `<div style="position:relative;width:${shadowSize}px;height:${shadowSize}px;display:flex;align-items:center;justify-content:center">
+    <div style="position:absolute;inset:${(shadowSize - size) / 2}px;background:${color};opacity:0.15;border-radius:50%;${isOnline && isSelected ? 'animation:pulse 2s infinite;' : ''}"></div>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">
       <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="${borderColor}" stroke-width="3"/>
       <g transform="rotate(${rotation} ${size/2} ${size/2})">
-        <path d="M${size/2} ${size*0.2} L${size*0.7} ${size*0.7} L${size/2} ${size*0.6} L${size*0.3} ${size*0.7} Z" fill="white" opacity="0.9"/>
+        <path d="M${size/2} ${size*0.22} L${size*0.68} ${size*0.68} L${size/2} ${size*0.58} L${size*0.32} ${size*0.68} Z" fill="white" opacity="0.9"/>
       </g>
     </svg>
-  `;
+  </div>`;
+
+  return L.divIcon({
+    className: 'fleet-vehicle-marker',
+    html: svg,
+    iconSize: [shadowSize, shadowSize],
+    iconAnchor: [shadowSize / 2, shadowSize / 2],
+    popupAnchor: [0, -(shadowSize / 2)],
+  });
+}
+
+// ── Drawing control component ──
+function DrawingControl({
+  drawingMode,
+  color,
+  onCircleComplete,
+  onPolygonComplete,
+}: {
+  drawingMode: 'circle' | 'polygon' | null;
+  color: string;
+  onCircleComplete: (center: [number, number], radius: number) => void;
+  onPolygonComplete: (coords: GeofenceCoordinate[]) => void;
+}) {
+  const map = useMap();
+  const drawControlRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!drawingMode) {
+      // Remove any existing draw control
+      if (drawControlRef.current) {
+        map.removeControl(drawControlRef.current);
+        drawControlRef.current = null;
+      }
+      return;
+    }
+
+    // Create a feature group for drawn items
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    // Start drawing immediately based on mode
+    let handler: any;
+    if (drawingMode === 'circle') {
+      handler = new (L.Draw as any).Circle(map, {
+        shapeOptions: {
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.2,
+          weight: 2,
+        },
+      });
+    } else {
+      handler = new (L.Draw as any).Polygon(map, {
+        shapeOptions: {
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.2,
+          weight: 2,
+        },
+        allowIntersection: false,
+        showArea: true,
+      });
+    }
+
+    handler.enable();
+
+    // Listen for draw:created event
+    const onCreated = (e: any) => {
+      const layer = e.layer;
+      if (drawingMode === 'circle') {
+        const center = layer.getLatLng();
+        const radius = layer.getRadius();
+        onCircleComplete([center.lat, center.lng], radius);
+      } else {
+        const latlngs = layer.getLatLngs()[0];
+        const coords: GeofenceCoordinate[] = latlngs.map((ll: any) => ({
+          lat: ll.lat,
+          lng: ll.lng,
+        }));
+        onPolygonComplete(coords);
+      }
+      // Remove the drawn layer (we'll render it via React)
+      map.removeLayer(layer);
+    };
+
+    map.on(L.Draw.Event.CREATED, onCreated);
+
+    return () => {
+      handler.disable();
+      map.off(L.Draw.Event.CREATED, onCreated);
+      map.removeLayer(drawnItems);
+    };
+  }, [drawingMode, color, map, onCircleComplete, onPolygonComplete]);
+
+  return null;
+}
+
+// ── Map controller for programmatic pan/zoom ──
+function MapController({ center, zoom }: { center?: [number, number]; zoom?: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, zoom || map.getZoom(), { animate: true });
+    }
+  }, [center, zoom, map]);
+  return null;
 }
 
 // ── Main Component ──
@@ -110,7 +192,6 @@ export default function FleetGPS() {
   const { hasTraccar, fetchDevices, devices, loading: devicesLoading, fetchPositions, positions } = useTraccar();
   const { vehicles, isLoading: vehiclesLoading } = useFleetVehicles();
   const { isAdmin, hasPermission, isLoading: permissionsLoading } = usePermissions();
-  const { isLoaded: mapsLoaded, error: mapsError } = useGoogleMaps();
   const { geofences, loading: geofencesLoading, createGeofence, updateGeofence, deleteGeofence, fetchGeofences } = useGeofences();
 
   const [filter, setFilter] = useState<FilterStatus>('all');
@@ -123,20 +204,14 @@ export default function FleetGPS() {
   const [showGeofences, setShowGeofences] = useState(true);
   const [drawingMode, setDrawingMode] = useState<'circle' | 'polygon' | null>(null);
   const [geofenceDialogOpen, setGeofenceDialogOpen] = useState(false);
-  const [editingGeofence, setEditingGeofence] = useState<Geofence | null>(null);
   const [newGeofenceName, setNewGeofenceName] = useState('');
   const [newGeofenceColor, setNewGeofenceColor] = useState('#3B82F6');
   const [newGeofenceAlertEnter, setNewGeofenceAlertEnter] = useState(true);
   const [newGeofenceAlertExit, setNewGeofenceAlertExit] = useState(false);
   const [pendingGeofenceData, setPendingGeofenceData] = useState<any>(null);
+  const [mapTarget, setMapTarget] = useState<{ center: [number, number]; zoom: number } | null>(null);
 
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
-  const geofenceShapesRef = useRef<Map<string, google.maps.Circle | google.maps.Polygon>>(new Map());
-  const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
   // Permission check
   const canAccess = isAdmin || hasPermission('fleet.gps' as any);
@@ -218,258 +293,31 @@ export default function FleetGPS() {
   const offlineCount = vehiclesWithGPS.length - onlineCount;
   const totalCount = vehiclesWithGPS.length;
 
-  // ── Google Maps initialization ──
-  useEffect(() => {
-    if (!mapsLoaded || !mapContainerRef.current || mapRef.current) return;
-
-    const map = new google.maps.Map(mapContainerRef.current, {
-      center: MALLORCA_CENTER,
-      zoom: DEFAULT_ZOOM,
-      styles: MAP_STYLES,
-      disableDefaultUI: true,
-      zoomControl: true,
-      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
-      mapTypeControl: true,
-      mapTypeControlOptions: {
-        style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-        position: google.maps.ControlPosition.TOP_RIGHT,
-        mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
-      },
-      fullscreenControl: false,
-      streetViewControl: false,
-      gestureHandling: 'greedy',
-      mapId: 'fleet-gps-map',
-    });
-
-    mapRef.current = map;
-    infoWindowRef.current = new google.maps.InfoWindow();
-
-    // Initialize drawing manager (hidden by default)
-    const drawingManager = new google.maps.drawing.DrawingManager({
-      drawingMode: null,
-      drawingControl: false,
-      circleOptions: {
-        fillColor: '#3B82F6',
-        fillOpacity: 0.2,
-        strokeColor: '#3B82F6',
-        strokeWeight: 2,
-        editable: true,
-        draggable: true,
-      },
-      polygonOptions: {
-        fillColor: '#3B82F6',
-        fillOpacity: 0.2,
-        strokeColor: '#3B82F6',
-        strokeWeight: 2,
-        editable: true,
-        draggable: true,
-      },
-    });
-    drawingManager.setMap(map);
-    drawingManagerRef.current = drawingManager;
-
-    // Listen for completed drawings
-    google.maps.event.addListener(drawingManager, 'circlecomplete', (circle: google.maps.Circle) => {
-      const center = circle.getCenter();
-      if (center) {
-        setPendingGeofenceData({
-          type: 'circle',
-          center_lat: center.lat(),
-          center_lng: center.lng(),
-          radius_meters: circle.getRadius(),
-        });
-        setGeofenceDialogOpen(true);
-      }
-      circle.setMap(null); // Remove temp shape
-      drawingManager.setDrawingMode(null);
-      setDrawingMode(null);
-    });
-
-    google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon: google.maps.Polygon) => {
-      const path = polygon.getPath();
-      const coordinates: GeofenceCoordinate[] = [];
-      for (let i = 0; i < path.getLength(); i++) {
-        const point = path.getAt(i);
-        coordinates.push({ lat: point.lat(), lng: point.lng() });
-      }
-      setPendingGeofenceData({ type: 'polygon', coordinates });
-      setGeofenceDialogOpen(true);
-      polygon.setMap(null); // Remove temp shape
-      drawingManager.setDrawingMode(null);
-      setDrawingMode(null);
-    });
-
-    return () => {
-      // Cleanup on unmount
-      markersRef.current.forEach(m => m.map = null);
-      markersRef.current.clear();
-      geofenceShapesRef.current.forEach(s => s.setMap(null));
-      geofenceShapesRef.current.clear();
-    };
-  }, [mapsLoaded]);
-
-  // ── Update vehicle markers ──
-  useEffect(() => {
-    if (!mapRef.current || !mapsLoaded) return;
-
-    const map = mapRef.current;
-    const existingMarkers = markersRef.current;
-    const currentIds = new Set(filteredVehicles.filter(v => v.position).map(v => v.id));
-
-    // Remove markers for vehicles no longer in the list
-    existingMarkers.forEach((marker, id) => {
-      if (!currentIds.has(id)) {
-        marker.map = null;
-        existingMarkers.delete(id);
-      }
-    });
-
-    // Add/update markers
-    filteredVehicles.forEach(vehicle => {
-      if (!vehicle.position) return;
-
-      const isOnline = vehicle.device?.status === 'online';
-      const isSelected = selectedVehicleId === vehicle.id;
-      const position = { lat: vehicle.position.latitude, lng: vehicle.position.longitude };
-
-      const svgString = createVehicleSvg(isOnline, isSelected, vehicle.position.course);
-      const parser = new DOMParser();
-      const svgElement = parser.parseFromString(svgString, 'image/svg+xml').documentElement;
-
-      let marker = existingMarkers.get(vehicle.id);
-      if (marker) {
-        marker.position = position;
-        marker.content = svgElement;
-      } else {
-        marker = new google.maps.marker.AdvancedMarkerElement({
-          map,
-          position,
-          content: svgElement,
-          title: vehicle.matricula,
-        });
-
-        marker.addListener('click', () => {
-          setSelectedVehicleId(vehicle.id);
-          const speedKmh = vehicle.position?.speed ? Math.round(vehicle.position.speed * 1.852) : 0;
-          const statusText = isOnline ? 'Online' : 'Offline';
-          const statusColor = isOnline ? '#22c55e' : '#94a3b8';
-
-          if (infoWindowRef.current) {
-            infoWindowRef.current.setContent(`
-              <div style="font-family: 'Barlow', sans-serif; min-width: 220px; padding: 4px;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                  <span style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px;">${vehicle.matricula}</span>
-                  <span style="background: ${statusColor}; color: white; font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 600;">${statusText}</span>
-                </div>
-                <p style="color: #64748b; font-size: 12px; margin: 0 0 6px;">${[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'}</p>
-                ${vehicle.position?.address ? `<p style="font-size: 12px; margin: 0 0 6px;">📍 ${vehicle.position.address}</p>` : ''}
-                <div style="display: flex; gap: 12px; font-size: 11px; color: #64748b;">
-                  <span>🏎️ ${speedKmh > 0 ? speedKmh + ' km/h' : 'Detenido'}</span>
-                  ${vehicle.position?.deviceTime ? `<span>🕐 ${new Date(vehicle.position.deviceTime).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
-                </div>
-              </div>
-            `);
-            infoWindowRef.current.open(map, marker);
-          }
-        });
-
-        existingMarkers.set(vehicle.id, marker);
-      }
-    });
-  }, [filteredVehicles, selectedVehicleId, mapsLoaded]);
-
-  // ── Render geofences on map ──
-  useEffect(() => {
-    if (!mapRef.current || !mapsLoaded) return;
-
-    const map = mapRef.current;
-    const existingShapes = geofenceShapesRef.current;
-
-    // Clear all existing shapes
-    existingShapes.forEach(s => s.setMap(null));
-    existingShapes.clear();
-
-    if (!showGeofences) return;
-
-    // Draw active geofences
-    geofences.filter(g => g.is_active).forEach(geofence => {
-      if (geofence.type === 'circle' && geofence.center_lat && geofence.center_lng && geofence.radius_meters) {
-        const circle = new google.maps.Circle({
-          map,
-          center: { lat: geofence.center_lat, lng: geofence.center_lng },
-          radius: geofence.radius_meters,
-          fillColor: geofence.color,
-          fillOpacity: geofence.opacity,
-          strokeColor: geofence.color,
-          strokeWeight: 2,
-          clickable: true,
-        });
-        circle.addListener('click', () => {
-          setEditingGeofence(geofence);
-          setSidebarTab('geofences');
-          setSidebarOpen(true);
-        });
-        existingShapes.set(geofence.id, circle);
-      } else if (geofence.type === 'polygon' && geofence.coordinates && geofence.coordinates.length >= 3) {
-        const polygon = new google.maps.Polygon({
-          map,
-          paths: geofence.coordinates.map(c => ({ lat: c.lat, lng: c.lng })),
-          fillColor: geofence.color,
-          fillOpacity: geofence.opacity,
-          strokeColor: geofence.color,
-          strokeWeight: 2,
-          clickable: true,
-        });
-        polygon.addListener('click', () => {
-          setEditingGeofence(geofence);
-          setSidebarTab('geofences');
-          setSidebarOpen(true);
-        });
-        existingShapes.set(geofence.id, polygon);
-      }
-    });
-  }, [geofences, showGeofences, mapsLoaded]);
-
-  // ── Drawing mode toggle ──
-  useEffect(() => {
-    if (!drawingManagerRef.current) return;
-    if (drawingMode === 'circle') {
-      drawingManagerRef.current.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
-      drawingManagerRef.current.setOptions({
-        circleOptions: {
-          fillColor: newGeofenceColor,
-          fillOpacity: 0.2,
-          strokeColor: newGeofenceColor,
-          strokeWeight: 2,
-          editable: true,
-          draggable: true,
-        },
-      });
-    } else if (drawingMode === 'polygon') {
-      drawingManagerRef.current.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-      drawingManagerRef.current.setOptions({
-        polygonOptions: {
-          fillColor: newGeofenceColor,
-          fillOpacity: 0.2,
-          strokeColor: newGeofenceColor,
-          strokeWeight: 2,
-          editable: true,
-          draggable: true,
-        },
-      });
-    } else {
-      drawingManagerRef.current.setDrawingMode(null);
-    }
-  }, [drawingMode, newGeofenceColor]);
-
   // Handle vehicle selection — pan map
   const handleSelectVehicle = (vehicle: FleetVehicleGPS) => {
     setSelectedVehicleId(vehicle.id);
-    if (vehicle.position && mapRef.current) {
-      mapRef.current.panTo({ lat: vehicle.position.latitude, lng: vehicle.position.longitude });
-      mapRef.current.setZoom(15);
+    if (vehicle.position) {
+      setMapTarget({ center: [vehicle.position.latitude, vehicle.position.longitude], zoom: 15 });
     }
   };
+
+  // Handle geofence drawing complete
+  const handleCircleComplete = useCallback((center: [number, number], radius: number) => {
+    setPendingGeofenceData({
+      type: 'circle',
+      center_lat: center[0],
+      center_lng: center[1],
+      radius_meters: radius,
+    });
+    setGeofenceDialogOpen(true);
+    setDrawingMode(null);
+  }, []);
+
+  const handlePolygonComplete = useCallback((coords: GeofenceCoordinate[]) => {
+    setPendingGeofenceData({ type: 'polygon', coordinates: coords });
+    setGeofenceDialogOpen(true);
+    setDrawingMode(null);
+  }, []);
 
   // Save new geofence
   const handleSaveGeofence = async () => {
@@ -496,6 +344,17 @@ export default function FleetGPS() {
     setNewGeofenceAlertEnter(true);
     setNewGeofenceAlertExit(false);
     setPendingGeofenceData(null);
+  };
+
+  // Focus on geofence
+  const handleFocusGeofence = (geofence: Geofence) => {
+    if (geofence.type === 'circle' && geofence.center_lat && geofence.center_lng) {
+      setMapTarget({ center: [geofence.center_lat, geofence.center_lng], zoom: 14 });
+    } else if (geofence.coordinates && geofence.coordinates.length > 0) {
+      const bounds = L.latLngBounds(geofence.coordinates.map(c => [c.lat, c.lng] as [number, number]));
+      const center = bounds.getCenter();
+      setMapTarget({ center: [center.lat, center.lng], zoom: 14 });
+    }
   };
 
   // ── Loading states ──
@@ -604,9 +463,9 @@ export default function FleetGPS() {
                     {/* Filter chips */}
                     <div className="flex gap-1.5 mb-3">
                       {[
-                        { key: 'all' as FilterStatus, label: 'Todos', count: totalCount, color: '' },
-                        { key: 'online' as FilterStatus, label: 'Online', count: onlineCount, color: 'text-green-600' },
-                        { key: 'offline' as FilterStatus, label: 'Offline', count: offlineCount, color: 'text-gray-500' },
+                        { key: 'all' as FilterStatus, label: 'Todos', count: totalCount },
+                        { key: 'online' as FilterStatus, label: 'Online', count: onlineCount },
+                        { key: 'offline' as FilterStatus, label: 'Offline', count: offlineCount },
                       ].map(f => (
                         <button
                           key={f.key}
@@ -637,32 +496,34 @@ export default function FleetGPS() {
                 )}
 
                 {sidebarTab === 'geofences' && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id="show-geofences"
-                        checked={showGeofences}
-                        onCheckedChange={setShowGeofences}
-                      />
-                      <Label htmlFor="show-geofences" className="text-xs">Mostrar en mapa</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="show-geofences"
+                          checked={showGeofences}
+                          onCheckedChange={setShowGeofences}
+                        />
+                        <Label htmlFor="show-geofences" className="text-xs">Mostrar en mapa</Label>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <Button
                         size="sm"
                         variant={drawingMode === 'circle' ? 'default' : 'outline'}
-                        className="h-7 text-xs gap-1"
+                        className="h-8 text-xs gap-1.5 flex-1"
                         onClick={() => setDrawingMode(drawingMode === 'circle' ? null : 'circle')}
                       >
-                        <Circle className="h-3 w-3" />
+                        <Circle className="h-3.5 w-3.5" />
                         Círculo
                       </Button>
                       <Button
                         size="sm"
                         variant={drawingMode === 'polygon' ? 'default' : 'outline'}
-                        className="h-7 text-xs gap-1"
+                        className="h-8 text-xs gap-1.5 flex-1"
                         onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
                       >
-                        <Pentagon className="h-3 w-3" />
+                        <Pentagon className="h-3.5 w-3.5" />
                         Polígono
                       </Button>
                     </div>
@@ -706,8 +567,8 @@ export default function FleetGPS() {
                       <div className="mx-2 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-xs text-blue-700 font-medium">
                           {drawingMode === 'circle'
-                            ? '🎯 Haz click en el mapa y arrastra para dibujar un círculo'
-                            : '📐 Haz click en el mapa para dibujar los vértices del polígono'}
+                            ? 'Haz click en el mapa y arrastra para dibujar un círculo'
+                            : 'Haz click en el mapa para dibujar los vértices del polígono. Haz click en el primer punto para cerrar.'}
                         </p>
                         <Button
                           size="sm"
@@ -724,7 +585,7 @@ export default function FleetGPS() {
                       <div className="flex items-center justify-center py-12">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
-                    ) : geofences.length === 0 ? (
+                    ) : geofences.length === 0 && !drawingMode ? (
                       <div className="text-center py-12 px-4">
                         <Pentagon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/20" />
                         <p className="text-sm text-muted-foreground mb-2">No hay geocercas</p>
@@ -737,7 +598,6 @@ export default function FleetGPS() {
                         <GeofenceCard
                           key={geofence.id}
                           geofence={geofence}
-                          isEditing={editingGeofence?.id === geofence.id}
                           onToggleActive={async () => {
                             await updateGeofence(geofence.id, { is_active: !geofence.is_active });
                           }}
@@ -746,17 +606,7 @@ export default function FleetGPS() {
                               await deleteGeofence(geofence.id);
                             }
                           }}
-                          onFocus={() => {
-                            if (!mapRef.current) return;
-                            if (geofence.type === 'circle' && geofence.center_lat && geofence.center_lng) {
-                              mapRef.current.panTo({ lat: geofence.center_lat, lng: geofence.center_lng });
-                              mapRef.current.setZoom(14);
-                            } else if (geofence.coordinates && geofence.coordinates.length > 0) {
-                              const bounds = new google.maps.LatLngBounds();
-                              geofence.coordinates.forEach(c => bounds.extend({ lat: c.lat, lng: c.lng }));
-                              mapRef.current.fitBounds(bounds, 50);
-                            }
-                          }}
+                          onFocus={() => handleFocusGeofence(geofence)}
                         />
                       ))
                     )}
@@ -778,28 +628,106 @@ export default function FleetGPS() {
           {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
 
-        {/* ── Map Container ── */}
+        {/* ── Map ── */}
         <div className="flex-1 relative">
-          {!mapsLoaded ? (
-            <div className="h-full w-full flex items-center justify-center bg-muted/20">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Cargando mapa...</p>
-              </div>
-            </div>
-          ) : mapsError ? (
-            <div className="h-full w-full flex items-center justify-center bg-muted/20">
-              <div className="text-center">
-                <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
-                <p className="text-sm text-destructive">{mapsError}</p>
-              </div>
-            </div>
-          ) : (
-            <div ref={mapContainerRef} className="h-full w-full" />
-          )}
+          <MapContainer
+            center={MALLORCA_CENTER}
+            zoom={DEFAULT_ZOOM}
+            className="h-full w-full"
+            zoomControl={false}
+            style={{ background: '#f0f0f0' }}
+          >
+            {/* OpenStreetMap tiles — same as Traccar/FindCarGPS */}
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+            />
 
-          {/* Status bar */}
-          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
+            {/* Zoom control in bottom-right */}
+            <ZoomControl />
+
+            {/* Map controller for programmatic navigation */}
+            {mapTarget && <MapController center={mapTarget.center} zoom={mapTarget.zoom} />}
+
+            {/* Drawing control */}
+            <DrawingControl
+              drawingMode={drawingMode}
+              color={newGeofenceColor}
+              onCircleComplete={handleCircleComplete}
+              onPolygonComplete={handlePolygonComplete}
+            />
+
+            {/* Vehicle markers */}
+            {filteredVehicles.map(vehicle => {
+              if (!vehicle.position) return null;
+              const isOnline = vehicle.device?.status === 'online';
+              const isSelected = selectedVehicleId === vehicle.id;
+              const speedKmh = vehicle.position.speed ? Math.round(vehicle.position.speed * 1.852) : 0;
+
+              const popupHtml = `
+                <div style="font-family: system-ui, sans-serif; min-width: 200px; padding: 2px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <span style="font-weight:700;font-size:14px;letter-spacing:0.5px;">${vehicle.matricula}</span>
+                    <span style="background:${isOnline ? '#22c55e' : '#94a3b8'};color:white;font-size:10px;padding:2px 8px;border-radius:12px;font-weight:600;">${isOnline ? 'Online' : 'Offline'}</span>
+                  </div>
+                  <p style="color:#64748b;font-size:12px;margin:0 0 4px;">${[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'}</p>
+                  ${vehicle.position.address ? `<p style="font-size:11px;margin:0 0 4px;color:#475569;">📍 ${vehicle.position.address}</p>` : ''}
+                  <div style="display:flex;gap:12px;font-size:11px;color:#64748b;margin-top:4px;">
+                    <span>🏎️ ${speedKmh > 0 ? speedKmh + ' km/h' : 'Detenido'}</span>
+                    ${vehicle.position.deviceTime ? `<span>🕐 ${new Date(vehicle.position.deviceTime).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                  </div>
+                </div>
+              `;
+
+              return (
+                <AnimatedMarker
+                  key={vehicle.id}
+                  position={[vehicle.position.latitude, vehicle.position.longitude]}
+                  icon={createVehicleIcon(isOnline, isSelected, vehicle.position.course)}
+                  popupContent={popupHtml}
+                  markerId={vehicle.id}
+                  animationDuration={2000}
+                />
+              );
+            })}
+
+            {/* Geofences */}
+            {showGeofences && geofences.filter(g => g.is_active).map(geofence => {
+              if (geofence.type === 'circle' && geofence.center_lat && geofence.center_lng && geofence.radius_meters) {
+                return (
+                  <LCircle
+                    key={geofence.id}
+                    center={[geofence.center_lat, geofence.center_lng]}
+                    radius={geofence.radius_meters}
+                    pathOptions={{
+                      color: geofence.color,
+                      fillColor: geofence.color,
+                      fillOpacity: geofence.opacity,
+                      weight: 2,
+                    }}
+                  />
+                );
+              } else if (geofence.type === 'polygon' && geofence.coordinates && geofence.coordinates.length >= 3) {
+                return (
+                  <LPolygon
+                    key={geofence.id}
+                    positions={geofence.coordinates.map(c => [c.lat, c.lng] as [number, number])}
+                    pathOptions={{
+                      color: geofence.color,
+                      fillColor: geofence.color,
+                      fillOpacity: geofence.opacity,
+                      weight: 2,
+                    }}
+                  />
+                );
+              }
+              return null;
+            })}
+          </MapContainer>
+
+          {/* Status bar overlay */}
+          <div className="absolute bottom-4 right-4 z-[1000] flex items-center gap-2">
             <div className="bg-white/90 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-2 flex items-center gap-2 shadow-md">
               <Radio className={cn("h-3 w-3", refreshing ? "text-primary animate-pulse" : "text-green-500")} />
               <span className="text-[11px] font-medium text-muted-foreground">
@@ -884,6 +812,19 @@ export default function FleetGPS() {
   );
 }
 
+// ── Zoom Control Component ──
+function ZoomControl() {
+  const map = useMap();
+  useEffect(() => {
+    const zoomControl = L.control.zoom({ position: 'bottomright' });
+    zoomControl.addTo(map);
+    return () => {
+      map.removeControl(zoomControl);
+    };
+  }, [map]);
+  return null;
+}
+
 // ── Vehicle Card Component ──
 function VehicleCard({
   vehicle,
@@ -925,7 +866,7 @@ function VehicleCard({
           <div className="flex items-center gap-2">
             <span className="text-sm font-mono font-bold tracking-wider">{vehicle.matricula}</span>
             {isOnline && speedKmh > 0 && (
-              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                 {speedKmh} km/h
               </span>
             )}
@@ -966,22 +907,17 @@ function VehicleCard({
 // ── Geofence Card Component ──
 function GeofenceCard({
   geofence,
-  isEditing,
   onToggleActive,
   onDelete,
   onFocus,
 }: {
   geofence: Geofence;
-  isEditing: boolean;
   onToggleActive: () => void;
   onDelete: () => void;
   onFocus: () => void;
 }) {
   return (
-    <div className={cn(
-      "p-3 rounded-xl border transition-all",
-      isEditing ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:border-border/50"
-    )}>
+    <div className="p-3 rounded-xl border bg-white border-transparent hover:border-border/50 transition-all">
       <div className="flex items-center gap-3">
         {/* Color indicator */}
         <div
@@ -1002,10 +938,8 @@ function GeofenceCard({
             {geofence.type === 'circle'
               ? `Radio: ${geofence.radius_meters ? Math.round(geofence.radius_meters) : 0}m`
               : `${geofence.coordinates?.length || 0} vértices`}
-            {' · '}
-            {geofence.alert_on_enter && '↗️ Entrada'}
-            {geofence.alert_on_enter && geofence.alert_on_exit && ' · '}
-            {geofence.alert_on_exit && '↙️ Salida'}
+            {geofence.alert_on_enter && ' · ↗️ Entrada'}
+            {geofence.alert_on_exit && ' · ↙️ Salida'}
           </p>
         </div>
 
@@ -1016,7 +950,7 @@ function GeofenceCard({
             className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
             title="Centrar en mapa"
           >
-            <Navigation className="h-3.5 w-3.5" />
+            <Crosshair className="h-3.5 w-3.5" />
           </button>
           <Switch
             checked={geofence.is_active}

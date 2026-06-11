@@ -204,7 +204,7 @@ import {
   handleUpdateGeofence,
   handleDeleteGeofence,
 } from "../geofenceEndpoints";
-import { handleGetMapsJsUrl } from "../mapsJsEndpoint";
+
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -449,8 +449,6 @@ async function startServer() {
   app.post("/api/traccar/settings", handleTraccarSettings);
   app.post("/api/traccar/vehicle-by-plate", handleTraccarVehicleByPlate);
 
-  // ─── Maps JS SDK ────────────────────────────────────────────────────────
-  app.get("/api/maps-js-url", handleGetMapsJsUrl);
 
   // ─── Geofences ───────────────────────────────────────────────────────────
   app.post("/api/geofences/list", handleListGeofences);
