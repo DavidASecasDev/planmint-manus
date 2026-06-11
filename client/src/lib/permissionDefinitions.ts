@@ -248,6 +248,7 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'fleet.view', label: 'Ver flota', description: 'Permite ver el listado de vehículos e inspecciones' },
       { key: 'fleet.manage', label: 'Gestionar flota', description: 'Permite gestionar inspecciones y datos de flota' },
       { key: 'fleet.import', label: 'Importar flota', description: 'Permite importar vehículos desde archivos Excel' },
+      { key: 'fleet.gps', label: 'GPS Flota', description: 'Permite acceder a la vista de localizadores GPS en tiempo real' },
     ],
   },
   {

@@ -57,7 +57,7 @@ export interface RolePermissions {
   // Daily Tasks
   daily_tasks: { view: boolean; view_other_days: boolean; complete: boolean; manage: boolean };
   // Fleet
-  fleet: { view: boolean; manage: boolean; import: boolean };
+  fleet: { view: boolean; manage: boolean; import: boolean; gps: boolean };
   // Schedules (Horarios)
   schedules: { view: boolean; assign: boolean; manage_templates: boolean; view_directiva: boolean; manage_notes: boolean; manage: boolean };
   // Lost & Found (Objetos Perdidos)
@@ -377,7 +377,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
   time_tracking: { view: true, view_team: false, create: false, manage: false },
   movements: { view: true, create: false, manage: false, delete: false, edit_photos: false, upload_receipt: false },
   daily_tasks: { view: true, view_other_days: false, complete: false, manage: false },
-  fleet: { view: true, manage: false, import: false },
+  fleet: { view: true, manage: false, import: false, gps: false },
   schedules: { view: true, assign: false, manage_templates: false, view_directiva: false, manage_notes: false, manage: false },
   lost_found: { view: true, create: true, update: false, manage: false },
 };
@@ -519,6 +519,7 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     view: 'Ver flota',
     manage: 'Gestionar flota e inspecciones',
     import: 'Importar flota desde Excel',
+    gps: 'GPS Flota en tiempo real',
   },
   members: {
     view: 'Ver miembros',

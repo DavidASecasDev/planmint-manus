@@ -225,6 +225,7 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       view: 'Permite ver el listado de vehículos e inspecciones',
       manage: 'Permite gestionar inspecciones y datos de flota',
       import: 'Permite importar vehículos desde archivos Excel',
+      gps: 'Permite acceder a la vista de localizadores GPS en tiempo real',
     },
   },
   schedules: {

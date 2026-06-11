@@ -118,6 +118,7 @@ export type PermissionKey =
   | 'fleet.view'
   | 'fleet.manage'
   | 'fleet.import'
+  | 'fleet.gps'
   // Schedules (Horarios)
   | 'schedules.view'
   | 'schedules.assign'

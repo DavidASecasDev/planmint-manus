@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package, Satellite } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -128,6 +128,7 @@ const fleetSubItems = [
   { title: 'Vehículos', url: '/fleet', icon: Warehouse },
   { title: 'Equipamiento', url: '/fleet/equipment', icon: Baby },
   { title: 'Auditorías', url: '/fleet/audits', icon: ClipboardCheck },
+  { title: 'GPS Flota', url: '/fleet/gps', icon: Satellite, permission: 'fleet.gps' as const },
 ];
 
 // Tasks submenu items
@@ -194,7 +195,7 @@ const configItems = [
 
 export function AppSidebar() {
   const { profile, organization, signOut } = useAuth();
-  const { role, canAccessAdminPanel, hasPermission, isManager, isLoading: permissionsLoading } = usePermissions();
+  const { role, canAccessAdminPanel, hasPermission, isAdmin, isManager, isLoading: permissionsLoading } = usePermissions();
   const { isModuleEnabled, isLoading: modulesLoading } = useOrganizationModules();
   const { handlePrefetch, cancelPrefetch } = usePrefetch();
 
@@ -594,6 +595,11 @@ export function AppSidebar() {
                         renderCollapsibleMenu(
                           'Flota', Warehouse, fleetOpen, setFleetOpen, isFleetActive,
                           fleetSubItems,
+                          (subItem) => {
+                            if (!dataReady) return true;
+                            if ('permission' in subItem && subItem.permission) return isAdmin || hasPermission(subItem.permission);
+                            return true;
+                          }
                         )
                       }
                     </SidebarMenuItem>

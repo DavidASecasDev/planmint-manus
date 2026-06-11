@@ -138,7 +138,7 @@ describe('PERMISSION_CATEGORIES completeness', () => {
     // Daily Tasks
     'daily_tasks.view', 'daily_tasks.view_other_days', 'daily_tasks.complete', 'daily_tasks.manage',
     // Fleet
-    'fleet.view', 'fleet.manage', 'fleet.import',
+    'fleet.view', 'fleet.manage', 'fleet.import', 'fleet.gps',
     // Schedules (Horarios)
     'schedules.view', 'schedules.assign', 'schedules.manage_templates', 'schedules.view_directiva', 'schedules.manage_notes', 'schedules.manage',
   ];
@@ -221,6 +221,7 @@ describe('DEFAULT_ROLE_PERMISSIONS completeness', () => {
     expect(f).toHaveProperty('view');
     expect(f).toHaveProperty('manage');
     expect(f).toHaveProperty('import');
+    expect(f).toHaveProperty('gps');
   });
 
   it('all boolean values are explicitly set (no undefined)', () => {
@@ -259,6 +260,7 @@ describe('PERMISSION_LABELS coherence', () => {
     expect(PERMISSION_LABELS.fleet).toHaveProperty('view');
     expect(PERMISSION_LABELS.fleet).toHaveProperty('manage');
     expect(PERMISSION_LABELS.fleet).toHaveProperty('import');
+    expect(PERMISSION_LABELS.fleet).toHaveProperty('gps');
   });
 
   it('every label in DEFAULT_ROLE_PERMISSIONS has a corresponding label in PERMISSION_LABELS', () => {
@@ -300,10 +302,10 @@ describe('Permission mapping structural integrity', () => {
     expect(dt!.permissions).toHaveLength(4);
   });
 
-  it('fleet category has 3 permissions', () => {
+  it('fleet category has 4 permissions', () => {
     const fleet = PERMISSION_CATEGORIES.find(c => c.id === 'fleet');
     expect(fleet).toBeDefined();
-    expect(fleet!.permissions).toHaveLength(3);
+    expect(fleet!.permissions).toHaveLength(4);
   });
 
   it('schedules category has 7 permissions', () => {

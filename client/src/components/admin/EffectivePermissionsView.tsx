@@ -151,6 +151,7 @@ function mapCustomRoleToFlatPermissions(pj: Record<string, any>): Record<string,
   flat['fleet.view'] = pj?.fleet?.view ?? false;
   flat['fleet.manage'] = pj?.fleet?.manage ?? false;
   flat['fleet.import'] = pj?.fleet?.import ?? pj?.fleet?.manage ?? false;
+  flat['fleet.gps'] = pj?.fleet?.gps ?? false;
   // Schedules (Horarios)
   flat['schedules.view'] = pj?.schedules?.view ?? false;
   flat['schedules.assign'] = pj?.schedules?.assign ?? pj?.schedules?.manage ?? false;

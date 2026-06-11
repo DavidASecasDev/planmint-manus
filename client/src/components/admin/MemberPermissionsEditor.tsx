@@ -132,6 +132,7 @@ function mapCustomRoleToFlatPermissions(permissionsJson: Record<string, any>): R
   flat['fleet.view'] = permissionsJson?.fleet?.view ?? false;
   flat['fleet.manage'] = permissionsJson?.fleet?.manage ?? false;
   flat['fleet.import'] = permissionsJson?.fleet?.import ?? permissionsJson?.fleet?.manage ?? false;
+  flat['fleet.gps'] = permissionsJson?.fleet?.gps ?? false;
   // Schedules (Horarios)
   flat['schedules.view'] = permissionsJson?.schedules?.view ?? false;
   flat['schedules.assign'] = permissionsJson?.schedules?.assign ?? permissionsJson?.schedules?.manage ?? false;

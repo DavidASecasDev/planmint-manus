@@ -1147,3 +1147,10 @@
 - [x] Traccar: UI para vincular dispositivo Traccar a cada vehículo de flota
 - [x] Traccar: Página de mapa en tiempo real mostrando posición de todos los vehículos
 - [x] Traccar: En operación de entrega, mostrar solo la localización del vehículo asignado
+- [x] GPS Flota: Crear página dedicada /fleet/gps con mapa Leaflet + sidebar lateral mostrando TODOS los localizadores en tiempo real
+- [x] GPS Flota: Filtros en sidebar (Todos/Online/Offline) + búsqueda por matrícula
+- [x] GPS Flota: Auto-refresh cada 30 segundos con indicador de última actualización
+- [x] GPS Flota: Click en vehículo de la lista centra el mapa en su marcador
+- [x] GPS Flota: Control de acceso — solo admins y usuarios con permiso fleet.gps pueden ver la página y el enlace en sidebar
+- [x] GPS Flota: Añadir permiso fleet.gps a la definición de permisos y al PermissionKey type
+- [x] GPS Flota: Añadir entrada "GPS Flota" en el sidebar bajo el menú desplegable de Flota (solo visible con permiso)
