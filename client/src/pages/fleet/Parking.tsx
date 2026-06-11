@@ -1,14 +1,12 @@
 /**
- * Parking Map — Visual layout of the Azul Cars campa
- * Uses the real aerial photo as background with interactive spots
- * positioned to match the physical layout exactly.
+ * Parking Map — Clean schematic SVG layout of the Azul Cars campa
+ * Recreates the physical layout as a professional blueprint-style diagram.
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiInvoke } from '@/lib/apiClient';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
@@ -27,6 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Car, ParkingSquare, MapPin, RefreshCw,
   History, Search, X, AlertTriangle, CircleDot,
@@ -77,104 +81,86 @@ interface ParkingHistoryItem {
   performed_at: string;
 }
 
-// ─── Spot Position Map ──────────────────────────────────────────────────────
-// Positions are in percentage (%) relative to the background image dimensions
-// Based on the real aerial photo of the Azul Cars campa
-// Image aspect ratio: ~1230x960 (width x height)
+// ─── SVG Layout Constants ───────────────────────────────────────────────────
+// The SVG viewBox is 1200 x 900 to give us plenty of room
+const SVG_W = 1200;
+const SVG_H = 900;
 
-interface SpotPosition {
-  x: number; // % from left
-  y: number; // % from top
-  w: number; // width in %
-  h: number; // height in %
-}
+// Spot dimensions
+const SPOT_W = 34;
+const SPOT_H = 28;
+const GAP = 2;
 
-function getSpotPositions(): Map<number, SpotPosition> {
-  const positions = new Map<number, SpotPosition>();
+// ─── Spot coordinate generator ──────────────────────────────────────────────
+function buildSpotCoords(): Map<number, { x: number; y: number; w: number; h: number }> {
+  const coords = new Map<number, { x: number; y: number; w: number; h: number }>();
 
-  // Spot dimensions (approximate)
-  const spotW = 3.8; // width %
-  const spotH = 4.2; // height %
-  const spotWnarrow = 3.2;
-  const spotHnarrow = 3.8;
-
-  // ─── Plazas 1-11: Top right horizontal row ───────────────────────
-  const row1Y = 33;
-  const row1StartX = 57;
-  const row1Gap = 4.0;
+  // ─── Plazas 1-11: Top-right horizontal row ────────────────────────
+  // In the real layout these are at the top-right, horizontal
+  const row1X = 640;
+  const row1Y = 260;
   for (let i = 0; i < 11; i++) {
-    positions.set(i + 1, { x: row1StartX + i * row1Gap, y: row1Y, w: spotW, h: spotH });
+    coords.set(i + 1, { x: row1X + i * (SPOT_W + GAP), y: row1Y, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 12-19: Center row 1 ──────────────────────────────────
-  const row2Y = 52;
-  const row2StartX = 57;
+  // ─── Plazas 12-19: Center block, row 1 ────────────────────────────
+  const centerX = 640;
+  const centerY1 = 420;
   for (let i = 0; i < 8; i++) {
-    positions.set(12 + i, { x: row2StartX + i * row1Gap, y: row2Y, w: spotW, h: spotH });
+    coords.set(12 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY1, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 20-27: Center row 2 ──────────────────────────────────
-  const row3Y = 57;
-  const row3StartX = 57;
+  // ─── Plazas 20-27: Center block, row 2 ────────────────────────────
+  const centerY2 = centerY1 + SPOT_H + GAP;
   for (let i = 0; i < 8; i++) {
-    positions.set(20 + i, { x: row3StartX + i * row1Gap, y: row3Y, w: spotW, h: spotH });
+    coords.set(20 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY2, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 28-35: Center row 3 ──────────────────────────────────
-  const row4Y = 66;
-  const row4StartX = 57;
+  // ─── Plazas 28-35: Center block, row 3 ────────────────────────────
+  const centerY3 = centerY2 + SPOT_H + 40;
   for (let i = 0; i < 8; i++) {
-    positions.set(28 + i, { x: row4StartX + i * row1Gap, y: row4Y, w: spotW, h: spotH });
+    coords.set(28 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY3, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 36-43: Center row 4 (bottom) ─────────────────────────
-  const row5Y = 71;
-  const row5StartX = 57;
+  // ─── Plazas 36-43: Center block, row 4 ────────────────────────────
+  const centerY4 = centerY3 + SPOT_H + GAP;
   for (let i = 0; i < 8; i++) {
-    positions.set(36 + i, { x: row5StartX + i * row1Gap, y: row5Y, w: spotW, h: spotH });
+    coords.set(36 + i, { x: centerX + i * (SPOT_W + GAP), y: centerY4, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 44-69: Two columns center-left ───────────────────────
-  // Column pair: 44,45 / 46,47 / 48,49 ... / 68,69
-  const col44StartY = 28;
-  const col44X1 = 37;
-  const col44X2 = 41.5;
-  const col44Gap = 4.5;
+  // ─── Plazas 44-69: Two columns center-left ────────────────────────
+  // Pairs: 44,45 / 46,47 / ... / 68,69 (13 rows, 2 cols)
+  const col44X1 = 480;
+  const col44X2 = col44X1 + SPOT_W + GAP;
+  const col44StartY = 240;
   for (let i = 0; i < 13; i++) {
-    const leftNum = 44 + i * 2;
-    const rightNum = 45 + i * 2;
-    positions.set(leftNum, { x: col44X1, y: col44StartY + i * col44Gap, w: spotWnarrow, h: spotHnarrow });
-    positions.set(rightNum, { x: col44X2, y: col44StartY + i * col44Gap, w: spotWnarrow, h: spotHnarrow });
+    const y = col44StartY + i * (SPOT_H + GAP);
+    coords.set(44 + i * 2, { x: col44X1, y, w: SPOT_W, h: SPOT_H });
+    coords.set(45 + i * 2, { x: col44X2, y, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 70-95: Two columns left ──────────────────────────────
-  // Column pair: 70,71 / 72,73 ... / 94,95
-  const col70StartY = 28;
-  const col70X1 = 20;
-  const col70X2 = 24.5;
-  const col70Gap = 4.5;
+  // ─── Plazas 70-95: Two columns left ───────────────────────────────
+  // Pairs: 70,71 / 72,73 / ... / 94,95 (13 rows, 2 cols)
+  const col70X1 = 300;
+  const col70X2 = col70X1 + SPOT_W + GAP;
+  const col70StartY = 240;
   for (let i = 0; i < 13; i++) {
-    const leftNum = 70 + i * 2;
-    const rightNum = 71 + i * 2;
-    positions.set(leftNum, { x: col70X1, y: col70StartY + i * col70Gap, w: spotWnarrow, h: spotHnarrow });
-    positions.set(rightNum, { x: col70X2, y: col70StartY + i * col70Gap, w: spotWnarrow, h: spotHnarrow });
+    const y = col70StartY + i * (SPOT_H + GAP);
+    coords.set(70 + i * 2, { x: col70X1, y, w: SPOT_W, h: SPOT_H });
+    coords.set(71 + i * 2, { x: col70X2, y, w: SPOT_W, h: SPOT_H });
   }
 
-  // ─── Plazas 96-110: Single column far left ───────────────────────
-  const col96StartY = 26;
-  const col96X = 10;
-  const col96Gap = 4.5;
+  // ─── Plazas 96-110: Single column far-left ────────────────────────
+  const col96X = 180;
+  const col96StartY = 240;
   for (let i = 0; i < 15; i++) {
-    positions.set(96 + i, { x: col96X, y: col96StartY + i * col96Gap, w: spotWnarrow, h: spotHnarrow });
+    coords.set(96 + i, { x: col96X, y: col96StartY + i * (SPOT_H + GAP), w: SPOT_W, h: SPOT_H });
   }
 
-  return positions;
+  return coords;
 }
 
-const SPOT_POSITIONS = getSpotPositions();
-
-// Background image URL
-const PARKING_BG_URL = '/manus-storage/parking-layout-azulcars_b682d8b9.png';
+const SPOT_COORDS = buildSpotCoords();
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function Parking() {
@@ -182,9 +168,10 @@ export default function Parking() {
   const queryClient = useQueryClient();
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [highlightedSpotId, setHighlightedSpotId] = useState<string | null>(null);
+  const [highlightedSpotNum, setHighlightedSpotNum] = useState<number | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch parking overview
@@ -235,19 +222,27 @@ export default function Parking() {
       queryClient.invalidateQueries({ queryKey: ['parking-overview'] });
       queryClient.invalidateQueries({ queryKey: ['parking-history'] });
       setSelectedSpot(null);
+      setShowReleaseConfirm(false);
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     },
   });
 
-  // Flatten all spots from all zones
+  // Flatten all spots
   const allSpots = useMemo(() => {
     if (!overview) return [];
     return overview.zones.flatMap(z => z.spots);
   }, [overview]);
 
-  // Search for a vehicle by plate and highlight its spot
+  // Create a map of spot_number -> spot for quick lookup
+  const spotByNumber = useMemo(() => {
+    const map = new Map<number, ParkingSpot>();
+    allSpots.forEach(s => map.set(s.spot_number, s));
+    return map;
+  }, [allSpots]);
+
+  // Search
   const searchResult = useMemo(() => {
     if (!searchQuery.trim() || !overview) return null;
     const q = searchQuery.trim().toLowerCase();
@@ -255,29 +250,31 @@ export default function Parking() {
       for (const spot of zone.spots) {
         if (spot.status === 'occupied' && spot.vehicle_matricula &&
             spot.vehicle_matricula.toLowerCase().includes(q)) {
-          return { spot, zoneName: zone.name, zoneColor: zone.color };
+          return { spot, zoneName: zone.name };
         }
       }
     }
     return null;
   }, [searchQuery, overview]);
 
-  // When search result changes, highlight the spot
   useEffect(() => {
     if (searchResult) {
-      setHighlightedSpotId(searchResult.spot.id);
-      setTimeout(() => {
-        const el = document.getElementById(`parking-spot-${searchResult.spot.id}`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
+      setHighlightedSpotNum(searchResult.spot.spot_number);
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-      highlightTimeoutRef.current = setTimeout(() => setHighlightedSpotId(null), 5000);
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedSpotNum(null), 6000);
     } else {
-      setHighlightedSpotId(null);
+      setHighlightedSpotNum(null);
     }
   }, [searchResult]);
+
+  const handleSpotClick = (spot: ParkingSpot) => {
+    setSelectedSpot(spot);
+    if (spot.status === 'occupied') {
+      setShowReleaseConfirm(true);
+    } else if (spot.status === 'free') {
+      setShowAssignDialog(true);
+    }
+  };
 
   // If no zones exist, show setup button
   if (!isLoading && overview && overview.zones.length === 0) {
@@ -291,15 +288,11 @@ export default function Parking() {
           <div className="text-center">
             <h2 className="text-xl font-semibold mb-2">Configurar Parking</h2>
             <p className="text-muted-foreground max-w-md">
-              Configura el plano de tu campa con las zonas y plazas numeradas según tu layout real.
+              Configura el plano de tu campa con las zonas y plazas numeradas.
             </p>
           </div>
-          <Button
-            onClick={() => seedMutation.mutate()}
-            disabled={seedMutation.isPending}
-            size="lg"
-          >
-            {seedMutation.isPending ? 'Configurando...' : 'Configurar Layout Azul Cars'}
+          <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending} size="lg">
+            {seedMutation.isPending ? 'Configurando...' : 'Configurar Layout'}
           </Button>
         </div>
       </AppLayout>
@@ -313,7 +306,7 @@ export default function Parking() {
         icon={ParkingSquare}
         actions={
           <div className="flex items-center gap-2">
-            {/* Search by plate */}
+            {/* Search */}
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
@@ -329,7 +322,7 @@ export default function Parking() {
               />
               {searchQuery && (
                 <button
-                  onClick={() => { setSearchQuery(''); setHighlightedSpotId(null); }}
+                  onClick={() => { setSearchQuery(''); setHighlightedSpotNum(null); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -349,7 +342,7 @@ export default function Parking() {
       {/* Search result banner */}
       {searchQuery.trim() && (
         <div className={cn(
-          "mb-4 px-4 py-2.5 rounded-lg border text-sm flex items-center gap-3",
+          "mb-3 px-4 py-2 rounded-lg border text-sm flex items-center gap-3",
           searchResult
             ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800"
             : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
@@ -359,151 +352,262 @@ export default function Parking() {
               <Car className="h-4 w-4 text-emerald-600 shrink-0" />
               <span>
                 <span className="font-mono font-bold">{searchResult.spot.vehicle_matricula}</span>
-                {' '}está en{' '}
+                {' → '}
                 <span className="font-semibold">Plaza {searchResult.spot.spot_number}</span>
-                {' '}—{' '}
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: searchResult.zoneColor }} />
-                  {searchResult.zoneName}
-                </span>
+                {' — '}{searchResult.zoneName}
               </span>
             </>
           ) : (
             <>
               <Search className="h-4 w-4 text-red-500 shrink-0" />
-              <span className="text-red-700 dark:text-red-300">
-                No se encontró ningún vehículo con "{searchQuery}"
-              </span>
+              <span className="text-red-700 dark:text-red-300">No se encontró "{searchQuery}"</span>
             </>
           )}
         </div>
       )}
 
-      {/* Summary bar */}
+      {/* Summary */}
       {overview && (
-        <div className="flex items-center gap-4 mb-4 px-1">
-          <div className="flex items-center gap-1.5 text-sm">
+        <div className="flex items-center gap-4 mb-3 text-sm">
+          <span className="flex items-center gap-1.5">
             <ParkingSquare className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold">{overview.summary.total}</span>
-            <span className="text-muted-foreground">plazas</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-sm">
+            <strong>{overview.summary.total}</strong> plazas
+          </span>
+          <span className="flex items-center gap-1.5">
             <CircleDot className="h-4 w-4 text-emerald-500" />
-            <span className="font-semibold text-emerald-600">{overview.summary.free}</span>
-            <span className="text-muted-foreground">libres</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-sm">
+            <strong className="text-emerald-600">{overview.summary.free}</strong> libres
+          </span>
+          <span className="flex items-center gap-1.5">
             <Car className="h-4 w-4 text-blue-500" />
-            <span className="font-semibold text-blue-600">{overview.summary.occupied}</span>
-            <span className="text-muted-foreground">ocupadas</span>
-          </div>
+            <strong className="text-blue-600">{overview.summary.occupied}</strong> ocupadas
+          </span>
           {overview.summary.blocked > 0 && (
-            <div className="flex items-center gap-1.5 text-sm">
+            <span className="flex items-center gap-1.5">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span className="font-semibold text-amber-600">{overview.summary.blocked}</span>
-              <span className="text-muted-foreground">bloqueadas</span>
-            </div>
+              <strong className="text-amber-600">{overview.summary.blocked}</strong> bloqueadas
+            </span>
           )}
         </div>
       )}
 
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-4">
-          <Skeleton className="h-[500px] rounded-lg" />
-        </div>
-      )}
+      {/* Loading */}
+      {isLoading && <Skeleton className="h-[600px] rounded-xl" />}
 
-      {/* ─── PARKING MAP WITH REAL LAYOUT ─────────────────────────────── */}
+      {/* ─── SVG PARKING MAP ──────────────────────────────────────────── */}
       {!isLoading && overview && (
-        <div className="rounded-xl border border-border/60 overflow-hidden bg-slate-100 dark:bg-slate-900">
-          {/* Map container - maintains aspect ratio of the image */}
-          <div className="relative w-full" style={{ paddingBottom: '78%' }}>
-            {/* Background image */}
-            <img
-              src={PARKING_BG_URL}
-              alt="Plano Parking Azul Cars"
-              className="absolute inset-0 w-full h-full object-cover"
-              draggable={false}
-            />
+        <TooltipProvider delayDuration={200}>
+          <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
+            <svg
+              viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+              className="w-full h-auto bg-[#2563a8]"
+              style={{ minHeight: '500px' }}
+            >
+              {/* Background decorative elements */}
+              {/* Road border (white band at bottom) */}
+              <rect x="0" y={SVG_H - 50} width={SVG_W} height="50" fill="#e5e7eb" />
+              <text x={SVG_W - 80} y={SVG_H - 20} fontSize="12" fill="#6b7280" fontFamily="sans-serif">
+                Camí Fondo
+              </text>
+              <text x={SVG_W / 2 - 40} y={SVG_H - 20} fontSize="12" fill="#6b7280" fontFamily="sans-serif">
+                Son Maiferit
+              </text>
 
-            {/* Interactive spots overlay */}
-            {allSpots.map(spot => {
-              const pos = SPOT_POSITIONS.get(spot.spot_number);
-              if (!pos) return null;
+              {/* Zona Sucios label */}
+              <rect x="380" y="80" width="180" height="140" rx="4" fill="#1e4a7a" stroke="#3b82f6" strokeWidth="1" strokeDasharray="4 2" />
+              <text x="470" y="155" fontSize="14" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
+                SUCIOS
+              </text>
 
-              const isOccupied = spot.status === 'occupied';
-              const isFree = spot.status === 'free';
-              const isHighlighted = highlightedSpotId === spot.id;
+              {/* Oficina Azul Cars */}
+              <rect x="750" y="320" width="140" height="80" rx="4" fill="#1e3a5f" stroke="#60a5fa" strokeWidth="1" />
+              <text x="820" y="360" fontSize="11" fill="#93c5fd" fontFamily="sans-serif" textAnchor="middle">
+                Azul Cars
+              </text>
+              <text x="820" y="378" fontSize="10" fill="#7dd3fc" fontFamily="sans-serif" textAnchor="middle">
+                Oficina
+              </text>
 
-              return (
-                <button
-                  key={spot.id}
-                  id={`parking-spot-${spot.id}`}
-                  onClick={() => {
-                    if (isOccupied) {
-                      setSelectedSpot(spot);
-                      // Show info or release
-                      releaseMutation.mutate(spot.id);
-                    } else if (isFree) {
-                      setSelectedSpot(spot);
-                      setShowAssignDialog(true);
-                    }
-                  }}
-                  title={
-                    isOccupied
-                      ? `Plaza ${spot.spot_number} — ${spot.vehicle_matricula}\nClick para liberar`
-                      : `Plaza ${spot.spot_number} — Libre\nClick para asignar`
-                  }
-                  className={cn(
-                    "absolute flex items-center justify-center rounded-sm transition-all duration-150 text-[7px] font-bold leading-none",
-                    "hover:z-20 hover:scale-110 focus:outline-none focus:z-20",
-                    isOccupied && "bg-red-500/85 text-white border border-red-700/50 shadow-sm hover:bg-red-600",
-                    isFree && "bg-emerald-400/70 text-emerald-900 border border-emerald-600/40 hover:bg-emerald-500/80",
-                    spot.status === 'blocked' && "bg-gray-500/70 text-white border border-gray-700/50 cursor-not-allowed",
-                    spot.status === 'reserved' && "bg-amber-400/80 text-amber-900 border border-amber-600/50",
-                    isHighlighted && "ring-3 ring-yellow-300 shadow-lg shadow-yellow-400/50 z-30 animate-pulse scale-125"
-                  )}
-                  style={{
-                    left: `${pos.x}%`,
-                    top: `${pos.y}%`,
-                    width: `${pos.w}%`,
-                    height: `${pos.h}%`,
-                  }}
-                >
-                  {isOccupied ? (
-                    <span className="truncate px-0.5 text-[6px] font-mono font-bold">
-                      {spot.vehicle_matricula || spot.spot_number}
-                    </span>
-                  ) : (
-                    <span>{spot.spot_number}</span>
-                  )}
-                </button>
-              );
-            })}
+              {/* SALIDA marker */}
+              <rect x="540" y={SVG_H - 100} width="50" height="40" rx="3" fill="#991b1b" />
+              <text x="565" y={SVG_H - 75} fontSize="9" fill="white" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
+                SALIDA
+              </text>
+              {/* Arrow down */}
+              <polygon points="565,810 555,800 575,800" fill="#991b1b" />
+
+              {/* ─── Render all parking spots ─────────────────────────── */}
+              {Array.from(SPOT_COORDS.entries()).map(([num, pos]) => {
+                const spot = spotByNumber.get(num);
+                const isOccupied = spot?.status === 'occupied';
+                const isFree = !spot || spot.status === 'free';
+                const isBlocked = spot?.status === 'blocked';
+                const isReserved = spot?.status === 'reserved';
+                const isHighlighted = highlightedSpotNum === num;
+
+                // Colors
+                let fill = '#ffffff'; // free = white
+                let stroke = '#94a3b8';
+                let textColor = '#1e293b';
+
+                if (isOccupied) {
+                  fill = '#ef4444';
+                  stroke = '#b91c1c';
+                  textColor = '#ffffff';
+                } else if (isBlocked) {
+                  fill = '#6b7280';
+                  stroke = '#4b5563';
+                  textColor = '#ffffff';
+                } else if (isReserved) {
+                  fill = '#f59e0b';
+                  stroke = '#d97706';
+                  textColor = '#1e293b';
+                }
+
+                return (
+                  <g
+                    key={num}
+                    onClick={() => spot && handleSpotClick(spot)}
+                    className="cursor-pointer"
+                    style={{ transition: 'transform 0.1s' }}
+                  >
+                    {/* Highlight ring */}
+                    {isHighlighted && (
+                      <rect
+                        x={pos.x - 3}
+                        y={pos.y - 3}
+                        width={pos.w + 6}
+                        height={pos.h + 6}
+                        rx="4"
+                        fill="none"
+                        stroke="#facc15"
+                        strokeWidth="3"
+                        className="animate-pulse"
+                      />
+                    )}
+
+                    {/* Spot rectangle */}
+                    <rect
+                      x={pos.x}
+                      y={pos.y}
+                      width={pos.w}
+                      height={pos.h}
+                      rx="2"
+                      fill={fill}
+                      stroke={stroke}
+                      strokeWidth="1"
+                    />
+
+                    {/* Spot number or plate */}
+                    {isOccupied && spot?.vehicle_matricula ? (
+                      <text
+                        x={pos.x + pos.w / 2}
+                        y={pos.y + pos.h / 2 + 4}
+                        fontSize="7"
+                        fill={textColor}
+                        fontFamily="monospace"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                      >
+                        {spot.vehicle_matricula.length > 7
+                          ? spot.vehicle_matricula.slice(-7)
+                          : spot.vehicle_matricula}
+                      </text>
+                    ) : (
+                      <text
+                        x={pos.x + pos.w / 2}
+                        y={pos.y + pos.h / 2 + 4}
+                        fontSize="9"
+                        fill={textColor}
+                        fontFamily="sans-serif"
+                        textAnchor="middle"
+                        fontWeight="600"
+                      >
+                        {num}
+                      </text>
+                    )}
+
+                    {/* Hover area (invisible, larger hit target) */}
+                    <rect
+                      x={pos.x - 1}
+                      y={pos.y - 1}
+                      width={pos.w + 2}
+                      height={pos.h + 2}
+                      fill="transparent"
+                      className="hover:opacity-80"
+                    >
+                      <title>
+                        {isOccupied
+                          ? `Plaza ${num} — ${spot?.vehicle_matricula || 'Ocupada'}`
+                          : `Plaza ${num} — Libre`}
+                      </title>
+                    </rect>
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Legend bar */}
+            <div className="flex items-center gap-5 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded-sm bg-white border border-slate-300" />
+                <span>Libre</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded-sm bg-red-500 border border-red-700" />
+                <span>Ocupada</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded-sm bg-amber-400 border border-amber-600" />
+                <span>Reservada</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded-sm bg-gray-500 border border-gray-700" />
+                <span>Bloqueada</span>
+              </div>
+            </div>
           </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-4 px-4 py-2 bg-white/90 dark:bg-slate-900/90 border-t border-border/40 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-emerald-400/70 border border-emerald-600/40" />
-              <span>Libre</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-red-500/85 border border-red-700/50" />
-              <span>Ocupada</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-amber-400/80 border border-amber-600/50" />
-              <span>Reservada</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-gray-500/70 border border-gray-700/50" />
-              <span>Bloqueada</span>
-            </div>
-          </div>
-        </div>
+        </TooltipProvider>
       )}
+
+      {/* Release Confirm Dialog */}
+      <Dialog open={showReleaseConfirm} onOpenChange={setShowReleaseConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5 text-red-500" />
+              Liberar Plaza {selectedSpot?.spot_number}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <p className="text-sm text-muted-foreground">
+              ¿Confirmas que quieres liberar esta plaza?
+            </p>
+            {selectedSpot?.vehicle_matricula && (
+              <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <Car className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-mono font-bold text-sm">{selectedSpot.vehicle_matricula}</span>
+                </div>
+                {selectedSpot.occupied_at && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Aparcado desde {new Date(selectedSpot.occupied_at).toLocaleString('es-ES')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReleaseConfirm(false)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedSpot && releaseMutation.mutate(selectedSpot.id)}
+              disabled={releaseMutation.isPending}
+            >
+              {releaseMutation.isPending ? 'Liberando...' : 'Liberar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Dialog */}
       <AssignSpotDialog

@@ -1219,4 +1219,4 @@
 - [x] Parking: Resaltar la plaza encontrada en el mapa al buscar
 - [x] Parking: Mostrar zona y número de plaza en resultado de búsqueda
 - [x] Parking: Rediseñar plano para que parezca un parking real (bahías rectangulares, pasillos entre filas, aspecto compacto)
-- [x] Parking: Usar imagen real del plano como fondo y posicionar plazas interactivas encima con coordenadas exactas
+- [x] Parking: Plano esquemático SVG limpio con fondo azul, plazas blancas, oficina, sucios y salida marcados
