@@ -1166,3 +1166,8 @@
 - [x] GPS Flota v2: Panel lateral de gestión de geofences (lista, editar nombre/color, eliminar)
 - [x] GPS Flota v2: Visualización de geofences en el mapa con colores y transparencia
 - [x] GPS Flota v2: Detección de entrada/salida de vehículos en geofences (visual en tiempo real)
+- [x] GPS Flota: Popup rico al hacer click en vehículo — foto, matrícula, modelo, dirección, velocidad, hora
+- [x] GPS Flota: Barra de acciones rápidas en popup — ver ruta del día, historial rutas, centrar/seguir, ficha vehículo
+- [x] GPS Flota: Endpoint para obtener historial de posiciones de un dispositivo (ruta del día)
+- [x] GPS Flota: Dibujar polyline de la ruta del día en el mapa al hacer click en "Ver ruta"
+- [x] GPS Flota: Selector de fechas para historial de rutas anteriores

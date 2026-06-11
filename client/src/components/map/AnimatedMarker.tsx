@@ -24,6 +24,8 @@ interface AnimatedMarkerProps {
   markerId?: string;
   /** Popup content as HTML string */
   popupContent?: string;
+  /** Click handler for the marker */
+  onClick?: () => void;
 }
 
 /**
@@ -42,6 +44,7 @@ export function AnimatedMarker({
   animationDuration = 2000,
   markerId,
   popupContent,
+  onClick,
 }: AnimatedMarkerProps) {
   const map = useMap();
   const markerRef = useRef<L.Marker | null>(null);
@@ -51,12 +54,19 @@ export function AnimatedMarker({
   const durationRef = useRef(animationDuration);
   durationRef.current = animationDuration;
 
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
+
   // Create marker on mount, remove on unmount
   useEffect(() => {
     const marker = L.marker(position, { icon }).addTo(map);
     markerRef.current = marker;
     currentPosRef.current = position;
     targetPosRef.current = position;
+
+    marker.on('click', () => {
+      if (onClickRef.current) onClickRef.current();
+    });
 
     return () => {
       if (animationRef.current) {

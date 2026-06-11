@@ -197,6 +197,7 @@ import {
   handleTraccarUnlinkDevice,
   handleTraccarSettings,
   handleTraccarVehicleByPlate,
+  handleTraccarRouteHistory,
 } from "../traccarEndpoint";
 import {
   handleListGeofences,
@@ -448,6 +449,7 @@ async function startServer() {
   app.post("/api/traccar/unlink-device", handleTraccarUnlinkDevice);
   app.post("/api/traccar/settings", handleTraccarSettings);
   app.post("/api/traccar/vehicle-by-plate", handleTraccarVehicleByPlate);
+  app.post("/api/traccar/route-history", handleTraccarRouteHistory);
 
 
   // ─── Geofences ───────────────────────────────────────────────────────────

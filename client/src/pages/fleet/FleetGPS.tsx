@@ -10,7 +10,7 @@
  * - Permission-gated access (fleet.gps)
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, Circle as LCircle, Polygon as LPolygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle as LCircle, Polygon as LPolygon, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw';
@@ -21,6 +21,7 @@ import { useFleetVehicles } from '@/hooks/useFleetVehicles';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useGeofences, Geofence, GeofenceCoordinate } from '@/hooks/useGeofences';
 import { AnimatedMarker } from '@/components/map/AnimatedMarker';
+import { VehicleDetailPanel } from '@/components/fleet/VehicleDetailPanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,9 @@ interface FleetVehicleGPS {
   matricula: string;
   modelo: string | null;
   marca: string | null;
+  color: string | null;
+  combustible: string | null;
+  photo_url: string | null;
   traccar_device_id: string;
   device?: TraccarDevice;
   position?: TraccarPosition;
@@ -210,6 +214,10 @@ export default function FleetGPS() {
   const [newGeofenceAlertExit, setNewGeofenceAlertExit] = useState(false);
   const [pendingGeofenceData, setPendingGeofenceData] = useState<any>(null);
   const [mapTarget, setMapTarget] = useState<{ center: [number, number]; zoom: number } | null>(null);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+  const [routePositions, setRoutePositions] = useState<Array<{ lat: number; lng: number; speed: number; course: number; address: string | null; time: string; altitude: number }>>([]);
+  const [routePlaybackIndex, setRoutePlaybackIndex] = useState<number>(-1);
+  const [followingVehicleId, setFollowingVehicleId] = useState<string | null>(null);
 
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -253,6 +261,9 @@ export default function FleetGPS() {
           matricula: v.matricula,
           modelo: v.modelo,
           marca: v.marca,
+          color: v.color,
+          combustible: v.combustible,
+          photo_url: v.photo_url,
           traccar_device_id: v.traccar_device_id!,
           device,
           position: position ? {
@@ -293,13 +304,61 @@ export default function FleetGPS() {
   const offlineCount = vehiclesWithGPS.length - onlineCount;
   const totalCount = vehiclesWithGPS.length;
 
-  // Handle vehicle selection — pan map
+  // Selected vehicle
+  const selectedVehicle = useMemo(() => {
+    if (!selectedVehicleId) return null;
+    return vehiclesWithGPS.find(v => v.id === selectedVehicleId) || null;
+  }, [selectedVehicleId, vehiclesWithGPS]);
+
+  // Follow vehicle effect - keep map centered
+  useEffect(() => {
+    if (!followingVehicleId) return;
+    const vehicle = vehiclesWithGPS.find(v => v.id === followingVehicleId);
+    if (vehicle?.position) {
+      setMapTarget({ center: [vehicle.position.latitude, vehicle.position.longitude], zoom: 16 });
+    }
+  }, [followingVehicleId, vehiclesWithGPS]);
+
+  // Handle vehicle selection — pan map + open detail panel
   const handleSelectVehicle = (vehicle: FleetVehicleGPS) => {
     setSelectedVehicleId(vehicle.id);
+    setDetailPanelOpen(true);
     if (vehicle.position) {
       setMapTarget({ center: [vehicle.position.latitude, vehicle.position.longitude], zoom: 15 });
     }
   };
+
+  // Close detail panel
+  const handleCloseDetail = () => {
+    setDetailPanelOpen(false);
+    setSelectedVehicleId(null);
+    setRoutePositions([]);
+    setRoutePlaybackIndex(-1);
+    setFollowingVehicleId(null);
+  };
+
+  // Follow vehicle — keep map centered on it
+  const handleFollowVehicle = (vehicleId: string) => {
+    setFollowingVehicleId(prev => prev === vehicleId ? null : vehicleId);
+    toast.success(followingVehicleId === vehicleId ? 'Dejando de seguir' : 'Siguiendo vehículo');
+  };
+
+  // Route loaded callback
+  const handleRouteLoaded = useCallback((positions: Array<{ lat: number; lng: number; speed: number; course: number; address: string | null; time: string; altitude: number }>) => {
+    setRoutePositions(positions);
+    setRoutePlaybackIndex(positions.length - 1);
+  }, []);
+
+  // Route playback update
+  const handleRoutePlaybackUpdate = useCallback((index: number) => {
+    setRoutePlaybackIndex(index);
+  }, []);
+
+  // Route clear
+  const handleRouteClear = useCallback(() => {
+    setRoutePositions([]);
+    setRoutePlaybackIndex(-1);
+  }, []);
 
   // Handle geofence drawing complete
   const handleCircleComplete = useCallback((center: [number, number], radius: number) => {
@@ -663,34 +722,35 @@ export default function FleetGPS() {
               if (!vehicle.position) return null;
               const isOnline = vehicle.device?.status === 'online';
               const isSelected = selectedVehicleId === vehicle.id;
-              const speedKmh = vehicle.position.speed ? Math.round(vehicle.position.speed * 1.852) : 0;
-
-              const popupHtml = `
-                <div style="font-family: system-ui, sans-serif; min-width: 200px; padding: 2px;">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                    <span style="font-weight:700;font-size:14px;letter-spacing:0.5px;">${vehicle.matricula}</span>
-                    <span style="background:${isOnline ? '#22c55e' : '#94a3b8'};color:white;font-size:10px;padding:2px 8px;border-radius:12px;font-weight:600;">${isOnline ? 'Online' : 'Offline'}</span>
-                  </div>
-                  <p style="color:#64748b;font-size:12px;margin:0 0 4px;">${[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ') || 'Sin modelo'}</p>
-                  ${vehicle.position.address ? `<p style="font-size:11px;margin:0 0 4px;color:#475569;">📍 ${vehicle.position.address}</p>` : ''}
-                  <div style="display:flex;gap:12px;font-size:11px;color:#64748b;margin-top:4px;">
-                    <span>🏎️ ${speedKmh > 0 ? speedKmh + ' km/h' : 'Detenido'}</span>
-                    ${vehicle.position.deviceTime ? `<span>🕐 ${new Date(vehicle.position.deviceTime).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
-                  </div>
-                </div>
-              `;
 
               return (
                 <AnimatedMarker
                   key={vehicle.id}
                   position={[vehicle.position.latitude, vehicle.position.longitude]}
                   icon={createVehicleIcon(isOnline, isSelected, vehicle.position.course)}
-                  popupContent={popupHtml}
                   markerId={vehicle.id}
                   animationDuration={2000}
+                  onClick={() => handleSelectVehicle(vehicle)}
                 />
               );
             })}
+
+            {/* Route polyline */}
+            {routePositions.length > 1 && (
+              <Polyline
+                positions={routePositions.map(p => [p.lat, p.lng] as [number, number])}
+                pathOptions={{ color: '#3B82F6', weight: 3, opacity: 0.8, dashArray: '8 4' }}
+              />
+            )}
+
+            {/* Route playback marker */}
+            {routePositions.length > 0 && routePlaybackIndex >= 0 && routePlaybackIndex < routePositions.length && (
+              <CircleMarker
+                center={[routePositions[routePlaybackIndex].lat, routePositions[routePlaybackIndex].lng]}
+                radius={7}
+                pathOptions={{ color: '#1d4ed8', fillColor: '#3B82F6', fillOpacity: 1, weight: 2 }}
+              />
+            )}
 
             {/* Geofences */}
             {showGeofences && geofences.filter(g => g.is_active).map(geofence => {
@@ -750,6 +810,18 @@ export default function FleetGPS() {
             )}
           </div>
         </div>
+
+        {/* ── Vehicle Detail Panel ── */}
+        {detailPanelOpen && selectedVehicle && (
+          <VehicleDetailPanel
+            vehicle={selectedVehicle}
+            onClose={handleCloseDetail}
+            onFollowVehicle={(id) => handleFollowVehicle(id)}
+            onRouteLoaded={handleRouteLoaded}
+            onRoutePlaybackUpdate={handleRoutePlaybackUpdate}
+            onRouteClear={handleRouteClear}
+          />
+        )}
 
         {/* ── New Geofence Dialog ── */}
         <Dialog open={geofenceDialogOpen} onOpenChange={setGeofenceDialogOpen}>

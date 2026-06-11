@@ -537,3 +537,115 @@ export async function handleTraccarVehicleByPlate(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
   }
 }
+
+/**
+ * POST /api/traccar/route-history
+ * Get route history for a device within a date range.
+ * Uses Traccar's /api/reports/route endpoint.
+ * Body: { organization_id, device_id, from, to }
+ * - from/to: ISO date strings (e.g. "2026-06-11T00:00:00Z")
+ */
+export async function handleTraccarRouteHistory(req: Request, res: Response) {
+  try {
+    const { organization_id, device_id, from, to } = req.body;
+    if (!organization_id || !device_id) {
+      return res.status(400).json({ ok: false, error: 'organization_id and device_id required' });
+    }
+
+    const credentials = await getTraccarCredentials(organization_id);
+    if (!credentials) {
+      return res.status(400).json({ ok: false, error: 'Traccar no configurado' });
+    }
+
+    // Default: today from 00:00 to now
+    const now = new Date();
+    const fromDate = from || new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const toDate = to || now.toISOString();
+
+    // Traccar reports/route returns all positions for the device in the given time range
+    const encodedFrom = encodeURIComponent(fromDate);
+    const encodedTo = encodeURIComponent(toDate);
+    const path = `/reports/route?deviceId=${device_id}&from=${encodedFrom}&to=${encodedTo}`;
+
+    const result = await traccarFetch(credentials, path);
+    if (!result.ok) {
+      return res.status(502).json({ ok: false, error: `Error Traccar: ${result.error}` });
+    }
+
+    const rawPositions = (result.data || []) as Array<{
+      id: number;
+      deviceId: number;
+      latitude: number;
+      longitude: number;
+      speed: number;
+      course: number;
+      address: string;
+      deviceTime: string;
+      fixTime: string;
+      valid: boolean;
+      altitude: number;
+      attributes: Record<string, unknown>;
+    }>;
+
+    // Filter valid positions and map to frontend-friendly format
+    const positions = rawPositions
+      .filter(p => p.valid && p.latitude !== 0 && p.longitude !== 0)
+      .map(p => ({
+        lat: p.latitude,
+        lng: p.longitude,
+        speed: p.speed, // knots
+        course: p.course,
+        address: p.address || null,
+        time: p.fixTime || p.deviceTime,
+        altitude: p.altitude,
+        attributes: p.attributes || {},
+      }));
+
+    // Calculate summary stats
+    let totalDistanceKm = 0;
+    let maxSpeedKnots = 0;
+    let movingTimeMs = 0;
+    const MOVING_THRESHOLD_KNOTS = 1; // ~1.85 km/h
+
+    for (let i = 0; i < positions.length; i++) {
+      if (positions[i].speed > maxSpeedKnots) {
+        maxSpeedKnots = positions[i].speed;
+      }
+      if (i > 0) {
+        const prev = positions[i - 1];
+        const curr = positions[i];
+        // Haversine distance
+        const R = 6371; // km
+        const dLat = (curr.lat - prev.lat) * Math.PI / 180;
+        const dLon = (curr.lng - prev.lng) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(prev.lat * Math.PI / 180) * Math.cos(curr.lat * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        totalDistanceKm += R * c;
+
+        // Moving time
+        if (curr.speed > MOVING_THRESHOLD_KNOTS) {
+          const timeDiff = new Date(curr.time).getTime() - new Date(prev.time).getTime();
+          if (timeDiff > 0 && timeDiff < 600000) { // max 10 min gap
+            movingTimeMs += timeDiff;
+          }
+        }
+      }
+    }
+
+    const summary = {
+      totalPoints: positions.length,
+      totalDistanceKm: Math.round(totalDistanceKm * 100) / 100,
+      maxSpeedKmh: Math.round(maxSpeedKnots * 1.852),
+      movingTimeMinutes: Math.round(movingTimeMs / 60000),
+      startTime: positions.length > 0 ? positions[0].time : null,
+      endTime: positions.length > 0 ? positions[positions.length - 1].time : null,
+    };
+
+    return res.json({ ok: true, positions, summary });
+  } catch (err) {
+    console.error('[traccar/route-history] Error:', err);
+    return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
+  }
+}
