@@ -1154,3 +1154,5 @@
 - [x] GPS Flota: Control de acceso — solo admins y usuarios con permiso fleet.gps pueden ver la página y el enlace en sidebar
 - [x] GPS Flota: Añadir permiso fleet.gps a la definición de permisos y al PermissionKey type
 - [x] GPS Flota: Añadir entrada "GPS Flota" en el sidebar bajo el menú desplegable de Flota (solo visible con permiso)
+- [x] Bug fix: Miembros eliminados de la organización deben desaparecer de los horarios (schedules)
+- [x] Bug fix: Miembros eliminados deben desaparecer de TODAS las vistas que los referencian

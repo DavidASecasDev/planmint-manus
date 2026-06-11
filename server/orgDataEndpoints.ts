@@ -425,6 +425,16 @@ export async function handleRemoveMember(req: Request, res: Response) {
     // Permission check: caller must have members.suspend (remove is a stronger action)
     await requirePermission(serviceClient, orgId, userId, "members.suspend");
 
+    // First, get the user_id from the organization_members record before deleting
+    const { data: memberRecord } = await serviceClient
+      .from("organization_members")
+      .select("user_id")
+      .eq("id", p_member_id)
+      .single();
+
+    const removedUserId = memberRecord?.user_id;
+
+    // Delete the organization membership
     const { error } = await serviceClient
       .from("organization_members")
       .delete()
@@ -433,6 +443,42 @@ export async function handleRemoveMember(req: Request, res: Response) {
     if (error) {
       console.error("[removeMember] Delete error:", error);
       return res.status(500).json({ error: error.message });
+    }
+
+    // Clean up related records for the removed user
+    if (removedUserId && orgId) {
+      // Get team IDs for this organization
+      const { data: orgTeams } = await serviceClient
+        .from("teams")
+        .select("id")
+        .eq("organization_id", orgId);
+
+      const teamIds = (orgTeams || []).map((t: any) => t.id);
+
+      if (teamIds.length > 0) {
+        // Remove from team_members
+        await serviceClient
+          .from("team_members")
+          .delete()
+          .eq("user_id", removedUserId)
+          .in("team_id", teamIds);
+
+        // Remove from schedule_member_order
+        await serviceClient
+          .from("schedule_member_order")
+          .delete()
+          .eq("user_id", removedUserId)
+          .eq("organization_id", orgId);
+      }
+
+      // Remove future staff_schedules (keep historical ones for audit)
+      const today = new Date().toISOString().split("T")[0];
+      await serviceClient
+        .from("staff_schedules")
+        .delete()
+        .eq("user_id", removedUserId)
+        .eq("organization_id", orgId)
+        .gte("date", today);
     }
 
     return res.json({ success: true });

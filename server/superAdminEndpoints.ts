@@ -290,6 +290,40 @@ export async function handleSuperAdminRemoveMember(req: Request, res: Response) 
       .eq("id", memberId);
     if (error) throw error;
 
+    // Clean up related records for the removed user
+    const removedUserId = member?.user_id;
+    const orgId = member?.organization_id;
+    if (removedUserId && orgId) {
+      const { data: orgTeams } = await serviceClient
+        .from("teams")
+        .select("id")
+        .eq("organization_id", orgId);
+
+      const teamIds = (orgTeams || []).map((t: any) => t.id);
+
+      if (teamIds.length > 0) {
+        await serviceClient
+          .from("team_members")
+          .delete()
+          .eq("user_id", removedUserId)
+          .in("team_id", teamIds);
+
+        await serviceClient
+          .from("schedule_member_order")
+          .delete()
+          .eq("user_id", removedUserId)
+          .eq("organization_id", orgId);
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      await serviceClient
+        .from("staff_schedules")
+        .delete()
+        .eq("user_id", removedUserId)
+        .eq("organization_id", orgId)
+        .gte("date", today);
+    }
+
     await logAudit({
       organizationId: member?.organization_id,
       actorUserId: admin.userId,

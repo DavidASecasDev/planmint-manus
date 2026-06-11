@@ -232,8 +232,17 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
 
     if (schedError) throw schedError;
 
+    // Get active organization members to filter out removed users
+    const { data: activeMembers, error: amError } = await sb
+      .from("organization_members")
+      .select("user_id")
+      .eq("organization_id", orgId);
+
+    if (amError) throw amError;
+    const activeMemberIds = new Set((activeMembers || []).map((m: any) => m.user_id));
+
     // Get team members with their profiles and teams
-    const { data: teamMembers, error: tmError } = await sb
+    const { data: teamMembersRaw, error: tmError } = await sb
       .from("team_members")
       .select(`
         user_id,
@@ -245,6 +254,9 @@ export async function handleGetWeeklySchedule(req: Request, res: Response) {
       .order("sort_order", { ascending: true });
 
     if (tmError) throw tmError;
+
+    // Filter out users who are no longer active organization members
+    const teamMembers = (teamMembersRaw || []).filter((tm: any) => activeMemberIds.has(tm.user_id));
 
     // Fetch per-week member order overrides
     const { data: weeklyOrder } = await sb
