@@ -142,14 +142,14 @@ function buildSpotCoords(): Map<number, { x: number; y: number; w: number; h: nu
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONA SUPERIOR CENTRAL - "Sucios" column: ~8 spots
-  // These are the spots visible in the top-center of the image
-  // Vertical column of horizontal spots, between the buildings
-  // In the numbered plan these don't have numbers, but in the DB they might
-  // be part of the 44-69 block. Looking at the plan image:
-  // The column at top-center appears to be spots that go into the "sucios" area
+  // ZONA SUCIOS - Plazas 111-118: Vertical column of 8 spots
+  // Positioned flush against the right wall of the center nave structure
   // ═══════════════════════════════════════════════════════════════════════════
-  // (These are part of the visual structure but may not have spot numbers assigned)
+  const xSucios = 285; // Right edge of center nave (200+80=280) + small gap
+  const ySuciosStart = 40;
+  for (let i = 0; i < 8; i++) {
+    coords.set(111 + i, { x: xSucios, y: ySuciosStart + i * (HH + VGAP), w: HW - 10, h: HH - 4 });
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ZONA CENTRAL PRINCIPAL - Plazas 44-69: Two vertical columns
@@ -465,22 +465,8 @@ export default function Parking() {
             {/* ─── Office building (center-right) ─────────────────────── */}
             <rect x="760" y="340" width="180" height="130" rx="4" fill="#8a9aa8" stroke="#6a7a88" strokeWidth="1.5" />
 
-            {/* ─── Sucios column (top-center, vertical column of ~8 spots) ─── */}
-            {/* These appear as the column between the buildings in the aerial photo */}
-            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-              <rect
-                key={`sucios-${i}`}
-                x={295}
-                y={40 + i * (HH + VGAP)}
-                width={HW - 10}
-                height={HH - 4}
-                rx="2"
-                fill="#f5c542"
-                stroke="#c9a030"
-                strokeWidth="0.8"
-                opacity="0.6"
-              />
-            ))}
+            {/* ─── Sucios label ─── */}
+            <text x="300" y="275" fontSize="11" fill="#666" fontWeight="bold" textAnchor="middle">Sucios</text>
 
             {/* ─── Render all numbered parking spots ──────────────────── */}
             {Array.from(SPOT_COORDS.entries()).map(([num, pos]) => {

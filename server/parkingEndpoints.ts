@@ -595,6 +595,10 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
         zone: "Zona Exterior",
         spots: Array.from({ length: 15 }, (_, i) => ({ number: 96 + i, row: i, col: 0 })),
       },
+      {
+        zone: "Sucios",
+        spots: Array.from({ length: 8 }, (_, i) => ({ number: 111 + i, row: i, col: 0 })),
+      },
     ];
 
     // Insert all spots
