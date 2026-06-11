@@ -1222,3 +1222,4 @@
 - [x] Parking: Plano esquemático SVG limpio con fondo azul, plazas blancas, oficina, sucios y salida marcados
 - [x] Parking: Columna "Sucios" funcional con plazas interactivas (asignar/liberar coches) - spots 111-118
 - [x] Parking: Mover columna Sucios pegada a la pared derecha de la nave (junto al borde)
+- [x] Parking: Usar nueva imagen del plano (foto aérea con plazas azules) como fondo y superponer plazas interactivas numeradas encima de cada rectángulo azul
