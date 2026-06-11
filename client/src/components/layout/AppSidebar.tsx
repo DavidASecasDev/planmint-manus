@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package, Satellite } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package, Satellite, Activity } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -129,6 +129,7 @@ const fleetSubItems = [
   { title: 'Equipamiento', url: '/fleet/equipment', icon: Baby },
   { title: 'Auditorías', url: '/fleet/audits', icon: ClipboardCheck },
   { title: 'GPS Flota', url: '/fleet/gps', icon: Satellite, permission: 'fleet.gps' as const },
+  { title: 'Estado Flota', url: '/fleet/status', icon: Activity, permission: 'fleet.gps' as const },
 ];
 
 // Tasks submenu items

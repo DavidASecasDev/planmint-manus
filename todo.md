@@ -1187,3 +1187,7 @@
 - [x] GPS Flota: Reducir auto-refresh de 30s a 10s para mayor tiempo real
 - [x] Mapa En Camino: Cambiar a Leaflet/OpenStreetMap con mismos tiles que GPS Flota (estilo Google Maps)
 - [x] Alerta automática de batería baja: Notificar cuando un dispositivo GPS baje del 15%
+- [x] Dashboard Estado Flota: Crear endpoint backend que combine devices + positions de Traccar con totalDistance y batteryLevel
+- [x] Dashboard Estado Flota: Crear página UI con tabla/grid mostrando batería, último reporte, km recorridos por vehículo
+- [x] Dashboard Estado Flota: Indicadores visuales de estado (online/offline, batería baja, sin reportar hace mucho)
+- [x] Dashboard Estado Flota: Registrar ruta y entrada en navegación sidebar bajo Flota

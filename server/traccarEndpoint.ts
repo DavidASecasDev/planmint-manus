@@ -649,3 +649,163 @@ export async function handleTraccarRouteHistory(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
   }
 }
+
+/**
+ * POST /api/traccar/fleet-status
+ * Get a comprehensive fleet status summary combining:
+ * - All linked fleet vehicles
+ * - Their Traccar device status (online/offline/unknown)
+ * - Last known position with battery level
+ * - Total distance (odometer) from Traccar attributes
+ * 
+ * Returns a flat array of vehicle status objects for the dashboard.
+ */
+export async function handleTraccarFleetStatus(req: Request, res: Response) {
+  try {
+    const { organization_id } = req.body;
+    if (!organization_id) {
+      return res.status(400).json({ ok: false, error: 'organization_id required' });
+    }
+
+    const sb = getServiceClient();
+
+    // 1. Get all fleet vehicles with traccar_device_id linked
+    const { data: fleetVehicles, error: fvError } = await sb
+      .from('fleet_vehicles')
+      .select('id, matricula, marca, modelo, categoria, traccar_device_id')
+      .eq('organization_id', organization_id)
+      .not('traccar_device_id', 'is', null)
+      .order('matricula');
+
+    if (fvError) {
+      return res.status(500).json({ ok: false, error: 'Error al obtener vehículos' });
+    }
+
+    if (!fleetVehicles || fleetVehicles.length === 0) {
+      return res.json({ ok: true, vehicles: [], summary: { total: 0, online: 0, offline: 0, lowBattery: 0, noReport24h: 0 } });
+    }
+
+    // 2. Get Traccar credentials
+    const credentials = await getTraccarCredentials(organization_id);
+    if (!credentials) {
+      return res.status(400).json({ ok: false, error: 'Traccar no configurado para esta organización' });
+    }
+
+    // 3. Fetch all devices and positions from Traccar in parallel
+    const [devicesResult, positionsResult] = await Promise.all([
+      traccarFetch(credentials, '/devices'),
+      traccarFetch(credentials, '/positions'),
+    ]);
+
+    if (!devicesResult.ok || !positionsResult.ok) {
+      return res.status(502).json({ ok: false, error: 'Error al conectar con Traccar' });
+    }
+
+    const devices = (devicesResult.data || []) as Array<{
+      id: number;
+      name: string;
+      uniqueId: string;
+      status: string;
+      lastUpdate: string;
+      positionId: number;
+      attributes: Record<string, unknown>;
+    }>;
+
+    const positions = (positionsResult.data || []) as Array<{
+      id: number;
+      deviceId: number;
+      latitude: number;
+      longitude: number;
+      speed: number;
+      course: number;
+      address: string;
+      deviceTime: string;
+      fixTime: string;
+      valid: boolean;
+      attributes: Record<string, unknown>;
+    }>;
+
+    // Index devices and positions by deviceId
+    const deviceMap = new Map(devices.map(d => [d.id, d]));
+    const positionMap = new Map(positions.map(p => [p.deviceId, p]));
+
+    // 4. Build fleet status for each linked vehicle
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    let onlineCount = 0;
+    let offlineCount = 0;
+    let lowBatteryCount = 0;
+    let noReport24hCount = 0;
+
+    const vehicleStatuses = fleetVehicles.map(fv => {
+      const deviceId = Number(fv.traccar_device_id);
+      const device = deviceMap.get(deviceId);
+      const position = positionMap.get(deviceId);
+
+      const status = device?.status || 'unknown';
+      const lastUpdate = device?.lastUpdate || null;
+      const lastUpdateMs = lastUpdate ? new Date(lastUpdate).getTime() : 0;
+      const minutesSinceUpdate = lastUpdateMs ? Math.round((now - lastUpdateMs) / 60000) : null;
+
+      // Battery from position attributes
+      const batteryLevel = position?.attributes?.batteryLevel != null
+        ? Number(position.attributes.batteryLevel)
+        : null;
+
+      // Total distance (odometer) from device or position attributes — Traccar stores in meters
+      const totalDistanceMeters = (position?.attributes?.totalDistance as number)
+        || (device?.attributes?.totalDistance as number)
+        || 0;
+      const totalDistanceKm = Math.round(totalDistanceMeters / 1000);
+
+      // Speed in km/h (Traccar returns knots)
+      const speedKmh = position ? Math.round(position.speed * 1.852) : 0;
+
+      // Determine flags
+      const isOnline = status === 'online';
+      const isLowBattery = batteryLevel !== null && batteryLevel < 15;
+      const hasNoReport24h = minutesSinceUpdate !== null && minutesSinceUpdate > 1440;
+
+      if (isOnline) onlineCount++;
+      else offlineCount++;
+      if (isLowBattery) lowBatteryCount++;
+      if (hasNoReport24h) noReport24hCount++;
+
+      return {
+        id: fv.id,
+        matricula: fv.matricula,
+        marca: fv.marca,
+        modelo: fv.modelo,
+        categoria: fv.categoria,
+        deviceName: device?.name || `Device ${deviceId}`,
+        status,
+        lastUpdate,
+        minutesSinceUpdate,
+        batteryLevel,
+        totalDistanceKm,
+        speedKmh,
+        latitude: position?.latitude || null,
+        longitude: position?.longitude || null,
+        address: position?.address || null,
+        isOnline,
+        isLowBattery,
+        hasNoReport24h,
+      };
+    });
+
+    return res.json({
+      ok: true,
+      vehicles: vehicleStatuses,
+      summary: {
+        total: vehicleStatuses.length,
+        online: onlineCount,
+        offline: offlineCount,
+        lowBattery: lowBatteryCount,
+        noReport24h: noReport24hCount,
+      },
+    });
+  } catch (err) {
+    console.error('[traccar/fleet-status] Error:', err);
+    return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
+  }
+}

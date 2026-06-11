@@ -143,6 +143,7 @@ const FleetAudits = lazy(() => import("./pages/fleet/FleetAudits"));
 const FleetEquipment = lazy(() => import("./pages/fleet/FleetEquipment"));
 const FleetMap = lazy(() => import("./pages/fleet/FleetMap"));
 const FleetGPS = lazy(() => import("./pages/fleet/FleetGPS"));
+const FleetStatus = lazy(() => import("./pages/fleet/FleetStatus"));
 
 // Transfers Module
 const Transfers = lazy(() => import("./pages/transfers/Transfers"));
@@ -992,6 +993,13 @@ function QueryRecovery() {
               <ProtectedRoute>
                 <ModuleRoute moduleKey="fleet" moduleName="Flota">
                   <FleetGPS />
+                </ModuleRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/fleet/status" element={
+              <ProtectedRoute>
+                <ModuleRoute moduleKey="fleet" moduleName="Flota">
+                  <FleetStatus />
                 </ModuleRoute>
               </ProtectedRoute>
             } />
