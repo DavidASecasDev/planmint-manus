@@ -1194,3 +1194,10 @@
 - [x] Dashboard Estado Flota: Endpoint backend para km diarios por vehículo (últimos 7/30 días)
 - [x] Dashboard Estado Flota: Gráfico de barras/líneas con km diarios por vehículo (Recharts)
 - [x] Dashboard Estado Flota: Selector de período (última semana / último mes) y selector de vehículo
+- [x] Parking: Crear tablas en Supabase (parking_zones, parking_spots, parking_occupancy)
+- [x] Parking: Endpoints backend CRUD para zonas, plazas y asignación/liberación
+- [x] Parking: Página visual con plano interactivo replicando la disposición real de la campa
+- [x] Parking: Plazas coloreadas (verde=libre, con matrícula=ocupada) en el plano
+- [x] Parking: Integrar asignación de plaza como último paso en el flujo de preparación
+- [x] Parking: Liberación automática de plaza cuando vehículo cambia a estado "alquilado"
+- [x] Parking: Registrar ruta y entrada en navegación sidebar

@@ -13,6 +13,7 @@
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 import { notifyOwner } from "./_core/notification";
+import { releaseParkingSpotByVehicle } from "./parkingEndpoints";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -568,6 +569,12 @@ async function syncVehicleStatuses(
           if (!updateErr) {
             console.log(`[sync-vehicles] Set ${res.auto} to alquilado (reservation ${res.id})`);
             rented++;
+            // Auto-release parking spot when vehicle goes to alquilado
+            try {
+              await releaseParkingSpotByVehicle(organizationId, res.auto, "system_sync_rently");
+            } catch (e) {
+              console.error(`[sync-vehicles] Error releasing parking for ${res.auto}:`, e);
+            }
           }
         } else if (vehicle && vehicle.status === "alquilado" && vehicle.current_reservation_id !== res.id) {
           await serviceClient

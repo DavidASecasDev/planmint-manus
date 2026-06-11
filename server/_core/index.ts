@@ -208,6 +208,18 @@ import {
   handleUpdateGeofence,
   handleDeleteGeofence,
 } from "../geofenceEndpoints";
+import {
+  handleGetParkingZones,
+  handleCreateParkingZone,
+  handleDeleteParkingZone,
+  handleGetParkingSpots,
+  handleCreateParkingSpotsBulk,
+  handleAssignParkingSpot,
+  handleReleaseParkingSpot,
+  handleGetParkingHistory,
+  handleGetParkingOverview,
+  handleSeedParkingLayout,
+} from "../parkingEndpoints";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -462,6 +474,18 @@ async function startServer() {
   app.post("/api/geofences/create", handleCreateGeofence);
   app.post("/api/geofences/update", handleUpdateGeofence);
   app.post("/api/geofences/delete", handleDeleteGeofence);
+
+  // ─── Parking Management ──────────────────────────────────────────────────
+  app.post("/api/parking/zones", handleGetParkingZones);
+  app.post("/api/parking/zones/create", handleCreateParkingZone);
+  app.post("/api/parking/zones/delete/:id", handleDeleteParkingZone);
+  app.post("/api/parking/spots", handleGetParkingSpots);
+  app.post("/api/parking/spots/bulk", handleCreateParkingSpotsBulk);
+  app.post("/api/parking/assign", handleAssignParkingSpot);
+  app.post("/api/parking/release", handleReleaseParkingSpot);
+  app.post("/api/parking/history", handleGetParkingHistory);
+  app.post("/api/parking/overview", handleGetParkingOverview);
+  app.post("/api/parking/seed-layout", handleSeedParkingLayout);
 
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);

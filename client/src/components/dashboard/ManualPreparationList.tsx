@@ -10,8 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import {
-  Plus, Check, Trash2, Clock, AlertTriangle, Car, CheckCircle2, Undo2, Pencil, Plane,
+  Plus, Check, Trash2, Clock, AlertTriangle, Car, CheckCircle2, Undo2, Pencil, Plane, MapPin,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface PreparationItem {
@@ -206,6 +213,12 @@ export function ManualPreparationList() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<PreparationItem | null>(null);
+  // Parking assignment state
+  const [parkingItem, setParkingItem] = useState<PreparationItem | null>(null);
+  const [parkingZones, setParkingZones] = useState<{ id: string; name: string; spots: { id: string; spot_number: number; status: string }[] }[]>([]);
+  const [selectedZone, setSelectedZone] = useState('');
+  const [selectedSpot, setSelectedSpot] = useState('');
+  const [isAssigningParking, setIsAssigningParking] = useState(false);
   const [formMatricula, setFormMatricula] = useState('');
   const [formModelo, setFormModelo] = useState('');
   const [formDeadline, setFormDeadline] = useState('');
@@ -269,7 +282,85 @@ export function ManualPreparationList() {
     },
   });
 
-  // Complete item mutation
+  // Open parking dialog before completing
+  const handleStartComplete = async (item: PreparationItem) => {
+    setParkingItem(item);
+    setSelectedZone('');
+    setSelectedSpot('');
+    // Fetch available parking zones/spots
+    try {
+      const result = await apiInvoke<{ ok: boolean; data: { zones: { id: string; name: string; spots: { id: string; spot_number: number; status: string }[] }[] } }>('parking/overview', { body: {} });
+      if (result.data?.ok && result.data.data?.zones) {
+        setParkingZones(result.data.data.zones);
+      } else {
+        setParkingZones([]);
+      }
+    } catch {
+      setParkingZones([]);
+    }
+  };
+
+  // Assign parking spot + complete preparation item
+  const handleAssignAndComplete = async () => {
+    if (!parkingItem || !selectedSpot) return;
+    setIsAssigningParking(true);
+    try {
+      // 1. Assign parking spot
+      const assignResult = await apiInvoke<{ ok: boolean; error?: string }>('parking/assign', {
+        body: {
+          spot_id: selectedSpot,
+          vehicle_id: null,
+          vehicle_matricula: parkingItem.matricula,
+        },
+      });
+      if (assignResult.error || !assignResult.data?.ok) {
+        throw new Error(assignResult.data?.error || 'Error al asignar plaza');
+      }
+
+      // 2. Mark preparation item as complete
+      const completeResult = await apiInvoke<{ ok: boolean; error?: string }>('complete-preparation-item', {
+        body: { itemId: parkingItem.id },
+      });
+      if (completeResult.error || !completeResult.data?.ok) {
+        throw new Error(completeResult.data?.error || 'Error al completar');
+      }
+
+      const spot = parkingZones.flatMap(z => z.spots).find(s => s.id === selectedSpot);
+      const zone = parkingZones.find(z => z.spots.some(s => s.id === selectedSpot));
+      toast({
+        title: 'Vehículo listo',
+        description: `${parkingItem.matricula} aparcado en ${zone?.name || ''} Plaza ${spot?.spot_number || ''}`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
+      queryClient.invalidateQueries({ queryKey: ['parking-overview'] });
+      setParkingItem(null);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsAssigningParking(false);
+    }
+  };
+
+  // Skip parking (complete without assigning spot)
+  const handleCompleteWithoutParking = async () => {
+    if (!parkingItem) return;
+    setIsAssigningParking(true);
+    try {
+      const result = await apiInvoke<{ ok: boolean; error?: string }>('complete-preparation-item', {
+        body: { itemId: parkingItem.id },
+      });
+      if (result.error || !result.data?.ok) throw new Error(result.data?.error || result.error?.message || 'Error');
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
+      setParkingItem(null);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsAssigningParking(false);
+    }
+  };
+
+  // Complete item mutation (kept for uncomplete flow)
   const completeMutation = useMutation({
     mutationFn: async (itemId: string) => {
       const result = await apiInvoke<{ ok: boolean; error?: string }>('complete-preparation-item', {
@@ -515,8 +606,8 @@ export function ManualPreparationList() {
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                          onClick={() => completeMutation.mutate(item.id)}
-                          title="Marcar como listo"
+                          onClick={() => handleStartComplete(item)}
+                          title="Marcar como listo (asignar plaza)"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </Button>
@@ -653,6 +744,94 @@ export function ManualPreparationList() {
             >
               {editingItem ? 'Guardar' : 'Añadir'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Parking Assignment Dialog */}
+      <Dialog open={!!parkingItem} onOpenChange={(open) => { if (!open) setParkingItem(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-emerald-500" />
+              Asignar plaza de parking
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+              <Car className="h-4 w-4 text-muted-foreground" />
+              <span className="font-mono font-semibold">{parkingItem?.matricula}</span>
+              {parkingItem?.modelo && <span className="text-sm text-muted-foreground">— {parkingItem.modelo}</span>}
+            </div>
+
+            {parkingZones.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                No hay zonas de parking configuradas.
+                <br />
+                Puedes completar sin asignar plaza.
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Zona</label>
+                  <Select value={selectedZone} onValueChange={(v) => { setSelectedZone(v); setSelectedSpot(''); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar zona..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parkingZones.map(z => (
+                        <SelectItem key={z.id} value={z.id}>
+                          {z.name} ({z.spots.filter(s => s.status === 'free').length} libres)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedZone && (
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">Plaza</label>
+                    <Select value={selectedSpot} onValueChange={setSelectedSpot}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar plaza..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {parkingZones
+                          .find(z => z.id === selectedZone)
+                          ?.spots.filter(s => s.status === 'free')
+                          .map(s => (
+                            <SelectItem key={s.id} value={s.id}>
+                              Plaza {s.spot_number}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={handleCompleteWithoutParking}
+              disabled={isAssigningParking}
+            >
+              Completar sin plaza
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setParkingItem(null)} disabled={isAssigningParking}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleAssignAndComplete}
+                disabled={!selectedSpot || isAssigningParking}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {isAssigningParking ? 'Asignando...' : 'Asignar y completar'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
