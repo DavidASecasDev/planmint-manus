@@ -1,6 +1,18 @@
 /**
  * Parking Map — Clean schematic SVG matching the real Azul Cars campa layout.
- * Carefully measured from the aerial photo to match exact proportions.
+ * 
+ * Layout from the aerial photo (looking down):
+ * - The lot is roughly square, slightly wider than tall
+ * - Top area: buildings/naves (grey structures)
+ * - Left column (96-110): 15 spots, single vertical column, horizontal orientation
+ * - Left-center block (70-95): 2 vertical columns × 13 rows, horizontal orientation
+ * - Top-center column (sucios area): ~8 spots vertical, horizontal orientation  
+ * - Center block (44-69): 2 vertical columns × 13 rows, horizontal orientation
+ * - Top-right row (1-11): horizontal row, vertical orientation spots
+ * - Mid-right block (12-19, 20-27): 2 horizontal rows × 8, vertical orientation
+ * - Bottom-right block (28-35, 36-43): 2 horizontal rows × 8, vertical orientation
+ * - Office building: center-right area
+ * - Exit (SALIDA): bottom-center
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -76,110 +88,119 @@ interface ParkingHistoryItem {
 }
 
 // ─── SVG Layout Constants ───────────────────────────────────────────────────
-// Using a 1150 x 900 viewBox to match the landscape proportions of the real campa
-const VW = 1150;
-const VH = 900;
-
-// Individual spot dimensions (proportional to the image)
-const SW = 34; // width
-const SH = 28; // height
-const G = 4;   // gap between spots in same group
+// ViewBox: 1000 x 1000 (square, matching the roughly square lot)
+const VW = 1000;
+const VH = 1000;
 
 /**
- * Coordinates carefully measured from the real aerial photo.
+ * Spot coordinates carefully mapped from the aerial photo.
  * 
- * Layout reference (from the image):
- * ┌─────────────────────────────────────────────────────────────────────┐
- * │  [Sucios zone]  │  [Nave/Roof with X]                              │
- * │  [structure]    │                                                   │
- * │                 │                                          Planet   │
- * │96  70 71  44 45 │    1  2  3  4  5  6  7  8  9  10  11            │
- * │97  72 73  46 47 │                                                   │
- * │98  74 75  48 49 │         [Oficina Azul Cars]                      │
- * │99  76 77  50 51 │                                                   │
- * │100 78 79  52 53 │    12 13 14 15 16 17 18 19                       │
- * │101 80 81  54 55 │    20 21 22 23 24 25 26 27                       │
- * │102 82 83  56 57 │                                                   │
- * │103 84 85  58 59 │    28 29 30 31 32 33 34 35                       │
- * │104 86 87  60 61 │    36 37 38 39 40 41 42 43                       │
- * │105 88 89  62 63 │                                                   │
- * │106 90 91  64 65 │                                                   │
- * │107 92 93  66 67 │         [SALIDA]                                 │
- * │108 94 95  68 69 │                                                   │
- * │109              │                                                   │
- * │110              │                                                   │
- * └─────────────────────────────────────────────────────────────────────┘
+ * Key observations from the image:
+ * - Spots in LEFT zones (96-110, 70-95, 44-69) are HORIZONTAL rectangles (wider than tall)
+ *   arranged in VERTICAL columns
+ * - Spots in RIGHT zones (1-11, 12-27, 28-43) are VERTICAL rectangles (taller than wide)
+ *   arranged in HORIZONTAL rows
+ * - The "sucios" column at top-center has ~8 horizontal spots in a vertical column
  */
+
+// Horizontal spot (wider than tall) - used for left-side columns
+const HW = 48; // width of horizontal spot
+const HH = 26; // height of horizontal spot
+
+// Vertical spot (taller than wide) - used for right-side rows  
+const VSpotW = 30; // width of vertical spot
+const VSpotH = 44; // height of vertical spot
+
+const VGAP = 3; // vertical gap between spots in a column
+const HGAP = 3; // horizontal gap between spots in a row
+
 function buildSpotCoords(): Map<number, { x: number; y: number; w: number; h: number }> {
   const coords = new Map<number, { x: number; y: number; w: number; h: number }>();
 
-  // ─── Plazas 96-110: Single column, far left ───────────────────────
-  // Starts at about x=30, y=285, 15 spots vertically
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA IZQUIERDA - Plazas 96-110: Single vertical column, far left
+  // 15 horizontal spots stacked vertically
+  // ═══════════════════════════════════════════════════════════════════════════
   const x96 = 30;
-  const y96Start = 285;
-  const vStep = SH + G; // vertical step between spots
+  const y96Start = 290;
   for (let i = 0; i < 15; i++) {
-    coords.set(96 + i, { x: x96, y: y96Start + i * vStep, w: SW, h: SH });
+    coords.set(96 + i, { x: x96, y: y96Start + i * (HH + VGAP), w: HW, h: HH });
   }
 
-  // ─── Plazas 70-95: Two columns, left area ─────────────────────────
-  // Pairs: 70,71 / 72,73 / ... / 94,95 = 13 rows
-  // Starts at about x=130, y=285
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA CENTRAL IZQUIERDA - Plazas 70-95: Two vertical columns
+  // 13 rows × 2 columns of horizontal spots
+  // Pairs: 70,71 / 72,73 / 74,75 / ... / 94,95
+  // ═══════════════════════════════════════════════════════════════════════════
   const x70col1 = 130;
-  const x70col2 = x70col1 + SW + G;
-  const y70Start = 285;
+  const x70col2 = x70col1 + HW + HGAP;
+  const y70Start = 290;
   for (let i = 0; i < 13; i++) {
-    const y = y70Start + i * vStep;
-    coords.set(70 + i * 2, { x: x70col1, y, w: SW, h: SH });
-    coords.set(71 + i * 2, { x: x70col2, y, w: SW, h: SH });
+    const y = y70Start + i * (HH + VGAP);
+    coords.set(70 + i * 2, { x: x70col1, y, w: HW, h: HH });
+    coords.set(71 + i * 2, { x: x70col2, y, w: HW, h: HH });
   }
 
-  // ─── Plazas 44-69: Two columns, center-left ───────────────────────
-  // Pairs: 44,45 / 46,47 / ... / 68,69 = 13 rows
-  // Starts at about x=310, y=285
-  const x44col1 = 310;
-  const x44col2 = x44col1 + SW + G;
-  const y44Start = 285;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA SUPERIOR CENTRAL - "Sucios" column: ~8 spots
+  // These are the spots visible in the top-center of the image
+  // Vertical column of horizontal spots, between the buildings
+  // In the numbered plan these don't have numbers, but in the DB they might
+  // be part of the 44-69 block. Looking at the plan image:
+  // The column at top-center appears to be spots that go into the "sucios" area
+  // ═══════════════════════════════════════════════════════════════════════════
+  // (These are part of the visual structure but may not have spot numbers assigned)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA CENTRAL PRINCIPAL - Plazas 44-69: Two vertical columns
+  // 13 rows × 2 columns of horizontal spots
+  // Pairs: 44,45 / 46,47 / ... / 68,69
+  // Position: center of the lot, to the right of 70-95 with a driving lane between
+  // ═══════════════════════════════════════════════════════════════════════════
+  const x44col1 = 330;
+  const x44col2 = x44col1 + HW + HGAP;
+  const y44Start = 290;
   for (let i = 0; i < 13; i++) {
-    const y = y44Start + i * vStep;
-    coords.set(44 + i * 2, { x: x44col1, y, w: SW, h: SH });
-    coords.set(45 + i * 2, { x: x44col2, y, w: SW, h: SH });
+    const y = y44Start + i * (HH + VGAP);
+    coords.set(44 + i * 2, { x: x44col1, y, w: HW, h: HH });
+    coords.set(45 + i * 2, { x: x44col2, y, w: HW, h: HH });
   }
 
-  // ─── Plazas 1-11: Horizontal row, top-right area ──────────────────
-  // Starts at about x=570, y=285
-  const x1Start = 570;
-  const y1 = 285;
-  const hStep = SW + G; // horizontal step
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA SUPERIOR DERECHA - Plazas 1-11: Horizontal row
+  // 11 vertical spots arranged left to right
+  // Position: top-right area of the lot
+  // ═══════════════════════════════════════════════════════════════════════════
+  const x1Start = 530;
+  const y1 = 260;
   for (let i = 0; i < 11; i++) {
-    coords.set(1 + i, { x: x1Start + i * hStep, y: y1, w: SW, h: SH });
+    coords.set(1 + i, { x: x1Start + i * (VSpotW + HGAP), y: y1, w: VSpotW, h: VSpotH });
   }
 
-  // ─── Plazas 12-19: Horizontal row, center-right ───────────────────
-  // Starts at about x=530, y=480
-  const x12Start = 530;
-  const y12 = 480;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA MEDIA DERECHA - Plazas 12-19 y 20-27: Two horizontal rows
+  // 8 vertical spots per row
+  // Position: center-right, below the office building
+  // ═══════════════════════════════════════════════════════════════════════════
+  const x12Start = 500;
+  const y12 = 490;
+  const y20 = y12 + VSpotH + VGAP;
   for (let i = 0; i < 8; i++) {
-    coords.set(12 + i, { x: x12Start + i * hStep, y: y12, w: SW, h: SH });
+    coords.set(12 + i, { x: x12Start + i * (VSpotW + HGAP), y: y12, w: VSpotW, h: VSpotH });
+    coords.set(20 + i, { x: x12Start + i * (VSpotW + HGAP), y: y20, w: VSpotW, h: VSpotH });
   }
 
-  // ─── Plazas 20-27: Horizontal row, below 12-19 ────────────────────
-  const y20 = y12 + vStep;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZONA INFERIOR DERECHA - Plazas 28-35 y 36-43: Two horizontal rows
+  // 8 vertical spots per row
+  // Position: bottom-right area
+  // ═══════════════════════════════════════════════════════════════════════════
+  const x28Start = 500;
+  const y28 = 650;
+  const y36 = y28 + VSpotH + VGAP;
   for (let i = 0; i < 8; i++) {
-    coords.set(20 + i, { x: x12Start + i * hStep, y: y20, w: SW, h: SH });
-  }
-
-  // ─── Plazas 28-35: Horizontal row, lower center-right ─────────────
-  // Starts at about x=530, y=600
-  const y28 = 600;
-  for (let i = 0; i < 8; i++) {
-    coords.set(28 + i, { x: x12Start + i * hStep, y: y28, w: SW, h: SH });
-  }
-
-  // ─── Plazas 36-43: Horizontal row, below 28-35 ────────────────────
-  const y36 = y28 + vStep;
-  for (let i = 0; i < 8; i++) {
-    coords.set(36 + i, { x: x12Start + i * hStep, y: y36, w: SW, h: SH });
+    coords.set(28 + i, { x: x28Start + i * (VSpotW + HGAP), y: y28, w: VSpotW, h: VSpotH });
+    coords.set(36 + i, { x: x28Start + i * (VSpotW + HGAP), y: y36, w: VSpotW, h: VSpotH });
   }
 
   return coords;
@@ -408,88 +429,60 @@ export default function Parking() {
 
       {/* ─── SVG PARKING MAP ──────────────────────────────────────────── */}
       {!isLoading && overview && (
-        <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
+        <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm bg-[#e8e4df]">
           <svg
             viewBox={`0 0 ${VW} ${VH}`}
             className="w-full h-auto"
-            style={{ minHeight: '400px', maxHeight: '70vh' }}
+            style={{ minHeight: '450px', maxHeight: '72vh' }}
             preserveAspectRatio="xMidYMid meet"
           >
-            {/* ─── Blue background (the campa surface) ────────────────── */}
-            <rect x="0" y="0" width={VW} height={VH} fill="#4a90d9" />
+            {/* ─── Asphalt background ─────────────────────────────────── */}
+            <rect x="0" y="0" width={VW} height={VH} fill="#c4bfb8" />
 
-            {/* ─── Nave / Roof (top portion, ~30% height) ─────────────── */}
-            <rect x="250" y="0" width="900" height="250" fill="#3a7bc8" stroke="#2d6ab3" strokeWidth="2" />
-            {/* X pattern on roof */}
-            <line x1="250" y1="0" x2="1150" y2="250" stroke="#2d6ab3" strokeWidth="4" opacity="0.6" />
-            <line x1="1150" y1="0" x2="250" y2="250" stroke="#2d6ab3" strokeWidth="4" opacity="0.6" />
+            {/* ─── Property boundary (red line) ───────────────────────── */}
+            <polygon
+              points="10,10 480,10 480,230 970,230 970,10 990,10 990,900 950,960 850,980 100,980 10,980"
+              fill="none"
+              stroke="#dc2626"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
 
-            {/* ─── Zona Sucios (top-left corner) ──────────────────────── */}
-            <rect x="80" y="20" width="170" height="240" rx="3" fill="#3a6fa8" stroke="#5ba0e0" strokeWidth="1.5" />
-            {/* "Sucios" text rotated */}
-            <text x="165" y="145" fontSize="18" fill="#a8d4ff" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" transform="rotate(-90, 165, 145)">
-              Sucios
-            </text>
-            {/* Car wash structure rectangles */}
-            <rect x="90" y="40" width="60" height="80" rx="2" fill="#2d5a8a" stroke="#5ba0e0" strokeWidth="0.8" />
-            <rect x="90" y="130" width="60" height="80" rx="2" fill="#2d5a8a" stroke="#5ba0e0" strokeWidth="0.8" />
-            {/* Small white rectangles (parked dirty cars) */}
+            {/* ─── Buildings / Naves (top area) ───────────────────────── */}
+            {/* Left nave 1 */}
+            <rect x="30" y="30" width="120" height="100" rx="3" fill="#a8a8a8" stroke="#888" strokeWidth="1" />
+            {/* Left nave 2 */}
+            <rect x="30" y="145" width="120" height="100" rx="3" fill="#a8a8a8" stroke="#888" strokeWidth="1" />
+            {/* Top-center structures */}
+            <rect x="200" y="30" width="80" height="180" rx="3" fill="#9a9a9a" stroke="#888" strokeWidth="1" />
+            {/* Top-right structures (various containers/buildings) */}
+            <rect x="500" y="30" width="60" height="100" rx="2" fill="#6b8e8e" stroke="#5a7a7a" strokeWidth="1" />
+            <rect x="580" y="30" width="50" height="120" rx="2" fill="#7a9090" stroke="#5a7a7a" strokeWidth="1" />
+            <rect x="650" y="30" width="80" height="100" rx="2" fill="#5a7878" stroke="#4a6868" strokeWidth="1" />
+            <rect x="750" y="30" width="60" height="90" rx="2" fill="#8a8a8a" stroke="#6a6a6a" strokeWidth="1" />
+            <rect x="830" y="30" width="70" height="110" rx="2" fill="#7a7a7a" stroke="#5a5a5a" strokeWidth="1" />
+
+            {/* ─── Office building (center-right) ─────────────────────── */}
+            <rect x="760" y="340" width="180" height="130" rx="4" fill="#8a9aa8" stroke="#6a7a88" strokeWidth="1.5" />
+
+            {/* ─── Sucios column (top-center, vertical column of ~8 spots) ─── */}
+            {/* These appear as the column between the buildings in the aerial photo */}
             {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-              <rect key={`dirty-${i}`} x="260" y={30 + i * 28} width="20" height="22" rx="1" fill="#c8ddf0" stroke="#7faed4" strokeWidth="0.5" />
+              <rect
+                key={`sucios-${i}`}
+                x={295}
+                y={40 + i * (HH + VGAP)}
+                width={HW - 10}
+                height={HH - 4}
+                rx="2"
+                fill="#f5c542"
+                stroke="#c9a030"
+                strokeWidth="0.8"
+                opacity="0.6"
+              />
             ))}
 
-            {/* ─── Oficina Azul Cars ──────────────────────────────────── */}
-            <rect x="780" y="330" width="180" height="120" rx="4" fill="#b8d4eb" stroke="#7faed4" strokeWidth="1.5" />
-            <text x="870" y="385" fontSize="13" fill="#2d5a8a" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
-              Azul Cars
-            </text>
-            <text x="870" y="405" fontSize="11" fill="#3a6fa8" fontFamily="sans-serif" textAnchor="middle">
-              Oficina
-            </text>
-            {/* Map pin icon */}
-            <circle cx="840" cy="370" r="6" fill="#5a5a5a" opacity="0.7" />
-            <circle cx="840" cy="370" r="3" fill="white" />
-
-            {/* ─── Small rectangle (container?) between 44-45 and 1-11 ── */}
-            <rect x="500" y="300" width="40" height="25" rx="2" fill="#b8d4eb" stroke="#7faed4" strokeWidth="1" />
-
-            {/* ─── SALIDA (exit marker, bottom center) ────────────────── */}
-            <rect x="435" y="790" width="50" height="55" rx="3" fill="#7f1d1d" />
-            <text x="460" y="815" fontSize="9" fill="white" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
-              SALIDA
-            </text>
-            {/* Down arrow */}
-            <polygon points="460,850 450,840 470,840" fill="white" />
-
-            {/* ─── Road bottom (Son Maiferit) ─────────────────────────── */}
-            <rect x="0" y={VH - 40} width={VW} height="40" fill="#8a8a8a" opacity="0.3" />
-            <text x="1050" y={VH - 15} fontSize="11" fill="#d0e4f5" fontFamily="sans-serif" fontStyle="italic">
-              Son Maiferit
-            </text>
-
-            {/* ─── Road right (Camí Fondo) ────────────────────────────── */}
-            <rect x={VW - 40} y="250" width="40" height={VH - 290} fill="#8a8a8a" opacity="0.3" />
-            <text x={VW - 20} y="550" fontSize="11" fill="#d0e4f5" fontFamily="sans-serif" fontStyle="italic" textAnchor="middle" transform={`rotate(-90, ${VW - 20}, 550)`}>
-              Camí Fondo
-            </text>
-
-            {/* ─── Trees (bottom edge) ────────────────────────────────── */}
-            {[0, 1, 2, 3, 4, 5].map(i => (
-              <circle key={`tree-${i}`} cx={100 + i * 60} cy={VH - 20} r="18" fill="#2d6b2d" opacity="0.5" />
-            ))}
-            {[0, 1, 2].map(i => (
-              <circle key={`tree-r-${i}`} cx={900 + i * 60} cy={VH - 20} r="18" fill="#2d6b2d" opacity="0.5" />
-            ))}
-
-            {/* ─── Planet Space label (top-right) ─────────────────────── */}
-            <text x="1060" y="100" fontSize="10" fill="#a8d4ff" fontFamily="sans-serif" opacity="0.7">
-              Planet Space
-            </text>
-            <text x="1060" y="115" fontSize="9" fill="#a8d4ff" fontFamily="sans-serif" opacity="0.7">
-              of Terrace N2
-            </text>
-
-            {/* ─── Render all parking spots ────────────────────────────── */}
+            {/* ─── Render all numbered parking spots ──────────────────── */}
             {Array.from(SPOT_COORDS.entries()).map(([num, pos]) => {
               const spot = spotByNumber.get(num);
               const isOccupied = spot?.status === 'occupied';
@@ -497,29 +490,35 @@ export default function Parking() {
               const isReserved = spot?.status === 'reserved';
               const isHighlighted = highlightedSpotNum === num;
 
-              let fill = '#ffffff';
-              let stroke = '#7faed4';
-              let textColor = '#1e3a5f';
+              // Colors matching the spec: yellow for spots
+              let fill = '#f5c542'; // yellow (free)
+              let stroke = '#c9a030';
+              let textColor = '#1a1a1a';
 
               if (isOccupied) {
-                fill = '#dc2626';
-                stroke = '#991b1b';
+                fill = '#e85d5d'; // red
+                stroke = '#b84040';
                 textColor = '#ffffff';
               } else if (isBlocked) {
                 fill = '#6b7280';
                 stroke = '#4b5563';
                 textColor = '#ffffff';
               } else if (isReserved) {
-                fill = '#f59e0b';
-                stroke = '#d97706';
-                textColor = '#1e293b';
+                fill = '#60a5fa';
+                stroke = '#3b82f6';
+                textColor = '#ffffff';
               }
+
+              const fontSize = pos.w > pos.h
+                ? Math.min(10, pos.h * 0.38) // horizontal spot
+                : Math.min(9, pos.w * 0.32); // vertical spot
 
               return (
                 <g
                   key={num}
                   onClick={() => spot && handleSpotClick(spot)}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  className="cursor-pointer"
+                  style={{ transition: 'opacity 0.15s' }}
                 >
                   {isHighlighted && (
                     <rect
@@ -527,9 +526,9 @@ export default function Parking() {
                       y={pos.y - 4}
                       width={pos.w + 8}
                       height={pos.h + 8}
-                      rx="5"
+                      rx="4"
                       fill="none"
-                      stroke="#facc15"
+                      stroke="#ffffff"
                       strokeWidth="3"
                       className="animate-pulse"
                     />
@@ -547,26 +546,26 @@ export default function Parking() {
                   {isOccupied && spot?.vehicle_matricula ? (
                     <text
                       x={pos.x + pos.w / 2}
-                      y={pos.y + pos.h / 2 + 4}
-                      fontSize="7"
+                      y={pos.y + pos.h / 2 + fontSize * 0.35}
+                      fontSize={fontSize * 0.75}
                       fill={textColor}
                       fontFamily="monospace"
                       textAnchor="middle"
                       fontWeight="bold"
                     >
-                      {spot.vehicle_matricula.length > 6
-                        ? spot.vehicle_matricula.slice(-6)
+                      {spot.vehicle_matricula.length > 7
+                        ? spot.vehicle_matricula.slice(-7)
                         : spot.vehicle_matricula}
                     </text>
                   ) : (
                     <text
                       x={pos.x + pos.w / 2}
-                      y={pos.y + pos.h / 2 + 4}
-                      fontSize="10"
+                      y={pos.y + pos.h / 2 + fontSize * 0.35}
+                      fontSize={fontSize}
                       fill={textColor}
                       fontFamily="sans-serif"
                       textAnchor="middle"
-                      fontWeight="600"
+                      fontWeight="700"
                     >
                       {num}
                     </text>
@@ -581,20 +580,28 @@ export default function Parking() {
                 </g>
               );
             })}
+
+            {/* ─── Driving lanes (subtle lines) ───────────────────────── */}
+            {/* Vertical lane between 96-110 and 70-95 */}
+            <line x1="95" y1="280" x2="95" y2="720" stroke="#9a9590" strokeWidth="1" strokeDasharray="8,4" opacity="0.5" />
+            {/* Vertical lane between 70-95 and 44-69 */}
+            <line x1="265" y1="280" x2="265" y2="720" stroke="#9a9590" strokeWidth="1" strokeDasharray="8,4" opacity="0.5" />
+            {/* Horizontal lane between left blocks and right blocks */}
+            <line x1="440" y1="400" x2="440" y2="750" stroke="#9a9590" strokeWidth="1" strokeDasharray="8,4" opacity="0.5" />
           </svg>
 
           {/* Legend */}
-          <div className="flex items-center gap-5 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
+          <div className="flex items-center gap-5 px-4 py-2.5 bg-white dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded-sm bg-white border border-blue-300" />
+              <div className="w-4 h-3 rounded-sm bg-[#f5c542] border border-[#c9a030]" />
               <span>Libre</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded-sm bg-red-600" />
+              <div className="w-4 h-3 rounded-sm bg-[#e85d5d]" />
               <span>Ocupada</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded-sm bg-amber-400 border border-amber-600" />
+              <div className="w-4 h-3 rounded-sm bg-[#60a5fa]" />
               <span>Reservada</span>
             </div>
             <div className="flex items-center gap-1.5">
