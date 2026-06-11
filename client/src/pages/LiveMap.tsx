@@ -903,7 +903,7 @@ export default function LiveMapPage() {
 
   return (
     <AppLayout title="Mapa En Vivo" fullWidth>
-      <div className="h-full flex flex-col -m-4 md:-m-6 lg:-m-8">
+      <div className="flex flex-col -m-4 md:-m-6 lg:-m-8" style={{ height: 'calc(100vh - 64px)' }}>
         {/* ── Premium Status Bar ── */}
         <div
           className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b"
@@ -1061,7 +1061,6 @@ export default function LiveMapPage() {
                   center={[PALMA_CENTER.lat, PALMA_CENTER.lng]}
                   zoom={DEFAULT_ZOOM}
                   className="h-full w-full"
-                  style={{ minHeight: '400px' }}
                 >
                   <TileLayer
                     url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
@@ -1107,7 +1106,6 @@ export default function LiveMapPage() {
                 center={[PALMA_CENTER.lat, PALMA_CENTER.lng]}
                 zoom={DEFAULT_ZOOM}
                 className="h-full w-full"
-                style={{ minHeight: '400px' }}
               >
                 <TileLayer
                   url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
