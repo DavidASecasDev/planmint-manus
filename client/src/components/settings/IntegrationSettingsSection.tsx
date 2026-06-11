@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { MessageSquare, Mail, Send, Loader2, CheckCircle2, XCircle, Lock, Eye, EyeOff, Brain, ExternalLink, Car } from 'lucide-react';
+import { MessageSquare, Mail, Send, Loader2, CheckCircle2, XCircle, Lock, Eye, EyeOff, Brain, ExternalLink, Car, MapPin } from 'lucide-react';
+import { useTraccar } from '@/hooks/useTraccar';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { AIProvider } from '@/types/external-notifications';
 
@@ -78,9 +79,26 @@ export function IntegrationSettingsSection() {
   const [rentlyHost, setRentlyHost] = useState('azul.rently.com.ar');
   const [rentlyClientId, setRentlyClientId] = useState('');
   const [rentlyClientSecret, setRentlyClientSecret] = useState('');
+
+  // Traccar form state
+  const { settings: traccarSettings, hasTraccar, saveSettings: saveTraccarSettings, testConnection: testTraccarConnection, settingsLoading: traccarLoading } = useTraccar();
+  const [traccarUrl, setTraccarUrl] = useState('');
+  const [traccarEmail, setTraccarEmail] = useState('');
+  const [traccarPassword, setTraccarPassword] = useState('');
+  const [showTraccarPassword, setShowTraccarPassword] = useState(false);
+  const [testingTraccar, setTestingTraccar] = useState(false);
+  const [savingTraccar, setSavingTraccar] = useState(false);
   const [archiveDays, setArchiveDays] = useState(10);
 
   const isTeamPlan = currentPlan === 'team';
+
+  // Initialize Traccar form state
+  useEffect(() => {
+    if (traccarSettings) {
+      setTraccarUrl(traccarSettings.traccar_server_url || '');
+      setTraccarEmail(traccarSettings.traccar_email || '');
+    }
+  }, [traccarSettings]);
 
   // Initialize form state when settings load
   useEffect(() => {
@@ -226,6 +244,42 @@ export function IntegrationSettingsSection() {
       toast.success('Conexión exitosa con Rently');
     } else {
       toast.error(result.error || 'Error de conexión');
+    }
+  };
+
+  const handleSaveTraccar = async () => {
+    if (!traccarUrl || !traccarEmail) {
+      toast.error('URL del servidor y email son obligatorios');
+      return;
+    }
+    setSavingTraccar(true);
+    const success = await saveTraccarSettings(traccarUrl, traccarEmail, traccarPassword);
+    setSavingTraccar(false);
+    if (success) {
+      toast.success('Configuración de Traccar guardada');
+      setTraccarPassword('');
+    } else {
+      toast.error('Error al guardar configuración de Traccar');
+    }
+  };
+
+  const handleTestTraccar = async () => {
+    const url = traccarUrl;
+    const email = traccarEmail;
+    const password = traccarPassword || (hasTraccar ? '__EXISTING__' : '');
+    if (!url || !email) {
+      toast.error('Completa URL y email primero');
+      return;
+    }
+    setTestingTraccar(true);
+    // If no new password entered but has existing, we need to get it from backend
+    // The test endpoint will use the stored password if we pass the org_id
+    const result = await testTraccarConnection(url, email, password === '__EXISTING__' ? '' : password);
+    setTestingTraccar(false);
+    if (result.ok) {
+      toast.success('Conexión exitosa con Traccar');
+    } else {
+      toast.error(result.error || 'Error de conexión con Traccar');
     }
   };
 
@@ -589,6 +643,78 @@ export function IntegrationSettingsSection() {
             size="sm"
           >
             {testingRently && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Probar conexión
+          </Button>
+        </div>
+      </div>
+
+      {/* Traccar GPS Tracking */}
+      <div className="space-y-3 p-4 rounded-lg border border-green-500/20 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-green-500" />
+            <Label className="text-base font-semibold">Traccar - GPS Tracking</Label>
+          </div>
+          <StatusBadge connected={hasTraccar} />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Conecta tu servidor Traccar para rastrear la ubicación de los vehículos en tiempo real
+        </p>
+        
+        <div className="grid gap-3">
+          <div className="space-y-2">
+            <Label className="text-xs">URL del Servidor</Label>
+            <Input
+              placeholder="https://tu-servidor.traccar.org"
+              value={traccarUrl}
+              onChange={(e) => setTraccarUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Email</Label>
+            <Input
+              type="email"
+              placeholder="admin@traccar.org"
+              value={traccarEmail}
+              onChange={(e) => setTraccarEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Contraseña</Label>
+            <div className="relative">
+              <Input
+                type={showTraccarPassword ? 'text' : 'password'}
+                placeholder={hasTraccar ? '••••••••' : 'Contraseña de Traccar'}
+                value={traccarPassword}
+                onChange={(e) => setTraccarPassword(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                onClick={() => setShowTraccarPassword(!showTraccarPassword)}
+              >
+                {showTraccarPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button onClick={handleSaveTraccar} disabled={savingTraccar} size="sm">
+            {savingTraccar && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Guardar
+          </Button>
+          <Button 
+            onClick={handleTestTraccar} 
+            disabled={(!hasTraccar && !traccarUrl) || testingTraccar} 
+            variant="outline" 
+            size="sm"
+          >
+            {testingTraccar && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Probar conexión
           </Button>
         </div>

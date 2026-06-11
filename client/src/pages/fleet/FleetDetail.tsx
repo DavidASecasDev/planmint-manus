@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useFleetVehicle } from '@/hooks/useFleetVehicles';
 import { useFleetInspections } from '@/hooks/useFleetInspections';
 import { VehicleDamageHistory } from '@/components/fleet/VehicleDamageHistory';
+import { TraccarDeviceSection } from '@/components/fleet/TraccarDeviceSection';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Camera, Calendar, ChevronRight, Car, FileText, Gauge, Fuel, StickyNote, Building2, Pencil, Palette, Zap, Settings, Hash, FileDown } from 'lucide-react';
@@ -299,6 +300,13 @@ export default function FleetDetail() {
           )}
         </motion.div>
 
+
+        {/* Traccar GPS Section */}
+        <TraccarDeviceSection
+          fleetVehicleId={vehicle.id}
+          currentTraccarDeviceId={vehicle.traccar_device_id}
+          onDeviceLinked={() => {}}
+        />
 
         {/* Damage History Section */}
         <VehicleDamageHistory

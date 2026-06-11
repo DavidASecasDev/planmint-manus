@@ -43,6 +43,7 @@ import { ReservationStatusHistory } from './ReservationStatusHistory';
 import { RentlyActionsBar } from './RentlyActionsBar';
 import { RentlyActionHistory } from './RentlyActionHistory';
 import { ManualMovementEditHistory } from './ManualMovementEditHistory';
+import { VehicleGPSLocation } from './VehicleGPSLocation';
 
 interface ReservationDetailSheetProps {
   reservation: Reservation | null;
@@ -393,6 +394,16 @@ export function ReservationDetailSheet({ reservation, open, onOpenChange, onActi
                   <InfoRow icon={Fuel} label="Tipo combustible" value={r.vehiculo_tipo_combustible} />
                 </div>
               </div>
+
+              {/* Localización GPS del vehículo */}
+              {r.auto && (
+                <div>
+                  <SectionTitle>
+                    <MapPin className="h-4 w-4" /> Localización en tiempo real
+                  </SectionTitle>
+                  <VehicleGPSLocation matricula={r.auto} />
+                </div>
+              )}
 
               {/* Indicadores del vehículo */}
               {hasVehicleDetails && (

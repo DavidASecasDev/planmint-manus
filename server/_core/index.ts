@@ -188,6 +188,16 @@ import {
   handleUpdateHabitualProduct,
   handleDeleteHabitualProduct,
 } from "../productStockEndpoints";
+import {
+  handleTraccarTestConnection,
+  handleTraccarDevices,
+  handleTraccarPositions,
+  handleTraccarDevicePosition,
+  handleTraccarLinkDevice,
+  handleTraccarUnlinkDevice,
+  handleTraccarSettings,
+  handleTraccarVehicleByPlate,
+} from "../traccarEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -421,6 +431,16 @@ async function startServer() {
   // Manual movement edit history
   app.post("/api/log-manual-movement-edit", handleLogManualMovementEdit);
   app.post("/api/get-manual-movement-history", handleGetManualMovementHistory);
+
+  // ─── Traccar GPS Tracking ─────────────────────────────────────────────────
+  app.post("/api/traccar/test-connection", handleTraccarTestConnection);
+  app.post("/api/traccar/devices", handleTraccarDevices);
+  app.post("/api/traccar/positions", handleTraccarPositions);
+  app.post("/api/traccar/device-position", handleTraccarDevicePosition);
+  app.post("/api/traccar/link-device", handleTraccarLinkDevice);
+  app.post("/api/traccar/unlink-device", handleTraccarUnlinkDevice);
+  app.post("/api/traccar/settings", handleTraccarSettings);
+  app.post("/api/traccar/vehicle-by-plate", handleTraccarVehicleByPlate);
 
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);

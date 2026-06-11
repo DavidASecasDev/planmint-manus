@@ -1141,3 +1141,9 @@
 - [x] Garatech: Al vincular daño a reparación, cambiar status del daño a 'en_reparacion'
 - [x] Garatech: Al finalizar reparación, marcar daños vinculados como 'reparado'
 - [x] Garatech: Botón "Crear reparación" en la vista de daños del vehículo que cree una reparación pre-vinculada al daño seleccionado
+- [x] Traccar: Añadir campo traccar_device_id a fleet_vehicles en Supabase
+- [x] Traccar: Crear endpoint proxy en servidor para llamar a la API de Traccar (posiciones, dispositivos)
+- [x] Traccar: Página de configuración Traccar en ajustes de organización (URL servidor, credenciales)
+- [x] Traccar: UI para vincular dispositivo Traccar a cada vehículo de flota
+- [x] Traccar: Página de mapa en tiempo real mostrando posición de todos los vehículos
+- [x] Traccar: En operación de entrega, mostrar solo la localización del vehículo asignado

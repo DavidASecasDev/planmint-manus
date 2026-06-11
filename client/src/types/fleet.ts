@@ -22,6 +22,7 @@ export interface FleetVehicle {
   hibrido: boolean | null;
   motor: string | null;
   cv: number | null;
+  traccar_device_id: string | null;
   created_at: string;
   updated_at: string;
 }
