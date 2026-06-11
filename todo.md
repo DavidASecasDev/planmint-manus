@@ -1206,3 +1206,6 @@
 - [x] Parking: Tipo de notificación `parking_full` integrado en bell, página de notificaciones y toast
 - [x] Parking: Deep-link desde notificaciones a /fleet/parking
 - [x] Registrar cron job `geofence-battery-check` en Manus Heartbeat (cada 2 min)
+- [x] Turnos: Permitir reordenar miembros (subir/bajar) en la columna derecha sin mover los turnos asignados
+- [x] Turnos: Flechas arriba/abajo en cada fila de miembro para cambiar posición (azul, columna Horas)
+- [x] Turnos: Persistir el nuevo orden en la base de datos (schedule_member_order)

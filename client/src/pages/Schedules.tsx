@@ -979,7 +979,7 @@ export default function Schedules() {
                   canAssign={canAssign}
                   onReorderMember={(canAssign || canManage) ? handleReorderMember : undefined}
                   onDragReorder={(canAssign || canManage) ? handleDragReorder : undefined}
-                  onSwapShifts={(canAssign || canManage) ? handleSwapShifts : undefined}
+                  onSwapShifts={(canAssign || canManage) ? handleReorderMember : undefined}
                   canManageNotes={canManageNotes}
                   noteLookup={noteLookup}
                   onSaveNote={handleSaveNote}
@@ -1560,10 +1560,10 @@ function TeamScheduleGrid({
                             <button
                               onClick={() => onSwapShifts(team.team_id, team.members, memberIndex, 'up')}
                               disabled={isFirst}
-                              title="Mover horario arriba"
+                              title="Mover miembro arriba (turnos se quedan fijos)"
                               className={cn(
                                 "p-0 h-3.5 w-3.5 flex items-center justify-center rounded-sm transition-colors",
-                                isFirst ? "text-muted-foreground/20 cursor-default" : "text-orange-500 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                isFirst ? "text-muted-foreground/20 cursor-default" : "text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
                               )}
                             >
                               <ChevronLeft className="h-3 w-3 rotate-90" />
@@ -1571,10 +1571,10 @@ function TeamScheduleGrid({
                             <button
                               onClick={() => onSwapShifts(team.team_id, team.members, memberIndex, 'down')}
                               disabled={isLast}
-                              title="Mover horario abajo"
+                              title="Mover miembro abajo (turnos se quedan fijos)"
                               className={cn(
                                 "p-0 h-3.5 w-3.5 flex items-center justify-center rounded-sm transition-colors",
-                                isLast ? "text-muted-foreground/20 cursor-default" : "text-orange-500 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                isLast ? "text-muted-foreground/20 cursor-default" : "text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
                               )}
                             >
                               <ChevronRight className="h-3 w-3 rotate-90" />
