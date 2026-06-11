@@ -105,11 +105,13 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
               </Badge>
             </div>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadPosition} disabled={loadingPosition}>
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingPosition ? 'animate-spin' : ''}`} />
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={loadPosition} disabled={loadingPosition}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingPosition ? 'animate-spin' : ''}`} />
+                Actualizar
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={handleUnlink} disabled={unlinking}>
-                {unlinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlink className="h-3.5 w-3.5" />}
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={handleUnlink} disabled={unlinking}>
+                {unlinking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Unlink className="h-3.5 w-3.5 mr-1" />}
+                Desvincular
               </Button>
             </div>
           </div>
