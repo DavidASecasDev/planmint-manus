@@ -91,11 +91,24 @@ async function traccarFetch(
 export async function handleTraccarTestConnection(req: Request, res: Response) {
   try {
     const { organization_id, server_url, email, password } = req.body;
-    if (!organization_id || !server_url || !email || !password) {
+    if (!organization_id || !server_url || !email) {
       return res.status(400).json({ ok: false, error: 'Missing required fields' });
     }
 
-    const credentials: TraccarCredentials = { server_url, email, password };
+    // If no password provided, try to use the stored one
+    let finalPassword = password;
+    if (!finalPassword) {
+      const stored = await getTraccarCredentials(organization_id);
+      if (stored) {
+        finalPassword = stored.password;
+      }
+    }
+
+    if (!finalPassword) {
+      return res.status(400).json({ ok: false, error: 'Contraseña requerida' });
+    }
+
+    const credentials: TraccarCredentials = { server_url, email, password: finalPassword };
     const result = await traccarFetch(credentials, '/devices?limit=1');
 
     if (result.ok) {
