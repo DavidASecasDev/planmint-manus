@@ -1,7 +1,6 @@
 /**
  * Parking Map — Visual layout of the Azul Cars campa
- * Shows zones with numbered spots, occupancy status, and vehicle plates
- * Designed as a realistic top-down parking lot view
+ * Realistic top-down parking lot view with bay-style spots and lanes
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -13,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +28,7 @@ import {
 } from '@/components/ui/select';
 import {
   Car, ParkingSquare, MapPin, RefreshCw,
-  History, CircleDot, AlertTriangle, LayoutGrid, List, Search, X,
+  History, CircleDot, AlertTriangle, Search, X,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -86,7 +84,6 @@ export default function Parking() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [selectedZoneFilter, setSelectedZoneFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedSpotId, setHighlightedSpotId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,14 +161,12 @@ export default function Parking() {
   useEffect(() => {
     if (searchResult) {
       setHighlightedSpotId(searchResult.spot.id);
-      // Auto-scroll to the spot element
       setTimeout(() => {
         const el = document.getElementById(`parking-spot-${searchResult.spot.id}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 100);
-      // Clear highlight after 5 seconds
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
       highlightTimeoutRef.current = setTimeout(() => setHighlightedSpotId(null), 5000);
     } else {
@@ -243,31 +238,8 @@ export default function Parking() {
                 </button>
               )}
             </div>
-            {/* View mode toggle */}
-            <div className="flex items-center border border-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode('map')}
-                className={cn(
-                  "p-2 transition-colors",
-                  viewMode === 'map' ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                )}
-                title="Vista plano"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  "p-2 transition-colors",
-                  viewMode === 'list' ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                )}
-                title="Vista lista"
-              >
-                <List className="h-4 w-4" />
-              </button>
-            </div>
             <Select value={selectedZoneFilter} onValueChange={setSelectedZoneFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Todas las zonas" />
               </SelectTrigger>
               <SelectContent>
@@ -320,54 +292,59 @@ export default function Parking() {
         </div>
       )}
 
-      {/* Summary KPIs */}
+      {/* Summary bar */}
       {overview && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <KpiCard label="Total Plazas" value={overview.summary.total} icon={ParkingSquare} color="text-foreground" />
-          <KpiCard label="Libres" value={overview.summary.free} icon={CircleDot} color="text-emerald-500" />
-          <KpiCard label="Ocupadas" value={overview.summary.occupied} icon={Car} color="text-blue-500" />
-          <KpiCard label="Bloqueadas" value={overview.summary.blocked} icon={AlertTriangle} color="text-amber-500" />
+        <div className="flex items-center gap-4 mb-4 px-1">
+          <div className="flex items-center gap-1.5 text-sm">
+            <ParkingSquare className="h-4 w-4 text-muted-foreground" />
+            <span className="font-semibold">{overview.summary.total}</span>
+            <span className="text-muted-foreground">plazas</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm">
+            <CircleDot className="h-4 w-4 text-emerald-500" />
+            <span className="font-semibold text-emerald-600">{overview.summary.free}</span>
+            <span className="text-muted-foreground">libres</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm">
+            <Car className="h-4 w-4 text-blue-500" />
+            <span className="font-semibold text-blue-600">{overview.summary.occupied}</span>
+            <span className="text-muted-foreground">ocupadas</span>
+          </div>
+          {overview.summary.blocked > 0 && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <span className="font-semibold text-amber-600">{overview.summary.blocked}</span>
+              <span className="text-muted-foreground">bloqueadas</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* Loading state */}
       {isLoading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-64 rounded-lg" />
-          ))}
+        <div className="space-y-4">
+          <Skeleton className="h-48 rounded-lg" />
+          <Skeleton className="h-48 rounded-lg" />
         </div>
       )}
 
-      {/* Map View — Full parking lot layout */}
-      {viewMode === 'map' && !isLoading && (
-        <TooltipProvider delayDuration={200}>
-          <div className="space-y-4">
-            {filteredZones.map(zone => (
-              <ParkingZoneMap
-                key={zone.id}
-                zone={zone}
-                highlightedSpotId={highlightedSpotId}
-                onSpotClick={(spot) => {
-                  setSelectedSpot(spot);
-                  if (spot.status === 'free') {
-                    setShowAssignDialog(true);
-                  }
-                }}
-                onRelease={(spot) => releaseMutation.mutate(spot.id)}
-              />
-            ))}
-          </div>
-        </TooltipProvider>
-      )}
-
-      {/* List View — Table of occupied spots */}
-      {viewMode === 'list' && !isLoading && overview && (
-        <OccupiedSpotsList
-          zones={filteredZones}
-          onRelease={(spot) => releaseMutation.mutate(spot.id)}
-        />
-      )}
+      {/* Parking Zones — Realistic Layout */}
+      <div className="space-y-6">
+        {filteredZones.map(zone => (
+          <ParkingZoneMap
+            key={zone.id}
+            zone={zone}
+            highlightedSpotId={highlightedSpotId}
+            onSpotClick={(spot) => {
+              setSelectedSpot(spot);
+              if (spot.status === 'free') {
+                setShowAssignDialog(true);
+              }
+            }}
+            onRelease={(spot) => releaseMutation.mutate(spot.id)}
+          />
+        ))}
+      </div>
 
       {/* Assign Dialog */}
       <AssignSpotDialog
@@ -417,305 +394,187 @@ export default function Parking() {
   );
 }
 
-// ─── KPI Card ───────────────────────────────────────────────────────────────
-function KpiCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: any; color: string }) {
-  return (
-    <Card className="border-border/50">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`p-2 rounded-lg bg-muted ${color}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-xs text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Parking Zone Map (Visual Layout) ──────────────────────────────────────
+// ─── Parking Zone Map (Realistic Layout) ───────────────────────────────────
 function ParkingZoneMap({
   zone,
+  highlightedSpotId,
   onSpotClick,
   onRelease,
-  highlightedSpotId,
 }: {
   zone: ParkingZone;
+  highlightedSpotId?: string | null;
   onSpotClick: (spot: ParkingSpot) => void;
   onRelease: (spot: ParkingSpot) => void;
-  highlightedSpotId?: string | null;
 }) {
   const maxRow = Math.max(...zone.spots.map(s => s.grid_row ?? 0), 0);
   const maxCol = Math.max(...zone.spots.map(s => s.grid_col ?? 0), 0);
 
-  const gridMap = useMemo(() => {
-    const map = new Map<string, ParkingSpot>();
+  // Group spots by row for a row-based layout with lanes between
+  const spotsByRow = useMemo(() => {
+    const rows: Map<number, ParkingSpot[]> = new Map();
     zone.spots.forEach(spot => {
-      const key = `${spot.grid_row ?? 0}-${spot.grid_col ?? 0}`;
-      map.set(key, spot);
+      const row = spot.grid_row ?? 0;
+      if (!rows.has(row)) rows.set(row, []);
+      rows.get(row)!.push(spot);
     });
-    return map;
+    // Sort spots within each row by column
+    rows.forEach(spots => spots.sort((a, b) => (a.grid_col ?? 0) - (b.grid_col ?? 0)));
+    return rows;
   }, [zone.spots]);
 
   const freeCount = zone.spots.filter(s => s.status === 'free').length;
   const occupiedCount = zone.spots.filter(s => s.status === 'occupied').length;
   const totalCount = zone.spots.length;
 
+  // Get sorted row keys
+  const rowKeys = Array.from(spotsByRow.keys()).sort((a, b) => a - b);
+
   return (
-    <Card className="border-border/40 overflow-hidden">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-4 h-4 rounded"
-              style={{ backgroundColor: zone.color }}
-            />
-            <CardTitle className="text-sm font-semibold">{zone.name}</CardTitle>
-            {zone.description && (
-              <span className="text-xs text-muted-foreground hidden sm:inline">({zone.description})</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800 text-xs font-medium">
-              {freeCount} libres
-            </Badge>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800 text-xs font-medium">
-              {occupiedCount}/{totalCount}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4">
-        {/* Parking lot visual grid */}
-        <div className="overflow-x-auto">
+    <div className="rounded-xl border border-border/60 bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
+      {/* Zone header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-white dark:bg-slate-900">
+        <div className="flex items-center gap-2.5">
           <div
-            className="grid gap-1"
-            style={{
-              gridTemplateColumns: `repeat(${maxCol + 1}, minmax(72px, 1fr))`,
-            }}
-          >
-            {Array.from({ length: (maxRow + 1) * (maxCol + 1) }, (_, idx) => {
-              const row = Math.floor(idx / (maxCol + 1));
-              const col = idx % (maxCol + 1);
-              const spot = gridMap.get(`${row}-${col}`);
-
-              if (!spot) {
-                return <div key={idx} className="h-16" />;
-              }
-
-              return (
-                <ParkingBay
-                  key={spot.id}
-                  spot={spot}
-                  zoneColor={zone.color}
-                  isHighlighted={highlightedSpotId === spot.id}
-                  onClick={() => {
-                    if (spot.status === 'occupied') {
-                      onRelease(spot);
-                    } else if (spot.status === 'free') {
-                      onSpotClick(spot);
-                    }
-                  }}
-                />
-              );
-            })}
-          </div>
+            className="w-3 h-3 rounded-sm"
+            style={{ backgroundColor: zone.color }}
+          />
+          <span className="text-sm font-semibold">{zone.name}</span>
+          {zone.description && (
+            <span className="text-xs text-muted-foreground">({zone.description})</span>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{freeCount} libres</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-blue-600 dark:text-blue-400 font-medium">{occupiedCount}/{totalCount}</span>
+        </div>
+      </div>
+
+      {/* Parking lot area */}
+      <div className="p-3 overflow-x-auto">
+        <div className="min-w-fit">
+          {rowKeys.map((rowIdx, i) => {
+            const spots = spotsByRow.get(rowIdx) || [];
+            return (
+              <div key={rowIdx}>
+                {/* Row of parking bays */}
+                <div className="flex gap-px">
+                  {spots.map(spot => (
+                    <ParkingBay
+                      key={spot.id}
+                      spot={spot}
+                      zoneColor={zone.color}
+                      isHighlighted={highlightedSpotId === spot.id}
+                      onClick={() => {
+                        if (spot.status === 'occupied') {
+                          onRelease(spot);
+                        } else if (spot.status === 'free') {
+                          onSpotClick(spot);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+                {/* Lane/road between rows */}
+                {i < rowKeys.length - 1 && (
+                  <div className="h-3 bg-slate-200 dark:bg-slate-700/50 my-0.5 rounded-sm relative overflow-hidden">
+                    <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-center">
+                      <div className="w-full border-t border-dashed border-slate-300 dark:border-slate-600" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
-// ─── Parking Bay (Single Spot) ─────────────────────────────────────────────
+// ─── Parking Bay (Single Spot — Realistic) ─────────────────────────────────
 function ParkingBay({
   spot,
   zoneColor,
-  onClick,
   isHighlighted,
+  onClick,
 }: {
   spot: ParkingSpot;
   zoneColor: string;
-  onClick: () => void;
   isHighlighted?: boolean;
+  onClick: () => void;
 }) {
   const isOccupied = spot.status === 'occupied';
   const isFree = spot.status === 'free';
   const isBlocked = spot.status === 'blocked';
 
-  // Time since occupied
-  const timeLabel = useMemo(() => {
-    if (!spot.occupied_at) return null;
-    const diff = Date.now() - new Date(spot.occupied_at).getTime();
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(hours / 24);
-    if (days > 0) return `${days}d`;
-    if (hours > 0) return `${hours}h`;
-    return '<1h';
-  }, [spot.occupied_at]);
-
-  const tooltipText = isOccupied
-    ? `Plaza ${spot.spot_number} — ${spot.vehicle_matricula}${timeLabel ? ` (${timeLabel})` : ''}\nClick para liberar`
-    : isFree
-    ? `Plaza ${spot.spot_number} — Libre\nClick para asignar`
-    : `Plaza ${spot.spot_number} — ${spot.status}`;
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          id={`parking-spot-${spot.id}`}
-          onClick={onClick}
-          disabled={isBlocked}
-          className={cn(
-            "relative h-16 rounded-md border-2 flex flex-col items-center justify-center transition-all duration-150 group",
-            "focus:outline-none focus:ring-2 focus:ring-primary/50",
-            isOccupied && "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-md cursor-pointer",
-            isFree && "bg-emerald-50 dark:bg-emerald-950/20 border-dashed border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 cursor-pointer",
-            isBlocked && "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 opacity-50 cursor-not-allowed",
-            spot.status === 'reserved' && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700",
-            isHighlighted && "ring-4 ring-yellow-400 ring-offset-1 border-yellow-400 shadow-lg shadow-yellow-200/50 dark:shadow-yellow-900/30 animate-pulse z-10"
+    <button
+      id={`parking-spot-${spot.id}`}
+      onClick={onClick}
+      disabled={isBlocked}
+      title={
+        isOccupied
+          ? `Plaza ${spot.spot_number} — ${spot.vehicle_matricula} (click para liberar)`
+          : isFree
+          ? `Plaza ${spot.spot_number} — Libre (click para asignar)`
+          : `Plaza ${spot.spot_number} — ${spot.status}`
+      }
+      className={cn(
+        "relative w-[72px] h-[40px] border flex flex-col items-center justify-center transition-all duration-100",
+        "focus:outline-none focus:z-10",
+        // Occupied: dark background with car
+        isOccupied && "bg-slate-700 dark:bg-slate-600 border-slate-800 dark:border-slate-500 hover:bg-slate-600 cursor-pointer",
+        // Free: light with line markings
+        isFree && "bg-slate-100 dark:bg-slate-800/40 border-slate-300 dark:border-slate-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:border-emerald-400 cursor-pointer",
+        // Blocked
+        isBlocked && "bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800 opacity-60 cursor-not-allowed",
+        // Reserved
+        spot.status === 'reserved' && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700",
+        // Highlighted (search result)
+        isHighlighted && "ring-3 ring-yellow-400 ring-offset-1 shadow-lg shadow-yellow-300/40 z-20 animate-pulse"
+      )}
+    >
+      {/* Spot number — top left corner */}
+      <span className={cn(
+        "absolute top-0 left-0.5 text-[8px] font-bold leading-none",
+        isOccupied ? "text-slate-400" : "text-slate-400 dark:text-slate-500"
+      )}>
+        {spot.spot_number}
+      </span>
+
+      {/* Occupied: show car silhouette + plate */}
+      {isOccupied && (
+        <div className="flex flex-col items-center gap-0">
+          {/* Car top-down silhouette */}
+          <svg width="20" height="12" viewBox="0 0 20 12" className="text-slate-300 dark:text-slate-400 mb-px">
+            <rect x="2" y="1" width="16" height="10" rx="3" fill="currentColor" opacity="0.6" />
+            <rect x="4" y="0" width="12" height="4" rx="2" fill="currentColor" opacity="0.4" />
+            <rect x="4" y="8" width="12" height="4" rx="2" fill="currentColor" opacity="0.4" />
+            <circle cx="4" cy="2" r="1.5" fill="currentColor" />
+            <circle cx="16" cy="2" r="1.5" fill="currentColor" />
+            <circle cx="4" cy="10" r="1.5" fill="currentColor" />
+            <circle cx="16" cy="10" r="1.5" fill="currentColor" />
+          </svg>
+          {/* Plate */}
+          {spot.vehicle_matricula && (
+            <span className="font-mono font-bold text-[8px] text-white leading-none tracking-tight truncate max-w-[66px]">
+              {spot.vehicle_matricula}
+            </span>
           )}
-        >
-          {/* Spot number badge */}
-          <span className={cn(
-            "absolute top-0.5 left-1 text-[9px] font-bold leading-none",
-            isOccupied ? "text-slate-400 dark:text-slate-500" : "text-emerald-500 dark:text-emerald-400"
-          )}>
-            {spot.spot_number}
-          </span>
-
-          {/* Vehicle plate (main content for occupied) */}
-          {isOccupied && spot.vehicle_matricula && (
-            <div className="flex flex-col items-center gap-0.5">
-              <div className="flex items-center gap-0.5">
-                <Car className="h-3 w-3 text-blue-500 shrink-0" />
-                <span className="font-mono font-bold text-[11px] text-slate-800 dark:text-slate-100 leading-none tracking-tight">
-                  {spot.vehicle_matricula}
-                </span>
-              </div>
-              {timeLabel && (
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 font-medium">
-                  {timeLabel}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Free spot indicator */}
-          {isFree && (
-            <div className="flex flex-col items-center gap-0.5">
-              <div className="w-5 h-5 rounded-full border-2 border-dashed border-emerald-300 dark:border-emerald-600 flex items-center justify-center group-hover:border-emerald-500">
-                <span className="text-[8px] font-bold text-emerald-500">P</span>
-              </div>
-            </div>
-          )}
-
-          {/* Blocked indicator */}
-          {isBlocked && (
-            <AlertTriangle className="h-4 w-4 text-red-400" />
-          )}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs whitespace-pre-line">
-        {tooltipText}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-// ─── Occupied Spots List View ──────────────────────────────────────────────
-function OccupiedSpotsList({
-  zones,
-  onRelease,
-}: {
-  zones: ParkingZone[];
-  onRelease: (spot: ParkingSpot) => void;
-}) {
-  const occupiedSpots = useMemo(() => {
-    const spots: (ParkingSpot & { zoneName: string; zoneColor: string })[] = [];
-    zones.forEach(zone => {
-      zone.spots
-        .filter(s => s.status === 'occupied')
-        .forEach(spot => {
-          spots.push({ ...spot, zoneName: zone.name, zoneColor: zone.color });
-        });
-    });
-    return spots.sort((a, b) => a.spot_number - b.spot_number);
-  }, [zones]);
-
-  if (occupiedSpots.length === 0) {
-    return (
-      <Card className="border-border/40">
-        <CardContent className="py-12 text-center">
-          <ParkingSquare className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-muted-foreground">No hay plazas ocupadas</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="border-border/40 overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Car className="h-4 w-4" />
-          Plazas Ocupadas ({occupiedSpots.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-border/40">
-          {/* Header */}
-          <div className="grid grid-cols-[60px_1fr_120px_100px_80px] gap-2 px-4 py-2 bg-muted/30 text-xs font-medium text-muted-foreground">
-            <span>Plaza</span>
-            <span>Matrícula</span>
-            <span>Zona</span>
-            <span>Tiempo</span>
-            <span className="text-right">Acción</span>
-          </div>
-          {/* Rows */}
-          {occupiedSpots.map(spot => {
-            const timeLabel = spot.occupied_at
-              ? (() => {
-                  const diff = Date.now() - new Date(spot.occupied_at).getTime();
-                  const hours = Math.floor(diff / 3600000);
-                  const days = Math.floor(hours / 24);
-                  if (days > 0) return `${days}d ${hours % 24}h`;
-                  if (hours > 0) return `${hours}h`;
-                  return '<1h';
-                })()
-              : '—';
-
-            return (
-              <div
-                key={spot.id}
-                className="grid grid-cols-[60px_1fr_120px_100px_80px] gap-2 px-4 py-2.5 items-center hover:bg-muted/20 transition-colors"
-              >
-                <span className="font-bold text-sm">{spot.spot_number}</span>
-                <span className="font-mono font-semibold text-sm text-foreground">
-                  {spot.vehicle_matricula || '—'}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: spot.zoneColor }} />
-                  <span className="text-xs text-muted-foreground truncate">{spot.zoneName}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">{timeLabel}</span>
-                <div className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-                    onClick={() => onRelease(spot)}
-                  >
-                    Liberar
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {/* Free: just the number is visible, subtle P */}
+      {isFree && (
+        <span className="text-[10px] font-medium text-slate-300 dark:text-slate-600">P</span>
+      )}
+
+      {/* Blocked */}
+      {isBlocked && (
+        <X className="h-3 w-3 text-red-400" />
+      )}
+    </button>
   );
 }
 

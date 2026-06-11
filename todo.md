@@ -1218,3 +1218,4 @@
 - [x] Parking: Campo de búsqueda rápida por matrícula en el header
 - [x] Parking: Resaltar la plaza encontrada en el mapa al buscar
 - [x] Parking: Mostrar zona y número de plaza en resultado de búsqueda
+- [x] Parking: Rediseñar plano para que parezca un parking real (bahías rectangulares, pasillos entre filas, aspecto compacto)
