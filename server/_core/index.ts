@@ -198,6 +198,13 @@ import {
   handleTraccarSettings,
   handleTraccarVehicleByPlate,
 } from "../traccarEndpoint";
+import {
+  handleListGeofences,
+  handleCreateGeofence,
+  handleUpdateGeofence,
+  handleDeleteGeofence,
+} from "../geofenceEndpoints";
+import { handleGetMapsJsUrl } from "../mapsJsEndpoint";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -441,6 +448,15 @@ async function startServer() {
   app.post("/api/traccar/unlink-device", handleTraccarUnlinkDevice);
   app.post("/api/traccar/settings", handleTraccarSettings);
   app.post("/api/traccar/vehicle-by-plate", handleTraccarVehicleByPlate);
+
+  // ─── Maps JS SDK ────────────────────────────────────────────────────────
+  app.get("/api/maps-js-url", handleGetMapsJsUrl);
+
+  // ─── Geofences ───────────────────────────────────────────────────────────
+  app.post("/api/geofences/list", handleListGeofences);
+  app.post("/api/geofences/create", handleCreateGeofence);
+  app.post("/api/geofences/update", handleUpdateGeofence);
+  app.post("/api/geofences/delete", handleDeleteGeofence);
 
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);

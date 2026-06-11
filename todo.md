@@ -1156,3 +1156,13 @@
 - [x] GPS Flota: Añadir entrada "GPS Flota" en el sidebar bajo el menú desplegable de Flota (solo visible con permiso)
 - [x] Bug fix: Miembros eliminados de la organización deben desaparecer de los horarios (schedules)
 - [x] Bug fix: Miembros eliminados deben desaparecer de TODAS las vistas que los referencian
+- [ ] GPS Flota v2: Migrar de Leaflet a Google Maps usando el componente Map.tsx del template
+- [ ] GPS Flota v2: Diseño premium — sidebar con glassmorphism, animaciones, tarjetas detalladas con avatar vehículo
+- [ ] GPS Flota v2: Marcadores personalizados en el mapa (iconos de coche con dirección, colores por estado)
+- [ ] GPS Flota v2: Panel de info al hacer click en un vehículo (velocidad, dirección, última posición, etc.)
+- [ ] GPS Flota v2: Sistema de Geofences — tabla en Supabase para almacenar zonas geográficas
+- [ ] GPS Flota v2: Endpoints CRUD para geofences (crear, listar, editar, eliminar)
+- [ ] GPS Flota v2: UI para dibujar geofences en el mapa (círculos y polígonos) con Google Drawing Manager
+- [ ] GPS Flota v2: Panel lateral de gestión de geofences (lista, editar nombre/color, eliminar)
+- [ ] GPS Flota v2: Visualización de geofences en el mapa con colores y transparencia
+- [ ] GPS Flota v2: Detección de entrada/salida de vehículos en geofences (visual en tiempo real)
