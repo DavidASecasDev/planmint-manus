@@ -1209,3 +1209,9 @@
 - [x] Turnos: Permitir reordenar miembros (subir/bajar) en la columna derecha sin mover los turnos asignados
 - [x] Turnos: Flechas arriba/abajo en cada fila de miembro para cambiar posición (azul, columna Horas)
 - [x] Turnos: Persistir el nuevo orden en la base de datos (schedule_member_order)
+- [x] Parking: Vista de plano visual mostrando plazas con matrícula del coche ocupando cada plaza
+- [x] Parking: Plazas libres (verde) vs ocupadas (con matrícula visible) en el mapa
+- [x] Parking: Organización visual por zonas en el plano
+- [x] Parking: Vista lista con tabla de plazas ocupadas y botón liberar
+- [x] Parking: Toggle entre vista plano y vista lista
+- [x] Parking: Tooltip con info y tiempo de ocupación
