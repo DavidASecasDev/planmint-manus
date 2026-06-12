@@ -79,8 +79,9 @@ interface ParkingHistoryItem {
 }
 
 // ─── SVG Spot Geometry ──────────────────────────────────────────────────────
-// ViewBox: 1200 × 1000 (landscape, matching the real lot proportions from aerial photo)
-// This is an EXACT TRACE of the annotated aerial photograph.
+// ViewBox: 1200 × 900 (landscape, matching the real lot proportions from aerial photo)
+// EXACT TRACE: positions measured proportionally from the annotated aerial photograph.
+// The left-side columns (zones 4-8) occupy ~55% of width. Right side (zones 1-3 + office) ~45%.
 interface SpotRect {
   x: number;
   y: number;
@@ -91,28 +92,94 @@ interface SpotRect {
 function buildSpotGeometry(): Map<number, SpotRect> {
   const spots = new Map<number, SpotRect>();
 
-  // ─── Spot dimensions ───
-  // Vertical columns (zones 4-8): spots are HORIZONTAL rectangles stacked vertically
-  const colSpotW = 42; // width of a spot in vertical columns
-  const colSpotH = 36; // height of a spot in vertical columns
-  const colGapV = 5;   // vertical gap between spots in a column
+  // ─── Dimensions calibrated from aerial photo ───
+  // Vertical columns (zones 4-8): spots are WIDE rectangles stacked vertically
+  const colSpotW = 50;  // wide — matches the photo where spots are wider than tall
+  const colSpotH = 38;
+  const colGapV = 6;    // vertical gap between spots in a column
+  const pairGap = 8;    // gap between two columns in a pair
+  const laneGap = 50;   // driving lane between pairs
 
-  // Horizontal rows (zones 1-3): spots are VERTICAL rectangles in a row
-  const rowSpotW = 32; // width of a spot in horizontal rows
-  const rowSpotH = 44; // height of a spot in horizontal rows
-  const rowGapH = 4;   // horizontal gap between spots in a row
+  // Horizontal rows (zones 1-3): spots in a horizontal line
+  const rowSpotW = 38;
+  const rowSpotH = 38;
+  const rowGapH = 5;
 
-  // Sucios: vertical column of square-ish spots
-  const sucioW = 36;
-  const sucioH = 36;
-  const sucioGap = 5;
+  // Sucios: slightly smaller squares
+  const sucioW = 38;
+  const sucioH = 38;
+  const sucioGap = 6;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 1: Spots 1-11 — Horizontal row, TOP-RIGHT
-  // Single row of 11 vertical spots going left to right
+  // LEFT-SIDE VERTICAL COLUMNS (Zones 4-8)
+  // From the photo reading LEFT to RIGHT:
+  //   Zone 8 (single, far left)
+  //   [lane]
+  //   Zone 7 (left of left pair)
+  //   Zone 6 (right of left pair)
+  //   [lane]
+  //   Zone 5 (left of right pair)
+  //   Zone 4 (right of right pair)
+  // Each zone = 1 independent column. 13 spots each, except zone 8 = 15.
   // ═══════════════════════════════════════════════════════════════════════════
-  const z1_x = 500;
-  const z1_y = 170;
+
+  const colStartY = 260; // below the naves
+
+  // Zone 8: single column, far left (15 spots)
+  const z8_x = 55;
+  for (let i = 0; i < 15; i++) {
+    spots.set(96 + i, { x: z8_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 7: left column of the left pair (13 spots)
+  const z7_x = z8_x + colSpotW + laneGap;
+  for (let i = 0; i < 13; i++) {
+    spots.set(83 + i, { x: z7_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 6: right column of the left pair (13 spots)
+  const z6_x = z7_x + colSpotW + pairGap;
+  for (let i = 0; i < 13; i++) {
+    spots.set(70 + i, { x: z6_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 5: left column of the right pair (13 spots)
+  const z5_x = z6_x + colSpotW + laneGap;
+  for (let i = 0; i < 13; i++) {
+    spots.set(57 + i, { x: z5_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 4: right column of the right pair (13 spots)
+  const z4_x = z5_x + colSpotW + pairGap;
+  for (let i = 0; i < 13; i++) {
+    spots.set(44 + i, { x: z4_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SUCIOS: Spots 111-118 — Vertical column, to the RIGHT of the naves
+  // 8 spots in green, top area. In the photo they start at the top and go down.
+  // ═══════════════════════════════════════════════════════════════════════════
+  const zS_x = 395;
+  const zS_y = 40;
+  for (let i = 0; i < 8; i++) {
+    spots.set(111 + i, {
+      x: zS_x,
+      y: zS_y + i * (sucioH + sucioGap),
+      w: sucioW,
+      h: sucioH,
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RIGHT SIDE: Zones 1, 2, 3
+  // Zone 1: horizontal row of 11 spots, top-right
+  // Zone 2: 2 rows × 8 = 16 spots, center-right (left of office)
+  // Zone 3: 2 rows × 8 = 16 spots, bottom-right
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Zone 1: 11 spots in a single horizontal row, top-right area
+  const z1_x = 590;
+  const z1_y = 210;
   for (let i = 0; i < 11; i++) {
     spots.set(1 + i, {
       x: z1_x + i * (rowSpotW + rowGapH),
@@ -122,83 +189,22 @@ function buildSpotGeometry(): Map<number, SpotRect> {
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 2: Spots 12-27 — 2 rows × 8, CENTER-RIGHT (left of office)
-  // ═══════════════════════════════════════════════════════════════════════════
-  const z2_x = 500;
-  const z2_y1 = 370; // top row
-  const z2_y2 = z2_y1 + rowSpotH + rowGapH; // bottom row
+  // Zone 2: 2 rows × 8, center-right
+  const z2_x = 590;
+  const z2_y1 = 380;
+  const z2_y2 = z2_y1 + rowSpotH + rowGapH;
   for (let i = 0; i < 8; i++) {
     spots.set(12 + i, { x: z2_x + i * (rowSpotW + rowGapH), y: z2_y1, w: rowSpotW, h: rowSpotH });
     spots.set(20 + i, { x: z2_x + i * (rowSpotW + rowGapH), y: z2_y2, w: rowSpotW, h: rowSpotH });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 3: Spots 28-43 — 2 rows × 8, BOTTOM-RIGHT
-  // ═══════════════════════════════════════════════════════════════════════════
-  const z3_x = 500;
-  const z3_y1 = 600; // top row
-  const z3_y2 = z3_y1 + rowSpotH + rowGapH; // bottom row
+  // Zone 3: 2 rows × 8, bottom-right
+  const z3_x = 590;
+  const z3_y1 = 570;
+  const z3_y2 = z3_y1 + rowSpotH + rowGapH;
   for (let i = 0; i < 8; i++) {
     spots.set(28 + i, { x: z3_x + i * (rowSpotW + rowGapH), y: z3_y1, w: rowSpotW, h: rowSpotH });
     spots.set(36 + i, { x: z3_x + i * (rowSpotW + rowGapH), y: z3_y2, w: rowSpotW, h: rowSpotH });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LEFT-SIDE VERTICAL COLUMNS (Zones 4-8)
-  // From the aerial photo, reading RIGHT to LEFT:
-  //   Zone 4 (rightmost) + Zone 5 form a PAIR
-  //   Zone 6 + Zone 7 form a PAIR
-  //   Zone 8 is alone on the far left
-  // Each column has 13 spots EXCEPT zone 8 which has 15
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // Starting Y for all left-side columns (below the naves)
-  const colStartY = 280;
-
-  // Zone 4: rightmost column of the right pair (13 spots)
-  const z4_x = 345;
-  for (let i = 0; i < 13; i++) {
-    spots.set(44 + i, { x: z4_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
-  }
-
-  // Zone 5: left column of the right pair (13 spots)
-  const z5_x = z4_x - colSpotW - 6; // small gap between paired columns
-  for (let i = 0; i < 13; i++) {
-    spots.set(57 + i, { x: z5_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
-  }
-
-  // Zone 6: right column of the left pair (13 spots)
-  const z6_x = z5_x - colSpotW - 40; // driving lane between pairs
-  for (let i = 0; i < 13; i++) {
-    spots.set(70 + i, { x: z6_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
-  }
-
-  // Zone 7: left column of the left pair (13 spots)
-  const z7_x = z6_x - colSpotW - 6; // small gap between paired columns
-  for (let i = 0; i < 13; i++) {
-    spots.set(83 + i, { x: z7_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
-  }
-
-  // Zone 8: single column, far left (15 spots)
-  const z8_x = z7_x - colSpotW - 40; // driving lane
-  for (let i = 0; i < 15; i++) {
-    spots.set(96 + i, { x: z8_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SUCIOS: Spots 111-118 — Vertical column, between naves and right area
-  // 8 spots in green, top area
-  // ═══════════════════════════════════════════════════════════════════════════
-  const zS_x = 370;
-  const zS_y = 35;
-  for (let i = 0; i < 8; i++) {
-    spots.set(111 + i, {
-      x: zS_x,
-      y: zS_y + i * (sucioH + sucioGap),
-      w: sucioW,
-      h: sucioH,
-    });
   }
 
   return spots;
@@ -218,7 +224,7 @@ function ParkingMapSVG({
 }) {
   return (
     <svg
-      viewBox="0 0 1200 1000"
+      viewBox="0 0 1200 900"
       className="w-full h-auto"
       style={{ maxHeight: '78vh' }}
       xmlns="http://www.w3.org/2000/svg"
@@ -236,80 +242,74 @@ function ParkingMapSVG({
         `}</style>
       </defs>
 
-      {/* ─── Background: concrete/asphalt ground ─── */}
-      <rect x="0" y="0" width="1200" height="1000" fill="#5c5c52" />
+      {/* ─── Background: dark outside the lot ─── */}
+      <rect x="0" y="0" width="1200" height="900" fill="#1a1a1a" />
 
       {/* ─── Lot boundary (irregular polygon - red border like the photo) ─── */}
       <polygon
-        points="25,20 380,20 420,20 950,20 1100,80 1100,850 1050,950 25,950"
-        fill="#7a7568"
+        points="30,25 390,25 450,25 1050,25 1140,100 1140,750 1080,870 30,870"
+        fill="#6b6560"
         stroke="#dc2626"
         strokeWidth="3"
       />
 
       {/* ─── NAVES / TALLER (top-left, two buildings with curved roofs) ─── */}
       {/* Nave 1 (upper) */}
-      <rect x="35" y="30" width="300" height="100" fill="#8a8a8a" stroke="#aaa" strokeWidth="1.5" rx="2" />
-      <path d="M 40,45 Q 185,30 330,45" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,65 Q 185,50 330,65" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,85 Q 185,70 330,85" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,105 Q 185,90 330,105" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,120 Q 185,105 330,120" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <rect x="40" y="35" width="320" height="95" fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
+      <path d="M 45,50 Q 200,35 355,50" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,68 Q 200,53 355,68" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,86 Q 200,71 355,86" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,104 Q 200,89 355,104" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,120 Q 200,105 355,120" fill="none" stroke="#aaa" strokeWidth="1.2" />
       {/* Nave 2 (lower) */}
-      <rect x="35" y="140" width="300" height="100" fill="#8a8a8a" stroke="#aaa" strokeWidth="1.5" rx="2" />
-      <path d="M 40,155 Q 185,140 330,155" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,175 Q 185,160 330,175" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,195 Q 185,180 330,195" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,215 Q 185,200 330,215" fill="none" stroke="#bbb" strokeWidth="1.5" />
-      <path d="M 40,230 Q 185,215 330,230" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <rect x="40" y="138" width="320" height="95" fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
+      <path d="M 45,153 Q 200,138 355,153" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,171 Q 200,156 355,171" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,189 Q 200,174 355,189" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,207 Q 200,192 355,207" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 45,223 Q 200,208 355,223" fill="none" stroke="#aaa" strokeWidth="1.2" />
 
-      {/* ─── OFICINA Azul Cars (center-right, glass building) ─── */}
-      <rect x="830" y="290" width="150" height="160" fill="#1e293b" stroke="#475569" strokeWidth="2" rx="3" />
-      <rect x="840" y="300" width="130" height="140" fill="none" stroke="#64748b" strokeWidth="0.8" rx="2" />
-      <line x1="840" y1="300" x2="970" y2="440" stroke="#475569" strokeWidth="0.5" opacity="0.5" />
-      <line x1="970" y1="300" x2="840" y2="440" stroke="#475569" strokeWidth="0.5" opacity="0.5" />
-      <text x="905" y="370" textAnchor="middle" fill="#94a3b8" fontSize="14" fontWeight="600">OFICINA</text>
-      <text x="905" y="392" textAnchor="middle" fill="#64748b" fontSize="11">Azul Cars</text>
+      {/* ─── OFICINA Azul Cars (right side, glass building) ─── */}
+      <rect x="940" y="280" width="150" height="170" fill="#1e293b" stroke="#475569" strokeWidth="2" rx="3" />
+      <rect x="950" y="290" width="130" height="150" fill="none" stroke="#64748b" strokeWidth="0.8" rx="2" />
+      <line x1="950" y1="290" x2="1080" y2="440" stroke="#475569" strokeWidth="0.5" opacity="0.4" />
+      <line x1="1080" y1="290" x2="950" y2="440" stroke="#475569" strokeWidth="0.5" opacity="0.4" />
+      <text x="1015" y="365" textAnchor="middle" fill="#94a3b8" fontSize="13" fontWeight="600">OFICINA</text>
+      <text x="1015" y="385" textAnchor="middle" fill="#64748b" fontSize="10">Azul Cars</text>
 
-      {/* ─── SUCIOS label (top, above the green spots) ─── */}
-      <rect x="350" y="5" width="80" height="24" fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="12" />
-      <text x="390" y="21" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="700">SUCIOS</text>
+      {/* ─── SUCIOS label (top center, above the green spots) ─── */}
+      <rect x="385" y="8" width="80" height="24" fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="12" />
+      <text x="425" y="24" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="700">SUCIOS</text>
       {/* Arrow indicating direction */}
-      <line x1="390" y1="32" x2="390" y2="365" stroke="#ffffff" strokeWidth="2" markerEnd="url(#arrowDown)" markerStart="url(#arrowUp)" opacity="0.6" />
-      <defs>
-        <marker id="arrowDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-          <path d="M 1,1 L 4,7 L 7,1" fill="none" stroke="#fff" strokeWidth="1.5" />
-        </marker>
-        <marker id="arrowUp" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-          <path d="M 1,7 L 4,1 L 7,7" fill="none" stroke="#fff" strokeWidth="1.5" />
-        </marker>
-      </defs>
+      <line x1="414" y1="395" x2="414" y2="50" stroke="#ffffff" strokeWidth="2" opacity="0.5" />
+      <polygon points="414,45 408,58 420,58" fill="#fff" opacity="0.5" />
+      <polygon points="414,400 408,387 420,387" fill="#fff" opacity="0.5" />
 
-      {/* ─── Zone labels (matching the annotated photo style) ─── */}
-      {/* Zone 1 */}
-      <rect x="488" y="148" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="500" y="163" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">1</text>
-      {/* Zone 2 */}
-      <rect x="488" y="348" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="500" y="363" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">2</text>
-      {/* Zone 3 */}
-      <rect x="488" y="578" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="500" y="593" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">3</text>
-      {/* Zone 4 */}
-      <rect x="354" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="366" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">4</text>
-      {/* Zone 5 */}
-      <rect x="306" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="318" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">5</text>
-      {/* Zone 6 */}
-      <rect x="218" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="230" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">6</text>
-      {/* Zone 7 */}
-      <rect x="170" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="182" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">7</text>
-      {/* Zone 8 */}
-      <rect x="30" y="260" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
-      <text x="42" y="275" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">8</text>
+      {/* ─── Zone labels (matching the annotated photo style — dark badge with white border) ─── */}
+      {/* Zone 8 — far left */}
+      <rect x="35" y="240" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="48" y="256" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">8</text>
+      {/* Zone 7 — bottom of zone 7 column */}
+      <rect x="143" y="840" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="156" y="856" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">7</text>
+      {/* Zone 6 — bottom of zone 6 column */}
+      <rect x="201" y="840" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="214" y="856" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">6</text>
+      {/* Zone 5 — bottom of zone 5 column */}
+      <rect x="301" y="840" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="314" y="856" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">5</text>
+      {/* Zone 4 — bottom of zone 4 column */}
+      <rect x="359" y="840" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="372" y="856" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">4</text>
+      {/* Zone 1 — top-right */}
+      <rect x="568" y="188" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="581" y="204" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">1</text>
+      {/* Zone 2 — center-right */}
+      <rect x="568" y="358" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="581" y="374" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">2</text>
+      {/* Zone 3 — bottom-right */}
+      <rect x="568" y="548" width="26" height="22" fill="#1e293b" stroke="#fff" strokeWidth="1.2" rx="4" />
+      <text x="581" y="564" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">3</text>
 
       {/* ─── Parking Spots ─── */}
       {Array.from(SPOT_GEOMETRY.entries()).map(([num, rect]) => {
