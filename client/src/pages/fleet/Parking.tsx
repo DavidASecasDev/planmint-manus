@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { useAllVehiclesForSelect } from '@/hooks/useAllVehiclesForSelect';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface ParkingZone {
@@ -684,28 +685,17 @@ function AssignSpotDialog({
 }) {
   const [matricula, setMatricula] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [vehicles, setVehicles] = useState<{ id: string; matricula: string; modelo: string | null }[]>([]);
+  const { activeVehicles, isLoading: vehiclesLoading } = useAllVehiclesForSelect();
 
   useEffect(() => {
-    if (!open) return;
-    setMatricula('');
-    apiInvoke<{ data: any[] }>('supabase-query', {
-      body: {
-        table: 'fleet_vehicles',
-        operation: 'select',
-        select: 'id, matricula, modelo, marca, status',
-        order: [{ column: 'matricula', ascending: true }],
-      },
-    }).then(result => {
-      if (result.data?.data) {
-        setVehicles(result.data.data.map((v: any) => ({
-          id: v.id,
-          matricula: v.matricula,
-          modelo: v.marca && v.modelo ? `${v.marca} ${v.modelo}` : (v.modelo || v.marca || null),
-        })));
-      }
-    });
+    if (!open) setMatricula('');
   }, [open]);
+
+  const vehicles = useMemo(() => activeVehicles.map(v => ({
+    id: v.id,
+    matricula: v.matricula,
+    modelo: v.modelo,
+  })), [activeVehicles]);
 
   const handleAssign = async () => {
     if (!spot || !matricula) return;
