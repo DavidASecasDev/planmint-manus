@@ -1,10 +1,8 @@
 /**
- * Parking Map — Pure SVG schematic of the Azul Cars campa.
- * PIXEL-PERFECT TRACE from the annotated aerial photograph.
- * Coordinates extracted via OpenCV image analysis of the actual photo.
- * 
- * ViewBox: 1200 × 1000 (matches the real photo aspect ratio 1374:1145 ≈ 1.2:1)
- * All coordinates are scaled from the detected pixel positions.
+ * Parking Map — Uses the REAL aerial photo as background with interactive spot overlays.
+ * The background image IS the exact plan provided by the user.
+ * Spot coordinates were extracted via OpenCV from the actual photo (1374×1145px).
+ * Overlay rectangles are positioned at the exact pixel locations of each spot.
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -79,13 +77,10 @@ interface ParkingHistoryItem {
   performed_at: string;
 }
 
-// ─── SVG Spot Geometry ──────────────────────────────────────────────────────
-// ViewBox: 1200 × 1000
-// Coordinates derived from OpenCV analysis of the aerial photo (1374×1145px)
-// Scale factor: 1200/1374 = 0.8734 for X, 1000/1145 = 0.8734 for Y (uniform!)
-//
-// The photo was analyzed pixel by pixel. Each spot's bounding box was detected.
-// These are the REAL positions, not approximations.
+// ─── Spot Coordinates (extracted from the aerial photo via OpenCV) ───────────
+// Image dimensions: 1374 × 1145 px
+// ViewBox matches exactly: 1374 × 1145
+// Coordinates are PIXEL positions from the real photo.
 interface SpotRect {
   x: number;
   y: number;
@@ -95,133 +90,93 @@ interface SpotRect {
 
 function buildSpotGeometry(): Map<number, SpotRect> {
   const spots = new Map<number, SpotRect>();
-
-  // Scale factor from image pixels (1374×1145) to SVG viewBox (1200×1000)
-  const sx = 1200 / 1374;
-  const sy = 1000 / 1145;
+  let num = 1;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ZONE 1: Horizontal row, top-right (11 spots)
-  // Detected: y≈340, x from 698 to 1084, w≈30, h≈46, step_x≈38.6
+  // y=433, x starts at 856, step=43, w=35, h=59 (portrait)
   // ═══════════════════════════════════════════════════════════════════════════
-  const z1_y = 340 * sy;
-  const z1_xStart = 698 * sx;
-  const z1_stepX = 38.6 * sx;
-  const z1_w = 30 * sx;
-  const z1_h = 46 * sy;
   for (let i = 0; i < 11; i++) {
-    spots.set(1 + i, { x: z1_xStart + i * z1_stepX, y: z1_y, w: z1_w, h: z1_h });
+    spots.set(num++, { x: 856 + i * 43, y: 433, w: 35, h: 59 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ZONE 2: 2 rows × 8 = 16 spots, center-right
-  // Row 1: y≈536, x from 593 to 743, 8 spots, step_x≈37
-  // Row 2: y≈593, x from 593 to 853, 8 spots, step_x≈37
-  // w≈30, h≈46
+  // Row 1: y=530, Row 2: y=600, x from 679, step=42, w=34, h=58
   // ═══════════════════════════════════════════════════════════════════════════
-  const z2_w = 30 * sx;
-  const z2_h = 46 * sy;
-  const z2_stepX = 37 * sx;
-  const z2_row1_y = 536 * sy;
-  const z2_row2_y = 593 * sy;
-  const z2_xStart = 593 * sx;
   for (let i = 0; i < 8; i++) {
-    spots.set(12 + i, { x: z2_xStart + i * z2_stepX, y: z2_row1_y, w: z2_w, h: z2_h });
+    spots.set(num++, { x: 679 + i * 42, y: 530, w: 34, h: 58 });
   }
   for (let i = 0; i < 8; i++) {
-    spots.set(20 + i, { x: z2_xStart + i * z2_stepX, y: z2_row2_y, w: z2_w, h: z2_h });
+    spots.set(num++, { x: 679 + i * 42, y: 600, w: 34, h: 58 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ZONE 3: 2 rows × 8 = 16 spots, bottom-right
-  // Row 1: y≈708, x from 591 to 850, 8 spots, step_x≈37
-  // Row 2: y≈762, x from 590 to 850, 8 spots, step_x≈37
-  // w≈30, h≈46
+  // Row 1: y=750, Row 2: y=820, x from 679, step=42, w=34, h=58
   // ═══════════════════════════════════════════════════════════════════════════
-  const z3_w = 30 * sx;
-  const z3_h = 46 * sy;
-  const z3_stepX = 37 * sx;
-  const z3_row1_y = 708 * sy;
-  const z3_row2_y = 762 * sy;
-  const z3_xStart = 591 * sx;
   for (let i = 0; i < 8; i++) {
-    spots.set(28 + i, { x: z3_xStart + i * z3_stepX, y: z3_row1_y, w: z3_w, h: z3_h });
+    spots.set(num++, { x: 679 + i * 42, y: 750, w: 34, h: 58 });
   }
   for (let i = 0; i < 8; i++) {
-    spots.set(36 + i, { x: z3_xStart + i * z3_stepX, y: z3_row2_y, w: z3_w, h: z3_h });
+    spots.set(num++, { x: 679 + i * 42, y: 820, w: 34, h: 58 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 4: Vertical column (right of right pair), 13 spots
-  // Detected: x≈473, y from 345 to 750, w≈49, h≈27, step_y≈34
+  // ZONE 4: Vertical column (rightmost of left group), 13 spots
+  // x=541, y starts at 439, step=43, w=56, h=35 (landscape)
   // ═══════════════════════════════════════════════════════════════════════════
-  const colW = 49 * sx;
-  const colH = 27 * sy;
-  const colStepY = 34 * sy;
-
-  const z4_x = 473 * sx;
-  const z4_yStart = 345 * sy;
   for (let i = 0; i < 13; i++) {
-    spots.set(44 + i, { x: z4_x, y: z4_yStart + i * colStepY, w: colW, h: colH });
+    spots.set(num++, { x: 541, y: 439 + i * 43, w: 56, h: 35 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 5: Vertical column (left of right pair), 13 spots
-  // Detected: x≈404, y from 344 to 750, w≈50, h≈27, step_y≈34
+  // ZONE 5: Vertical column, x=462
+  // 13 spots, y starts at 437, step=43, w=57, h=36 (landscape)
   // ═══════════════════════════════════════════════════════════════════════════
-  const z5_x = 404 * sx;
-  const z5_yStart = 344 * sy;
   for (let i = 0; i < 13; i++) {
-    spots.set(57 + i, { x: z5_x, y: z5_yStart + i * colStepY, w: colW, h: colH });
+    spots.set(num++, { x: 462, y: 437 + i * 43, w: 57, h: 36 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 6: Vertical column (right of left pair), 13 spots
-  // Detected: x≈253, y from 348 to 750, w≈50, h≈27, step_y≈34
+  // ZONE 6: Vertical column, x=289
+  // 13 spots, y starts at 442, step=43, w=58, h=36 (landscape)
   // ═══════════════════════════════════════════════════════════════════════════
-  const z6_x = 253 * sx;
-  const z6_yStart = 348 * sy;
   for (let i = 0; i < 13; i++) {
-    spots.set(70 + i, { x: z6_x, y: z6_yStart + i * colStepY, w: colW, h: colH });
+    spots.set(num++, { x: 289, y: 442 + i * 43, w: 58, h: 36 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 7: Vertical column (left of left pair), 13 spots
-  // Detected: x≈196, y from 348 to 750, w≈47, h≈27, step_y≈34
+  // ZONE 7: Vertical column, x=223
+  // 13 spots, y starts at 442, step=43, w=56, h=36 (landscape)
   // ═══════════════════════════════════════════════════════════════════════════
-  const z7_x = 196 * sx;
-  const z7_yStart = 348 * sy;
   for (let i = 0; i < 13; i++) {
-    spots.set(83 + i, { x: z7_x, y: z7_yStart + i * colStepY, w: colW, h: colH });
+    spots.set(num++, { x: 223, y: 442 + i * 43, w: 56, h: 36 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 8: Single vertical column, far left (15 spots)
-  // Detected: x≈46, y from 340 to 814, w≈49, h≈28, step_y≈34
+  // ZONE 8: Single column, far left, x=52
+  // 15 spots, y starts at 433, step=43, w=56, h=35 (landscape)
   // ═══════════════════════════════════════════════════════════════════════════
-  const z8_x = 46 * sx;
-  const z8_yStart = 340 * sy;
   for (let i = 0; i < 15; i++) {
-    spots.set(96 + i, { x: z8_x, y: z8_yStart + i * colStepY, w: colW, h: colH });
+    spots.set(num++, { x: 52, y: 433 + i * 43, w: 56, h: 35 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SUCIOS: 8 green spots, vertical column
-  // Detected: x≈405, y from 58 to 298, w≈48, h≈27, step_y≈34.2
+  // x=463, y starts at 74, step=44, w=55, h=35
   // ═══════════════════════════════════════════════════════════════════════════
-  const sucio_x = 405 * sx;
-  const sucio_yStart = 58 * sy;
-  const sucio_stepY = 34.2 * sy;
-  const sucio_w = 48 * sx;
-  const sucio_h = 27 * sy;
   for (let i = 0; i < 8; i++) {
-    spots.set(111 + i, { x: sucio_x, y: sucio_yStart + i * sucio_stepY, w: sucio_w, h: sucio_h });
+    spots.set(num++, { x: 463, y: 74 + i * 44, w: 55, h: 35 });
   }
 
   return spots;
 }
 
 const SPOT_GEOMETRY = buildSpotGeometry();
+
+// Background image URL (the exact aerial photo provided by the user)
+const BG_IMAGE_URL = '/manus-storage/plano_parking_extracted_099694f8.png';
 
 // ─── SVG Parking Map Component ──────────────────────────────────────────────
 function ParkingMapSVG({
@@ -233,13 +188,9 @@ function ParkingMapSVG({
   highlightedSpotNum: number | null;
   onSpotClick: (spot: ParkingSpot) => void;
 }) {
-  // Convert image pixel coords to SVG viewBox coords
-  const sx = 1200 / 1374;
-  const sy = 1000 / 1145;
-
   return (
     <svg
-      viewBox="0 0 1200 1000"
+      viewBox="0 0 1374 1145"
       className="w-full h-auto"
       style={{ maxHeight: '78vh' }}
       xmlns="http://www.w3.org/2000/svg"
@@ -248,8 +199,8 @@ function ParkingMapSVG({
       <defs>
         <style>{`
           @keyframes pulseHighlight {
-            0%, 100% { stroke-opacity: 1; stroke-width: 3; }
-            50% { stroke-opacity: 0.4; stroke-width: 5; }
+            0%, 100% { stroke-opacity: 1; stroke-width: 4; }
+            50% { stroke-opacity: 0.4; stroke-width: 6; }
           }
           .spot-highlight {
             animation: pulseHighlight 1s ease-in-out infinite;
@@ -257,93 +208,17 @@ function ParkingMapSVG({
         `}</style>
       </defs>
 
-      {/* ─── Background: dark outside the lot ─── */}
-      <rect x="0" y="0" width="1200" height="1000" fill="#1a1a2e" />
-
-      {/* ─── Lot boundary (irregular polygon matching the red border in the photo) ─── */}
-      {/* Photo boundary points (approx from image): 
-          top-left: (30,80), top-right corner: (1050,80), 
-          right edge goes diagonal: (1140,150), (1170,350),
-          bottom-right curves: (1100,950), bottom: (30,950) */}
-      <polygon
-        points={`
-          ${30*sx},${80*sy}
-          ${530*sx},${80*sy}
-          ${1050*sx},${80*sy}
-          ${1160*sx},${150*sy}
-          ${1170*sx},${400*sy}
-          ${1140*sx},${700*sy}
-          ${1080*sx},${950*sy}
-          ${800*sx},${1020*sy}
-          ${30*sx},${1020*sy}
-        `}
-        fill="#5c5650"
-        stroke="#dc2626"
-        strokeWidth="3"
+      {/* ─── Background: the REAL aerial photo ─── */}
+      <image
+        href={BG_IMAGE_URL}
+        x="0"
+        y="0"
+        width="1374"
+        height="1145"
+        preserveAspectRatio="xMidYMid meet"
       />
 
-      {/* ─── NAVES / TALLER (top-left, two buildings with curved roofs) ─── */}
-      {/* Nave 1 (upper) — from image: roughly x=50-380, y=90-220 */}
-      <rect x={50*sx} y={90*sy} width={330*sx} height={120*sy} fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
-      {[0,1,2,3,4].map(i => (
-        <path key={`n1-${i}`} d={`M ${55*sx},${100*sy + i*24*sy} Q ${215*sx},${88*sy + i*24*sy} ${375*sx},${100*sy + i*24*sy}`} fill="none" stroke="#aaa" strokeWidth="1" />
-      ))}
-      {/* Nave 2 (lower) — from image: roughly x=50-380, y=230-350 */}
-      <rect x={50*sx} y={230*sy} width={330*sx} height={100*sy} fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
-      {[0,1,2,3].map(i => (
-        <path key={`n2-${i}`} d={`M ${55*sx},${240*sy + i*24*sy} Q ${215*sx},${228*sy + i*24*sy} ${375*sx},${240*sy + i*24*sy}`} fill="none" stroke="#aaa" strokeWidth="1" />
-      ))}
-
-      {/* ─── OFICINA Azul Cars (right side, glass building) ─── */}
-      {/* From image: roughly x=880-1050, y=380-580 */}
-      <rect x={880*sx} y={380*sy} width={170*sx} height={200*sy} fill="#1e293b" stroke="#475569" strokeWidth="2" rx="3" />
-      <rect x={890*sx} y={390*sy} width={150*sx} height={180*sy} fill="none" stroke="#64748b" strokeWidth="0.8" rx="2" />
-      <line x1={890*sx} y1={390*sy} x2={1040*sx} y2={570*sy} stroke="#475569" strokeWidth="0.5" opacity="0.4" />
-      <line x1={1040*sx} y1={390*sy} x2={890*sx} y2={570*sy} stroke="#475569" strokeWidth="0.5" opacity="0.4" />
-      <text x={965*sx} y={480*sy} textAnchor="middle" fill="#94a3b8" fontSize="13" fontWeight="600">OFICINA</text>
-      <text x={965*sx} y={500*sy} textAnchor="middle" fill="#64748b" fontSize="10">Azul Cars</text>
-
-      {/* ─── SUCIOS label (top, above the green spots) ─── */}
-      <rect x={480*sx} y={30*sy} width={120*sx} height={40*sy} fill="#1e293b" stroke="#fff" strokeWidth="2" rx="14" />
-      <text x={540*sx} y={56*sy} textAnchor="middle" fill="#ffffff" fontSize="14" fontWeight="700">SUCIOS</text>
-      {/* Arrow */}
-      <line x1={428*sx} y1={50*sy} x2={428*sx} y2={320*sy} stroke="#ffffff" strokeWidth="2.5" opacity="0.6" markerEnd="url(#arrowDown)" markerStart="url(#arrowUp)" />
-      <defs>
-        <marker id="arrowUp" markerWidth="8" markerHeight="8" refX="4" refY="8" orient="auto">
-          <polygon points="4,0 0,8 8,8" fill="#fff" opacity="0.6" />
-        </marker>
-        <marker id="arrowDown" markerWidth="8" markerHeight="8" refX="4" refY="0" orient="auto">
-          <polygon points="4,8 0,0 8,0" fill="#fff" opacity="0.6" />
-        </marker>
-      </defs>
-
-      {/* ─── Zone labels (dark badge with white border, matching the annotated photo) ─── */}
-      {/* Zone 8 — far left, above its column */}
-      <rect x={30*sx} y={300*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={30*sx + 16} y={300*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">8</text>
-      {/* Zone 7 — bottom of zone 7 column */}
-      <rect x={196*sx} y={800*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={196*sx + 16} y={800*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">7</text>
-      {/* Zone 6 — bottom of zone 6 column */}
-      <rect x={265*sx} y={800*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={265*sx + 16} y={800*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">6</text>
-      {/* Zone 5 — bottom of zone 5 column */}
-      <rect x={404*sx} y={800*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={404*sx + 16} y={800*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">5</text>
-      {/* Zone 4 — bottom of zone 4 column */}
-      <rect x={480*sx} y={800*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={480*sx + 16} y={800*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">4</text>
-      {/* Zone 1 — top-right */}
-      <rect x={680*sx} y={295*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={680*sx + 16} y={295*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">1</text>
-      {/* Zone 2 — center-right */}
-      <rect x={575*sx} y={490*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={575*sx + 16} y={490*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">2</text>
-      {/* Zone 3 — bottom-right */}
-      <rect x={575*sx} y={660*sy} width={32} height={26} fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="5" />
-      <text x={575*sx + 16} y={660*sy + 18} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">3</text>
-
-      {/* ─── Parking Spots ─── */}
+      {/* ─── Interactive Spot Overlays ─── */}
       {Array.from(SPOT_GEOMETRY.entries()).map(([num, rect]) => {
         const spot = spotByNumber.get(num);
         const isOccupied = spot?.status === 'occupied';
@@ -352,31 +227,37 @@ function ParkingMapSVG({
         const isSucios = num >= 111 && num <= 118;
         const isHighlighted = highlightedSpotNum === num;
 
-        let fillColor = '#1e40af'; // dark blue (matching the aerial photo)
-        let strokeColor = '#1d4ed8';
-        if (isSucios && !isOccupied) {
-          fillColor = '#65a30d'; // lime green for sucios (free)
-          strokeColor = '#4d7c0f';
-        }
+        // Default: transparent overlay (the image shows the spots already)
+        // Only show color when status changes from default
+        let fillColor = 'transparent';
+        let strokeColor = 'transparent';
+        let fillOpacity = 0;
+
         if (isOccupied) {
           fillColor = '#dc2626'; // red
           strokeColor = '#991b1b';
+          fillOpacity = 0.85;
         } else if (isBlocked) {
           fillColor = '#6b7280'; // gray
           strokeColor = '#4b5563';
+          fillOpacity = 0.8;
         } else if (isReserved) {
           fillColor = '#f59e0b'; // amber
           strokeColor = '#d97706';
+          fillOpacity = 0.8;
         }
+        // Free spots: transparent — the background image already shows them
 
-        // Label
-        let label = String(num);
+        // Label: show number for free spots, plate for occupied
+        let label = '';
         if (isOccupied && spot?.vehicle_matricula) {
           const plate = spot.vehicle_matricula;
           label = plate.length > 7 ? plate.slice(-7) : plate;
+        } else if (isOccupied || isBlocked || isReserved) {
+          label = String(num);
         }
 
-        const fontSize = isOccupied && spot?.vehicle_matricula ? 7 : 9;
+        const fontSize = isOccupied && spot?.vehicle_matricula ? 8 : 10;
 
         return (
           <g
@@ -384,44 +265,62 @@ function ParkingMapSVG({
             onClick={() => spot && onSpotClick(spot)}
             style={{ cursor: spot ? 'pointer' : 'default' }}
           >
+            {/* Clickable area (always present, transparent when free) */}
             <rect
               x={rect.x}
               y={rect.y}
               width={rect.w}
               height={rect.h}
               fill={fillColor}
+              fillOpacity={fillOpacity}
               stroke={strokeColor}
-              strokeWidth="1.2"
+              strokeWidth={fillOpacity > 0 ? 1.5 : 0}
               rx="3"
-              className="transition-opacity hover:opacity-75"
+              className="transition-all hover:opacity-80"
             />
-            {/* Highlight ring */}
+            {/* Hover indicator for free spots */}
+            {!isOccupied && !isBlocked && !isReserved && (
+              <rect
+                x={rect.x}
+                y={rect.y}
+                width={rect.w}
+                height={rect.h}
+                fill="transparent"
+                stroke="transparent"
+                strokeWidth="0"
+                rx="3"
+                className="hover:fill-white/20 hover:stroke-white/40 hover:stroke-[1.5px] transition-all"
+              />
+            )}
+            {/* Highlight ring for search */}
             {isHighlighted && (
               <rect
-                x={rect.x - 3}
-                y={rect.y - 3}
-                width={rect.w + 6}
-                height={rect.h + 6}
+                x={rect.x - 4}
+                y={rect.y - 4}
+                width={rect.w + 8}
+                height={rect.h + 8}
                 fill="none"
                 stroke="#facc15"
-                strokeWidth="3"
-                rx="5"
+                strokeWidth="4"
+                rx="6"
                 className="spot-highlight"
               />
             )}
-            {/* Label text */}
-            <text
-              x={rect.x + rect.w / 2}
-              y={rect.y + rect.h / 2 + fontSize / 3}
-              textAnchor="middle"
-              fill="#ffffff"
-              fontSize={fontSize}
-              fontWeight="700"
-              fontFamily="ui-monospace, monospace"
-              style={{ pointerEvents: 'none', userSelect: 'none' }}
-            >
-              {label}
-            </text>
+            {/* Label text (only for occupied/blocked/reserved) */}
+            {label && (
+              <text
+                x={rect.x + rect.w / 2}
+                y={rect.y + rect.h / 2 + fontSize / 3}
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize={fontSize}
+                fontWeight="700"
+                fontFamily="ui-monospace, monospace"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {label}
+              </text>
+            )}
           </g>
         );
       })}
@@ -648,7 +547,7 @@ export default function Parking() {
 
       {isLoading && <Skeleton className="h-[500px] rounded-xl" />}
 
-      {/* ─── PURE SVG PARKING MAP ─────────────────────────────────── */}
+      {/* ─── PARKING MAP WITH REAL IMAGE BACKGROUND ─────────────────── */}
       {!isLoading && overview && (
         <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
           <ParkingMapSVG

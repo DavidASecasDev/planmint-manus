@@ -1228,3 +1228,4 @@
 - [x] Parking: Rehacer SVG como CALCO EXACTO de la foto aérea anotada — 8 zonas numeradas (1-8) + Sucios, spots secuenciales por zona, proporciones y posiciones fieles al milímetro
 - [x] Parking: Corregir proporciones SVG — columnas izquierda 55% ancho, spots más anchos que altos, zonas 4-8 como columnas independientes (izq a der: 8, 7, 6, 5, 4), oficina más a la derecha
 - [x] Parking: REESCRITURA TOTAL desde 0 — coordenadas extraídas con OpenCV de la foto aérea real, calco pixel-perfect con escala uniforme 1200/1374
+- [x] Parking: Usar la IMAGEN REAL como fondo SVG con overlays interactivos transparentes encima (calco perfecto, sin inventar nada)
