@@ -1225,3 +1225,4 @@
 - [x] Parking: Usar nueva imagen del plano (foto aérea con plazas azules) como fondo y superponer plazas interactivas numeradas encima de cada rectángulo azul
 - [x] Parking: Reescribir mapa como SVG puro (sin imagen de fondo) — vectores escalables a cualquier resolución (1080p, 1440p, 4K)
 - [x] Parking: Corregir layout SVG para que coincida fielmente con la foto aérea real (naves arriba-izquierda, sucios a la derecha de naves, columnas verticales izquierda, oficina centro-derecha, borde irregular)
+- [x] Parking: Rehacer SVG como CALCO EXACTO de la foto aérea anotada — 8 zonas numeradas (1-8) + Sucios, spots secuenciales por zona, proporciones y posiciones fieles al milímetro

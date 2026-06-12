@@ -1,6 +1,7 @@
 /**
  * Parking Map — Pure SVG schematic of the Azul Cars campa.
- * Faithfully reproduces the real aerial photo layout.
+ * EXACT TRACE of the real aerial photo layout.
+ * Zones numbered 1-8 + Sucios, spots numbered sequentially.
  * No background image. All elements are SVG shapes.
  * Scales perfectly at any resolution (1080p, 1440p, 4K).
  */
@@ -78,8 +79,8 @@ interface ParkingHistoryItem {
 }
 
 // ─── SVG Spot Geometry ──────────────────────────────────────────────────────
-// ViewBox: 1000 × 1000 (square-ish, matching the real lot proportions)
-// The real campa is roughly square with a diagonal cut top-right.
+// ViewBox: 1200 × 1000 (landscape, matching the real lot proportions from aerial photo)
+// This is an EXACT TRACE of the annotated aerial photograph.
 interface SpotRect {
   x: number;
   y: number;
@@ -91,116 +92,113 @@ function buildSpotGeometry(): Map<number, SpotRect> {
   const spots = new Map<number, SpotRect>();
 
   // ─── Spot dimensions ───
-  // Horizontal spots (car pointing left/right): wider than tall
-  const hW = 48; // width
-  const hH = 24; // height
-  // Vertical spots (car pointing up/down): taller than wide
-  const vW = 28;
-  const vH = 46;
-  // Gaps
-  const gapH = 3; // horizontal gap between side-by-side spots
-  const gapV = 3; // vertical gap between stacked spots
+  // Vertical columns (zones 4-8): spots are HORIZONTAL rectangles stacked vertically
+  const colSpotW = 42; // width of a spot in vertical columns
+  const colSpotH = 36; // height of a spot in vertical columns
+  const colGapV = 5;   // vertical gap between spots in a column
+
+  // Horizontal rows (zones 1-3): spots are VERTICAL rectangles in a row
+  const rowSpotW = 32; // width of a spot in horizontal rows
+  const rowSpotH = 44; // height of a spot in horizontal rows
+  const rowGapH = 4;   // horizontal gap between spots in a row
+
+  // Sucios: vertical column of square-ish spots
+  const sucioW = 36;
+  const sucioH = 36;
+  const sucioGap = 5;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 96-110: Single column, FAR LEFT edge
-  // 15 horizontal spots stacked vertically, below the naves
-  // In the photo: leftmost column, starts at ~y=280 (below naves)
+  // ZONE 1: Spots 1-11 — Horizontal row, TOP-RIGHT
+  // Single row of 11 vertical spots going left to right
   // ═══════════════════════════════════════════════════════════════════════════
-  const x96 = 35;
-  const y96Start = 290;
-  for (let i = 0; i < 15; i++) {
-    spots.set(96 + i, {
-      x: x96,
-      y: y96Start + i * (hH + gapV),
-      w: hW,
-      h: hH,
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 70-95: Two paired columns, LEFT-CENTER
-  // 13 rows × 2 cols of horizontal spots
-  // In the photo: to the right of 96-110, with a driving lane between
-  // ═══════════════════════════════════════════════════════════════════════════
-  const x70col1 = 130;
-  const x70col2 = x70col1 + hW + gapH;
-  const y70Start = 290;
-  for (let i = 0; i < 13; i++) {
-    const y = y70Start + i * (hH + gapV);
-    spots.set(70 + i * 2, { x: x70col1, y, w: hW, h: hH });
-    spots.set(71 + i * 2, { x: x70col2, y, w: hW, h: hH });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 44-69: Two paired columns, CENTER
-  // 13 rows × 2 cols of horizontal spots
-  // In the photo: to the right of 70-95, with a driving lane between
-  // ═══════════════════════════════════════════════════════════════════════════
-  const x44col1 = 290;
-  const x44col2 = x44col1 + hW + gapH;
-  const y44Start = 290;
-  for (let i = 0; i < 13; i++) {
-    const y = y44Start + i * (hH + gapV);
-    spots.set(44 + i * 2, { x: x44col1, y, w: hW, h: hH });
-    spots.set(45 + i * 2, { x: x44col2, y, w: hW, h: hH });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 111-118: SUCIOS column
-  // 8 vertical spots, immediately to the RIGHT of the naves, top area
-  // In the photo: they run vertically from top, between naves and spot 1-11
-  // ═══════════════════════════════════════════════════════════════════════════
-  const xSucios = 345;
-  const ySuciosStart = 40;
-  for (let i = 0; i < 8; i++) {
-    spots.set(111 + i, {
-      x: xSucios,
-      y: ySuciosStart + i * (vH + gapV),
-      w: vW,
-      h: vH,
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 1-11: Horizontal row, TOP-RIGHT area
-  // 11 vertical spots in a row (car nose up/down)
-  // In the photo: spans across the top-right, above the office
-  // ═══════════════════════════════════════════════════════════════════════════
-  const x1Start = 480;
-  const y1 = 120;
+  const z1_x = 500;
+  const z1_y = 170;
   for (let i = 0; i < 11; i++) {
     spots.set(1 + i, {
-      x: x1Start + i * (vW + gapH),
-      y: y1,
-      w: vW,
-      h: vH,
+      x: z1_x + i * (rowSpotW + rowGapH),
+      y: z1_y,
+      w: rowSpotW,
+      h: rowSpotH,
     });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 12-19 & 20-27: Two rows, CENTER-RIGHT (below 1-11, left of office)
-  // 8 vertical spots per row
-  // In the photo: two rows forming a 2×8 block
+  // ZONE 2: Spots 12-27 — 2 rows × 8, CENTER-RIGHT (left of office)
   // ═══════════════════════════════════════════════════════════════════════════
-  const x12Start = 480;
-  const y12 = 380;
-  const y20 = y12 + vH + gapV;
+  const z2_x = 500;
+  const z2_y1 = 370; // top row
+  const z2_y2 = z2_y1 + rowSpotH + rowGapH; // bottom row
   for (let i = 0; i < 8; i++) {
-    spots.set(12 + i, { x: x12Start + i * (vW + gapH), y: y12, w: vW, h: vH });
-    spots.set(20 + i, { x: x12Start + i * (vW + gapH), y: y20, w: vW, h: vH });
+    spots.set(12 + i, { x: z2_x + i * (rowSpotW + rowGapH), y: z2_y1, w: rowSpotW, h: rowSpotH });
+    spots.set(20 + i, { x: z2_x + i * (rowSpotW + rowGapH), y: z2_y2, w: rowSpotW, h: rowSpotH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 28-35 & 36-43: Two rows, BOTTOM-RIGHT (below office)
-  // 8 vertical spots per row
-  // In the photo: two rows forming a 2×8 block, lower section
+  // ZONE 3: Spots 28-43 — 2 rows × 8, BOTTOM-RIGHT
   // ═══════════════════════════════════════════════════════════════════════════
-  const x28Start = 480;
-  const y28 = 620;
-  const y36 = y28 + vH + gapV;
+  const z3_x = 500;
+  const z3_y1 = 600; // top row
+  const z3_y2 = z3_y1 + rowSpotH + rowGapH; // bottom row
   for (let i = 0; i < 8; i++) {
-    spots.set(28 + i, { x: x28Start + i * (vW + gapH), y: y28, w: vW, h: vH });
-    spots.set(36 + i, { x: x28Start + i * (vW + gapH), y: y36, w: vW, h: vH });
+    spots.set(28 + i, { x: z3_x + i * (rowSpotW + rowGapH), y: z3_y1, w: rowSpotW, h: rowSpotH });
+    spots.set(36 + i, { x: z3_x + i * (rowSpotW + rowGapH), y: z3_y2, w: rowSpotW, h: rowSpotH });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LEFT-SIDE VERTICAL COLUMNS (Zones 4-8)
+  // From the aerial photo, reading RIGHT to LEFT:
+  //   Zone 4 (rightmost) + Zone 5 form a PAIR
+  //   Zone 6 + Zone 7 form a PAIR
+  //   Zone 8 is alone on the far left
+  // Each column has 13 spots EXCEPT zone 8 which has 15
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Starting Y for all left-side columns (below the naves)
+  const colStartY = 280;
+
+  // Zone 4: rightmost column of the right pair (13 spots)
+  const z4_x = 345;
+  for (let i = 0; i < 13; i++) {
+    spots.set(44 + i, { x: z4_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 5: left column of the right pair (13 spots)
+  const z5_x = z4_x - colSpotW - 6; // small gap between paired columns
+  for (let i = 0; i < 13; i++) {
+    spots.set(57 + i, { x: z5_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 6: right column of the left pair (13 spots)
+  const z6_x = z5_x - colSpotW - 40; // driving lane between pairs
+  for (let i = 0; i < 13; i++) {
+    spots.set(70 + i, { x: z6_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 7: left column of the left pair (13 spots)
+  const z7_x = z6_x - colSpotW - 6; // small gap between paired columns
+  for (let i = 0; i < 13; i++) {
+    spots.set(83 + i, { x: z7_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // Zone 8: single column, far left (15 spots)
+  const z8_x = z7_x - colSpotW - 40; // driving lane
+  for (let i = 0; i < 15; i++) {
+    spots.set(96 + i, { x: z8_x, y: colStartY + i * (colSpotH + colGapV), w: colSpotW, h: colSpotH });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SUCIOS: Spots 111-118 — Vertical column, between naves and right area
+  // 8 spots in green, top area
+  // ═══════════════════════════════════════════════════════════════════════════
+  const zS_x = 370;
+  const zS_y = 35;
+  for (let i = 0; i < 8; i++) {
+    spots.set(111 + i, {
+      x: zS_x,
+      y: zS_y + i * (sucioH + sucioGap),
+      w: sucioW,
+      h: sucioH,
+    });
   }
 
   return spots;
@@ -220,7 +218,7 @@ function ParkingMapSVG({
 }) {
   return (
     <svg
-      viewBox="0 0 1000 1000"
+      viewBox="0 0 1200 1000"
       className="w-full h-auto"
       style={{ maxHeight: '78vh' }}
       xmlns="http://www.w3.org/2000/svg"
@@ -238,92 +236,80 @@ function ParkingMapSVG({
         `}</style>
       </defs>
 
-      {/* ─── Background: asphalt ─── */}
-      <rect x="0" y="0" width="1000" height="1000" fill="#4a4a4a" rx="6" />
+      {/* ─── Background: concrete/asphalt ground ─── */}
+      <rect x="0" y="0" width="1200" height="1000" fill="#5c5c52" />
 
-      {/* ─── Lot boundary (irregular polygon matching the real shape) ─── */}
+      {/* ─── Lot boundary (irregular polygon - red border like the photo) ─── */}
       <polygon
-        points="20,20 320,20 420,20 900,20 980,80 980,950 20,980"
-        fill="#6b6b60"
+        points="25,20 380,20 420,20 950,20 1100,80 1100,850 1050,950 25,950"
+        fill="#7a7568"
         stroke="#dc2626"
         strokeWidth="3"
-        opacity="0.3"
-      />
-      {/* Actual ground fill */}
-      <polygon
-        points="20,20 900,20 970,70 970,950 20,970"
-        fill="#8b8578"
-        stroke="#dc2626"
-        strokeWidth="2.5"
       />
 
-      {/* ─── Buildings / NAVES (top-left) ─── */}
-      {/* Nave superior */}
-      <rect x="35" y="35" width="270" height="100" fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
-      {/* Curved roof lines */}
-      <path d="M 35,55 Q 170,35 305,55" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      <path d="M 35,75 Q 170,55 305,75" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      <path d="M 35,95 Q 170,75 305,95" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      <path d="M 35,115 Q 170,95 305,115" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      {/* Nave inferior */}
-      <rect x="35" y="145" width="270" height="100" fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
-      <path d="M 35,165 Q 170,145 305,165" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      <path d="M 35,185 Q 170,165 305,185" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      <path d="M 35,205 Q 170,185 305,205" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      <path d="M 35,225 Q 170,205 305,225" fill="none" stroke="#aaa" strokeWidth="1.2" />
-      {/* Label */}
-      <text x="170" y="95" textAnchor="middle" fill="#ddd" fontSize="14" fontWeight="600">NAVES / TALLER</text>
+      {/* ─── NAVES / TALLER (top-left, two buildings with curved roofs) ─── */}
+      {/* Nave 1 (upper) */}
+      <rect x="35" y="30" width="300" height="100" fill="#8a8a8a" stroke="#aaa" strokeWidth="1.5" rx="2" />
+      <path d="M 40,45 Q 185,30 330,45" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,65 Q 185,50 330,65" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,85 Q 185,70 330,85" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,105 Q 185,90 330,105" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,120 Q 185,105 330,120" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      {/* Nave 2 (lower) */}
+      <rect x="35" y="140" width="300" height="100" fill="#8a8a8a" stroke="#aaa" strokeWidth="1.5" rx="2" />
+      <path d="M 40,155 Q 185,140 330,155" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,175 Q 185,160 330,175" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,195 Q 185,180 330,195" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,215 Q 185,200 330,215" fill="none" stroke="#bbb" strokeWidth="1.5" />
+      <path d="M 40,230 Q 185,215 330,230" fill="none" stroke="#bbb" strokeWidth="1.5" />
 
-      {/* ─── Sucios zone label ─── */}
-      <rect x="335" y="22" width="48" height="14" fill="#92400e" rx="2" />
-      <text x="359" y="33" textAnchor="middle" fill="#fef3c7" fontSize="8" fontWeight="700">SUCIOS</text>
+      {/* ─── OFICINA Azul Cars (center-right, glass building) ─── */}
+      <rect x="830" y="290" width="150" height="160" fill="#1e293b" stroke="#475569" strokeWidth="2" rx="3" />
+      <rect x="840" y="300" width="130" height="140" fill="none" stroke="#64748b" strokeWidth="0.8" rx="2" />
+      <line x1="840" y1="300" x2="970" y2="440" stroke="#475569" strokeWidth="0.5" opacity="0.5" />
+      <line x1="970" y1="300" x2="840" y2="440" stroke="#475569" strokeWidth="0.5" opacity="0.5" />
+      <text x="905" y="370" textAnchor="middle" fill="#94a3b8" fontSize="14" fontWeight="600">OFICINA</text>
+      <text x="905" y="392" textAnchor="middle" fill="#64748b" fontSize="11">Azul Cars</text>
 
-      {/* ─── Oficina Azul Cars (center-right, glass building) ─── */}
-      <rect x="740" y="340" width="130" height="130" fill="#1a2e44" stroke="#4a90d9" strokeWidth="2" rx="3" />
-      {/* Glass effect */}
-      <rect x="750" y="350" width="110" height="110" fill="none" stroke="#6ab0f3" strokeWidth="0.8" rx="2" />
-      <line x1="750" y1="350" x2="860" y2="460" stroke="#4a90d9" strokeWidth="0.5" opacity="0.4" />
-      <line x1="860" y1="350" x2="750" y2="460" stroke="#4a90d9" strokeWidth="0.5" opacity="0.4" />
-      <text x="805" y="400" textAnchor="middle" fill="#93c5fd" fontSize="12" fontWeight="600">OFICINA</text>
-      <text x="805" y="418" textAnchor="middle" fill="#bfdbfe" fontSize="10">Azul Cars</text>
+      {/* ─── SUCIOS label (top, above the green spots) ─── */}
+      <rect x="350" y="5" width="80" height="24" fill="#1e293b" stroke="#fff" strokeWidth="1.5" rx="12" />
+      <text x="390" y="21" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="700">SUCIOS</text>
+      {/* Arrow indicating direction */}
+      <line x1="390" y1="32" x2="390" y2="365" stroke="#ffffff" strokeWidth="2" markerEnd="url(#arrowDown)" markerStart="url(#arrowUp)" opacity="0.6" />
+      <defs>
+        <marker id="arrowDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <path d="M 1,1 L 4,7 L 7,1" fill="none" stroke="#fff" strokeWidth="1.5" />
+        </marker>
+        <marker id="arrowUp" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <path d="M 1,7 L 4,1 L 7,7" fill="none" stroke="#fff" strokeWidth="1.5" />
+        </marker>
+      </defs>
 
-      {/* ─── Exit / SALIDA (bottom-center) ─── */}
-      <rect x="420" y="900" width="140" height="40" fill="#065f46" stroke="#34d399" strokeWidth="1.5" rx="4" />
-      <text x="490" y="924" textAnchor="middle" fill="#a7f3d0" fontSize="13" fontWeight="700">SALIDA ↓</text>
-
-      {/* ─── Road: Camí Fondo (right edge) ─── */}
-      <rect x="940" y="60" width="50" height="900" fill="#3d3d3d" stroke="#555" strokeWidth="1" rx="2" />
-      <text x="965" y="500" textAnchor="middle" fill="#999" fontSize="10" fontWeight="500"
-        transform="rotate(90, 965, 500)">CAMÍ FONDO</text>
-
-      {/* ─── Road: Son Maiferit (bottom edge) ─── */}
-      <rect x="20" y="955" width="920" height="30" fill="#3d3d3d" stroke="#555" strokeWidth="1" rx="2" />
-      <text x="490" y="974" textAnchor="middle" fill="#999" fontSize="10" fontWeight="500">SON MAIFERIT</text>
-
-      {/* ─── Driving lanes (dashed) ─── */}
-      {/* Horizontal lane below naves */}
-      <line x1="20" y1="265" x2="940" y2="265" stroke="#aaa" strokeWidth="0.8" strokeDasharray="8 4" opacity="0.5" />
-      {/* Vertical lane between 96 and 70-95 */}
-      <line x1="100" y1="275" x2="100" y2="700" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
-      {/* Vertical lane between 70-95 and 44-69 */}
-      <line x1="255" y1="275" x2="255" y2="700" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
-      {/* Vertical lane between 44-69 and right section */}
-      <line x1="410" y1="275" x2="410" y2="700" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
-      {/* Horizontal lane between 1-11 and 12-27 */}
-      <line x1="460" y1="200" x2="900" y2="200" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
-
-      {/* ─── Zone labels ─── */}
-      <text x="59" y="280" fill="#ccc" fontSize="9" fontWeight="500">96-110</text>
-      <text x="175" y="280" fill="#ccc" fontSize="9" fontWeight="500">70-95</text>
-      <text x="335" y="280" fill="#ccc" fontSize="9" fontWeight="500">44-69</text>
-      <text x="620" y="110" fill="#ccc" fontSize="9" fontWeight="500">1-11</text>
-      <text x="580" y="370" fill="#ccc" fontSize="9" fontWeight="500">12-27</text>
-      <text x="580" y="610" fill="#ccc" fontSize="9" fontWeight="500">28-43</text>
-
-      {/* ─── Decorative elements (trees/bushes along bottom) ─── */}
-      {[350, 430, 510, 590, 670, 750, 830].map((cx, i) => (
-        <circle key={`tree-${i}`} cx={cx} cy={870} r="7" fill="#2d5a27" opacity="0.5" />
-      ))}
+      {/* ─── Zone labels (matching the annotated photo style) ─── */}
+      {/* Zone 1 */}
+      <rect x="488" y="148" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="500" y="163" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">1</text>
+      {/* Zone 2 */}
+      <rect x="488" y="348" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="500" y="363" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">2</text>
+      {/* Zone 3 */}
+      <rect x="488" y="578" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="500" y="593" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">3</text>
+      {/* Zone 4 */}
+      <rect x="354" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="366" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">4</text>
+      {/* Zone 5 */}
+      <rect x="306" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="318" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">5</text>
+      {/* Zone 6 */}
+      <rect x="218" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="230" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">6</text>
+      {/* Zone 7 */}
+      <rect x="170" y="820" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="182" y="835" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">7</text>
+      {/* Zone 8 */}
+      <rect x="30" y="260" width="24" height="20" fill="#1e293b" stroke="#fff" strokeWidth="1" rx="3" />
+      <text x="42" y="275" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">8</text>
 
       {/* ─── Parking Spots ─── */}
       {Array.from(SPOT_GEOMETRY.entries()).map(([num, rect]) => {
@@ -331,10 +317,15 @@ function ParkingMapSVG({
         const isOccupied = spot?.status === 'occupied';
         const isBlocked = spot?.status === 'blocked';
         const isReserved = spot?.status === 'reserved';
+        const isSucios = num >= 111 && num <= 118;
         const isHighlighted = highlightedSpotNum === num;
 
-        let fillColor = '#2563eb'; // blue (matching the aerial photo style)
+        let fillColor = '#1e40af'; // dark blue (matching the aerial photo)
         let strokeColor = '#1d4ed8';
+        if (isSucios && !isOccupied) {
+          fillColor = '#65a30d'; // lime green for sucios (free)
+          strokeColor = '#4d7c0f';
+        }
         if (isOccupied) {
           fillColor = '#dc2626'; // red
           strokeColor = '#991b1b';
@@ -346,18 +337,14 @@ function ParkingMapSVG({
           strokeColor = '#d97706';
         }
 
-        // Determine text content
+        // Label
         let label = String(num);
         if (isOccupied && spot?.vehicle_matricula) {
           const plate = spot.vehicle_matricula;
           label = plate.length > 7 ? plate.slice(-7) : plate;
         }
 
-        // Font size based on spot orientation and content
-        const isVertical = rect.h > rect.w;
-        const fontSize = isOccupied && spot?.vehicle_matricula
-          ? (isVertical ? 7 : 7.5)
-          : (isVertical ? 9 : 9);
+        const fontSize = isOccupied && spot?.vehicle_matricula ? 7 : 9;
 
         return (
           <g
@@ -372,8 +359,8 @@ function ParkingMapSVG({
               height={rect.h}
               fill={fillColor}
               stroke={strokeColor}
-              strokeWidth="1"
-              rx="2"
+              strokeWidth="1.2"
+              rx="3"
               className="transition-opacity hover:opacity-75"
             />
             {/* Highlight ring */}
@@ -386,7 +373,7 @@ function ParkingMapSVG({
                 fill="none"
                 stroke="#facc15"
                 strokeWidth="3"
-                rx="4"
+                rx="5"
                 className="spot-highlight"
               />
             )}
@@ -641,12 +628,16 @@ export default function Parking() {
           {/* Legend */}
           <div className="flex items-center gap-5 px-4 py-2.5 bg-white dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#2563eb' }} />
+              <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#1e40af' }} />
               <span>Libre</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-3 rounded-sm bg-red-600" />
               <span>Ocupada</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#65a30d' }} />
+              <span>Sucios</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-3 rounded-sm bg-amber-500" />
