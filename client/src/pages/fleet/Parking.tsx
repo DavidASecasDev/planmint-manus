@@ -1,5 +1,6 @@
 /**
  * Parking Map — Pure SVG schematic of the Azul Cars campa.
+ * Faithfully reproduces the real aerial photo layout.
  * No background image. All elements are SVG shapes.
  * Scales perfectly at any resolution (1080p, 1440p, 4K).
  */
@@ -77,8 +78,8 @@ interface ParkingHistoryItem {
 }
 
 // ─── SVG Spot Geometry ──────────────────────────────────────────────────────
-// ViewBox: 1200 × 820 (landscape)
-// All coordinates are in SVG units (not percentages).
+// ViewBox: 1000 × 1000 (square-ish, matching the real lot proportions)
+// The real campa is roughly square with a diagonal cut top-right.
 interface SpotRect {
   x: number;
   y: number;
@@ -89,62 +90,87 @@ interface SpotRect {
 function buildSpotGeometry(): Map<number, SpotRect> {
   const spots = new Map<number, SpotRect>();
 
-  // Spot sizes
-  const hW = 52; // horizontal spot width
-  const hH = 26; // horizontal spot height
-  const vW = 30; // vertical spot width
-  const vH = 50; // vertical spot height
-  const gap = 3; // gap between spots
+  // ─── Spot dimensions ───
+  // Horizontal spots (car pointing left/right): wider than tall
+  const hW = 48; // width
+  const hH = 24; // height
+  // Vertical spots (car pointing up/down): taller than wide
+  const vW = 28;
+  const vH = 46;
+  // Gaps
+  const gapH = 3; // horizontal gap between side-by-side spots
+  const gapV = 3; // vertical gap between stacked spots
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 96-110: Single column, far left, horizontal orientation
-  // 15 spots stacked vertically
+  // SPOTS 96-110: Single column, FAR LEFT edge
+  // 15 horizontal spots stacked vertically, below the naves
+  // In the photo: leftmost column, starts at ~y=280 (below naves)
   // ═══════════════════════════════════════════════════════════════════════════
-  const x96 = 30;
-  const y96Start = 220;
+  const x96 = 35;
+  const y96Start = 290;
   for (let i = 0; i < 15; i++) {
     spots.set(96 + i, {
       x: x96,
-      y: y96Start + i * (hH + gap),
+      y: y96Start + i * (hH + gapV),
       w: hW,
       h: hH,
     });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 70-95: Two paired columns, left-center, horizontal orientation
-  // Pairs: 70,71 / 72,73 / ... / 94,95 (13 rows × 2 cols)
+  // SPOTS 70-95: Two paired columns, LEFT-CENTER
+  // 13 rows × 2 cols of horizontal spots
+  // In the photo: to the right of 96-110, with a driving lane between
   // ═══════════════════════════════════════════════════════════════════════════
-  const x70col1 = 120;
-  const x70col2 = x70col1 + hW + gap;
-  const y70Start = 220;
+  const x70col1 = 130;
+  const x70col2 = x70col1 + hW + gapH;
+  const y70Start = 290;
   for (let i = 0; i < 13; i++) {
-    const y = y70Start + i * (hH + gap);
+    const y = y70Start + i * (hH + gapV);
     spots.set(70 + i * 2, { x: x70col1, y, w: hW, h: hH });
     spots.set(71 + i * 2, { x: x70col2, y, w: hW, h: hH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 44-69: Two paired columns, center-left, horizontal orientation
-  // Pairs: 44,45 / 46,47 / ... / 68,69 (13 rows × 2 cols)
+  // SPOTS 44-69: Two paired columns, CENTER
+  // 13 rows × 2 cols of horizontal spots
+  // In the photo: to the right of 70-95, with a driving lane between
   // ═══════════════════════════════════════════════════════════════════════════
-  const x44col1 = 280;
-  const x44col2 = x44col1 + hW + gap;
-  const y44Start = 220;
+  const x44col1 = 290;
+  const x44col2 = x44col1 + hW + gapH;
+  const y44Start = 290;
   for (let i = 0; i < 13; i++) {
-    const y = y44Start + i * (hH + gap);
+    const y = y44Start + i * (hH + gapV);
     spots.set(44 + i * 2, { x: x44col1, y, w: hW, h: hH });
     spots.set(45 + i * 2, { x: x44col2, y, w: hW, h: hH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 1-11: Horizontal row of vertical spots, top-right area
+  // SPOTS 111-118: SUCIOS column
+  // 8 vertical spots, immediately to the RIGHT of the naves, top area
+  // In the photo: they run vertically from top, between naves and spot 1-11
   // ═══════════════════════════════════════════════════════════════════════════
-  const x1Start = 540;
-  const y1 = 160;
+  const xSucios = 345;
+  const ySuciosStart = 40;
+  for (let i = 0; i < 8; i++) {
+    spots.set(111 + i, {
+      x: xSucios,
+      y: ySuciosStart + i * (vH + gapV),
+      w: vW,
+      h: vH,
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPOTS 1-11: Horizontal row, TOP-RIGHT area
+  // 11 vertical spots in a row (car nose up/down)
+  // In the photo: spans across the top-right, above the office
+  // ═══════════════════════════════════════════════════════════════════════════
+  const x1Start = 480;
+  const y1 = 120;
   for (let i = 0; i < 11; i++) {
     spots.set(1 + i, {
-      x: x1Start + i * (vW + gap),
+      x: x1Start + i * (vW + gapH),
       y: y1,
       w: vW,
       h: vH,
@@ -152,40 +178,29 @@ function buildSpotGeometry(): Map<number, SpotRect> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 12-19 & 20-27: Two rows of vertical spots, center-right
+  // SPOTS 12-19 & 20-27: Two rows, CENTER-RIGHT (below 1-11, left of office)
+  // 8 vertical spots per row
+  // In the photo: two rows forming a 2×8 block
   // ═══════════════════════════════════════════════════════════════════════════
-  const x12Start = 540;
-  const y12 = 310;
-  const y20 = y12 + vH + gap;
+  const x12Start = 480;
+  const y12 = 380;
+  const y20 = y12 + vH + gapV;
   for (let i = 0; i < 8; i++) {
-    spots.set(12 + i, { x: x12Start + i * (vW + gap), y: y12, w: vW, h: vH });
-    spots.set(20 + i, { x: x12Start + i * (vW + gap), y: y20, w: vW, h: vH });
+    spots.set(12 + i, { x: x12Start + i * (vW + gapH), y: y12, w: vW, h: vH });
+    spots.set(20 + i, { x: x12Start + i * (vW + gapH), y: y20, w: vW, h: vH });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 28-35 & 36-43: Two rows of vertical spots, bottom-right
+  // SPOTS 28-35 & 36-43: Two rows, BOTTOM-RIGHT (below office)
+  // 8 vertical spots per row
+  // In the photo: two rows forming a 2×8 block, lower section
   // ═══════════════════════════════════════════════════════════════════════════
-  const x28Start = 540;
-  const y28 = 490;
-  const y36 = y28 + vH + gap;
+  const x28Start = 480;
+  const y28 = 620;
+  const y36 = y28 + vH + gapV;
   for (let i = 0; i < 8; i++) {
-    spots.set(28 + i, { x: x28Start + i * (vW + gap), y: y28, w: vW, h: vH });
-    spots.set(36 + i, { x: x28Start + i * (vW + gap), y: y36, w: vW, h: vH });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SPOTS 111-118: Sucios column, between naves, near top-center
-  // Horizontal orientation, stacked vertically
-  // ═══════════════════════════════════════════════════════════════════════════
-  const xSucios = 380;
-  const ySuciosStart = 55;
-  for (let i = 0; i < 8; i++) {
-    spots.set(111 + i, {
-      x: xSucios,
-      y: ySuciosStart + i * (hH + gap),
-      w: hW,
-      h: hH,
-    });
+    spots.set(28 + i, { x: x28Start + i * (vW + gapH), y: y28, w: vW, h: vH });
+    spots.set(36 + i, { x: x28Start + i * (vW + gapH), y: y36, w: vW, h: vH });
   }
 
   return spots;
@@ -205,12 +220,12 @@ function ParkingMapSVG({
 }) {
   return (
     <svg
-      viewBox="0 0 1200 820"
+      viewBox="0 0 1000 1000"
       className="w-full h-auto"
-      style={{ maxHeight: '75vh' }}
+      style={{ maxHeight: '78vh' }}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* ─── Defs: highlight animation ─── */}
+      {/* ─── Defs ─── */}
       <defs>
         <style>{`
           @keyframes pulseHighlight {
@@ -224,73 +239,90 @@ function ParkingMapSVG({
       </defs>
 
       {/* ─── Background: asphalt ─── */}
-      <rect x="0" y="0" width="1200" height="820" fill="#374151" rx="8" />
+      <rect x="0" y="0" width="1000" height="1000" fill="#4a4a4a" rx="6" />
 
-      {/* ─── Lot boundary ─── */}
-      <rect
-        x="15" y="15" width="1170" height="790"
-        fill="none" stroke="#6b7280" strokeWidth="2" strokeDasharray="8 4" rx="6"
+      {/* ─── Lot boundary (irregular polygon matching the real shape) ─── */}
+      <polygon
+        points="20,20 320,20 420,20 900,20 980,80 980,950 20,980"
+        fill="#6b6b60"
+        stroke="#dc2626"
+        strokeWidth="3"
+        opacity="0.3"
+      />
+      {/* Actual ground fill */}
+      <polygon
+        points="20,20 900,20 970,70 970,950 20,970"
+        fill="#8b8578"
+        stroke="#dc2626"
+        strokeWidth="2.5"
       />
 
-      {/* ─── Buildings / Naves (top) ─── */}
-      <rect x="30" y="30" width="340" height="160" fill="#4b5563" stroke="#9ca3af" strokeWidth="1.5" rx="3" />
-      <text x="200" y="115" textAnchor="middle" fill="#d1d5db" fontSize="14" fontWeight="600">NAVES / TALLER</text>
-      {/* Roof pattern */}
-      <line x1="30" y1="30" x2="200" y2="110" stroke="#6b7280" strokeWidth="0.8" />
-      <line x1="200" y1="110" x2="370" y2="30" stroke="#6b7280" strokeWidth="0.8" />
-      <line x1="30" y1="110" x2="200" y2="190" stroke="#6b7280" strokeWidth="0.8" />
-      <line x1="200" y1="190" x2="370" y2="110" stroke="#6b7280" strokeWidth="0.8" />
+      {/* ─── Buildings / NAVES (top-left) ─── */}
+      {/* Nave superior */}
+      <rect x="35" y="35" width="270" height="100" fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
+      {/* Curved roof lines */}
+      <path d="M 35,55 Q 170,35 305,55" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 35,75 Q 170,55 305,75" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 35,95 Q 170,75 305,95" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 35,115 Q 170,95 305,115" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      {/* Nave inferior */}
+      <rect x="35" y="145" width="270" height="100" fill="#7a7a7a" stroke="#999" strokeWidth="1.5" rx="2" />
+      <path d="M 35,165 Q 170,145 305,165" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 35,185 Q 170,165 305,185" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 35,205 Q 170,185 305,205" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      <path d="M 35,225 Q 170,205 305,225" fill="none" stroke="#aaa" strokeWidth="1.2" />
+      {/* Label */}
+      <text x="170" y="95" textAnchor="middle" fill="#ddd" fontSize="14" fontWeight="600">NAVES / TALLER</text>
 
       {/* ─── Sucios zone label ─── */}
-      <rect x="370" y="30" width="70" height="18" fill="#92400e" rx="3" />
-      <text x="405" y="43" textAnchor="middle" fill="#fef3c7" fontSize="9" fontWeight="700">SUCIOS</text>
+      <rect x="335" y="22" width="48" height="14" fill="#92400e" rx="2" />
+      <text x="359" y="33" textAnchor="middle" fill="#fef3c7" fontSize="8" fontWeight="700">SUCIOS</text>
 
-      {/* ─── Oficina Azul Cars ─── */}
-      <rect x="820" y="280" width="140" height="80" fill="#1e3a5f" stroke="#60a5fa" strokeWidth="1.5" rx="4" />
-      <text x="890" y="315" textAnchor="middle" fill="#93c5fd" fontSize="11" fontWeight="600">OFICINA</text>
-      <text x="890" y="332" textAnchor="middle" fill="#bfdbfe" fontSize="10">Azul Cars</text>
+      {/* ─── Oficina Azul Cars (center-right, glass building) ─── */}
+      <rect x="740" y="340" width="130" height="130" fill="#1a2e44" stroke="#4a90d9" strokeWidth="2" rx="3" />
+      {/* Glass effect */}
+      <rect x="750" y="350" width="110" height="110" fill="none" stroke="#6ab0f3" strokeWidth="0.8" rx="2" />
+      <line x1="750" y1="350" x2="860" y2="460" stroke="#4a90d9" strokeWidth="0.5" opacity="0.4" />
+      <line x1="860" y1="350" x2="750" y2="460" stroke="#4a90d9" strokeWidth="0.5" opacity="0.4" />
+      <text x="805" y="400" textAnchor="middle" fill="#93c5fd" fontSize="12" fontWeight="600">OFICINA</text>
+      <text x="805" y="418" textAnchor="middle" fill="#bfdbfe" fontSize="10">Azul Cars</text>
 
       {/* ─── Exit / SALIDA (bottom-center) ─── */}
-      <rect x="530" y="740" width="120" height="40" fill="#065f46" stroke="#34d399" strokeWidth="1.5" rx="4" />
-      <text x="590" y="763" textAnchor="middle" fill="#a7f3d0" fontSize="12" fontWeight="700">SALIDA ↓</text>
-      {/* Arrow */}
-      <polygon points="580,785 600,800 590,800 590,810 570,810 570,800 560,800" fill="#34d399" opacity="0.7" />
+      <rect x="420" y="900" width="140" height="40" fill="#065f46" stroke="#34d399" strokeWidth="1.5" rx="4" />
+      <text x="490" y="924" textAnchor="middle" fill="#a7f3d0" fontSize="13" fontWeight="700">SALIDA ↓</text>
 
-      {/* ─── Road: Camí Fondo (right side) ─── */}
-      <rect x="1050" y="30" width="120" height="760" fill="#1f2937" stroke="#4b5563" strokeWidth="1" rx="3" />
-      <text x="1110" y="420" textAnchor="middle" fill="#9ca3af" fontSize="11" fontWeight="500"
-        transform="rotate(90, 1110, 420)">CAMÍ FONDO</text>
+      {/* ─── Road: Camí Fondo (right edge) ─── */}
+      <rect x="940" y="60" width="50" height="900" fill="#3d3d3d" stroke="#555" strokeWidth="1" rx="2" />
+      <text x="965" y="500" textAnchor="middle" fill="#999" fontSize="10" fontWeight="500"
+        transform="rotate(90, 965, 500)">CAMÍ FONDO</text>
 
-      {/* ─── Road: Son Maiferit (bottom) ─── */}
-      <rect x="30" y="780" width="1000" height="25" fill="#1f2937" stroke="#4b5563" strokeWidth="1" rx="3" />
-      <text x="530" y="797" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="500">SON MAIFERIT</text>
+      {/* ─── Road: Son Maiferit (bottom edge) ─── */}
+      <rect x="20" y="955" width="920" height="30" fill="#3d3d3d" stroke="#555" strokeWidth="1" rx="2" />
+      <text x="490" y="974" textAnchor="middle" fill="#999" fontSize="10" fontWeight="500">SON MAIFERIT</text>
 
-      {/* ─── Driving lanes (dashed lines) ─── */}
-      {/* Horizontal lane between naves and parking */}
-      <line x1="30" y1="200" x2="1040" y2="200" stroke="#6b7280" strokeWidth="1" strokeDasharray="6 4" />
-      {/* Vertical lane between columns 96 and 70-95 */}
-      <line x1="95" y1="210" x2="95" y2="660" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
+      {/* ─── Driving lanes (dashed) ─── */}
+      {/* Horizontal lane below naves */}
+      <line x1="20" y1="265" x2="940" y2="265" stroke="#aaa" strokeWidth="0.8" strokeDasharray="8 4" opacity="0.5" />
+      {/* Vertical lane between 96 and 70-95 */}
+      <line x1="100" y1="275" x2="100" y2="700" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
       {/* Vertical lane between 70-95 and 44-69 */}
-      <line x1="240" y1="210" x2="240" y2="660" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
-      {/* Vertical lane between 44-69 and right blocks */}
-      <line x1="400" y1="210" x2="400" y2="660" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
-      {/* Horizontal lane below spots 1-11 */}
-      <line x1="530" y1="220" x2="920" y2="220" stroke="#6b7280" strokeWidth="0.8" strokeDasharray="4 3" />
+      <line x1="255" y1="275" x2="255" y2="700" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
+      {/* Vertical lane between 44-69 and right section */}
+      <line x1="410" y1="275" x2="410" y2="700" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
+      {/* Horizontal lane between 1-11 and 12-27 */}
+      <line x1="460" y1="200" x2="900" y2="200" stroke="#aaa" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.4" />
 
       {/* ─── Zone labels ─── */}
-      <text x="56" y="210" fill="#9ca3af" fontSize="8" fontWeight="500">96-110</text>
-      <text x="155" y="210" fill="#9ca3af" fontSize="8" fontWeight="500">70-95</text>
-      <text x="310" y="210" fill="#9ca3af" fontSize="8" fontWeight="500">44-69</text>
-      <text x="680" y="150" fill="#9ca3af" fontSize="8" fontWeight="500">1-11</text>
-      <text x="640" y="300" fill="#9ca3af" fontSize="8" fontWeight="500">12-27</text>
-      <text x="640" y="480" fill="#9ca3af" fontSize="8" fontWeight="500">28-43</text>
+      <text x="59" y="280" fill="#ccc" fontSize="9" fontWeight="500">96-110</text>
+      <text x="175" y="280" fill="#ccc" fontSize="9" fontWeight="500">70-95</text>
+      <text x="335" y="280" fill="#ccc" fontSize="9" fontWeight="500">44-69</text>
+      <text x="620" y="110" fill="#ccc" fontSize="9" fontWeight="500">1-11</text>
+      <text x="580" y="370" fill="#ccc" fontSize="9" fontWeight="500">12-27</text>
+      <text x="580" y="610" fill="#ccc" fontSize="9" fontWeight="500">28-43</text>
 
-      {/* ─── Decorative trees ─── */}
-      {[
-        [980, 200], [1000, 350], [980, 500], [1000, 650],
-        [450, 700], [550, 700], [650, 700], [750, 700],
-      ].map(([cx, cy], i) => (
-        <circle key={`tree-${i}`} cx={cx} cy={cy} r="8" fill="#166534" opacity="0.6" />
+      {/* ─── Decorative elements (trees/bushes along bottom) ─── */}
+      {[350, 430, 510, 590, 670, 750, 830].map((cx, i) => (
+        <circle key={`tree-${i}`} cx={cx} cy={870} r="7" fill="#2d5a27" opacity="0.5" />
       ))}
 
       {/* ─── Parking Spots ─── */}
@@ -301,17 +333,17 @@ function ParkingMapSVG({
         const isReserved = spot?.status === 'reserved';
         const isHighlighted = highlightedSpotNum === num;
 
-        let fillColor = '#22c55e'; // green (free)
-        let strokeColor = '#16a34a';
+        let fillColor = '#2563eb'; // blue (matching the aerial photo style)
+        let strokeColor = '#1d4ed8';
         if (isOccupied) {
-          fillColor = '#dc2626';
+          fillColor = '#dc2626'; // red
           strokeColor = '#991b1b';
         } else if (isBlocked) {
-          fillColor = '#6b7280';
+          fillColor = '#6b7280'; // gray
           strokeColor = '#4b5563';
         } else if (isReserved) {
-          fillColor = '#3b82f6';
-          strokeColor = '#1d4ed8';
+          fillColor = '#f59e0b'; // amber
+          strokeColor = '#d97706';
         }
 
         // Determine text content
@@ -321,18 +353,17 @@ function ParkingMapSVG({
           label = plate.length > 7 ? plate.slice(-7) : plate;
         }
 
-        // Font size based on spot orientation
-        const isHorizontal = rect.w > rect.h;
+        // Font size based on spot orientation and content
+        const isVertical = rect.h > rect.w;
         const fontSize = isOccupied && spot?.vehicle_matricula
-          ? (isHorizontal ? 8 : 7)
-          : (isHorizontal ? 9 : 8);
+          ? (isVertical ? 7 : 7.5)
+          : (isVertical ? 9 : 9);
 
         return (
           <g
             key={num}
             onClick={() => spot && onSpotClick(spot)}
             style={{ cursor: spot ? 'pointer' : 'default' }}
-            className="transition-opacity hover:opacity-80"
           >
             <rect
               x={rect.x}
@@ -341,8 +372,9 @@ function ParkingMapSVG({
               height={rect.h}
               fill={fillColor}
               stroke={strokeColor}
-              strokeWidth="1.2"
+              strokeWidth="1"
               rx="2"
+              className="transition-opacity hover:opacity-75"
             />
             {/* Highlight ring */}
             {isHighlighted && (
@@ -367,7 +399,7 @@ function ParkingMapSVG({
               fontSize={fontSize}
               fontWeight="700"
               fontFamily="ui-monospace, monospace"
-              style={{ pointerEvents: 'none' }}
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
             >
               {label}
             </text>
@@ -609,7 +641,7 @@ export default function Parking() {
           {/* Legend */}
           <div className="flex items-center gap-5 px-4 py-2.5 bg-white dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded-sm bg-green-500 border border-green-600" />
+              <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#2563eb' }} />
               <span>Libre</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -617,7 +649,7 @@ export default function Parking() {
               <span>Ocupada</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded-sm bg-blue-500" />
+              <div className="w-4 h-3 rounded-sm bg-amber-500" />
               <span>Reservada</span>
             </div>
             <div className="flex items-center gap-1.5">
