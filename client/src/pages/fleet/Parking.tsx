@@ -691,14 +691,18 @@ function AssignSpotDialog({
     setMatricula('');
     apiInvoke<{ data: any[] }>('supabase-query', {
       body: {
-        table: 'vehicles',
+        table: 'fleet_vehicles',
         operation: 'select',
-        select: 'id, matricula, modelo, status',
-        filters: { is_archived: false },
+        select: 'id, matricula, modelo, marca, status',
+        order: [{ column: 'matricula', ascending: true }],
       },
     }).then(result => {
       if (result.data?.data) {
-        setVehicles(result.data.data.filter((v: any) => v.status === 'limpio' || v.status === 'sucio' || v.status === 'incompleto'));
+        setVehicles(result.data.data.map((v: any) => ({
+          id: v.id,
+          matricula: v.matricula,
+          modelo: v.marca && v.modelo ? `${v.marca} ${v.modelo}` : (v.modelo || v.marca || null),
+        })));
       }
     });
   }, [open]);
