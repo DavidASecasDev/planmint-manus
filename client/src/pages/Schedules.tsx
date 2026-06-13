@@ -979,7 +979,7 @@ export default function Schedules() {
                   canAssign={canAssign}
                   onReorderMember={(canAssign || canManage) ? handleReorderMember : undefined}
                   onDragReorder={(canAssign || canManage) ? handleDragReorder : undefined}
-                  onSwapShifts={(canAssign || canManage) ? handleReorderMember : undefined}
+                  onSwapShifts={(canAssign || canManage) ? handleSwapShifts : undefined}
                   canManageNotes={canManageNotes}
                   noteLookup={noteLookup}
                   onSaveNote={handleSaveNote}
