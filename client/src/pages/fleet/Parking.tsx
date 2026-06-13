@@ -34,7 +34,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAllVehiclesForSelect } from '@/hooks/useAllVehiclesForSelect';
-import { TransformWrapper, TransformComponent, useControls, MiniMap, useTransformEffect } from 'react-zoom-pan-pinch';
+import { TransformWrapper, TransformComponent, useControls, MiniMap, useTransformEffect, useTransformContext } from 'react-zoom-pan-pinch';
+import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -180,6 +181,56 @@ const SPOT_GEOMETRY = buildSpotGeometry();
 
 // Background image URL (the exact aerial photo provided by the user)
 const BG_IMAGE_URL = '/manus-storage/plano_parking_extracted_099694f8.png';
+
+// ─── Zone bounding boxes (derived from spot geometry above) ──────────────────
+// Used to determine which zone the viewport center is closest to
+interface ZoneBounds {
+  name: string;
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  cx: number;
+  cy: number;
+}
+
+const ZONE_BOUNDS: ZoneBounds[] = [
+  { name: 'Zona 1', xMin: 856, xMax: 856 + 10 * 43 + 35, yMin: 433, yMax: 433 + 59, cx: 0, cy: 0 },
+  { name: 'Zona 2', xMin: 679, xMax: 679 + 7 * 42 + 34, yMin: 683, yMax: 755 + 58, cx: 0, cy: 0 },
+  { name: 'Zona 3', xMin: 679, xMax: 679 + 7 * 42 + 34, yMin: 901, yMax: 974 + 58, cx: 0, cy: 0 },
+  { name: 'Zona 4', xMin: 541, xMax: 541 + 56, yMin: 439, yMax: 439 + 12 * 43 + 35, cx: 0, cy: 0 },
+  { name: 'Zona 5', xMin: 462, xMax: 462 + 57, yMin: 437, yMax: 437 + 12 * 43 + 36, cx: 0, cy: 0 },
+  { name: 'Zona 6', xMin: 289, xMax: 289 + 58, yMin: 442, yMax: 442 + 12 * 43 + 36, cx: 0, cy: 0 },
+  { name: 'Zona 7', xMin: 223, xMax: 223 + 56, yMin: 442, yMax: 442 + 12 * 43 + 36, cx: 0, cy: 0 },
+  { name: 'Zona 8', xMin: 52, xMax: 52 + 56, yMin: 433, yMax: 433 + 14 * 43 + 35, cx: 0, cy: 0 },
+  { name: 'Sucios', xMin: 463, xMax: 463 + 55, yMin: 74, yMax: 74 + 7 * 44 + 35, cx: 0, cy: 0 },
+];
+// Pre-compute centers
+ZONE_BOUNDS.forEach(z => {
+  z.cx = (z.xMin + z.xMax) / 2;
+  z.cy = (z.yMin + z.yMax) / 2;
+});
+
+/** Given a point in SVG coordinates (0..1374, 0..1145), return the closest zone name */
+function getActiveZone(svgX: number, svgY: number): string | null {
+  // Check if point is inside any zone bounding box
+  for (const z of ZONE_BOUNDS) {
+    if (svgX >= z.xMin - 30 && svgX <= z.xMax + 30 && svgY >= z.yMin - 30 && svgY <= z.yMax + 30) {
+      return z.name;
+    }
+  }
+  // Fallback: closest zone center
+  let closest: ZoneBounds | null = null;
+  let minDist = Infinity;
+  for (const z of ZONE_BOUNDS) {
+    const d = Math.hypot(svgX - z.cx, svgY - z.cy);
+    if (d < minDist) {
+      minDist = d;
+      closest = z;
+    }
+  }
+  return closest?.name ?? null;
+}
 
 // ─── SVG Parking Map Component ──────────────────────────────────────────────
 function ParkingMapSVG({
@@ -366,28 +417,94 @@ function ZoomableMapContent({
   spotByNumber,
   highlightedSpotNum,
   onSpotClick,
+  zoomToSpotNum,
+  onZoomComplete,
 }: {
   spotByNumber: Map<number, ParkingSpot>;
   highlightedSpotNum: number | null;
   onSpotClick: (spot: ParkingSpot) => void;
+  zoomToSpotNum: number | null;
+  onZoomComplete: () => void;
 }) {
   const isMobile = useIsMobile();
   const [showHint, setShowHint] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [activeZone, setActiveZone] = useState<string | null>(null);
+  const instance = useTransformContext();
 
   useEffect(() => {
     const timer = setTimeout(() => setShowHint(false), 4000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Track zoom state to show/hide minimap
+  // Track zoom state and active zone
   useTransformEffect(({ state }) => {
-    setIsZoomed(state.scale > 1.15);
+    const zoomed = state.scale > 1.15;
+    setIsZoomed(zoomed);
+
+    if (zoomed && instance.wrapperComponent && instance.contentComponent) {
+      // Calculate the SVG coordinate at the center of the viewport
+      const wrapperRect = instance.wrapperComponent.getBoundingClientRect();
+      const contentRect = instance.contentComponent.getBoundingClientRect();
+      const viewCenterX = wrapperRect.width / 2;
+      const viewCenterY = wrapperRect.height / 2;
+      // Map viewport center to SVG coordinates
+      const scaleRatio = contentRect.width / 1374; // how many px per SVG unit at current scale
+      const svgCenterX = (viewCenterX - state.positionX) / (scaleRatio * state.scale);
+      const svgCenterY = (viewCenterY - state.positionY) / (scaleRatio * state.scale);
+      setActiveZone(getActiveZone(svgCenterX, svgCenterY));
+    } else {
+      setActiveZone(null);
+    }
   });
+
+  // Auto-zoom to a specific spot when zoomToSpotNum changes
+  useEffect(() => {
+    if (!zoomToSpotNum) return;
+    const rect = SPOT_GEOMETRY.get(zoomToSpotNum);
+    if (!rect || !instance.wrapperComponent || !instance.contentComponent) {
+      onZoomComplete();
+      return;
+    }
+
+    // Calculate target transform to center on the spot
+    const wrapperEl = instance.wrapperComponent;
+    const contentEl = instance.contentComponent;
+    const wrapperWidth = wrapperEl.clientWidth;
+    const wrapperHeight = wrapperEl.clientHeight;
+    const contentWidth = contentEl.scrollWidth / (instance.state.scale || 1);
+    const scaleRatio = contentWidth / 1374; // px per SVG unit at scale=1
+
+    const targetScale = 3; // zoom to 3x for good visibility
+    const spotCenterX = (rect.x + rect.w / 2) * scaleRatio;
+    const spotCenterY = (rect.y + rect.h / 2) * scaleRatio;
+
+    const posX = wrapperWidth / 2 - spotCenterX * targetScale;
+    const posY = wrapperHeight / 2 - spotCenterY * targetScale;
+
+    // Use setTransform from the context
+    const ref = instance.getContext();
+    ref.setTransform(posX, posY, targetScale, 600, 'easeOut');
+
+    // Signal completion after animation
+    const timer = setTimeout(() => onZoomComplete(), 700);
+    return () => clearTimeout(timer);
+  }, [zoomToSpotNum]);
 
   return (
     <div className="relative" style={{ height: isMobile ? '60vh' : '78vh' }}>
       <ZoomControls />
+
+      {/* Zone indicator badge — visible when zoomed in */}
+      {isZoomed && activeZone && (
+        <div className={cn(
+          "absolute z-10 top-3 left-3 px-2.5 py-1 rounded-md bg-black/75 backdrop-blur-sm text-white text-xs font-semibold flex items-center gap-1.5 pointer-events-none shadow-lg transition-all duration-200",
+          activeZone === 'Sucios' && 'bg-lime-700/80'
+        )}>
+          <MapPin className="h-3 w-3" />
+          {activeZone}
+        </div>
+      )}
 
       {/* Touch hint for mobile */}
       {isMobile && showHint && (
@@ -450,6 +567,7 @@ export default function Parking() {
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedSpotNum, setHighlightedSpotNum] = useState<number | null>(null);
+  const [zoomToSpotNum, setZoomToSpotNum] = useState<number | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: overview, isLoading, refetch } = useQuery({
@@ -531,8 +649,9 @@ export default function Parking() {
   useEffect(() => {
     if (searchResult) {
       setHighlightedSpotNum(searchResult.spot.spot_number);
+      setZoomToSpotNum(searchResult.spot.spot_number);
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-      highlightTimeoutRef.current = setTimeout(() => setHighlightedSpotNum(null), 6000);
+      highlightTimeoutRef.current = setTimeout(() => setHighlightedSpotNum(null), 8000);
     } else {
       setHighlightedSpotNum(null);
     }
@@ -675,6 +794,8 @@ export default function Parking() {
               spotByNumber={spotByNumber}
               highlightedSpotNum={highlightedSpotNum}
               onSpotClick={handleSpotClick}
+              zoomToSpotNum={zoomToSpotNum}
+              onZoomComplete={() => setZoomToSpotNum(null)}
             />
           </TransformWrapper>
 

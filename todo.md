@@ -1236,3 +1236,5 @@
 - [x] Parking: Controles flotantes de zoom (+, −, Reset) en el plano
 - [x] Parking: Adaptación mobile-friendly (contenedor responsive, gestos táctiles, doble tap zoom)
 - [x] Parking: Minimap/indicador de posición visible cuando el zoom es > 1x, mostrando un rectángulo del viewport actual sobre una versión miniatura del plano
+- [x] Parking: Indicador de zona activa (badge con nombre de zona visible al navegar el plano con zoom)
+- [x] Parking: Zoom automático a la plaza buscada al encontrar una matrícula (centrar y ampliar en esa plaza)
