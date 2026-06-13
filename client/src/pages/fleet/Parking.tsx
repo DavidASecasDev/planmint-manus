@@ -97,11 +97,11 @@ function buildSpotGeometry(): Map<number, SpotRect> {
   let num = 1;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ZONE 1: Horizontal row, top-right (11 spots)
-  // y=433, x starts at 826 (shifted left so last spot stays inside parking), step=43, w=35, h=59 (portrait)
+  // ZONE 1: Horizontal row, top-right (10 spots)
+  // y=433, x starts at 857 (aligned with actual photo), step=43, w=32, h=32
   // ═══════════════════════════════════════════════════════════════════════════
-  for (let i = 0; i < 11; i++) {
-    spots.set(num++, { x: 826 + i * 43, y: 433, w: 35, h: 59 });
+  for (let i = 0; i < 10; i++) {
+    spots.set(num++, { x: 857 + i * 43, y: 433, w: 32, h: 32 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ interface ZoneBounds {
 }
 
 const ZONE_BOUNDS: ZoneBounds[] = [
-  { name: 'Zona 1', xMin: 826, xMax: 826 + 10 * 43 + 35, yMin: 433, yMax: 433 + 59, cx: 0, cy: 0 },
+  { name: 'Zona 1', xMin: 857, xMax: 857 + 9 * 43 + 32, yMin: 433, yMax: 433 + 32, cx: 0, cy: 0 },
   { name: 'Zona 2', xMin: 679, xMax: 679 + 7 * 42 + 34, yMin: 683, yMax: 755 + 58, cx: 0, cy: 0 },
   { name: 'Zona 3', xMin: 679, xMax: 679 + 7 * 42 + 34, yMin: 901, yMax: 974 + 58, cx: 0, cy: 0 },
   { name: 'Zona 4', xMin: 541, xMax: 541 + 56, yMin: 439, yMax: 439 + 12 * 43 + 35, cx: 0, cy: 0 },
@@ -293,7 +293,7 @@ function ParkingMapSVG({
         const isOccupied = spot?.status === 'occupied';
         const isBlocked = spot?.status === 'blocked';
         const isReserved = spot?.status === 'reserved';
-        const isSucios = num >= 111 && num <= 118;
+        const isSucios = num >= 110 && num <= 117;
         const isHighlighted = highlightedSpotNum === num;
 
         // Default: transparent overlay (the image shows the spots already)

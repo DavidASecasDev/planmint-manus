@@ -1240,3 +1240,4 @@
 - [x] Parking: Zoom automático a la plaza buscada al encontrar una matrícula (centrar y ampliar en esa plaza)
 - [x] Parking: Corregir posición Zona 1 — mover fila 30px a la izquierda para que la última plaza quede dentro del perímetro del parking
 - [x] Parking: Tooltip al pasar sobre plaza ocupada mostrando matrícula y tiempo estacionado
+- [x] Parking: Realinear Zona 1 con la foto aérea real (x=857, step=43, w=32, h=32, 10 plazas) usando análisis OpenCV de la imagen
