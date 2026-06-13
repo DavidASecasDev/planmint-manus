@@ -34,7 +34,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAllVehiclesForSelect } from '@/hooks/useAllVehiclesForSelect';
-import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
+import { TransformWrapper, TransformComponent, useControls, MiniMap, useTransformEffect } from 'react-zoom-pan-pinch';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -373,11 +373,17 @@ function ZoomableMapContent({
 }) {
   const isMobile = useIsMobile();
   const [showHint, setShowHint] = useState(true);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowHint(false), 4000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Track zoom state to show/hide minimap
+  useTransformEffect(({ state }) => {
+    setIsZoomed(state.scale > 1.15);
+  });
 
   return (
     <div className="relative" style={{ height: isMobile ? '60vh' : '78vh' }}>
@@ -401,6 +407,35 @@ function ZoomableMapContent({
           onSpotClick={onSpotClick}
         />
       </TransformComponent>
+
+      {/* Minimap — visible only when zoomed in */}
+      {isZoomed && (
+        <div
+          className={cn(
+            "absolute z-20 rounded-lg overflow-hidden border-2 border-white/60 shadow-xl bg-black/80 backdrop-blur-sm transition-opacity duration-300",
+            isMobile ? "bottom-3 left-3" : "bottom-4 left-4"
+          )}
+          style={{ opacity: isZoomed ? 1 : 0 }}
+        >
+          <MiniMap
+            width={isMobile ? 100 : 160}
+            height={isMobile ? 84 : 134}
+            borderColor="rgba(59, 130, 246, 0.8)"
+            previewStyle={{
+              border: '2px solid rgba(59, 130, 246, 0.9)',
+              borderRadius: '2px',
+              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+            }}
+          >
+            <img
+              src={BG_IMAGE_URL}
+              alt="Minimap parking"
+              style={{ width: '1374px', height: '1145px', display: 'block' }}
+              draggable={false}
+            />
+          </MiniMap>
+        </div>
+      )}
     </div>
   );
 }

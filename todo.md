@@ -1235,3 +1235,4 @@
 - [x] Parking: Zoom interactivo en plano (rueda de ratón en PC, pinch-to-zoom en móvil)
 - [x] Parking: Controles flotantes de zoom (+, −, Reset) en el plano
 - [x] Parking: Adaptación mobile-friendly (contenedor responsive, gestos táctiles, doble tap zoom)
+- [x] Parking: Minimap/indicador de posición visible cuando el zoom es > 1x, mostrando un rectángulo del viewport actual sobre una versión miniatura del plano
