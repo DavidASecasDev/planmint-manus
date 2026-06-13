@@ -98,10 +98,10 @@ function buildSpotGeometry(): Map<number, SpotRect> {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ZONE 1: Horizontal row, top-right (11 spots)
-  // y=433, x starts at 856, step=43, w=35, h=59 (portrait)
+  // y=433, x starts at 826 (shifted left so last spot stays inside parking), step=43, w=35, h=59 (portrait)
   // ═══════════════════════════════════════════════════════════════════════════
   for (let i = 0; i < 11; i++) {
-    spots.set(num++, { x: 856 + i * 43, y: 433, w: 35, h: 59 });
+    spots.set(num++, { x: 826 + i * 43, y: 433, w: 35, h: 59 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ interface ZoneBounds {
 }
 
 const ZONE_BOUNDS: ZoneBounds[] = [
-  { name: 'Zona 1', xMin: 856, xMax: 856 + 10 * 43 + 35, yMin: 433, yMax: 433 + 59, cx: 0, cy: 0 },
+  { name: 'Zona 1', xMin: 826, xMax: 826 + 10 * 43 + 35, yMin: 433, yMax: 433 + 59, cx: 0, cy: 0 },
   { name: 'Zona 2', xMin: 679, xMax: 679 + 7 * 42 + 34, yMin: 683, yMax: 755 + 58, cx: 0, cy: 0 },
   { name: 'Zona 3', xMin: 679, xMax: 679 + 7 * 42 + 34, yMin: 901, yMax: 974 + 58, cx: 0, cy: 0 },
   { name: 'Zona 4', xMin: 541, xMax: 541 + 56, yMin: 439, yMax: 439 + 12 * 43 + 35, cx: 0, cy: 0 },
