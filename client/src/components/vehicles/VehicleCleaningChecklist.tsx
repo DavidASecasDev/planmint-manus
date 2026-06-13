@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { VehicleWithTasks, CLEANING_TASKS, CleaningTaskKey } from '@/types/vehicles';
 import { useVehicles } from '@/hooks/useVehicles';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 
 interface VehicleCleaningChecklistProps {
   vehicle: VehicleWithTasks;
+  onBecameClean?: () => void;
 }
 
 const TASK_ICONS: Record<CleaningTaskKey, React.ComponentType<{ className?: string }>> = {
@@ -32,8 +33,9 @@ const TASK_ICONS: Record<CleaningTaskKey, React.ComponentType<{ className?: stri
   limpieza_ext: Droplets,
 };
 
-export function VehicleCleaningChecklist({ vehicle }: VehicleCleaningChecklistProps) {
+export function VehicleCleaningChecklist({ vehicle, onBecameClean }: VehicleCleaningChecklistProps) {
   const { toggleTask, isTogglingTask, updateTaskNotes, isUpdatingNotes } = useVehicles();
+  const prevStatusRef = useRef(vehicle.status);
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState<string>('');
   const [debouncedSave, setDebouncedSave] = useState<NodeJS.Timeout | null>(null);
@@ -86,6 +88,14 @@ export function VehicleCleaningChecklist({ vehicle }: VehicleCleaningChecklistPr
   const getTaskByKey = (key: CleaningTaskKey) => {
     return tasks.find(t => t.task_key === key);
   };
+
+  // Detect when vehicle transitions to 'limpio' after toggling tasks
+  useEffect(() => {
+    if (prevStatusRef.current !== 'limpio' && vehicle.status === 'limpio') {
+      onBecameClean?.();
+    }
+    prevStatusRef.current = vehicle.status;
+  }, [vehicle.status, onBecameClean]);
 
   const handleToggle = (taskKey: CleaningTaskKey) => {
     const task = getTaskByKey(taskKey);

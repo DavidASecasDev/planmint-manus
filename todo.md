@@ -1231,3 +1231,4 @@
 - [x] Parking: Usar la IMAGEN REAL como fondo SVG con overlays interactivos transparentes encima (calco perfecto, sin inventar nada)
 - [x] Parking: Corregir selector de vehículos en diálogo Asignar Plaza — usar fleet_vehicles (fuente de verdad) en vez de vehicles con filtros rotos
 - [x] Fix parking zones 2 and 3 spot alignment to match aerial photo (Y coordinates corrected)
+- [x] Implementar selección de plaza de parking al cambiar vehículo de Sucio a Limpio (abrir plano para que operario seleccione plaza)

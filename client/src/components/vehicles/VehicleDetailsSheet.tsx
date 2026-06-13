@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Wrench, CheckCircle, Lock, History, ShieldCheck, ShieldX, ClipboardCheck, Loader2 } from 'lucide-react';
+import { User, Wrench, CheckCircle, Lock, History, ShieldCheck, ShieldX, ClipboardCheck, Loader2, MapPin, Car } from 'lucide-react';
 import { VehicleCleaningChecklist } from './VehicleCleaningChecklist';
 import { VehicleAuditDialog } from './VehicleAuditDialog';
 import { useVehicleAudits } from '@/hooks/useVehicleAudits';
@@ -12,6 +12,7 @@ import { VehicleLocationSelect } from './VehicleLocationSelect';
 import { VehicleCleaningHistory } from './VehicleCleaningHistory';
 import { VehicleRepairSummary } from './VehicleRepairSummary';
 import { supabase } from '@/integrations/supabase/client';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +29,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface VehicleDetailsSheetProps {
   open: boolean;
@@ -46,6 +61,13 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
   const { latestAudit, isLoadingLatestAudit } = useVehicleAudits(vehicle?.id);
 
+  // Parking dialog state
+  const [parkingDialogOpen, setParkingDialogOpen] = useState(false);
+  const [parkingZones, setParkingZones] = useState<{ id: string; name: string; spots: { id: string; spot_number: number; status: string }[] }[]>([]);
+  const [selectedZone, setSelectedZone] = useState('');
+  const [selectedSpot, setSelectedSpot] = useState('');
+  const [isAssigningParking, setIsAssigningParking] = useState(false);
+
   // Sync notes when vehicle changes
   useEffect(() => {
     setNotes(vehicle?.service_notes || '');
@@ -59,6 +81,49 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
   }, [vehicle?.current_reservation]);
 
   const cleanerName = vehicle?.cleaned_by_profile?.name;
+
+  // Handler: when vehicle becomes clean, fetch parking zones and open dialog
+  const handleVehicleBecameClean = async () => {
+    setSelectedZone('');
+    setSelectedSpot('');
+    try {
+      const result = await apiInvoke<{ ok: boolean; data: { zones: { id: string; name: string; spots: { id: string; spot_number: number; status: string }[] }[] } }>('parking/overview', { body: {} });
+      if (result.data?.ok && result.data.data?.zones) {
+        setParkingZones(result.data.data.zones);
+      } else {
+        setParkingZones([]);
+      }
+    } catch {
+      setParkingZones([]);
+    }
+    setParkingDialogOpen(true);
+  };
+
+  // Handler: assign parking spot
+  const handleAssignParking = async () => {
+    if (!vehicle || !selectedSpot) return;
+    setIsAssigningParking(true);
+    try {
+      const assignResult = await apiInvoke<{ ok: boolean; error?: string }>('parking/assign', {
+        body: { spot_id: selectedSpot, vehicle_id: null, vehicle_matricula: vehicle.matricula },
+      });
+      if (assignResult.error || !assignResult.data?.ok) {
+        throw new Error(assignResult.data?.error || 'Error al asignar plaza');
+      }
+      const spot = parkingZones.flatMap(z => z.spots).find(s => s.id === selectedSpot);
+      const zone = parkingZones.find(z => z.spots.some(s => s.id === selectedSpot));
+      toast({
+        title: 'Plaza asignada',
+        description: `${vehicle.matricula} aparcado en ${zone?.name || ''} Plaza ${spot?.spot_number || ''}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['parking-overview'] });
+      setParkingDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsAssigningParking(false);
+    }
+  };
 
   const handleSaveNotes = async () => {
     if (!vehicle) return;
@@ -258,7 +323,7 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
                 currentLocationId={vehicle.location_id} 
               />
               <Separator />
-              <VehicleCleaningChecklist vehicle={vehicle} />
+              <VehicleCleaningChecklist vehicle={vehicle} onBecameClean={handleVehicleBecameClean} />
 
               {/* Audit section for clean vehicles */}
               {vehicle.status === 'limpio' && (
@@ -336,6 +401,97 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
       onOpenChange={setAuditDialogOpen}
       vehicle={vehicle}
     />
+
+    {/* Parking assignment dialog - opens when vehicle transitions to 'limpio' */}
+    <Dialog open={parkingDialogOpen} onOpenChange={(open) => { if (!open) setParkingDialogOpen(false); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-emerald-500" />
+            Asignar plaza de parking
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+            <Car className="h-4 w-4 text-muted-foreground" />
+            <span className="font-mono font-semibold">{vehicle?.matricula}</span>
+            {vehicle?.modelo && <span className="text-sm text-muted-foreground">— {vehicle.modelo}</span>}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            ¡El vehículo está limpio! Selecciona la plaza donde lo has aparcado.
+          </p>
+          {parkingZones.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              No hay zonas de parking configuradas.
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Zona</label>
+                <Select value={selectedZone} onValueChange={(v) => { setSelectedZone(v); setSelectedSpot(''); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar zona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parkingZones.map(z => (
+                      <SelectItem key={z.id} value={z.id}>
+                        {z.name} ({z.spots.filter(s => s.status === 'free').length} libres)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedZone && (
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Plaza</label>
+                  <Select value={selectedSpot} onValueChange={setSelectedSpot}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar plaza..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parkingZones
+                        .find(z => z.id === selectedZone)
+                        ?.spots.filter(s => s.status === 'free')
+                        .map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            Plaza {s.spot_number}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => setParkingDialogOpen(false)}
+            disabled={isAssigningParking}
+          >
+            Completar sin plaza
+          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setParkingDialogOpen(false)}
+              disabled={isAssigningParking}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAssignParking}
+              disabled={!selectedSpot || isAssigningParking}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isAssigningParking ? 'Asignando...' : 'Asignar plaza'}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>);
 }
 
