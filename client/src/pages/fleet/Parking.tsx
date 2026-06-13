@@ -232,6 +232,21 @@ function getActiveZone(svgX: number, svgY: number): string | null {
   return closest?.name ?? null;
 }
 
+// ─── Helper: format time parked ─────────────────────────────────────────────
+function formatTimeSince(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const ms = Date.now() - new Date(dateStr).getTime();
+  if (ms < 0) return '';
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const remainMins = mins % 60;
+  if (hours < 24) return remainMins > 0 ? `${hours}h ${remainMins}min` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const remainHours = hours % 24;
+  return remainHours > 0 ? `${days}d ${remainHours}h` : `${days}d`;
+}
+
 // ─── SVG Parking Map Component ──────────────────────────────────────────────
 function ParkingMapSVG({
   spotByNumber,
@@ -313,12 +328,27 @@ function ParkingMapSVG({
 
         const fontSize = isOccupied && spot?.vehicle_matricula ? 8 : 10;
 
+        // Build tooltip text for occupied spots
+        let tooltipText = '';
+        if (isOccupied && spot) {
+          const parts: string[] = [];
+          if (spot.vehicle_matricula) parts.push(`🚗 ${spot.vehicle_matricula}`);
+          if (spot.occupied_at) {
+            const elapsed = formatTimeSince(spot.occupied_at);
+            if (elapsed) parts.push(`⏱ ${elapsed}`);
+          }
+          parts.push(`Plaza ${num}`);
+          tooltipText = parts.join('\n');
+        }
+
         return (
           <g
             key={num}
             onClick={() => spot && onSpotClick(spot)}
             style={{ cursor: spot ? 'pointer' : 'default' }}
           >
+            {/* Native SVG tooltip for occupied spots */}
+            {tooltipText && <title>{tooltipText}</title>}
             {/* Clickable area (always present, transparent when free) */}
             <rect
               x={rect.x}

@@ -1239,3 +1239,4 @@
 - [x] Parking: Indicador de zona activa (badge con nombre de zona visible al navegar el plano con zoom)
 - [x] Parking: Zoom automático a la plaza buscada al encontrar una matrícula (centrar y ampliar en esa plaza)
 - [x] Parking: Corregir posición Zona 1 — mover fila 30px a la izquierda para que la última plaza quede dentro del perímetro del parking
+- [x] Parking: Tooltip al pasar sobre plaza ocupada mostrando matrícula y tiempo estacionado
