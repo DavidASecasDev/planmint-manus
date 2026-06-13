@@ -1232,3 +1232,6 @@
 - [x] Parking: Corregir selector de vehículos en diálogo Asignar Plaza — usar fleet_vehicles (fuente de verdad) en vez de vehicles con filtros rotos
 - [x] Fix parking zones 2 and 3 spot alignment to match aerial photo (Y coordinates corrected)
 - [x] Implementar selección de plaza de parking al cambiar vehículo de Sucio a Limpio (abrir plano para que operario seleccione plaza)
+- [x] Parking: Zoom interactivo en plano (rueda de ratón en PC, pinch-to-zoom en móvil)
+- [x] Parking: Controles flotantes de zoom (+, −, Reset) en el plano
+- [x] Parking: Adaptación mobile-friendly (contenedor responsive, gestos táctiles, doble tap zoom)

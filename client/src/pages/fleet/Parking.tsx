@@ -4,7 +4,7 @@
  * Spot coordinates were extracted via OpenCV from the actual photo (1374×1145px).
  * Overlay rectangles are positioned at the exact pixel locations of each spot.
  */
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +34,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAllVehiclesForSelect } from '@/hooks/useAllVehiclesForSelect';
+import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface ParkingZone {
@@ -192,8 +194,8 @@ function ParkingMapSVG({
   return (
     <svg
       viewBox="0 0 1374 1145"
-      className="w-full h-auto"
-      style={{ maxHeight: '78vh' }}
+      className="w-full h-full"
+      style={{ maxHeight: '100%' }}
       xmlns="http://www.w3.org/2000/svg"
     >
       {/* ─── Defs ─── */}
@@ -326,6 +328,80 @@ function ParkingMapSVG({
         );
       })}
     </svg>
+  );
+}
+
+// ─── Zoom Controls ──────────────────────────────────────────────────────────
+function ZoomControls() {
+  const { zoomIn, zoomOut, resetTransform } = useControls();
+  return (
+    <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
+      <button
+        onClick={() => zoomIn(0.5)}
+        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-white/90 dark:bg-slate-800/90 border border-border/60 shadow-md flex items-center justify-center text-foreground hover:bg-white dark:hover:bg-slate-700 transition-colors active:scale-95 touch-manipulation"
+        title="Acercar"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+      </button>
+      <button
+        onClick={() => zoomOut(0.5)}
+        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-white/90 dark:bg-slate-800/90 border border-border/60 shadow-md flex items-center justify-center text-foreground hover:bg-white dark:hover:bg-slate-700 transition-colors active:scale-95 touch-manipulation"
+        title="Alejar"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+      </button>
+      <button
+        onClick={() => resetTransform()}
+        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-white/90 dark:bg-slate-800/90 border border-border/60 shadow-md flex items-center justify-center text-foreground hover:bg-white dark:hover:bg-slate-700 transition-colors active:scale-95 touch-manipulation"
+        title="Restablecer"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0111.3-2.8M14 2v3.2h-3.2M14 8a6 6 0 01-11.3 2.8M2 14v-3.2h3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </button>
+    </div>
+  );
+}
+
+// ─── Zoomable Map Content (must be inside TransformWrapper) ─────────────────
+function ZoomableMapContent({
+  spotByNumber,
+  highlightedSpotNum,
+  onSpotClick,
+}: {
+  spotByNumber: Map<number, ParkingSpot>;
+  highlightedSpotNum: number | null;
+  onSpotClick: (spot: ParkingSpot) => void;
+}) {
+  const isMobile = useIsMobile();
+  const [showHint, setShowHint] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowHint(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="relative" style={{ height: isMobile ? '60vh' : '78vh' }}>
+      <ZoomControls />
+
+      {/* Touch hint for mobile */}
+      {isMobile && showHint && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/70 text-white text-xs flex items-center gap-1.5 animate-pulse pointer-events-none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+          Pellizca para hacer zoom
+        </div>
+      )}
+
+      <TransformComponent
+        wrapperStyle={{ width: '100%', height: '100%' }}
+        contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <ParkingMapSVG
+          spotByNumber={spotByNumber}
+          highlightedSpotNum={highlightedSpotNum}
+          onSpotClick={onSpotClick}
+        />
+      </TransformComponent>
+    </div>
   );
 }
 
@@ -548,17 +624,27 @@ export default function Parking() {
 
       {isLoading && <Skeleton className="h-[500px] rounded-xl" />}
 
-      {/* ─── PARKING MAP WITH REAL IMAGE BACKGROUND ─────────────────── */}
+      {/* ─── PARKING MAP WITH ZOOM/PAN/PINCH ─────────────────── */}
       {!isLoading && overview && (
         <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
-          <ParkingMapSVG
-            spotByNumber={spotByNumber}
-            highlightedSpotNum={highlightedSpotNum}
-            onSpotClick={handleSpotClick}
-          />
+          <TransformWrapper
+            initialScale={1}
+            minScale={0.5}
+            maxScale={5}
+            centerOnInit
+            doubleClick={{ mode: 'zoomIn', step: 0.7 }}
+            wheel={{ step: 0.08 }}
+            panning={{ velocityDisabled: true }}
+          >
+            <ZoomableMapContent
+              spotByNumber={spotByNumber}
+              highlightedSpotNum={highlightedSpotNum}
+              onSpotClick={handleSpotClick}
+            />
+          </TransformWrapper>
 
           {/* Legend */}
-          <div className="flex items-center gap-5 px-4 py-2.5 bg-white dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-5 px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-slate-900 border-t border-border/40 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#1e40af' }} />
               <span>Libre</span>
