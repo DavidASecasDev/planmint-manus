@@ -1246,3 +1246,4 @@
 - [x] Parking: Zona 1 plazas se ven cortadas verticalmente — aumentar altura de los rectángulos
 - [x] Parking: Diálogo de asignación de plaza (último paso preparación) debe mostrar zonas como en el plano: Zona 1, Zona 2, Zona 3... hasta Zona 8
 - [x] Permisos: Renombrar módulo "schedules/Horarios" a "Programación" en toda la UI de gestión de roles y permisos
+- [x] Parking: Corregir número total de plazas por zona en BD para coincidir con layout real (Z1=10, Z2=16, Z3=16, Z4=13, Z5=13, Z6=13, Z7=13, Z8=15)

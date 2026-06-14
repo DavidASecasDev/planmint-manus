@@ -561,47 +561,43 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
     const zoneMap = new Map(createdZones.map((z) => [z.name, z.id]));
 
     // Define spots for each zone based on the real layout
+    // Z1=10, Z2=16, Z3=16, Z4=13, Z5=13, Z6=13, Z7=13, Z8=15, Sucios=8
     const spotDefinitions: { zone: string; spots: { number: number; row: number; col: number }[] }[] = [
       {
         zone: "Zona 1",
-        spots: [
-          // Row 1: 1-11
-          ...Array.from({ length: 11 }, (_, i) => ({ number: i + 1, row: 0, col: i })),
-          // Row 2: 12-19
-          ...Array.from({ length: 8 }, (_, i) => ({ number: i + 12, row: 1, col: i })),
-          // Row 3: 20-27
-          ...Array.from({ length: 8 }, (_, i) => ({ number: i + 20, row: 2, col: i })),
-          // Row 4: 28-35
-          ...Array.from({ length: 8 }, (_, i) => ({ number: i + 28, row: 3, col: i })),
-          // Row 5: 36-43
-          ...Array.from({ length: 8 }, (_, i) => ({ number: i + 36, row: 4, col: i })),
-        ],
+        spots: Array.from({ length: 10 }, (_, i) => ({ number: i + 1, row: 0, col: i })),
+      },
+      {
+        zone: "Zona 2",
+        spots: Array.from({ length: 16 }, (_, i) => ({ number: i + 1, row: Math.floor(i / 8), col: i % 8 })),
+      },
+      {
+        zone: "Zona 3",
+        spots: Array.from({ length: 16 }, (_, i) => ({ number: i + 1, row: Math.floor(i / 8), col: i % 8 })),
       },
       {
         zone: "Zona 4",
-        spots: [
-          // Left column: 44,46,48,50,52,54,56,58,60,62,64,66,68
-          ...([44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68].map((n, i) => ({ number: n, row: i, col: 0 }))),
-          // Right column: 45,47,49,51,53,55,57,59,61,63,65,67,69
-          ...([45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69].map((n, i) => ({ number: n, row: i, col: 1 }))),
-        ],
+        spots: Array.from({ length: 13 }, (_, i) => ({ number: i + 1, row: i, col: 0 })),
       },
       {
         zone: "Zona 5",
-        spots: [
-          // Left column: 70,72,74,76,78,80,82,84,86,88,90,92,94
-          ...([70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94].map((n, i) => ({ number: n, row: i, col: 0 }))),
-          // Right column: 71,73,75,77,79,81,83,85,87,89,91,93,95
-          ...([71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95].map((n, i) => ({ number: n, row: i, col: 1 }))),
-        ],
+        spots: Array.from({ length: 13 }, (_, i) => ({ number: i + 1, row: i, col: 0 })),
+      },
+      {
+        zone: "Zona 6",
+        spots: Array.from({ length: 13 }, (_, i) => ({ number: i + 1, row: i, col: 0 })),
+      },
+      {
+        zone: "Zona 7",
+        spots: Array.from({ length: 13 }, (_, i) => ({ number: i + 1, row: i, col: 0 })),
       },
       {
         zone: "Zona 8",
-        spots: Array.from({ length: 15 }, (_, i) => ({ number: 96 + i, row: i, col: 0 })),
+        spots: Array.from({ length: 15 }, (_, i) => ({ number: i + 1, row: i, col: 0 })),
       },
       {
         zone: "Sucios",
-        spots: Array.from({ length: 8 }, (_, i) => ({ number: 111 + i, row: i, col: 0 })),
+        spots: Array.from({ length: 8 }, (_, i) => ({ number: i + 1, row: i, col: 0 })),
       },
     ];
 
