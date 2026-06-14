@@ -536,11 +536,15 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
 
     // Create zones
     const zoneDefinitions = [
-      { name: "Zona Principal", description: "Plazas 1-43 (área derecha)", color: "#10B981", sort_order: 1 },
-      { name: "Zona Central", description: "Plazas 44-69 (columnas centrales)", color: "#3B82F6", sort_order: 2 },
-      { name: "Zona Lateral", description: "Plazas 70-95 (pares de columnas)", color: "#8B5CF6", sort_order: 3 },
-      { name: "Zona Exterior", description: "Plazas 96-110 (columna izquierda)", color: "#F59E0B", sort_order: 4 },
-      { name: "Sucios", description: "Vehículos pendientes de limpieza", color: "#EF4444", sort_order: 5 },
+      { name: "Zona 1", description: "Fila superior derecha", color: "#10B981", sort_order: 1 },
+      { name: "Zona 2", description: "Bloque derecho fila 2", color: "#3B82F6", sort_order: 2 },
+      { name: "Zona 3", description: "Bloque derecho fila 3", color: "#8B5CF6", sort_order: 3 },
+      { name: "Zona 4", description: "Columna central derecha", color: "#F59E0B", sort_order: 4 },
+      { name: "Zona 5", description: "Columna central izquierda", color: "#EC4899", sort_order: 5 },
+      { name: "Zona 6", description: "Columna lateral derecha", color: "#14B8A6", sort_order: 6 },
+      { name: "Zona 7", description: "Columna lateral izquierda", color: "#F97316", sort_order: 7 },
+      { name: "Zona 8", description: "Columna exterior izquierda", color: "#6366F1", sort_order: 8 },
+      { name: "Sucios", description: "Vehículos pendientes de limpieza", color: "#EF4444", sort_order: 9 },
     ];
 
     const { data: createdZones, error: zoneErr } = await sb
@@ -559,7 +563,7 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
     // Define spots for each zone based on the real layout
     const spotDefinitions: { zone: string; spots: { number: number; row: number; col: number }[] }[] = [
       {
-        zone: "Zona Principal",
+        zone: "Zona 1",
         spots: [
           // Row 1: 1-11
           ...Array.from({ length: 11 }, (_, i) => ({ number: i + 1, row: 0, col: i })),
@@ -574,7 +578,7 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
         ],
       },
       {
-        zone: "Zona Central",
+        zone: "Zona 4",
         spots: [
           // Left column: 44,46,48,50,52,54,56,58,60,62,64,66,68
           ...([44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68].map((n, i) => ({ number: n, row: i, col: 0 }))),
@@ -583,7 +587,7 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
         ],
       },
       {
-        zone: "Zona Lateral",
+        zone: "Zona 5",
         spots: [
           // Left column: 70,72,74,76,78,80,82,84,86,88,90,92,94
           ...([70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94].map((n, i) => ({ number: n, row: i, col: 0 }))),
@@ -592,7 +596,7 @@ export async function handleSeedParkingLayout(req: Request, res: Response) {
         ],
       },
       {
-        zone: "Zona Exterior",
+        zone: "Zona 8",
         spots: Array.from({ length: 15 }, (_, i) => ({ number: 96 + i, row: i, col: 0 })),
       },
       {

@@ -1244,3 +1244,4 @@
 - [x] Turnos: BUG CRÍTICO — Al rotar turnos, se mueven nombres junto con horarios. Corregir para que SOLO roten los nombres de operarios y los horarios/franjas queden fijos en su posición
 - [x] Parking: Reducir sensibilidad del zoom con rueda del ratón (actualmente salta demasiado de golpe)
 - [x] Parking: Zona 1 plazas se ven cortadas verticalmente — aumentar altura de los rectángulos
+- [x] Parking: Diálogo de asignación de plaza (último paso preparación) debe mostrar zonas como en el plano: Zona 1, Zona 2, Zona 3... hasta Zona 8
