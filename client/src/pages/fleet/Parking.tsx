@@ -817,7 +817,7 @@ export default function Parking() {
             maxScale={5}
             centerOnInit
             doubleClick={{ mode: 'zoomIn', step: 0.7 }}
-            wheel={{ step: 0.03 }}
+            wheel={{ step: 0.008 }}
             panning={{ velocityDisabled: true }}
           >
             <ZoomableMapContent
