@@ -49,7 +49,7 @@ interface RouteReplaySheetProps {
 }
 
 // ── Azul Cars base ──
-const AZUL_CARS_BASE = { lat: 39.5391, lng: 2.7419 }; // Carrer del Canal de Sant Jordi, 29
+const AZUL_CARS_BASE = { lat: 39.5557, lng: 2.7170 }; // Camí Fondo, 35, Llevant, 07007 Palma
 
 // ── Custom icons ──
 const createCarIcon = (color: string) => {

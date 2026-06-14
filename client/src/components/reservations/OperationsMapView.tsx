@@ -94,11 +94,11 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'terminal maritima alcudia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
   'terminal maritima alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
 
-  // ── Oficina Azul Cars (Carrer Canal de Sant Jordi 29, local 3, 07199 Palma) ──
-  'oficina azul': { lat: 39.5391, lng: 2.7419, label: 'Oficina Azul Cars - Son Oms' },
-  'oficina azul cars': { lat: 39.5391, lng: 2.7419, label: 'Oficina Azul Cars - Son Oms' },
-  'oficina azul cars - polígono son oms': { lat: 39.5391, lng: 2.7419, label: 'Oficina Azul Cars - Son Oms' },
-  base: { lat: 39.5391, lng: 2.7419, label: 'Oficina Azul Cars - Son Oms' },
+  // ── Oficina Azul Cars (Camí Fondo, 35, Llevant, 07007 Palma) ──
+  'oficina azul': { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
+  'oficina azul cars': { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
+  'oficina azul cars - camí fondo': { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
+  base: { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
 
   // ── Zonas de Mallorca (entregas a domicilio - centro aproximado) ──
   'palma de mallorca - entrega a domicilio': { lat: 39.5696, lng: 2.6502, label: 'Palma de Mallorca' },

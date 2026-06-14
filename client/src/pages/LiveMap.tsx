@@ -74,7 +74,7 @@ const brand = {
 };
 
 // ── Map Constants ──
-const AZUL_CARS_BASE = { lat: 39.5391, lng: 2.7419 }; // Carrer del Canal de Sant Jordi, 29 – Polígono Son Oms
+const AZUL_CARS_BASE = { lat: 39.5557, lng: 2.7170 }; // Camí Fondo, 35, Llevant, 07007 Palma
 const PALMA_CENTER = { lat: 39.5696, lng: 2.6502 };
 const DEFAULT_ZOOM = 11;
 
@@ -1071,8 +1071,8 @@ export default function LiveMapPage() {
                     <Popup>
                       <div className="text-sm">
                         <p className="font-semibold text-emerald-700">Base — Azul Cars</p>
-                        <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
-                        <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
+                        <p className="text-xs text-gray-500">Camí Fondo, 35, Llevant</p>
+                        <p className="text-xs text-gray-500">07007 Palma, Illes Balears</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -1118,8 +1118,8 @@ export default function LiveMapPage() {
                   <Popup>
                     <div className="text-sm">
                       <p className="font-semibold text-emerald-700">Base — Azul Cars</p>
-                      <p className="text-xs text-gray-500">Carrer del Canal de Sant Jordi, 29, L3</p>
-                      <p className="text-xs text-gray-500">07610 Palma, Mallorca</p>
+                      <p className="text-xs text-gray-500">Camí Fondo, 35, Llevant</p>
+                      <p className="text-xs text-gray-500">07007 Palma, Illes Balears</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -1455,7 +1455,7 @@ export default function LiveMapPage() {
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-[10px] font-bold" style={{ color: brand.navy }}>Base Azul Cars</span>
-                  <span className="text-[9px] text-gray-500 truncate">Carrer del Canal de Sant Jordi, 29 — Palma</span>
+                  <span className="text-[9px] text-gray-500 truncate">Camí Fondo, 35, Llevant — Palma</span>
                 </div>
               </div>
             </div>
