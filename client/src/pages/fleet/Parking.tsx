@@ -98,10 +98,10 @@ function buildSpotGeometry(): Map<number, SpotRect> {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ZONE 1: Horizontal row, top-right (10 spots)
-  // y=433, x starts at 857 (aligned with actual photo), step=43, w=32, h=32
+  // y=425, x starts at 857 (aligned with actual photo), step=43, w=32, h=48
   // ═══════════════════════════════════════════════════════════════════════════
   for (let i = 0; i < 10; i++) {
-    spots.set(num++, { x: 857 + i * 43, y: 433, w: 32, h: 32 });
+    spots.set(num++, { x: 857 + i * 43, y: 425, w: 32, h: 48 });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ export default function Parking() {
             maxScale={5}
             centerOnInit
             doubleClick={{ mode: 'zoomIn', step: 0.7 }}
-            wheel={{ step: 0.08 }}
+            wheel={{ step: 0.03 }}
             panning={{ velocityDisabled: true }}
           >
             <ZoomableMapContent
