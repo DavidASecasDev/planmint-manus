@@ -21,7 +21,7 @@ import { makeRequest, type DistanceMatrixResult } from "./_core/map";
 
 /** Base location: Azul Cars, Llevant, Palma */
 const BASE_LOCATION = "Camí Fondo, 35, Llevant, 07007 Palma, Illes Balears, Spain";
-const BASE_COORDS = "39.5557,2.7170"; // lat,lng for Azul Cars (Camí Fondo, Llevant)
+const BASE_COORDS = "39.564372,2.684864"; // lat,lng for Azul Cars (Camí Fondo, Llevant)
 
 /** Time in minutes for a single operation at base (entrega or devolución) */
 const BASE_OPERATION_MINUTES = 10;

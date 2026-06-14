@@ -74,7 +74,7 @@ const brand = {
 };
 
 // ── Map Constants ──
-const AZUL_CARS_BASE = { lat: 39.5557, lng: 2.7170 }; // Camí Fondo, 35, Llevant, 07007 Palma
+const AZUL_CARS_BASE = { lat: 39.564372, lng: 2.684864 }; // Camí Fondo, 35, Llevant, 07007 Palma
 const PALMA_CENTER = { lat: 39.5696, lng: 2.6502 };
 const DEFAULT_ZOOM = 11;
 

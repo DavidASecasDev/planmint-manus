@@ -95,10 +95,10 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'terminal maritima alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
 
   // ── Oficina Azul Cars (Camí Fondo, 35, Llevant, 07007 Palma) ──
-  'oficina azul': { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
-  'oficina azul cars': { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
-  'oficina azul cars - camí fondo': { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
-  base: { lat: 39.5557, lng: 2.7170, label: 'Oficina Azul Cars - Llevant' },
+  'oficina azul': { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
+  'oficina azul cars': { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
+  'oficina azul cars - camí fondo': { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
+  base: { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
 
   // ── Zonas de Mallorca (entregas a domicilio - centro aproximado) ──
   'palma de mallorca - entrega a domicilio': { lat: 39.5696, lng: 2.6502, label: 'Palma de Mallorca' },
