@@ -256,7 +256,7 @@ export function RolesSection() {
                   {Object.entries(PERMISSION_LABELS).map(([module, actions]) => (
                     <AccordionItem key={module} value={module}>
                       <AccordionTrigger className="text-sm capitalize">
-                        {module === 'audit_logs' ? 'Auditoría' : module}
+                        {module === 'audit_logs' ? 'Auditoría' : module === 'schedules' ? 'Programación' : module === 'tasks' ? 'Tareas' : module === 'areas' ? 'Áreas' : module === 'tags' ? 'Etiquetas' : module === 'automations' ? 'Automatizaciones' : module === 'integrations' ? 'Integraciones' : module === 'billing' ? 'Facturación' : module === 'templates' ? 'Plantillas' : module === 'team' ? 'Equipo' : module === 'reports' ? 'Reportes' : module === 'reservations' ? 'Reservas' : module === 'transfers' ? 'Transfers' : module === 'forms' ? 'Formularios' : module === 'vehicles' ? 'Vehículos' : module === 'time_tracking' ? 'Fichajes' : module === 'movements' ? 'Movimientos' : module === 'daily_tasks' ? 'Tareas Diarias' : module === 'fleet' ? 'Flota' : module === 'members' ? 'Miembros' : module === 'security' ? 'Seguridad' : module === 'lost_found' ? 'Objetos Perdidos' : module === 'garatech' ? 'Garatech' : module}
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-3 pt-2">

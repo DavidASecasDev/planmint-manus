@@ -533,12 +533,12 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     view_audit_logs: 'Ver registros de auditoría',
   },
   schedules: {
-    view: 'Ver horarios',
+    view: 'Ver programación',
     assign: 'Asignar turnos',
     manage_templates: 'Gestionar plantillas de turno',
     view_directiva: 'Ver horarios de Directiva',
-    manage_notes: 'Gestionar notas de horarios',
-    manage: 'Gestionar todo (Horarios)',
+    manage_notes: 'Gestionar notas de programación',
+    manage: 'Gestionar todo (Programación)',
   },
   lost_found: {
     view: 'Ver objetos perdidos',

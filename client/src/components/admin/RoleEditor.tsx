@@ -229,7 +229,7 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
     },
   },
   schedules: {
-    label: 'Horarios',
+    label: 'Programación',
     icon: Clock,
     description: {
       view: 'Permite ver la cuadrícula semanal de turnos',
@@ -237,7 +237,7 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       manage_templates: 'Permite crear, editar y eliminar plantillas de turno',
       view_directiva: 'Permite ver los horarios del equipo Directiva',
       manage_notes: 'Permite crear, ver y eliminar notas internas en horarios',
-      manage: 'Acceso completo a horarios',
+      manage: 'Acceso completo a programación',
     },
   },
   lost_found: {
