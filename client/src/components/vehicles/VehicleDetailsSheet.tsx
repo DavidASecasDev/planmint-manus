@@ -117,6 +117,9 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
         description: `${vehicle.matricula} aparcado en ${zone?.name || ''} Plaza ${spot?.spot_number || ''}`,
       });
       queryClient.invalidateQueries({ queryKey: ['parking-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles', profile?.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
       setParkingDialogOpen(false);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -433,7 +436,9 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
                     <SelectValue placeholder="Seleccionar zona..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {parkingZones.map(z => (
+                    {parkingZones
+                      .filter(z => z.name.toLowerCase() !== 'sucios')
+                      .map(z => (
                       <SelectItem key={z.id} value={z.id}>
                         {z.name} ({z.spots.filter(s => s.status === 'free').length} libres)
                       </SelectItem>

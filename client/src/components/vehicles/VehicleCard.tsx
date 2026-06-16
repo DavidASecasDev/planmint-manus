@@ -3,7 +3,7 @@ import { VehicleWithTasks, CLEANING_TASKS, VehicleStatus, ServiceType } from '@/
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Lock, ShieldCheck, ShieldX, ClipboardCheck } from 'lucide-react';
+import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Car, Lock, ShieldCheck, ShieldX, ClipboardCheck } from 'lucide-react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -185,6 +185,16 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
                   <span className="font-medium">{completedTasks}/{totalTasks}</span>
                 </div>
                 <Progress value={progressPercent} className="h-1.5" />
+              </div>
+            )}
+
+            {/* Parking spot badge for clean vehicles */}
+            {vehicle.status === 'limpio' && vehicle.parking_spot && (
+              <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-md px-2 py-0.5 -mx-1 w-fit">
+                <Car className="h-3 w-3" />
+                <span className="font-medium">
+                  {vehicle.parking_spot.zone_name.replace('Zona ', 'Z')}-{vehicle.parking_spot.spot_number}
+                </span>
               </div>
             )}
 

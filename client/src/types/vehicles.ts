@@ -72,6 +72,11 @@ export interface VehicleWithTasks extends Vehicle {
     description: string | null;
     status: string;
   } | null;
+  // Parking spot info (zone abbreviation + spot number)
+  parking_spot?: {
+    zone_name: string;
+    spot_number: number;
+  } | null;
 }
 
 export interface VehicleCleaningTask {

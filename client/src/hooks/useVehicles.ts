@@ -145,6 +145,31 @@ export function useVehicles() {
         }
       }
 
+      // Fetch parking spots for vehicles that are parked (status = 'limpio')
+      const cleanVehicles = vehiclesData.filter(v => v.status === 'limpio');
+      let parkingSpotMap: Record<string, { zone_name: string; spot_number: number }> = {};
+
+      if (cleanVehicles.length > 0) {
+        const { data: occupiedSpots } = await (supabase as any)
+          .from('parking_spots')
+          .select('vehicle_matricula, spot_number, parking_zones!inner(name)')
+          .eq('organization_id', orgId)
+          .eq('status', 'occupied')
+          .not('vehicle_matricula', 'is', null);
+
+        if (occupiedSpots) {
+          for (const spot of occupiedSpots as any[]) {
+            const zoneName = spot.parking_zones?.name || '';
+            if (spot.vehicle_matricula) {
+              parkingSpotMap[spot.vehicle_matricula] = {
+                zone_name: zoneName,
+                spot_number: spot.spot_number,
+              };
+            }
+          }
+        }
+      }
+
       // Map tasks to vehicles
       const vehiclesWithTasks: VehicleWithTasks[] = vehiclesData.map(vehicle => {
         const v = vehicle as any;
@@ -177,6 +202,7 @@ export function useVehicles() {
           active_repair: v.current_repair_id
             ? repairsMap[v.current_repair_id] || null
             : null,
+          parking_spot: parkingSpotMap[vehicle.matricula] || null,
         };
       });
 
