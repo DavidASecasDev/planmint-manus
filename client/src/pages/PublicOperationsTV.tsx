@@ -22,6 +22,7 @@ import {
   Droplets,
   CircleDashed,
   Wrench,
+  Bus,
 } from "lucide-react";
 
 // ─── Corporate Colors (Azul Cars) ──────────────────────────────────────────
@@ -54,6 +55,7 @@ interface OperationItem {
   enCaminoAt: string | null;
   vehicleStatus: string | null;
   isManualVehicle?: boolean;
+  isShuttle?: boolean;
 }
 
 interface OperationsData {
@@ -774,7 +776,17 @@ function OperationRow({
 
       {/* Assigned Rental */}
       <div className="flex items-center gap-1.5 min-w-0">
-        {op.assignedRentalName ? (
+        {op.isShuttle ? (
+          <>
+            <Bus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(245,158,11,0.5)" : "#f59e0b" }} />
+            <span
+              className="text-sm font-semibold truncate"
+              style={{ color: isCompleted ? "rgba(252,211,77,0.5)" : "#fcd34d" }}
+            >
+              Shuttle
+            </span>
+          </>
+        ) : op.assignedRentalName ? (
           <>
             {op.isTeamRental ? (
               <Users className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isCompleted ? "rgba(167,139,250,0.5)" : "#a78bfa" }} />

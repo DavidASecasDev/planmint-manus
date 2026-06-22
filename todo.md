@@ -1250,3 +1250,8 @@
 - [x] Parking: Filtrar zona "Sucios" del diálogo de asignación de plaza (no debe aparecer como opción al asignar vehículo limpio)
 - [x] Parking: Invalidar query de vehículo tras asignar plaza para que el Kanban se actualice inmediatamente
 - [x] Parking: Mostrar badge con plaza asignada (ej. "Z3-5") en la tarjeta del vehículo limpio en el Kanban
+- [x] Shuttle: Añadir campo shuttle por operación en BD (shuttle_entrega, shuttle_devolucion en reservations)
+- [x] Shuttle: Modificar columna Rental para mostrar badge "Shuttle" cuando está marcado, reemplazando el AssigneeSelect
+- [x] Shuttle: Permitir al operador activar/desactivar Shuttle manualmente desde la celda Rental
+- [x] Shuttle: Mostrar indicador Shuttle en PublicOperationsTV cuando aplique
+- [x] Shuttle: Actualizar reinforcementEndpoint para no marcar como "falta rental" cuando es shuttle

@@ -82,7 +82,8 @@ export async function handleGetUnassignedOperations(req: Request, res: Response)
          asignado_rental_entrega_id, asignado_rental_entrega_team_id,
          asignado_escoba_entrega_id, asignado_escoba_entrega_team_id,
          asignado_rental_devolucion_id, asignado_rental_devolucion_team_id,
-         asignado_escoba_devolucion_id, asignado_escoba_devolucion_team_id`
+         asignado_escoba_devolucion_id, asignado_escoba_devolucion_team_id,
+         shuttle_entrega, shuttle_devolucion`
       )
       .eq("organization_id", orgId)
       .is("archived_at", null)
@@ -114,8 +115,10 @@ export async function handleGetUnassignedOperations(req: Request, res: Response)
         const rentalId = (r as any)[fields.rentalId] || null;
         const escobaId = (r as any)[fields.escobaId] || null;
 
+        // Shuttle operations don't need a rental assignee
+        const isShuttle = type === 'Entrega' ? !!(r as any).shuttle_entrega : type === 'Devolución' ? !!(r as any).shuttle_devolucion : false;
         // Only include if at least one role is unassigned
-        const needsRental = !rentalId;
+        const needsRental = isShuttle ? false : !rentalId;
         const needsEscoba = !escobaId;
 
         if (!needsRental && !needsEscoba) return;

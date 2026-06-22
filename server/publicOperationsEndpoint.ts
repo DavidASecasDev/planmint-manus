@@ -78,7 +78,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
     // 4. confirmed_devolucion_datetime is on target date
     const { data: reservations, error: resError } = await serviceClient
       .from("reservations")
-      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, asignado_rental_team_id, asignado_rental_entrega_team_id, asignado_rental_devolucion_team_id, asignado_escoba_team_id, asignado_escoba_entrega_team_id, asignado_escoba_devolucion_team_id, cliente_nombre, cliente_apellido")
+      .select("id, desde, hasta, confirmed_entrega_datetime, confirmed_devolucion_datetime, lugar_entrega, lugar_devolucion, lugar_entrega_direccion, lugar_devolucion_direccion, auto, modelo, tipo_actividad, estado, entrega_completada, devolucion_completada, transfer_completado, asignado_rental_id, asignado_rental_entrega_id, asignado_rental_devolucion_id, asignado_escoba_id, asignado_escoba_entrega_id, asignado_escoba_devolucion_id, asignado_rental_team_id, asignado_rental_entrega_team_id, asignado_rental_devolucion_team_id, asignado_escoba_team_id, asignado_escoba_entrega_team_id, asignado_escoba_devolucion_team_id, cliente_nombre, cliente_apellido, shuttle_entrega, shuttle_devolucion")
       .eq("organization_id", organizationId)
       .or("estado.neq.Cancelada,estado.is.null")
       .is("archived_at", null)
@@ -247,6 +247,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
       enCaminoAt: string | null;
       vehicleStatus: string | null; // limpio, sucio, incompleto, alquilado, en_servicio
       isManualVehicle: boolean;
+      isShuttle: boolean;
     }> = [];
 
     for (const r of reservations || []) {
@@ -286,6 +287,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
               enCaminoAt: enCaminoRec?.en_camino_at || null,
               vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
               isManualVehicle: r.auto ? !knownFleetPlates.has(r.auto.replace(/\s+/g, "").toUpperCase()) : false,
+              isShuttle: false,
             });
           }
         }
@@ -324,6 +326,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             enCaminoAt: enCaminoRec?.en_camino_at || null,
             vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
             isManualVehicle: r.auto ? !knownFleetPlates.has(r.auto.replace(/\s+/g, "").toUpperCase()) : false,
+            isShuttle: r.shuttle_entrega || false,
           });
         }
       }
@@ -360,6 +363,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
             enCaminoAt: enCaminoRec?.en_camino_at || null,
             vehicleStatus: r.auto ? (vehicleStatusMap.get(r.auto.toUpperCase().trim()) || null) : null,
             isManualVehicle: r.auto ? !knownFleetPlates.has(r.auto.replace(/\s+/g, "").toUpperCase()) : false,
+            isShuttle: r.shuttle_devolucion || false,
           });
         }
       }
@@ -534,6 +538,7 @@ export async function handlePublicOperations(req: Request, res: Response) {
         enCaminoAt: op.enCaminoAt || null,
         vehicleStatus: op.vehicleStatus || null,
         isManualVehicle: op.isManualVehicle || false,
+        isShuttle: op.isShuttle || false,
       })),
       hourly: hourlyWithLoad,
       recommendedSlots,

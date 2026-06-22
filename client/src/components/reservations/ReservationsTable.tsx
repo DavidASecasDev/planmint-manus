@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil, Bus } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -2119,15 +2119,49 @@ export function ReservationsTable() {
                             const refDatetime = row.confirmedDatetime || row.fechaHora;
                             const refDate = refDatetime ? refDatetime.substring(0, 10) : null;
                             const refTime = refDatetime && refDatetime.length >= 16 ? refDatetime.substring(11, 16) : null;
+                            const shuttleField = row.tipoOperacion === 'Entrega' ? 'shuttle_entrega' : 'shuttle_devolucion';
+                            const isShuttle = !!(row.reservation as any)[shuttleField];
                             return (
-                              <AssigneeSelect
-                                userId={getOperationAssigneeId(row, 'rental', 'user')}
-                                teamId={getOperationAssigneeId(row, 'rental', 'team')}
-                                onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'rental', userId, teamId)}
-                                date={refDate}
-                                reservationTime={refTime}
-                                assignmentRole="rental"
-                              />
+                              <div className="flex items-center gap-1">
+                                {isShuttle ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 gap-1 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                                    onClick={() => {
+                                      handleUpdate(row.reservationId, { [shuttleField]: false } as any);
+                                    }}
+                                    title="Click para quitar Shuttle y asignar Rental"
+                                  >
+                                    <Bus className="h-3.5 w-3.5" />
+                                    <span className="text-xs font-medium">Shuttle</span>
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <AssigneeSelect
+                                      userId={getOperationAssigneeId(row, 'rental', 'user')}
+                                      teamId={getOperationAssigneeId(row, 'rental', 'team')}
+                                      onChange={(userId, teamId) => handleOperationAssigneeUpdate(row, 'rental', userId, teamId)}
+                                      date={refDate}
+                                      reservationTime={refTime}
+                                      assignmentRole="rental"
+                                    />
+                                    {!getOperationAssigneeId(row, 'rental', 'user') && !getOperationAssigneeId(row, 'rental', 'team') && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-amber-600 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                                        onClick={() => {
+                                          handleUpdate(row.reservationId, { [shuttleField]: true } as any);
+                                        }}
+                                        title="Marcar como Shuttle"
+                                      >
+                                        <Bus className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             );
                           })()}
                           {col.type === 'assignee' && col.key === 'asignado_escoba' && (() => {

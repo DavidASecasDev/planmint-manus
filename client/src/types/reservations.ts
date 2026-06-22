@@ -108,6 +108,10 @@ export interface Reservation {
   asignado_escoba_devolucion_id: string | null;
   asignado_escoba_devolucion_team_id: string | null;
   
+  // Shuttle (servicio de recogida aeropuerto → oficina)
+  shuttle_entrega: boolean;
+  shuttle_devolucion: boolean;
+  
   // Campos de completado por operación
   entrega_completada: boolean;
   devolucion_completada: boolean;
@@ -288,6 +292,9 @@ export interface UpdateReservationData {
   entrega_completada?: boolean;
   devolucion_completada?: boolean;
   transfer_completado?: boolean;
+  // Shuttle
+  shuttle_entrega?: boolean;
+  shuttle_devolucion?: boolean;
 }
 
 export interface ExcelRow {
