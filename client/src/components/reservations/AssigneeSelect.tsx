@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, ChevronDown, User, Users, Clock, Moon } from 'lucide-react';
+import { Check, ChevronDown, User, Users, Clock, Moon, Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -28,6 +28,12 @@ interface AssigneeSelectProps {
    *  'escoba' = show all teams (Preparación can drive as escoba)
    *  undefined = show all (backwards compatible) */
   assignmentRole?: 'rental' | 'escoba';
+  /** Optional: callback to mark this operation as Shuttle */
+  onShuttle?: () => void;
+  /** Optional: whether this operation is currently marked as shuttle */
+  isShuttle?: boolean;
+  /** Optional: callback to unmark shuttle */
+  onUnshuttle?: () => void;
 }
 
 interface Member {
@@ -46,7 +52,7 @@ function parseTimeToMinutes(time: string | null | undefined): number | null {
   return parts[0] * 60 + parts[1];
 }
 
-export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reservationTime, assignmentRole }: AssigneeSelectProps) {
+export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reservationTime, assignmentRole, onShuttle, isShuttle, onUnshuttle }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const { teams } = useTeams();
   const { members: orgMembers } = useOrganizationMembers();
@@ -174,7 +180,7 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reser
     setOpen(false);
   };
 
-  const displayValue = selectedUser?.name || selectedTeam?.name || null;
+  const displayValue = isShuttle ? 'Shuttle' : (selectedUser?.name || selectedTeam?.name || null);
 
   // Show shift info for selected user
   const selectedUserShift = userId && date ? availability[userId] : null;
@@ -190,9 +196,17 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reser
         <Button 
           variant="ghost" 
           size="sm"
-          className="h-7 px-2 justify-between min-w-[100px] hover:bg-muted/50"
+          className={cn(
+            "h-7 px-2 justify-between min-w-[100px] hover:bg-muted/50",
+            isShuttle && "bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+          )}
         >
-          {displayValue ? (
+          {isShuttle ? (
+            <span className="flex items-center gap-1 text-xs truncate font-medium">
+              <Bus className="h-3 w-3" />
+              Shuttle
+            </span>
+          ) : displayValue ? (
             <span className="flex items-center gap-1 text-xs truncate">
               {selectedTeam ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
               {displayValue}
@@ -217,6 +231,32 @@ export function AssigneeSelect({ userId, teamId, onChange, disabled, date, reser
       </PopoverTrigger>
       <PopoverContent className="w-64 p-1" align="start">
         <div className="max-h-72 overflow-auto">
+          {/* Shuttle option */}
+          {onShuttle && (
+            <>
+              <button
+                className={cn(
+                  "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-amber-50 transition-colors",
+                  isShuttle && "bg-amber-100"
+                )}
+                onClick={() => {
+                  if (isShuttle && onUnshuttle) {
+                    onUnshuttle();
+                  } else {
+                    onShuttle();
+                  }
+                  setOpen(false);
+                }}
+              >
+                <Bus className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                <span className="truncate flex-1 text-left font-medium text-amber-800">Shuttle</span>
+                {isShuttle && (
+                  <Check className="h-3 w-3 ml-auto text-amber-600 flex-shrink-0" />
+                )}
+              </button>
+              <div className="my-1 mx-2 border-t border-border" />
+            </>
+          )}
           {sortedMembers.length > 0 && (
             <>
               {(() => {
