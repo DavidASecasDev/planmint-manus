@@ -1262,3 +1262,6 @@
 - [x] Notificaciones: Frontend - Toast en tiempo real cuando llega una nueva notificación (ya existía)
 - [x] Notificaciones: Ajustes - Panel admin de configuración por evento y equipo + preferencias personales con 8 eventos operacionales
 - [x] Notificaciones: Disparar notificaciones desde operaciones existentes (asignación rental/escoba, cambio hora, shuttle, nueva reserva, cancelación)
+- [x] Notificaciones: Trigger vehiculo_listo al completar la última tarea de limpieza (detectar transición a limpio)
+- [x] Notificaciones: Trigger refuerzo_necesario desde el endpoint de refuerzos cuando se detecta falta de personal
+- [x] Notificaciones: Sonido/vibración configurable cuando llega una notificación nueva (preferencia por usuario)

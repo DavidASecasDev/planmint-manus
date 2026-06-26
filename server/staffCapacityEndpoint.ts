@@ -16,6 +16,7 @@ import {
   AuthError,
 } from "./supabaseAdmin";
 import { makeRequest, type DistanceMatrixResult } from "./_core/map";
+import { sendOperationalNotification } from "./notificationHelper";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -1015,6 +1016,19 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       cacheStats: { hits: cacheHits, misses: cacheMisses, googleCalls },
       reinforcements: allReinforcements,
     };
+
+    // Trigger refuerzo_necesario notification when deficit is detected
+    if (overallStatus === 'deficit' && deficitHours.length > 0) {
+      sendOperationalNotification(sb, {
+        organizationId: orgId,
+        eventKey: 'refuerzo_necesario',
+        notificationType: 'refuerzo_necesario',
+        title: 'Refuerzo necesario',
+        body: `Déficit de personal el ${date}. ${deficitHours.length} franja(s) con sobrecarga (${deficitHours.map((h: number) => `${h}:00`).join(', ')}). Se recomienda refuerzo.`,
+        entityType: 'staff_capacity',
+        entityId: date,
+      }).catch(() => { /* non-critical */ });
+    }
 
     return res.json({ ok: true, data: result });
   } catch (err: any) {

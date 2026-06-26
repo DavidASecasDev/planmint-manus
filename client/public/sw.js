@@ -105,6 +105,7 @@ self.addEventListener('push', (event) => {
     data = {},
     actions = [],
     requireInteraction = false,
+    vibrate = true,
   } = payload;
 
   const options = {
@@ -115,7 +116,7 @@ self.addEventListener('push', (event) => {
     data,
     actions,
     requireInteraction,
-    vibrate: [200, 100, 200],
+    ...(vibrate !== false ? { vibrate: [200, 100, 200] } : {}),
     timestamp: Date.now(),
     renotify: true,
   };
@@ -196,6 +197,13 @@ self.addEventListener('message', (event) => {
   // Handle show-notification messages from the app (foreground push)
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
     const { title, options } = event.data;
-    self.registration.showNotification(title, options);
+    // Convert vibrate boolean to pattern or remove it
+    const finalOptions = { ...options };
+    if (options.vibrate === true) {
+      finalOptions.vibrate = [200, 100, 200];
+    } else if (options.vibrate === false) {
+      delete finalOptions.vibrate;
+    }
+    self.registration.showNotification(title, finalOptions);
   }
 });

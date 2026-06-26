@@ -17,6 +17,7 @@ import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
 import {
   Collapsible,
   CollapsibleContent,
@@ -54,6 +55,7 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const { triggerNotification } = useNotificationTrigger();
   const canManageVehicles = !permissionsLoading && hasPermission('vehicles.manage');
   const [notes, setNotes] = useState(vehicle?.service_notes || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -84,6 +86,16 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
   // Handler: when vehicle becomes clean, fetch parking zones and open dialog
   const handleVehicleBecameClean = async () => {
+    // Trigger vehiculo_listo notification
+    if (vehicle) {
+      triggerNotification({
+        eventKey: 'vehiculo_listo',
+        title: 'Vehículo listo',
+        body: `${vehicle.matricula} (${vehicle.modelo || 'Sin modelo'}) ha completado la preparación y está limpio.`,
+        entityType: 'vehicle_prep',
+        entityId: vehicle.id,
+      });
+    }
     setSelectedZone('');
     setSelectedSpot('');
     try {

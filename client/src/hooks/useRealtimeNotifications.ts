@@ -19,6 +19,24 @@ export function useRealtimeNotifications() {
   const hasNewNotificationRef = useRef(false);
   const lastSeenAtRef = useRef<string>(new Date().toISOString());
   const { sendLocalPush, isAppInBackground } = usePushBridge();
+  const soundEnabledRef = useRef(true);
+  const vibrationEnabledRef = useRef(true);
+
+  // Fetch sound/vibration preferences
+  useEffect(() => {
+    if (!profile?.id) return;
+    supabaseQuery
+      .from('notification_preferences')
+      .select('sound_enabled, vibration_enabled')
+      .eq('user_id', profile.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          soundEnabledRef.current = data.sound_enabled ?? true;
+          vibrationEnabledRef.current = data.vibration_enabled ?? true;
+        }
+      });
+  }, [profile?.id]);
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -89,16 +107,19 @@ export function useRealtimeNotifications() {
         entity_type: notification.entity_type,
         entity_id: notification.entity_id,
         requireInteraction: isUrgent,
+        vibrate: vibrationEnabledRef.current,
       });
       return; // Don't show toast if in background - the push notification is enough
     }
 
     // App is in foreground - show toast for urgent notifications
     if (isUrgent) {
-      playNotificationSound();
+      if (soundEnabledRef.current) playNotificationSound();
       const taskId = notification.entity_type === 'task' ? notification.entity_id : undefined;
       showUrgentToast(notification.title, notification.body, taskId);
     } else {
+      // Play sound for non-urgent too if enabled
+      if (soundEnabledRef.current) playNotificationSound();
       // Show a subtle toast for non-urgent notifications in foreground
       toast(notification.title, {
         description: notification.body,

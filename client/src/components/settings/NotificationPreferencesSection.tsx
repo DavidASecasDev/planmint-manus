@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Bell, Mail, MessageSquare, Send, Clock, Loader2, Lock, Smartphone, AlertTriangle, Download } from 'lucide-react';
+import { Bell, Mail, MessageSquare, Send, Clock, Loader2, Lock, Smartphone, AlertTriangle, Download, Volume2, Vibrate } from 'lucide-react';
 import { CHANNEL_PERMISSIONS } from '@/types/external-notifications';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { PlanType } from '@/types/subscription';
@@ -225,6 +225,50 @@ export function NotificationPreferencesSection() {
             disabled={!hasWhatsApp}
             disabledReason={!hasWhatsApp ? 'No configurado' : undefined}
           />
+        </div>
+      </div>
+
+      {/* Sound & Vibration */}
+      <div className="space-y-3">
+        <Label className="text-base font-semibold">Sonido y vibración</Label>
+        <p className="text-sm text-muted-foreground">Configura el feedback al recibir notificaciones</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Volume2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Sonido</p>
+                <p className="text-xs text-muted-foreground">Reproducir sonido al recibir notificaciones</p>
+              </div>
+            </div>
+            <Switch
+              checked={preferences?.sound_enabled ?? true}
+              onCheckedChange={async (checked) => {
+                const success = await updatePreferences({ sound_enabled: checked });
+                if (success) toast.success(`Sonido ${checked ? 'activado' : 'desactivado'}`);
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Vibrate className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Vibración</p>
+                <p className="text-xs text-muted-foreground">Vibrar el dispositivo al recibir notificaciones push</p>
+              </div>
+            </div>
+            <Switch
+              checked={preferences?.vibration_enabled ?? true}
+              onCheckedChange={async (checked) => {
+                const success = await updatePreferences({ vibration_enabled: checked });
+                if (success) toast.success(`Vibración ${checked ? 'activada' : 'desactivada'}`);
+              }}
+            />
+          </div>
         </div>
       </div>
 

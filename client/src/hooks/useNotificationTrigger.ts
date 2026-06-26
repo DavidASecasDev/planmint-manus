@@ -28,7 +28,7 @@ interface TriggerNotificationParams {
 export function useNotificationTrigger() {
   const triggerNotification = useCallback(async (params: TriggerNotificationParams) => {
     try {
-      await apiInvoke('/api/notifications/trigger', {
+      await apiInvoke('notifications/trigger', {
         body: {
           eventKey: params.eventKey,
           title: params.title,

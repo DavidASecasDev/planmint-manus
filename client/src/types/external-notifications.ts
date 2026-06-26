@@ -22,6 +22,8 @@ export interface NotificationPreferences {
   channel_email: boolean;
   channel_slack: boolean;
   channel_whatsapp: boolean;
+  sound_enabled: boolean;
+  vibration_enabled: boolean;
   events_json: {
     mention: boolean;
     assignment: boolean;

@@ -39,6 +39,7 @@ export function usePushBridge() {
     entity_id?: string;
     url?: string;
     requireInteraction?: boolean;
+    vibrate?: boolean;
   }) => {
     if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
@@ -53,7 +54,7 @@ export function usePushBridge() {
           icon: '/icon-192.png',
           badge: '/icon-192.png',
           tag: notification.tag || `notif-${Date.now()}`,
-          vibrate: [200, 100, 200],
+          vibrate: notification.vibrate !== false,
           requireInteraction: notification.requireInteraction || false,
           data: {
             entity_type: notification.entity_type,

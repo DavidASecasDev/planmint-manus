@@ -9,6 +9,8 @@ const DEFAULT_PREFERENCES = {
   channel_email: false,
   channel_slack: false,
   channel_whatsapp: false,
+  sound_enabled: true,
+  vibration_enabled: true,
   events_json: {
     mention: true,
     assignment: true,
