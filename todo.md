@@ -1255,3 +1255,10 @@
 - [x] Shuttle: Permitir al operador activar/desactivar Shuttle manualmente desde la celda Rental
 - [x] Shuttle: Mostrar indicador Shuttle en PublicOperationsTV cuando aplique
 - [x] Shuttle: Actualizar reinforcementEndpoint para no marcar como "falta rental" cuando es shuttle
+- [x] Notificaciones: Crear tablas en Supabase (notifications, notification_preferences, notification_event_config) con esquema de eventos y roles
+- [x] Notificaciones: Backend - endpoint /api/notifications/trigger con helper que respeta config por equipo y preferencias de usuario
+- [x] Notificaciones: Frontend - Icono campana con contador de no leídas en la barra superior (ya existía)
+- [x] Notificaciones: Frontend - Panel desplegable con historial de notificaciones (ya existía)
+- [x] Notificaciones: Frontend - Toast en tiempo real cuando llega una nueva notificación (ya existía)
+- [x] Notificaciones: Ajustes - Panel admin de configuración por evento y equipo + preferencias personales con 8 eventos operacionales
+- [x] Notificaciones: Disparar notificaciones desde operaciones existentes (asignación rental/escoba, cambio hora, shuttle, nueva reserva, cancelación)

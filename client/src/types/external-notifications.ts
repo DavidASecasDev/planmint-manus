@@ -27,6 +27,14 @@ export interface NotificationPreferences {
     assignment: boolean;
     reminder: boolean;
     ai_insight: boolean;
+    rental_assigned: boolean;
+    escoba_assigned: boolean;
+    hora_confirmada: boolean;
+    vehiculo_listo: boolean;
+    shuttle_programado: boolean;
+    refuerzo_necesario: boolean;
+    nueva_reserva: boolean;
+    reserva_cancelada: boolean;
   };
   quiet_hours_start: string | null;
   quiet_hours_end: string | null;

@@ -4,7 +4,7 @@
  * Bell icon: muted-foreground | Badge: gold accent
  * Popover: popover bg | foreground text
  */
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow, ParkingSquare } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow, ParkingSquare, Bus, Sparkles, Users, Plus, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -38,6 +38,14 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   geofence_alert: MapPin,
   low_battery_alert: BatteryLow,
   parking_full: ParkingSquare,
+  rental_assigned: Car,
+  escoba_assigned: Car,
+  hora_confirmada: Clock,
+  vehiculo_listo: Sparkles,
+  shuttle_programado: Bus,
+  refuerzo_necesario: Users,
+  nueva_reserva: Plus,
+  reserva_cancelada: XCircle,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -58,6 +66,14 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   geofence_alert: '#06B6D4',
   low_battery_alert: '#EF4444',
   parking_full: '#F59E0B',
+  rental_assigned: '#3B82F6',
+  escoba_assigned: '#8B5CF6',
+  hora_confirmada: '#F97316',
+  vehiculo_listo: '#22C55E',
+  shuttle_programado: '#F59E0B',
+  refuerzo_necesario: '#EF4444',
+  nueva_reserva: '#6366F1',
+  reserva_cancelada: '#EF4444',
 };
 
 export function NotificationBell() {

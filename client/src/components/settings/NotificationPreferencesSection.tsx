@@ -53,7 +53,7 @@ export function NotificationPreferencesSection() {
     }
   };
 
-  const handleEventToggle = async (event: 'mention' | 'assignment' | 'reminder' | 'ai_insight', enabled: boolean) => {
+  const handleEventToggle = async (event: keyof NonNullable<typeof preferences>['events_json'], enabled: boolean) => {
     if (!preferences) return;
     const newEventsJson = { ...preferences.events_json, [event]: enabled };
     const success = await updatePreferences({ events_json: newEventsJson });
@@ -232,6 +232,8 @@ export function NotificationPreferencesSection() {
       <div className="space-y-3">
         <Label className="text-base font-semibold">Tipos de evento</Label>
         <p className="text-sm text-muted-foreground">Elige qué eventos quieres recibir</p>
+        
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-4">General</p>
         <div className="grid grid-cols-2 gap-3">
           {[
             { key: 'mention', label: '@Menciones' },
@@ -243,7 +245,29 @@ export function NotificationPreferencesSection() {
               <span className="text-sm font-medium">{label}</span>
               <Switch
                 checked={preferences?.events_json?.[key as keyof typeof preferences.events_json] ?? false}
-                onCheckedChange={(checked) => handleEventToggle(key as 'mention' | 'assignment' | 'reminder' | 'ai_insight', checked)}
+                onCheckedChange={(checked) => preferences && handleEventToggle(key as keyof typeof preferences.events_json, checked)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-4">Operaciones</p>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { key: 'rental_assigned', label: 'Asignación Rental' },
+            { key: 'escoba_assigned', label: 'Asignación Escoba' },
+            { key: 'hora_confirmada', label: 'Hora Confirmada' },
+            { key: 'vehiculo_listo', label: 'Vehículo Listo' },
+            { key: 'shuttle_programado', label: 'Shuttle Programado' },
+            { key: 'refuerzo_necesario', label: 'Refuerzo Necesario' },
+            { key: 'nueva_reserva', label: 'Nueva Reserva' },
+            { key: 'reserva_cancelada', label: 'Reserva Cancelada' },
+          ].map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between p-3 rounded-lg border">
+              <span className="text-sm font-medium">{label}</span>
+              <Switch
+                checked={preferences?.events_json?.[key as keyof typeof preferences.events_json] ?? false}
+                onCheckedChange={(checked) => preferences && handleEventToggle(key as keyof typeof preferences.events_json, checked)}
               />
             </div>
           ))}

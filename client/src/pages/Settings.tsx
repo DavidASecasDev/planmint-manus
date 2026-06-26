@@ -22,6 +22,7 @@ import { ProviderTemplateManager } from '@/components/transfers/ProviderTemplate
 
 import { UsageDashboard } from '@/components/analytics/UsageDashboard';
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection';
+import { NotificationEventConfigSection } from '@/components/settings/NotificationEventConfigSection';
 import { PushNotificationManager } from '@/components/notifications/PushNotificationManager';
 import { IntegrationSettingsSection } from '@/components/settings/IntegrationSettingsSection';
 import { SecuritySettingsSection } from '@/components/settings/SecuritySettingsSection';
@@ -326,6 +327,24 @@ export default function Settings() {
               <NotificationPreferencesSection />
             </CardContent>
           </Card>
+
+          {/* Notification Event Config (Admin Only) */}
+          {isAdmin && (
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  Configuración de Notificaciones por Equipo
+                </CardTitle>
+                <CardDescription>Define qué eventos de notificación recibe cada equipo de tu organización</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <NotificationEventConfigSection />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Integration Settings (Admin Only) */}
           {isAdmin && (

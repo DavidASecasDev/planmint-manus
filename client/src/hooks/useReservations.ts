@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { ERROR_MESSAGES, createErrorHandler } from '@/lib/errorHandler';
 import { usePermissions } from '@/hooks/usePermissions';
 import { apiInvoke } from '@/lib/apiClient';
+import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
 
 const errorHandler = createErrorHandler('useReservations');
 
@@ -26,6 +27,7 @@ export function useReservations(dateFilter?: ReservationsDateFilter) {
   const { profile } = useAuth();
   const { role } = usePermissions();
   const queryClient = useQueryClient();
+  const { triggerNotification } = useNotificationTrigger();
   const organizationId = profile?.organization_id;
   
   // Owner and Admin query base table directly via Supabase client
@@ -125,8 +127,15 @@ export function useReservations(dateFilter?: ReservationsDateFilter) {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      // Notify about new reservation
+      triggerNotification({
+        eventKey: 'nueva_reserva',
+        title: 'Nueva Reserva',
+        body: `Nueva reserva creada: ${variables.auto || ''} ${variables.modelo || ''}`.trim(),
+        entityType: 'reservation',
+      });
     },
     onError: (error) => {
       toast.error(ERROR_MESSAGES.reservations.createError.description);
@@ -246,10 +255,18 @@ export function useReservations(dateFilter?: ReservationsDateFilter) {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] });
       queryClient.invalidateQueries({ queryKey: ['reservations-archived'] });
       toast.success('Reserva archivada correctamente');
+      // Notify about cancelled/archived reservation
+      triggerNotification({
+        eventKey: 'reserva_cancelada',
+        title: 'Reserva Archivada',
+        body: 'Una reserva ha sido archivada/cancelada',
+        entityType: 'reservation',
+        entityId: id,
+      });
     },
     onError: (error) => {
       toast.error('Error al archivar la reserva');

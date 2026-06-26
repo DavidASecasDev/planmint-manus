@@ -1,5 +1,5 @@
-export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'transfer_status_change' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert' | 'transfer_stale_alert' | 'invitation_sent' | 'invitation_accepted' | 'equipment_shortage' | 'en_camino_alert' | 'geofence_alert' | 'low_battery_alert' | 'parking_full';
-export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep' | 'invitation' | 'equipment' | 'en_camino' | 'geofence' | 'fleet_vehicle' | 'parking_zone';
+export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'transfer_note' | 'transfer_status_change' | 'repair_update' | 'accident_report' | 'damage_report_update' | 'vehicle_prep_alert' | 'transfer_stale_alert' | 'invitation_sent' | 'invitation_accepted' | 'equipment_shortage' | 'en_camino_alert' | 'geofence_alert' | 'low_battery_alert' | 'parking_full' | 'rental_assigned' | 'escoba_assigned' | 'hora_confirmada' | 'vehiculo_listo' | 'shuttle_programado' | 'refuerzo_necesario' | 'nueva_reserva' | 'reserva_cancelada';
+export type NotificationEntityType = 'task' | 'task_update' | 'reminder' | 'transfer_request' | 'transfer_note' | 'form_response' | 'repair' | 'accident' | 'damage_report' | 'vehicle_prep' | 'invitation' | 'equipment' | 'en_camino' | 'geofence' | 'fleet_vehicle' | 'parking_zone' | 'reservation';
 
 export interface Notification {
   id: string;

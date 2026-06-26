@@ -221,6 +221,7 @@ import {
   handleGetParkingOverview,
   handleSeedParkingLayout,
 } from "../parkingEndpoints";
+import notificationTriggerRouter from "../notificationTriggerEndpoint";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -489,6 +490,9 @@ async function startServer() {
   app.post("/api/parking/history", handleGetParkingHistory);
   app.post("/api/parking/overview", handleGetParkingOverview);
   app.post("/api/parking/seed-layout", handleSeedParkingLayout);
+
+  // ─── Notification Trigger ─────────────────────────────────────────────────
+  app.use("/api/notifications", notificationTriggerRouter);
 
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);

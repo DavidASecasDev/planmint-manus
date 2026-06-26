@@ -6,6 +6,7 @@ import { DateRange } from 'react-day-picker';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil } from 'lucide-react';
 
 import { toast } from 'sonner';
+import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
@@ -140,6 +141,7 @@ function DebouncedColumnInput({ value, onChange, placeholder, className }: {
 
 export function ReservationsTable() {
   const { profile, session } = useAuth();
+  const { triggerNotification } = useNotificationTrigger();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const filterDefaults = useMemo(() => ({
@@ -989,6 +991,21 @@ export function ReservationsTable() {
   const handleConfirmedDateUpdate = (row: OperationRow, newValue: string | null) => {
     const field = row.tipoOperacion === 'Devolución' ? 'confirmed_devolucion_datetime' : 'confirmed_entrega_datetime';
     handleUpdate(row.reservationId, { [field]: newValue });
+    
+    // Notify assigned rental user about confirmed time
+    if (newValue) {
+      const assignedUserId = getOperationAssigneeId(row, 'rental', 'user');
+      if (assignedUserId) {
+        triggerNotification({
+          eventKey: 'hora_confirmada',
+          title: 'Hora Confirmada',
+          body: `Hora confirmada para ${row.tipoOperacion} de ${row.reservation.auto || 'vehículo'}: ${newValue.substring(11, 16)}`,
+          entityType: 'reservation',
+          entityId: row.reservationId,
+          targetUserId: assignedUserId,
+        });
+      }
+    }
   };
 
   // Función para marcar operación como completada
@@ -1166,15 +1183,28 @@ export function ReservationsTable() {
         [`asignado_${assigneeType}_id`]: userId,
         [`asignado_${assigneeType}_team_id`]: teamId,
       });
-      return;
+    } else {
+      // Para Entrega y Devolución, usar campos específicos
+      const suffix = row.tipoOperacion === 'Entrega' ? '_entrega' : '_devolucion';
+      handleUpdate(row.reservationId, {
+        [`asignado_${assigneeType}${suffix}_id`]: userId,
+        [`asignado_${assigneeType}${suffix}_team_id`]: teamId,
+      });
     }
-    
-    // Para Entrega y Devolución, usar campos específicos
-    const suffix = row.tipoOperacion === 'Entrega' ? '_entrega' : '_devolucion';
-    handleUpdate(row.reservationId, {
-      [`asignado_${assigneeType}${suffix}_id`]: userId,
-      [`asignado_${assigneeType}${suffix}_team_id`]: teamId,
-    });
+
+    // Trigger notification to the assigned user
+    if (userId) {
+      const eventKey = assigneeType === 'rental' ? 'rental_assigned' : 'escoba_assigned';
+      const label = assigneeType === 'rental' ? 'Rental' : 'Escoba';
+      triggerNotification({
+        eventKey,
+        title: `Asignación ${label}`,
+        body: `Te han asignado como ${label} para ${row.tipoOperacion} de ${row.reservation.auto || 'vehículo'}`,
+        entityType: 'reservation',
+        entityId: row.reservationId,
+        targetUserId: userId,
+      });
+    }
   };
 
   const getClientName = (r: Reservation) => {
@@ -2138,6 +2168,13 @@ export function ReservationsTable() {
                                 isShuttle={isShuttle}
                                 onShuttle={() => {
                                   handleUpdate(row.reservationId, { [shuttleField]: true } as any);
+                                  triggerNotification({
+                                    eventKey: 'shuttle_programado',
+                                    title: 'Shuttle Programado',
+                                    body: `Se ha programado shuttle para ${row.tipoOperacion} de ${row.reservation.auto || 'vehículo'}`,
+                                    entityType: 'reservation',
+                                    entityId: row.reservationId,
+                                  });
                                 }}
                                 onUnshuttle={() => {
                                   handleUpdate(row.reservationId, { [shuttleField]: false } as any);

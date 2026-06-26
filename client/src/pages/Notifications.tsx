@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow, ParkingSquare } from 'lucide-react';
+import { Bell, AtSign, UserCheck, Clock, Check, CheckCheck, Trash2, MessageSquare, Wrench, AlertTriangle, FileWarning, Car, Mail, UserPlus, Timer, Baby, Navigation, ArrowRightLeft, MapPin, BatteryLow, ParkingSquare, Bus, CalendarCheck, Sparkles, Users, Plus, XCircle, Paintbrush } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,6 +34,14 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
   geofence_alert: MapPin,
   low_battery_alert: BatteryLow,
   parking_full: ParkingSquare,
+  rental_assigned: UserCheck,
+  escoba_assigned: Paintbrush,
+  hora_confirmada: CalendarCheck,
+  vehiculo_listo: Sparkles,
+  shuttle_programado: Bus,
+  refuerzo_necesario: Users,
+  nueva_reserva: Plus,
+  reserva_cancelada: XCircle,
 };
 
 const TYPE_COLORS: Record<NotificationType, string> = {
@@ -54,6 +62,14 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   geofence_alert: 'text-cyan-500 bg-cyan-500/10',
   low_battery_alert: 'text-red-500 bg-red-500/10',
   parking_full: 'text-amber-500 bg-amber-500/10',
+  rental_assigned: 'text-green-500 bg-green-500/10',
+  escoba_assigned: 'text-teal-500 bg-teal-500/10',
+  hora_confirmada: 'text-blue-500 bg-blue-500/10',
+  vehiculo_listo: 'text-emerald-500 bg-emerald-500/10',
+  shuttle_programado: 'text-amber-500 bg-amber-500/10',
+  refuerzo_necesario: 'text-orange-500 bg-orange-500/10',
+  nueva_reserva: 'text-indigo-500 bg-indigo-500/10',
+  reserva_cancelada: 'text-red-500 bg-red-500/10',
 };
 
 const TYPE_LABELS: Record<NotificationType, string> = {
@@ -74,6 +90,14 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   geofence_alert: 'Geocerca',
   low_battery_alert: 'Batería Baja',
   parking_full: 'Parking Lleno',
+  rental_assigned: 'Asignación Rental',
+  escoba_assigned: 'Asignación Escoba',
+  hora_confirmada: 'Hora Confirmada',
+  vehiculo_listo: 'Vehículo Listo',
+  shuttle_programado: 'Shuttle Programado',
+  refuerzo_necesario: 'Refuerzo Necesario',
+  nueva_reserva: 'Nueva Reserva',
+  reserva_cancelada: 'Reserva Cancelada',
 };
 
 export default function Notifications() {
