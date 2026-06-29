@@ -8,6 +8,8 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  defaultDropAnimationSideEffects,
+  type DropAnimation,
 } from '@dnd-kit/core';
 import { toast } from 'sonner';
 import { RepairKanbanColumn } from './RepairKanbanColumn';
@@ -25,6 +27,19 @@ interface RepairKanbanBoardProps {
   onRepairClick: (repair: Repair) => void;
   onStatusChange: (repair: Repair, newStatus: RepairStatus) => Promise<void>;
 }
+
+// Snap drop animation config
+const dropAnimation: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: '0.5',
+      },
+    },
+  }),
+  duration: 250,
+  easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+};
 
 export function RepairKanbanBoard({
   repairs,
@@ -105,6 +120,19 @@ export function RepairKanbanBoard({
       return;
     }
 
+    // Show contextual toast for "En Taller" transition with workshop name
+    if (newStatus === 'en_taller') {
+      const workshopName = repair.workshop?.name;
+      toast.success(
+        `${repair.vehicle?.matricula || 'Vehículo'} enviado a taller`,
+        {
+          description: workshopName
+            ? `Taller: ${workshopName}`
+            : 'Sin taller asignado',
+        }
+      );
+    }
+
     await onStatusChange(repair, newStatus);
   };
 
@@ -136,7 +164,7 @@ export function RepairKanbanBoard({
         ))}
       </div>
 
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={dropAnimation}>
         {activeRepair && (
           <div className="shadow-2xl rotate-2">
             <RepairKanbanCard

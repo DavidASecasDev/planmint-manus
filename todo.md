@@ -1271,3 +1271,6 @@
 - [x] Estado Coches: Implementar drag & drop entre columnas del Kanban para mover vehículos de estado (solo admin/owner)
 - [x] Estado Coches: Mostrar log de auditoría en el detalle del vehículo (historial de cambios manuales)
 - [x] Bug: Drag & drop en Kanban de Reparaciones muestra "Transición no permitida" a "undefined" al soltar sobre otra tarjeta (over.id era UUID de la tarjeta, no el status de la columna)
+- [x] Reparaciones Kanban: Añadir animación de "snap" al soltar la tarjeta en la columna destino
+- [x] Reparaciones Kanban: Mostrar toast de éxito con nombre del taller cuando una reparación pasa a "En Taller"
+- [x] Reparaciones Kanban: Añadir indicador de días en cada estado (ej. "3d en Listo Entregar") para detectar reparaciones estancadas

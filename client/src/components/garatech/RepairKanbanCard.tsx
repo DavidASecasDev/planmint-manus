@@ -1,12 +1,12 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { format } from 'date-fns';
+import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Car, Wrench, Calendar, Euro, Building } from 'lucide-react';
+import { Car, Wrench, Calendar, Euro, Building, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { REPAIR_TYPE_LABELS, type Repair, type RepairType } from '@/types/garatech';
+import { REPAIR_TYPE_LABELS, REPAIR_STATUS_LABELS, type Repair, type RepairType } from '@/types/garatech';
 
 interface RepairKanbanCardProps {
   repair: Repair;
@@ -30,6 +30,50 @@ const getRepairTypeBadgeColors = (type: RepairType) => {
   }
 };
 
+/**
+ * Calculate how long a repair has been in its current status.
+ * Uses updated_at as the best proxy for "last status change" since
+ * status changes always trigger an update.
+ * For 'en_taller', uses started_at if available.
+ */
+function getDaysInStatus(repair: Repair): { text: string; isStale: boolean } {
+  const now = new Date();
+  let referenceDate: Date;
+
+  if (repair.status === 'en_taller' && repair.started_at) {
+    referenceDate = new Date(repair.started_at);
+  } else if (repair.status === 'finalizado' && repair.completed_at) {
+    // For finalized, show time since completion
+    referenceDate = new Date(repair.completed_at);
+  } else {
+    // Use updated_at as the best proxy for when the status last changed
+    referenceDate = new Date(repair.updated_at);
+  }
+
+  const days = differenceInDays(now, referenceDate);
+  const hours = differenceInHours(now, referenceDate);
+
+  // Stale thresholds by status
+  const staleThresholds: Record<string, number> = {
+    pendiente_aprobacion: 3,
+    listo_entregar_taller: 2,
+    en_taller: 7,
+    esperando_piezas: 5,
+    listo_recoger: 2,
+    finalizado: 999, // never stale
+  };
+
+  const threshold = staleThresholds[repair.status] ?? 5;
+  const isStale = days >= threshold;
+
+  if (days === 0) {
+    if (hours <= 1) return { text: 'Ahora', isStale: false };
+    return { text: `${hours}h`, isStale: false };
+  }
+  if (days === 1) return { text: '1d', isStale };
+  return { text: `${days}d`, isStale };
+}
+
 export function RepairKanbanCard({ repair, onClick }: RepairKanbanCardProps) {
   const {
     attributes,
@@ -48,6 +92,8 @@ export function RepairKanbanCard({ repair, onClick }: RepairKanbanCardProps) {
     transition,
   };
 
+  const { text: daysText, isStale } = getDaysInStatus(repair);
+
   return (
     <Card
       ref={setNodeRef}
@@ -58,7 +104,8 @@ export function RepairKanbanCard({ repair, onClick }: RepairKanbanCardProps) {
         'mb-2 border-border/50 bg-card transition-all duration-200',
         'hover:shadow-md hover:border-border hover:-translate-y-0.5',
         'cursor-grab active:cursor-grabbing',
-        isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/50 rotate-1'
+        isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/50 rotate-1',
+        isStale && 'border-l-2 border-l-amber-500'
       )}
       onClick={(e) => {
         e.stopPropagation();
@@ -66,12 +113,27 @@ export function RepairKanbanCard({ repair, onClick }: RepairKanbanCardProps) {
       }}
     >
       <CardContent className="p-3.5 space-y-2.5">
-        {/* Repair number */}
-        {repair.repair_number && (
-          <p className="text-xs font-mono text-muted-foreground">
-            {repair.repair_number}
-          </p>
-        )}
+        {/* Header: Repair number + days indicator */}
+        <div className="flex items-center justify-between">
+          {repair.repair_number && (
+            <p className="text-xs font-mono text-muted-foreground">
+              {repair.repair_number}
+            </p>
+          )}
+          {/* Days in status indicator */}
+          <div
+            className={cn(
+              'flex items-center gap-1 text-xs rounded-full px-1.5 py-0.5',
+              isStale
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                : 'text-muted-foreground'
+            )}
+            title={`${daysText} en ${REPAIR_STATUS_LABELS[repair.status]}`}
+          >
+            <Clock className="h-3 w-3" />
+            <span className="font-medium">{daysText}</span>
+          </div>
+        </div>
 
         {/* Vehicle info */}
         <div className="flex items-start gap-2">
@@ -118,7 +180,7 @@ export function RepairKanbanCard({ repair, onClick }: RepairKanbanCardProps) {
               <span className="text-muted-foreground/50">--</span>
             )}
           </div>
-        {(() => {
+          {(() => {
             const isFinalizado = repair.status === 'finalizado';
             const displayCost = isFinalizado && repair.cost_final 
               ? repair.cost_final 
