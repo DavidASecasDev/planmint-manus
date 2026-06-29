@@ -75,7 +75,18 @@ export function RepairKanbanBoard({
     if (!over) return;
 
     const repair = active.data.current?.repair as Repair | undefined;
-    const newStatus = over.id as RepairStatus;
+
+    // Resolve target status: if dropped on a card, get the card's parent column status;
+    // if dropped on the column droppable itself, over.id IS the status.
+    let newStatus: RepairStatus;
+    const overRepair = over.data.current?.repair as Repair | undefined;
+    if (overRepair) {
+      // Dropped on another card — use that card's status as the target column
+      newStatus = overRepair.status;
+    } else {
+      // Dropped on the column droppable area
+      newStatus = over.id as RepairStatus;
+    }
 
     if (!repair || !newStatus || repair.status === newStatus) return;
 

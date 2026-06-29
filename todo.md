@@ -1270,3 +1270,4 @@
 - [x] Estado Coches: Añadir menú/botón en tarjeta de vehículo para cambiar estado manualmente (visible solo para admin/owner)
 - [x] Estado Coches: Implementar drag & drop entre columnas del Kanban para mover vehículos de estado (solo admin/owner)
 - [x] Estado Coches: Mostrar log de auditoría en el detalle del vehículo (historial de cambios manuales)
+- [x] Bug: Drag & drop en Kanban de Reparaciones muestra "Transición no permitida" a "undefined" al soltar sobre otra tarjeta (over.id era UUID de la tarjeta, no el status de la columna)
