@@ -1,14 +1,19 @@
 import { useState } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { VehicleWithTasks, CLEANING_TASKS, VehicleStatus, ServiceType } from '@/types/vehicles';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Car, Lock, ShieldCheck, ShieldX, ClipboardCheck } from 'lucide-react';
+import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Car, Lock, ShieldCheck, ShieldX, ClipboardCheck, ArrowRightLeft } from 'lucide-react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { apiInvoke } from '@/lib/apiClient';
+import { cn } from '@/lib/utils';
 import { MoveToServiceDialog } from './MoveToServiceDialog';
 import { VehicleAuditDialog } from './VehicleAuditDialog';
 import { useVehicleAuditStatuses } from '@/hooks/useVehicleAudits';
@@ -17,23 +22,60 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: 'sucio', label: 'Sucio', color: 'hsl(0, 84%, 60%)' },
+  { value: 'incompleto', label: 'En proceso', color: 'hsl(25, 95%, 53%)' },
+  { value: 'limpio', label: 'Limpio', color: 'hsl(142, 76%, 36%)' },
+  { value: 'alquilado', label: 'Entregado', color: 'hsl(217, 91%, 60%)' },
+];
 
 interface VehicleCardProps {
   vehicle: VehicleWithTasks;
   onSelect: (vehicleId: string) => void;
+  /** Whether this card can be dragged (admin only) */
+  canDrag?: boolean;
+  /** Whether this card is being rendered inside DragOverlay */
+  isDragOverlay?: boolean;
 }
 
-export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
+export function VehicleCard({ vehicle, onSelect, canDrag = false, isDragOverlay = false }: VehicleCardProps) {
   const { archiveVehicle, isArchiving } = useVehicles();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
+  const { hasPermission, isAdmin } = usePermissions();
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [isMovingToService, setIsMovingToService] = useState(false);
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
   const { data: auditStatuses } = useVehicleAuditStatuses();
   const auditInfo = auditStatuses?.get(vehicle.id);
+  
+  const canChangeStatus = isAdmin && hasPermission('vehicles.change_status');
+
+  // Sortable hook for drag & drop
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: vehicle.id,
+    data: { vehicle },
+    disabled: !canDrag || isDragOverlay,
+  });
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
   
   const completedTasks = (vehicle.cleaning_tasks || []).filter(t => t.completed).length;
   const totalTasks = CLEANING_TASKS.length;
@@ -135,6 +177,39 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
     }
   };
 
+  const handleChangeStatus = async (newStatus: string) => {
+    if (newStatus === vehicle.status || isChangingStatus) return;
+    setIsChangingStatus(true);
+    try {
+      const { data, error } = await apiInvoke<{ success: boolean; from_status: string; to_status: string }>('change-vehicle-status', {
+        body: {
+          vehicle_id: vehicle.id,
+          new_status: newStatus,
+          reason: 'Cambio manual desde Kanban',
+        },
+      });
+
+      if (error) throw new Error(error.message);
+
+      queryClient.invalidateQueries({ queryKey: ['vehicles', profile?.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
+      queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
+      toast({
+        title: 'Estado actualizado',
+        description: `${vehicle.matricula} cambiado a ${STATUS_OPTIONS.find(s => s.value === newStatus)?.label || newStatus}.`,
+      });
+    } catch (err: any) {
+      console.error('[VehicleCard] Change status error:', err);
+      toast({
+        title: 'Error',
+        description: err?.message || 'No se pudo cambiar el estado.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
+
   const handleCardClick = () => {
     onSelect(vehicle.id);
   };
@@ -144,11 +219,24 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
 
   return (
     <>
-      <div className="relative group">
+      <div
+        ref={setNodeRef}
+        style={sortableStyle}
+        className={cn(
+          'relative group',
+          isDragging && 'opacity-50 z-50',
+        )}
+      >
         <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow border-l-4" 
+          className={cn(
+            'cursor-pointer hover:shadow-md transition-shadow border-l-4',
+            canDrag && 'cursor-grab active:cursor-grabbing',
+            isDragging && 'shadow-lg ring-2 ring-primary/50',
+          )}
           style={{ borderLeftColor: getStatusColor(vehicle.status) }}
           onClick={handleCardClick}
+          {...(canDrag ? listeners : {})}
+          {...(canDrag ? attributes : {})}
         >
           <CardHeader className="p-3 pb-2">
             <div className="flex items-start justify-between">
@@ -241,46 +329,78 @@ export function VehicleCard({ vehicle, onSelect }: VehicleCardProps) {
           </CardContent>
         </Card>
 
-        {/* Context Menu Button - visible on hover */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {vehicle.status !== 'en_servicio' && vehicle.status !== 'alquilado' && (
-                <DropdownMenuItem onClick={handleOpenServiceDialog}>
-                  <Wrench className="h-4 w-4 mr-2" />
-                  Mover a En Servicio
+        {/* Context Menu Button - visible on hover (hidden during drag overlay) */}
+        {!isDragOverlay && (
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {/* Manual status change submenu - admin/owner only */}
+                {canChangeStatus && (
+                  <>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger disabled={isChangingStatus}>
+                        <ArrowRightLeft className="h-4 w-4 mr-2" />
+                        Cambiar estado
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {STATUS_OPTIONS.filter(s => s.value !== vehicle.status).map((opt) => (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleChangeStatus(opt.value);
+                            }}
+                          >
+                            <span
+                              className="h-2.5 w-2.5 rounded-full mr-2 inline-block"
+                              style={{ backgroundColor: opt.color }}
+                            />
+                            {opt.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+
+                {vehicle.status !== 'en_servicio' && vehicle.status !== 'alquilado' && (
+                  <DropdownMenuItem onClick={handleOpenServiceDialog}>
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Mover a En Servicio
+                  </DropdownMenuItem>
+                )}
+                {vehicle.status === 'en_servicio' && (
+                  <DropdownMenuItem onClick={handleReturnFromService}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Finalizar Servicio
+                  </DropdownMenuItem>
+                )}
+                {vehicle.status === 'limpio' && (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setAuditDialogOpen(true); }}>
+                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                    Auditar calidad
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleArchive} disabled={isArchiving}>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archivar vehículo
                 </DropdownMenuItem>
-              )}
-              {vehicle.status === 'en_servicio' && (
-                <DropdownMenuItem onClick={handleReturnFromService}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Finalizar Servicio
-                </DropdownMenuItem>
-              )}
-              {vehicle.status === 'limpio' && (
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setAuditDialogOpen(true); }}>
-                  <ClipboardCheck className="h-4 w-4 mr-2" />
-                  Auditar calidad
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleArchive} disabled={isArchiving}>
-                <Archive className="h-4 w-4 mr-2" />
-                Archivar vehículo
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
 
       <MoveToServiceDialog

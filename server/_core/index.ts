@@ -222,6 +222,7 @@ import {
   handleSeedParkingLayout,
 } from "../parkingEndpoints";
 import notificationTriggerRouter from "../notificationTriggerEndpoint";
+import { handleChangeVehicleStatus, handleGetVehicleStatusHistory } from "../vehicleStatusChangeEndpoint";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -288,6 +289,8 @@ async function startServer() {
   app.post("/api/get-org-integration-flags", handleGetOrgIntegrationFlags);
   app.post("/api/get-next-transfer-document-number", handleGetNextTransferDocumentNumber);
   app.post("/api/update-vehicle-location", handleUpdateVehicleLocation);
+  app.post("/api/change-vehicle-status", handleChangeVehicleStatus);
+  app.post("/api/get-vehicle-status-history", handleGetVehicleStatusHistory);
   app.post("/api/get-reservations-operational", handleGetReservationsOperational);
   app.post("/api/get-operational-dashboard", handleGetOperationalDashboard);
 

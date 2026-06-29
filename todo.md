@@ -1265,3 +1265,8 @@
 - [x] Notificaciones: Trigger vehiculo_listo al completar la última tarea de limpieza (detectar transición a limpio)
 - [x] Notificaciones: Trigger refuerzo_necesario desde el endpoint de refuerzos cuando se detecta falta de personal
 - [x] Notificaciones: Sonido/vibración configurable cuando llega una notificación nueva (preferencia por usuario)
+- [x] Estado Coches: Crear tabla vehicle_status_audit_log en Supabase para registrar cambios manuales (quién, cuándo, de/a estado)
+- [x] Estado Coches: Crear endpoint backend para cambio manual de estado con verificación de permisos (solo owner/admin)
+- [x] Estado Coches: Añadir menú/botón en tarjeta de vehículo para cambiar estado manualmente (visible solo para admin/owner)
+- [x] Estado Coches: Implementar drag & drop entre columnas del Kanban para mover vehículos de estado (solo admin/owner)
+- [ ] Estado Coches: Mostrar log de auditoría en el detalle del vehículo (historial de cambios manuales)
