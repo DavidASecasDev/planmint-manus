@@ -60,8 +60,12 @@ export default function GaratechRepairs() {
     setDeleteTarget(null);
   }, [deleteTarget, deleteRepair]);
 
-  const handleStatusChange = async (repair: Repair, newStatus: RepairStatus) => {
-    await updateRepair.mutateAsync({ id: repair.id, data: { status: newStatus }, previousStatus: repair.status });
+  const handleStatusChange = async (repair: Repair, newStatus: RepairStatus, extraData?: { cost_final?: number | null }) => {
+    const data: any = { status: newStatus };
+    if (extraData?.cost_final !== undefined) {
+      data.cost_final = extraData.cost_final;
+    }
+    await updateRepair.mutateAsync({ id: repair.id, data, previousStatus: repair.status });
   };
 
   const activeFiltersCount = [

@@ -1274,3 +1274,6 @@
 - [x] Reparaciones Kanban: Añadir animación de "snap" al soltar la tarjeta en la columna destino
 - [x] Reparaciones Kanban: Mostrar toast de éxito con nombre del taller cuando una reparación pasa a "En Taller"
 - [x] Reparaciones Kanban: Añadir indicador de días en cada estado (ej. "3d en Listo Entregar") para detectar reparaciones estancadas
+- [x] Reparaciones Kanban: Filtro rápido "Estancadas" que muestre solo tarjetas que superan el umbral de días en su estado
+- [x] Reparaciones Kanban: Permitir ordenar tarjetas dentro de la misma columna por prioridad o fecha programada
+- [x] Reparaciones Kanban: Diálogo de confirmación al mover a "Finalizado" para solicitar el coste final antes de cerrar
