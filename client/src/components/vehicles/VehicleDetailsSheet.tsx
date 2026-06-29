@@ -62,6 +62,7 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
   const { latestAudit, isLoadingLatestAudit } = useVehicleAudits(vehicle?.id);
 
   // Parking dialog state
@@ -212,8 +213,6 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
   };
 
   if (!vehicle) return null;
-
-  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
 
   // Cleaning history section - shared across all states
   const CleaningHistorySection = canManageVehicles ? (

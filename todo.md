@@ -1277,3 +1277,4 @@
 - [x] Reparaciones Kanban: Filtro rápido "Estancadas" que muestre solo tarjetas que superan el umbral de días en su estado
 - [x] Reparaciones Kanban: Permitir ordenar tarjetas dentro de la misma columna por prioridad o fecha programada
 - [x] Reparaciones Kanban: Diálogo de confirmación al mover a "Finalizado" para solicitar el coste final antes de cerrar
+- [x] Bug: Estado Coches crash "Error al cargar esta sección" al pulsar vehículo sucio — useState declarado después de early return violaba reglas de React Hooks (VehicleDetailsSheet + VehicleCleaningChecklist)

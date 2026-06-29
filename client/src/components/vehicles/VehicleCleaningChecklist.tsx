@@ -49,6 +49,14 @@ export function VehicleCleaningChecklist({ vehicle, onBecameClean }: VehicleClea
     };
   }, [debouncedSave]);
 
+  // Detect when vehicle transitions to 'limpio' after toggling tasks
+  useEffect(() => {
+    if (prevStatusRef.current !== 'limpio' && vehicle.status === 'limpio') {
+      onBecameClean?.();
+    }
+    prevStatusRef.current = vehicle.status;
+  }, [vehicle.status, onBecameClean]);
+
   const handleNotesChange = useCallback((value: string, taskId: string) => {
     setNotesValue(value);
     
@@ -88,14 +96,6 @@ export function VehicleCleaningChecklist({ vehicle, onBecameClean }: VehicleClea
   const getTaskByKey = (key: CleaningTaskKey) => {
     return tasks.find(t => t.task_key === key);
   };
-
-  // Detect when vehicle transitions to 'limpio' after toggling tasks
-  useEffect(() => {
-    if (prevStatusRef.current !== 'limpio' && vehicle.status === 'limpio') {
-      onBecameClean?.();
-    }
-    prevStatusRef.current = vehicle.status;
-  }, [vehicle.status, onBecameClean]);
 
   const handleToggle = (taskKey: CleaningTaskKey) => {
     const task = getTaskByKey(taskKey);
