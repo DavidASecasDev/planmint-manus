@@ -1269,4 +1269,4 @@
 - [x] Estado Coches: Crear endpoint backend para cambio manual de estado con verificación de permisos (solo owner/admin)
 - [x] Estado Coches: Añadir menú/botón en tarjeta de vehículo para cambiar estado manualmente (visible solo para admin/owner)
 - [x] Estado Coches: Implementar drag & drop entre columnas del Kanban para mover vehículos de estado (solo admin/owner)
-- [ ] Estado Coches: Mostrar log de auditoría en el detalle del vehículo (historial de cambios manuales)
+- [x] Estado Coches: Mostrar log de auditoría en el detalle del vehículo (historial de cambios manuales)

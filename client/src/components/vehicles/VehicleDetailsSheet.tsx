@@ -4,12 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Wrench, CheckCircle, Lock, History, ShieldCheck, ShieldX, ClipboardCheck, Loader2, MapPin, Car } from 'lucide-react';
+import { User, Wrench, CheckCircle, Lock, History, ShieldCheck, ShieldX, ClipboardCheck, Loader2, MapPin, Car, ArrowRightLeft } from 'lucide-react';
 import { VehicleCleaningChecklist } from './VehicleCleaningChecklist';
 import { VehicleAuditDialog } from './VehicleAuditDialog';
 import { useVehicleAudits } from '@/hooks/useVehicleAudits';
 import { VehicleLocationSelect } from './VehicleLocationSelect';
 import { VehicleCleaningHistory } from './VehicleCleaningHistory';
+import { VehicleStatusHistory } from './VehicleStatusHistory';
 import { VehicleRepairSummary } from './VehicleRepairSummary';
 import { supabase } from '@/integrations/supabase/client';
 import { apiInvoke } from '@/lib/apiClient';
@@ -212,6 +213,8 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
   if (!vehicle) return null;
 
+  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
+
   // Cleaning history section - shared across all states
   const CleaningHistorySection = canManageVehicles ? (
     <>
@@ -229,6 +232,24 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
       </Collapsible>
     </>
   ) : null;
+
+  // Status change audit log section - visible to all authenticated users
+  const StatusHistorySection = (
+    <>
+      <Separator />
+      <Collapsible open={statusHistoryOpen} onOpenChange={setStatusHistoryOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+            <ArrowRightLeft className="h-4 w-4" />
+            Historial de cambios de estado
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <VehicleStatusHistory vehicleId={vehicle.id} />
+        </CollapsibleContent>
+      </Collapsible>
+    </>
+  );
 
   return (<>
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -255,6 +276,9 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
               {/* Cleaning history - also visible for rented vehicles */}
               {CleaningHistorySection}
+
+              {/* Status change audit log */}
+              {StatusHistorySection}
 
               {/* Repair history */}
               <Separator />
@@ -326,6 +350,9 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
               {/* Cleaning history - also visible for service vehicles */}
               {CleaningHistorySection}
+
+              {/* Status change audit log */}
+              {StatusHistorySection}
 
               {/* Repair history */}
               <Separator />
@@ -401,6 +428,9 @@ export function VehicleDetailsSheet({ open, onOpenChange, vehicle }: VehicleDeta
 
               {/* Cleaning history */}
               {CleaningHistorySection}
+
+              {/* Status change audit log */}
+              {StatusHistorySection}
 
               {/* Garatech: Repair & Accident History */}
               <Separator />
