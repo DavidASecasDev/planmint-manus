@@ -3,15 +3,17 @@ import { apiInvoke } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface TraccarDevice {
-  id: number;
+  id: number | string;
   name: string;
   uniqueId: string;
   status: string;
   lastUpdate: string | null;
-  positionId: number | null;
+  positionId: number | string | null;
   phone: string | null;
   model: string | null;
   category: string | null;
+  linkedVehicleId?: string | null;
+  linkedVehicle?: { matricula: string; marca: string; modelo: string } | null;
 }
 
 export interface TraccarPosition {
@@ -23,15 +25,19 @@ export interface TraccarPosition {
   deviceTime: string;
   valid: boolean;
   altitude: number;
-  batteryLevel?: number; // 0-100 from Traccar attributes.batteryLevel
+  batteryLevel?: number;
   attributes?: Record<string, unknown>;
 }
 
 export interface TraccarSettings {
-  traccar_server_url: string;
-  traccar_email: string;
-  traccar_password: string;
-  has_password: boolean;
+  xexun_enabled: boolean;
+  xexun_push_secret: string | null;
+  webhook_url: string;
+  // Keep old fields for backward compat (always empty now)
+  traccar_server_url?: string;
+  traccar_email?: string;
+  traccar_password?: string;
+  has_password?: boolean;
 }
 
 export interface VehiclePosition {
@@ -58,38 +64,38 @@ export function useTraccar() {
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
 
-  // Fetch Traccar settings
+  // Fetch GPS settings
   const fetchSettings = useCallback(async () => {
     if (!organizationId) return;
     setSettingsLoading(true);
     try {
-      const { data } = await apiInvoke<{ ok: boolean; settings: TraccarSettings | null }>('traccar/settings', {
-        body: { organization_id: organizationId, _method: 'GET' },
+      const { data } = await apiInvoke<{ ok: boolean; settings: TraccarSettings | null }>('gps/settings', {
+        body: { organization_id: organizationId },
       });
       if (data?.ok) {
         setSettings(data.settings);
       }
     } catch (err) {
-      console.error('Error fetching Traccar settings:', err);
+      console.error('Error fetching GPS settings:', err);
     } finally {
       setSettingsLoading(false);
     }
   }, [organizationId]);
 
-  // Save Traccar settings
+  // Save GPS settings (enable/disable Xexun + push secret)
   const saveSettings = useCallback(async (
-    serverUrl: string,
-    email: string,
-    password: string
+    _serverUrl: string,
+    _email: string,
+    _password: string
   ): Promise<boolean> => {
     if (!organizationId) return false;
     try {
-      const { data } = await apiInvoke<{ ok: boolean; error?: string }>('traccar/settings', {
+      // For Xexun, we just enable the integration
+      const { data } = await apiInvoke<{ ok: boolean; error?: string }>('gps/settings', {
         body: {
           organization_id: organizationId,
-          traccar_server_url: serverUrl,
-          traccar_email: email,
-          traccar_password: password,
+          action: 'update',
+          xexun_enabled: true,
         },
       });
       if (data?.ok) {
@@ -98,46 +104,45 @@ export function useTraccar() {
       }
       return false;
     } catch (err) {
-      console.error('Error saving Traccar settings:', err);
+      console.error('Error saving GPS settings:', err);
       return false;
     }
   }, [organizationId, fetchSettings]);
 
   // Test connection
   const testConnection = useCallback(async (
-    serverUrl: string,
-    email: string,
-    password: string
-  ): Promise<{ ok: boolean; error?: string }> => {
+    _serverUrl?: string,
+    _email?: string,
+    _password?: string
+  ): Promise<{ ok: boolean; error?: string; message?: string }> => {
     if (!organizationId) return { ok: false, error: 'No organization' };
     try {
-      const { data } = await apiInvoke<{ ok: boolean; message?: string; error?: string }>('traccar/test-connection', {
-        body: {
-          organization_id: organizationId,
-          server_url: serverUrl,
-          email,
-          password,
-        },
+      const { data } = await apiInvoke<{ ok: boolean; connected?: boolean; message?: string; error?: string; deviceCount?: number }>('gps/test-connection', {
+        body: { organization_id: organizationId },
       });
-      return { ok: data?.ok || false, error: data?.error };
+      return {
+        ok: data?.connected || false,
+        error: data?.connected ? undefined : (data?.message || 'GPS no configurado'),
+        message: data?.message,
+      };
     } catch (err) {
       return { ok: false, error: 'Error de conexión' };
     }
   }, [organizationId]);
 
-  // Fetch devices from Traccar
+  // Fetch devices
   const fetchDevices = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
     try {
-      const { data } = await apiInvoke<{ ok: boolean; devices: TraccarDevice[] }>('traccar/devices', {
+      const { data } = await apiInvoke<{ ok: boolean; devices: TraccarDevice[] }>('gps/devices', {
         body: { organization_id: organizationId },
       });
       if (data?.ok) {
         setDevices(data.devices || []);
       }
     } catch (err) {
-      console.error('Error fetching Traccar devices:', err);
+      console.error('Error fetching GPS devices:', err);
     } finally {
       setLoading(false);
     }
@@ -147,7 +152,7 @@ export function useTraccar() {
   const fetchPositions = useCallback(async () => {
     if (!organizationId) return;
     try {
-      const { data } = await apiInvoke<{ ok: boolean; positions: TraccarPosition[] }>('traccar/positions', {
+      const { data } = await apiInvoke<{ ok: boolean; positions: TraccarPosition[] }>('gps/positions', {
         body: { organization_id: organizationId },
       });
       if (data?.ok) {
@@ -162,7 +167,7 @@ export function useTraccar() {
   const fetchVehiclePosition = useCallback(async (fleetVehicleId: string): Promise<VehiclePosition | null> => {
     if (!organizationId) return null;
     try {
-      const { data } = await apiInvoke<{ ok: boolean } & VehiclePosition>('traccar/device-position', {
+      const { data } = await apiInvoke<{ ok: boolean } & VehiclePosition>('gps/device-position', {
         body: { organization_id: organizationId, fleet_vehicle_id: fleetVehicleId },
       });
       if (data?.ok) {
@@ -179,11 +184,11 @@ export function useTraccar() {
     }
   }, [organizationId]);
 
-  // Fetch position for a vehicle by its plate number (used in delivery operations)
+  // Fetch position for a vehicle by its plate number
   const fetchVehicleByPlate = useCallback(async (matricula: string): Promise<VehiclePosition | null> => {
     if (!organizationId || !matricula) return null;
     try {
-      const { data } = await apiInvoke<{ ok: boolean; vehicle?: any; device?: any; position?: TraccarPosition | null }>('traccar/vehicle-by-plate', {
+      const { data } = await apiInvoke<{ ok: boolean; vehicle?: any; device?: any; position?: TraccarPosition | null }>('gps/vehicle-by-plate', {
         body: { organization_id: organizationId, matricula },
       });
       if (data?.ok && data.position) {
@@ -200,18 +205,18 @@ export function useTraccar() {
     }
   }, [organizationId]);
 
-  // Link a Traccar device to a fleet vehicle
+  // Link a GPS device (by IMEI) to a fleet vehicle
   const linkDevice = useCallback(async (
     fleetVehicleId: string,
-    traccarDeviceId: string
+    imei: string
   ): Promise<{ ok: boolean; error?: string }> => {
     if (!organizationId) return { ok: false, error: 'No organization' };
     try {
-      const { data } = await apiInvoke<{ ok: boolean; error?: string }>('traccar/link-device', {
+      const { data } = await apiInvoke<{ ok: boolean; error?: string }>('gps/link-device', {
         body: {
           organization_id: organizationId,
           fleet_vehicle_id: fleetVehicleId,
-          traccar_device_id: traccarDeviceId,
+          imei,
         },
       });
       return { ok: data?.ok || false, error: data?.error };
@@ -220,11 +225,11 @@ export function useTraccar() {
     }
   }, [organizationId]);
 
-  // Unlink a Traccar device from a fleet vehicle
+  // Unlink a GPS device from a fleet vehicle
   const unlinkDevice = useCallback(async (fleetVehicleId: string): Promise<boolean> => {
     if (!organizationId) return false;
     try {
-      const { data } = await apiInvoke<{ ok: boolean }>('traccar/unlink-device', {
+      const { data } = await apiInvoke<{ ok: boolean }>('gps/unlink-device', {
         body: { organization_id: organizationId, fleet_vehicle_id: fleetVehicleId },
       });
       return data?.ok || false;
@@ -237,7 +242,8 @@ export function useTraccar() {
     fetchSettings();
   }, [fetchSettings]);
 
-  const hasTraccar = !!(settings?.traccar_server_url && settings?.traccar_email && settings?.has_password);
+  // hasTraccar is now based on xexun_enabled
+  const hasTraccar = !!(settings?.xexun_enabled);
 
   return {
     // Settings

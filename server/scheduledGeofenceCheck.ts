@@ -1,9 +1,9 @@
 /**
  * Scheduled handler: Geofence Check
  * 
- * Runs every 2 minutes. For each organization with Traccar configured:
+ * Runs every 2 minutes. For each organization with GPS devices:
  * 1. Fetches all active geofences
- * 2. Fetches current positions of all tracked vehicles
+ * 2. Reads current positions from local device_positions table (populated by Xexun webhook)
  * 3. Determines if each vehicle is inside/outside each geofence
  * 4. Detects transitions (enter/exit) by comparing with previous state
  * 5. Creates alerts and sends notifications for transitions
@@ -94,50 +94,6 @@ function isPointInGeofence(point: Point, geofence: GeofenceRecord): boolean {
   return false;
 }
 
-// ─── Traccar API helpers ────────────────────────────────────────────────────
-
-interface TraccarCredentials {
-  server_url: string;
-  email: string;
-  password: string;
-}
-
-async function getTraccarCredentials(sb: any, organizationId: string): Promise<TraccarCredentials | null> {
-  const { data, error } = await sb
-    .from("integration_settings")
-    .select("traccar_server_url, traccar_email, traccar_password")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  if (!data.traccar_server_url || !data.traccar_email || !data.traccar_password) return null;
-
-  return {
-    server_url: data.traccar_server_url,
-    email: data.traccar_email,
-    password: data.traccar_password,
-  };
-}
-
-async function traccarFetch(credentials: TraccarCredentials, path: string): Promise<any> {
-  const { server_url, email, password } = credentials;
-  const url = `${server_url.replace(/\/$/, "")}/api${path}`;
-  const authHeader = "Basic " + Buffer.from(`${email}:${password}`).toString("base64");
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: authHeader,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) return null;
-  return response.json();
-}
-
 // ─── Main scheduled handler ─────────────────────────────────────────────────
 
 export async function handleScheduledGeofenceCheck(req: Request, res: Response) {
@@ -151,7 +107,7 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
 
     const serviceClient = getServiceClient();
 
-    // 1. Get all organizations with Traccar configured AND active geofences
+    // 1. Get all organizations with active geofences
     const { data: orgsWithGeofences, error: orgsError } = await serviceClient
       .from("geofences")
       .select("organization_id")
@@ -180,10 +136,15 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
       let orgAlerts = 0;
 
       try {
-        // Get Traccar credentials for this org
-        const credentials = await getTraccarCredentials(serviceClient, orgId);
-        if (!credentials) {
-          orgErrors.push("No Traccar credentials");
+        // Check if Xexun GPS is enabled for this org
+        const { data: settings } = await serviceClient
+          .from("integration_settings")
+          .select("xexun_enabled")
+          .eq("organization_id", orgId)
+          .maybeSingle();
+
+        if (!settings?.xexun_enabled) {
+          orgErrors.push("GPS integration not enabled");
           orgResults.push({ orgId, checked: 0, alerts: 0, errors: orgErrors });
           continue;
         }
@@ -200,34 +161,40 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
           continue;
         }
 
-        // Get all fleet vehicles with traccar_device_id for this org
+        // Get all fleet vehicles with xexun_imei for this org
         const { data: vehicles, error: vError } = await serviceClient
           .from("fleet_vehicles")
-          .select("id, traccar_device_id, matricula")
+          .select("id, xexun_imei, matricula")
           .eq("organization_id", orgId)
-          .not("traccar_device_id", "is", null);
+          .not("xexun_imei", "is", null);
 
         if (vError || !vehicles || vehicles.length === 0) {
           orgResults.push({ orgId, checked: 0, alerts: 0, errors: vError ? [vError.message] : [] });
           continue;
         }
 
-        // Fetch all current positions from Traccar
-        const positions = await traccarFetch(credentials, "/positions");
-        if (!positions || !Array.isArray(positions)) {
-          orgErrors.push("Failed to fetch Traccar positions");
+        // Read all current positions from local device_positions table
+        const imeis = vehicles.map(v => v.xexun_imei).filter(Boolean);
+        const { data: positions, error: posError } = await serviceClient
+          .from("device_positions")
+          .select("imei, latitude, longitude, speed, battery_level")
+          .eq("organization_id", orgId)
+          .in("imei", imeis);
+
+        if (posError || !positions || positions.length === 0) {
+          orgErrors.push("No device positions available");
           orgResults.push({ orgId, checked: 0, alerts: 0, errors: orgErrors });
           continue;
         }
 
-        // Build device_id → position map (includes battery level)
+        // Build imei → position map
         const positionMap = new Map<string, { latitude: number; longitude: number; speed: number; batteryLevel: number | null }>();
         for (const pos of positions) {
-          positionMap.set(String(pos.deviceId), {
+          positionMap.set(pos.imei, {
             latitude: pos.latitude,
             longitude: pos.longitude,
             speed: pos.speed || 0,
-            batteryLevel: pos.attributes?.batteryLevel ?? null,
+            batteryLevel: pos.battery_level ?? null,
           });
         }
 
@@ -245,7 +212,7 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
 
         // 3. Check each vehicle against each geofence
         for (const vehicle of vehicles) {
-          const deviceId = String(vehicle.traccar_device_id);
+          const deviceId = vehicle.xexun_imei!;
           const position = positionMap.get(deviceId);
 
           if (!position || position.latitude === 0 || position.longitude === 0) {
@@ -293,10 +260,10 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
                 const emoji = eventType === "enter" ? "🟢" : "🔴";
                 notifyOwner({
                   title: `${emoji} Geocerca: ${vehicle.matricula} ${actionLabel} "${geofence.name}"`,
-                  content: `El vehículo ${vehicle.matricula} ${actionLabel} la geocerca "${geofence.name}" a las ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}. Velocidad: ${Math.round((position.speed || 0) * 1.852)} km/h.`,
+                  content: `El vehículo ${vehicle.matricula} ${actionLabel} la geocerca "${geofence.name}" a las ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}. Velocidad: ${Math.round(position.speed)} km/h.`,
                 }).catch(err => console.warn("[geofence-check] Notification error:", err));
 
-                // Create in-app notifications for all team members with fleet.gps permission
+                // Create in-app notifications for all team members
                 try {
                   const { data: members } = await serviceClient
                     .from("organization_members")
@@ -306,7 +273,7 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
 
                   if (members && members.length > 0) {
                     const notifTitle = `${emoji} Geocerca: ${vehicle.matricula} ${actionLabel} "${geofence.name}"`;
-                    const notifBody = `Velocidad: ${Math.round((position.speed || 0) * 1.852)} km/h. Hora: ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
+                    const notifBody = `Velocidad: ${Math.round(position.speed)} km/h. Hora: ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
 
                     const notifications = members.map((m: { user_id: string }) => ({
                       organization_id: orgId,
@@ -358,7 +325,7 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
         const BATTERY_ALERT_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
 
         for (const vehicle of vehicles) {
-          const deviceId = String(vehicle.traccar_device_id);
+          const deviceId = vehicle.xexun_imei!;
           const position = positionMap.get(deviceId);
 
           if (!position || position.batteryLevel === null || position.batteryLevel >= LOW_BATTERY_THRESHOLD) {
@@ -439,8 +406,3 @@ export async function handleScheduledGeofenceCheck(req: Request, res: Response) 
     });
   }
 }
-
-// ─── Exported geometry helpers for testing ──────────────────────────────────
-
-export { isPointInCircle, isPointInPolygon, isPointInGeofence };
-export type { Point, GeofenceRecord };

@@ -191,18 +191,24 @@ import {
   handleDeleteHabitualProduct,
 } from "../productStockEndpoints";
 import {
-  handleTraccarTestConnection,
-  handleTraccarDevices,
-  handleTraccarPositions,
-  handleTraccarDevicePosition,
-  handleTraccarLinkDevice,
-  handleTraccarUnlinkDevice,
-  handleTraccarSettings,
-  handleTraccarVehicleByPlate,
-  handleTraccarRouteHistory,
-  handleTraccarFleetStatus,
-  handleTraccarFleetDailyKm,
-} from "../traccarEndpoint";
+  handleGpsTestConnection,
+  handleGpsDevices,
+  handleGpsPositions,
+  handleGpsDevicePosition,
+  handleGpsLinkDevice,
+  handleGpsUnlinkDevice,
+  handleGpsSettings,
+  handleGpsVehicleByPlate,
+  handleGpsRouteHistory,
+  handleGpsFleetStatus,
+  handleGpsFleetDailyKm,
+} from "../gpsEndpoint";
+import {
+  handleXexunPush,
+  handleXexunPushGps,
+  handleXexunPushObd,
+  handleXexunPushAlarm,
+} from "../xexunWebhookEndpoint";
 import {
   handleListGeofences,
   handleCreateGeofence,
@@ -462,18 +468,34 @@ async function startServer() {
   app.post("/api/log-manual-movement-edit", handleLogManualMovementEdit);
   app.post("/api/get-manual-movement-history", handleGetManualMovementHistory);
 
-  // ─── Traccar GPS Tracking ─────────────────────────────────────────────────
-  app.post("/api/traccar/test-connection", handleTraccarTestConnection);
-  app.post("/api/traccar/devices", handleTraccarDevices);
-  app.post("/api/traccar/positions", handleTraccarPositions);
-  app.post("/api/traccar/device-position", handleTraccarDevicePosition);
-  app.post("/api/traccar/link-device", handleTraccarLinkDevice);
-  app.post("/api/traccar/unlink-device", handleTraccarUnlinkDevice);
-  app.post("/api/traccar/settings", handleTraccarSettings);
-  app.post("/api/traccar/vehicle-by-plate", handleTraccarVehicleByPlate);
-  app.post("/api/traccar/route-history", handleTraccarRouteHistory);
-  app.post("/api/traccar/fleet-status", handleTraccarFleetStatus);
-  app.post("/api/traccar/fleet-daily-km", handleTraccarFleetDailyKm);
+  // ─── GPS Tracking (Xexun X24) ─────────────────────────────────────────────
+  app.post("/api/xexun/push", handleXexunPush);
+  app.post("/api/xexun/push/gps", handleXexunPushGps);
+  app.post("/api/xexun/push/obd", handleXexunPushObd);
+  app.post("/api/xexun/push/alarm", handleXexunPushAlarm);
+  app.post("/api/gps/test-connection", handleGpsTestConnection);
+  app.post("/api/gps/devices", handleGpsDevices);
+  app.post("/api/gps/positions", handleGpsPositions);
+  app.post("/api/gps/device-position", handleGpsDevicePosition);
+  app.post("/api/gps/link-device", handleGpsLinkDevice);
+  app.post("/api/gps/unlink-device", handleGpsUnlinkDevice);
+  app.post("/api/gps/settings", handleGpsSettings);
+  app.post("/api/gps/vehicle-by-plate", handleGpsVehicleByPlate);
+  app.post("/api/gps/route-history", handleGpsRouteHistory);
+  app.post("/api/gps/fleet-status", handleGpsFleetStatus);
+  app.post("/api/gps/fleet-daily-km", handleGpsFleetDailyKm);
+  // Keep old /api/traccar/* routes as aliases for backward compatibility
+  app.post("/api/traccar/test-connection", handleGpsTestConnection);
+  app.post("/api/traccar/devices", handleGpsDevices);
+  app.post("/api/traccar/positions", handleGpsPositions);
+  app.post("/api/traccar/device-position", handleGpsDevicePosition);
+  app.post("/api/traccar/link-device", handleGpsLinkDevice);
+  app.post("/api/traccar/unlink-device", handleGpsUnlinkDevice);
+  app.post("/api/traccar/settings", handleGpsSettings);
+  app.post("/api/traccar/vehicle-by-plate", handleGpsVehicleByPlate);
+  app.post("/api/traccar/route-history", handleGpsRouteHistory);
+  app.post("/api/traccar/fleet-status", handleGpsFleetStatus);
+  app.post("/api/traccar/fleet-daily-km", handleGpsFleetDailyKm);
 
 
   // ─── Geofences ───────────────────────────────────────────────────────────

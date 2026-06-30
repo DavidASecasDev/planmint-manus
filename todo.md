@@ -1278,3 +1278,10 @@
 - [x] Reparaciones Kanban: Permitir ordenar tarjetas dentro de la misma columna por prioridad o fecha programada
 - [x] Reparaciones Kanban: Diálogo de confirmación al mover a "Finalizado" para solicitar el coste final antes de cerrar
 - [x] Bug: Estado Coches crash "Error al cargar esta sección" al pulsar vehículo sucio — useState declarado después de early return violaba reglas de React Hooks (VehicleDetailsSheet + VehicleCleaningChecklist)
+- [x] GPS Integration: Crear tablas Supabase device_positions (última posición) y device_position_history (historial rutas)
+- [x] GPS Integration: Crear webhook receiver endpoint para Data Push de Xexun (OBD + posiciones)
+- [x] GPS Integration: Reescribir traccarEndpoint.ts como gpsEndpoint.ts que lee de Supabase en vez de Traccar
+- [x] GPS Integration: Actualizar scheduledGeofenceCheck para leer posiciones de tabla local en vez de Traccar
+- [x] GPS Integration: Actualizar frontend hooks (useTraccar → useGPS) y UI (quitar branding Traccar)
+- [x] GPS Integration: Actualizar TraccarDeviceSection para vincular dispositivos Xexun por IMEI
+- [x] GPS Integration: Actualizar integration_settings para guardar config Xexun en vez de Traccar
