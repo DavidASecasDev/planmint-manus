@@ -1033,18 +1033,6 @@ function VehicleCard({
       {/* Telemetry row: PDOP, CSQ, Signal */}
       {isOnline && (pdop != null || csq != null || signalStrength != null) && (
         <div className="flex items-center gap-2 mt-2 ml-[52px] flex-wrap">
-          {batteryLevel != null && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground" title="Batería del dispositivo">
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="1" y="6" width="18" height="12" rx="2" />
-                <line x1="23" y1="10" x2="23" y2="14" />
-              </svg>
-              <span className={cn(
-                "font-semibold",
-                batteryLevel > 40 ? "text-green-600" : batteryLevel > 15 ? "text-amber-600" : "text-red-600"
-              )}>{Math.round(batteryLevel)}%</span>
-            </div>
-          )}
           {pdop != null && (
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground" title="PDOP - Precisión GPS (menor = mejor)">
               <Satellite className="h-3 w-3" />
