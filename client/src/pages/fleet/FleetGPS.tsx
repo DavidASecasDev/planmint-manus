@@ -278,7 +278,8 @@ export default function FleetGPS() {
             deviceTime: position.deviceTime,
             valid: position.valid,
             altitude: position.altitude,
-            batteryLevel: (position as any).attributes?.batteryLevel ?? (position as any).battery_level ?? undefined,
+            batteryLevel: (position as any).batteryLevel ?? (position as any).attributes?.batteryLevel ?? (position as any).battery_level ?? undefined,
+            attributes: (position as any).attributes || {},
           } : undefined,
         };
       });
@@ -961,6 +962,11 @@ function VehicleCard({
   const isOnline = vehicle.device?.status === 'online';
   const speed = vehicle.position?.speed;
   const speedKmh = speed ? Math.round(speed * 1.852) : 0;
+  const attrs = (vehicle.position as any)?.attributes || {};
+  const batteryLevel = vehicle.position?.batteryLevel;
+  const pdop = attrs.pdop as number | undefined;
+  const csq = attrs.csq as number | undefined;
+  const signalStrength = attrs.signalStrength as number | undefined;
 
   return (
     <motion.div
@@ -1001,18 +1007,18 @@ function VehicleCard({
 
         {/* Battery + Status */}
         <div className="flex items-center gap-1.5">
-          {vehicle.position?.batteryLevel != null && (
+          {batteryLevel != null && (
             <div className={cn(
               "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold",
-              vehicle.position.batteryLevel > 40 ? "bg-green-50 text-green-700" :
-              vehicle.position.batteryLevel > 15 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
+              batteryLevel > 40 ? "bg-green-50 text-green-700" :
+              batteryLevel > 15 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
             )}>
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="1" y="6" width="18" height="12" rx="2" />
                 <line x1="23" y1="10" x2="23" y2="14" />
-                <rect x="3" y="8" width={`${Math.max(2, vehicle.position.batteryLevel * 14 / 100)}`} height="8" rx="1" fill="currentColor" opacity="0.6" />
+                <rect x="3" y="8" width={`${Math.max(2, batteryLevel * 14 / 100)}`} height="8" rx="1" fill="currentColor" opacity="0.6" />
               </svg>
-              {Math.round(vehicle.position.batteryLevel)}%
+              {Math.round(batteryLevel)}%
             </div>
           )}
           <div className={cn(
@@ -1023,6 +1029,51 @@ function VehicleCard({
           </div>
         </div>
       </div>
+
+      {/* Telemetry row: PDOP, CSQ, Signal */}
+      {isOnline && (pdop != null || csq != null || signalStrength != null) && (
+        <div className="flex items-center gap-2 mt-2 ml-[52px] flex-wrap">
+          {batteryLevel != null && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground" title="Batería del dispositivo">
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="1" y="6" width="18" height="12" rx="2" />
+                <line x1="23" y1="10" x2="23" y2="14" />
+              </svg>
+              <span className={cn(
+                "font-semibold",
+                batteryLevel > 40 ? "text-green-600" : batteryLevel > 15 ? "text-amber-600" : "text-red-600"
+              )}>{Math.round(batteryLevel)}%</span>
+            </div>
+          )}
+          {pdop != null && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground" title="PDOP - Precisión GPS (menor = mejor)">
+              <Satellite className="h-3 w-3" />
+              <span className={cn(
+                "font-semibold",
+                pdop <= 2 ? "text-green-600" : pdop <= 5 ? "text-amber-600" : "text-red-600"
+              )}>{pdop.toFixed(1)}</span>
+            </div>
+          )}
+          {csq != null && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground" title="CSQ - Calidad señal celular (0-31)">
+              <Radio className="h-3 w-3" />
+              <span className={cn(
+                "font-semibold",
+                csq >= 15 ? "text-green-600" : csq >= 8 ? "text-amber-600" : "text-red-600"
+              )}>{csq}</span>
+            </div>
+          )}
+          {signalStrength != null && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground" title="Fuerza de señal">
+              <Wifi className="h-3 w-3" />
+              <span className={cn(
+                "font-semibold",
+                signalStrength >= 60 ? "text-green-600" : signalStrength >= 30 ? "text-amber-600" : "text-red-600"
+              )}>{signalStrength}%</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Address */}
       {vehicle.position?.address && (

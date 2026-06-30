@@ -1295,3 +1295,4 @@
 - [x] GPS Polling: Crear heartbeat job cada 60 segundos para ejecutar el polling
 - [x] GPS Polling: Verificar que FleetGPS muestra datos actualizados en tiempo real
 - [x] GPS Fix: Usar speedPlat en vez de speed para la velocidad mostrada (speed=1 siempre del GPS, speedPlat=velocidad real calculada por plataforma). Si speedPlat es 0 o undefined, mostrar 0 km/h (parado).
+- [x] GPS UI: Mostrar en la tarjeta de cada vehículo: batería (electricity), PDOP, CSQ y signalStrength
