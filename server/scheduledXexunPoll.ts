@@ -213,6 +213,13 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
           if (record.sensorDistance != null) attributes.sensorDistance = record.sensorDistance;
           if (record.monitorName) attributes.monitorName = record.monitorName;
 
+          // Use speedPlat (platform-calculated speed) instead of raw GPS speed
+          // The raw GPS 'speed' field reports 1 even when stationary (GPS noise)
+          // speedPlat is the actual calculated speed; if undefined/null, use 0
+          const realSpeed = (record.speedPlat != null && record.speedPlat > 0)
+            ? Math.round(record.speedPlat)
+            : 0;
+
           // Upsert latest position
           const { error: upsertErr } = await serviceClient
             .from("device_positions")
@@ -223,7 +230,7 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
               latitude: record.gpsLat,
               longitude: record.gpsLng,
               altitude: 0,
-              speed: record.speed || 0,
+              speed: realSpeed,
               course: record.course || 0,
               address: null,
               battery_level: record.electricity ?? null,
@@ -257,6 +264,11 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
           if (record.monitorName) attributes.monitorName = record.monitorName;
           attributes.xexunRecordId = record.id; // For deduplication
 
+          // Use speedPlat for history too
+          const histSpeed = (record.speedPlat != null && record.speedPlat > 0)
+            ? Math.round(record.speedPlat)
+            : 0;
+
           const { error: histErr } = await serviceClient
             .from("device_position_history")
             .insert({
@@ -266,7 +278,7 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
               latitude: record.gpsLat,
               longitude: record.gpsLng,
               altitude: 0,
-              speed: record.speed || 0,
+              speed: histSpeed,
               course: record.course || 0,
               address: null,
               device_time: deviceTime,
