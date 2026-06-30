@@ -1288,9 +1288,9 @@
 - [x] GPS: Fix FleetGPS page 'Traccar no configurado' error (xexun_enabled ya activado en DB, actualizar vehiclesWithGPS para usar xexun_imei)
 - [x] GPS: Actualizar UI de configuración GPS para mostrar webhook URL de Xexun en vez de campos Traccar (server/email/password)
 - [x] GPS: Añadir panel de diagnóstico GPS con último push por dispositivo y detección de dispositivos sin datos (>30 min)
-- [ ] GPS Polling: Crear endpoint scheduled /api/scheduled/xexun-poll que consulte la API de tracker.xexun.com
-- [ ] GPS Polling: Almacenar token Xexun como secret (XEXUN_API_TOKEN)
-- [ ] GPS Polling: Implementar lógica de polling (últimos 2 min por dispositivo, upsert en device_positions + insert en device_position_history)
-- [ ] GPS Polling: Registrar ruta en server/_core/index.ts
-- [ ] GPS Polling: Crear heartbeat job cada 60 segundos para ejecutar el polling
-- [ ] GPS Polling: Verificar que FleetGPS muestra datos actualizados en tiempo real
+- [x] GPS Polling: Crear endpoint scheduled /api/scheduled/xexun-poll que consulte la API de tracker.xexun.com
+- [x] GPS Polling: Almacenar token Xexun como secret (XEXUN_API_TOKEN)
+- [x] GPS Polling: Implementar lógica de polling (últimos 2 min por dispositivo, upsert en device_positions + insert en device_position_history)
+- [x] GPS Polling: Registrar ruta en server/_core/index.ts
+- [x] GPS Polling: Crear heartbeat job cada 60 segundos para ejecutar el polling
+- [x] GPS Polling: Verificar que FleetGPS muestra datos actualizados en tiempo real
