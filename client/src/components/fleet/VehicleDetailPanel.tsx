@@ -140,7 +140,7 @@ export function VehicleDetailPanel({
         positions: RoutePosition[];
         summary: RouteSummary;
         error?: string;
-      }>('traccar/route-history', {
+      }>('gps/route-history', {
         body: {
           organization_id: orgId,
           device_id: vehicle.traccar_device_id,

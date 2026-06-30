@@ -83,6 +83,7 @@ export default function FleetNew() {
       motor: form.motor || null,
       cv: form.cv ? parseInt(form.cv) : null,
       traccar_device_id: null,
+      xexun_imei: null,
     });
     navigate('/fleet');
   };

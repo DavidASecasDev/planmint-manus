@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useTraccar, TraccarDevice } from '@/hooks/useTraccar';
+import { useTraccar } from '@/hooks/useTraccar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { MapPin, Wifi, WifiOff, Link2, Unlink, Loader2, RefreshCw, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -10,29 +10,26 @@ import { motion } from 'framer-motion';
 interface TraccarDeviceSectionProps {
   fleetVehicleId: string;
   currentTraccarDeviceId?: string | null;
+  currentXexunImei?: string | null;
   onDeviceLinked?: () => void;
 }
 
-export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, onDeviceLinked }: TraccarDeviceSectionProps) {
-  const { hasTraccar, devices, loading, fetchDevices, linkDevice, unlinkDevice, fetchVehiclePosition } = useTraccar();
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, currentXexunImei, onDeviceLinked }: TraccarDeviceSectionProps) {
+  const { hasTraccar, linkDevice, unlinkDevice, fetchVehiclePosition } = useTraccar();
+  const [imeiInput, setImeiInput] = useState('');
   const [linking, setLinking] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
   const [position, setPosition] = useState<{ latitude: number; longitude: number; address: string; speed: number; deviceTime: string } | null>(null);
   const [deviceStatus, setDeviceStatus] = useState<string | null>(null);
   const [loadingPosition, setLoadingPosition] = useState(false);
 
-  useEffect(() => {
-    if (hasTraccar && !currentTraccarDeviceId) {
-      fetchDevices();
-    }
-  }, [hasTraccar, currentTraccarDeviceId, fetchDevices]);
+  const linkedImei = currentXexunImei || currentTraccarDeviceId;
 
   useEffect(() => {
-    if (hasTraccar && currentTraccarDeviceId) {
+    if (hasTraccar && linkedImei) {
       loadPosition();
     }
-  }, [hasTraccar, currentTraccarDeviceId]);
+  }, [hasTraccar, linkedImei]);
 
   const loadPosition = async () => {
     setLoadingPosition(true);
@@ -45,15 +42,21 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
   };
 
   const handleLink = async () => {
-    if (!selectedDeviceId) {
-      toast.error('Selecciona un dispositivo');
+    const trimmed = imeiInput.trim();
+    if (!trimmed) {
+      toast.error('Introduce el IMEI del dispositivo');
+      return;
+    }
+    if (!/^\d{10,20}$/.test(trimmed)) {
+      toast.error('El IMEI debe ser un número de 10-20 dígitos');
       return;
     }
     setLinking(true);
-    const result = await linkDevice(fleetVehicleId, selectedDeviceId);
+    const result = await linkDevice(fleetVehicleId, trimmed);
     setLinking(false);
     if (result.ok) {
-      toast.success('Localizador vinculado correctamente');
+      toast.success('Localizador GPS vinculado correctamente');
+      setImeiInput('');
       onDeviceLinked?.();
     } else {
       toast.error(result.error || 'Error al vincular');
@@ -65,7 +68,7 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
     const success = await unlinkDevice(fleetVehicleId);
     setUnlinking(false);
     if (success) {
-      toast.success('Localizador desvinculado');
+      toast.success('Localizador GPS desvinculado');
       setPosition(null);
       setDeviceStatus(null);
       onDeviceLinked?.();
@@ -75,7 +78,7 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
   };
 
   if (!hasTraccar) {
-    return null; // Don't show if Traccar is not configured
+    return null;
   }
 
   return (
@@ -90,7 +93,7 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
         Localizador GPS
       </h3>
 
-      {currentTraccarDeviceId ? (
+      {linkedImei ? (
         // Device is linked - show status and position
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -103,6 +106,7 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
               <Badge variant={deviceStatus === 'online' ? 'default' : 'secondary'} className="text-xs">
                 {deviceStatus === 'online' ? 'En línea' : deviceStatus === 'offline' ? 'Desconectado' : 'Desconocido'}
               </Badge>
+              <span className="text-xs text-muted-foreground font-mono">IMEI: {linkedImei}</span>
             </div>
             <div className="flex gap-1">
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={loadPosition} disabled={loadingPosition}>
@@ -127,7 +131,7 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
                 <div>
                   <p className="text-foreground font-medium">{position.address || `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}`}</p>
                   <p className="text-xs text-muted-foreground">
-                    {position.speed > 0 ? `${Math.round(position.speed * 1.852)} km/h` : 'Detenido'}
+                    {position.speed > 0 ? `${Math.round(position.speed)} km/h` : 'Detenido'}
                     {position.deviceTime && ` · ${new Date(position.deviceTime).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`}
                   </p>
                 </div>
@@ -143,49 +147,29 @@ export function TraccarDeviceSection({ fleetVehicleId, currentTraccarDeviceId, o
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-2">Sin posición disponible</p>
+            <p className="text-sm text-muted-foreground text-center py-2">Sin posición disponible. El dispositivo aún no ha enviado datos.</p>
           )}
         </div>
       ) : (
-        // No device linked - show selector
+        // No device linked - show IMEI input
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">Vincula un localizador GPS de Traccar a este vehículo</p>
+          <p className="text-sm text-muted-foreground">Vincula un localizador GPS Xexun X24 a este vehículo introduciendo su IMEI</p>
           
           <div className="flex gap-2">
-            <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder={loading ? 'Cargando...' : 'Seleccionar dispositivo'} />
-              </SelectTrigger>
-              <SelectContent>
-                {devices.map((device) => (
-                  <SelectItem key={device.id} value={String(device.id)}>
-                    <div className="flex items-center gap-2">
-                      {device.status === 'online' ? (
-                        <Wifi className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <WifiOff className="h-3 w-3 text-muted-foreground" />
-                      )}
-                      <span>{device.name}</span>
-                      <span className="text-xs text-muted-foreground">({device.uniqueId})</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleLink} disabled={linking || !selectedDeviceId} size="sm">
+            <Input
+              placeholder="IMEI del dispositivo (ej: 861045082965297)"
+              value={imeiInput}
+              onChange={(e) => setImeiInput(e.target.value)}
+              className="flex-1 font-mono text-sm"
+            />
+            <Button onClick={handleLink} disabled={linking || !imeiInput.trim()} size="sm">
               {linking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
             </Button>
           </div>
 
-          {devices.length === 0 && !loading && (
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">No se encontraron dispositivos</p>
-              <Button variant="ghost" size="sm" onClick={fetchDevices} className="text-xs">
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Recargar
-              </Button>
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground">
+            El IMEI se encuentra en la etiqueta del dispositivo o en tracker.xexun.com → Gestión de terminales.
+          </p>
         </div>
       )}
     </motion.div>

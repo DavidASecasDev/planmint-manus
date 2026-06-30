@@ -194,7 +194,7 @@ function MapController({ center, zoom }: { center?: [number, number]; zoom?: num
 
 // ── Main Component ──
 export default function FleetGPS() {
-  const { hasTraccar, fetchDevices, devices, loading: devicesLoading, fetchPositions, positions } = useTraccar();
+  const { hasTraccar, settingsLoading: gpsSettingsLoading, fetchDevices, devices, loading: devicesLoading, fetchPositions, positions } = useTraccar();
   const { vehicles, isLoading: vehiclesLoading } = useFleetVehicles();
   const { isAdmin, hasPermission, isLoading: permissionsLoading } = usePermissions();
   const { geofences, loading: geofencesLoading, createGeofence, updateGeofence, deleteGeofence, fetchGeofences } = useGeofences();
@@ -254,10 +254,11 @@ export default function FleetGPS() {
   const vehiclesWithGPS = useMemo((): FleetVehicleGPS[] => {
     if (!vehicles.length) return [];
     return vehicles
-      .filter(v => v.traccar_device_id)
+      .filter(v => v.xexun_imei || v.traccar_device_id)
       .map(v => {
-        const device = devices.find(d => String(d.id) === v.traccar_device_id);
-        const position = positions.find((p: any) => String(p.deviceId) === v.traccar_device_id);
+        const deviceId = v.xexun_imei || v.traccar_device_id;
+        const device = devices.find(d => String(d.uniqueId) === deviceId || String(d.id) === deviceId);
+        const position = positions.find((p: any) => String(p.deviceId) === deviceId || String(p.imei) === deviceId);
         return {
           id: v.id,
           matricula: v.matricula,
@@ -266,7 +267,7 @@ export default function FleetGPS() {
           color: v.color,
           combustible: v.combustible,
           photo_url: v.photo_url,
-          traccar_device_id: v.traccar_device_id!,
+          traccar_device_id: deviceId!,
           device,
           position: position ? {
             latitude: position.latitude,
@@ -277,7 +278,7 @@ export default function FleetGPS() {
             deviceTime: position.deviceTime,
             valid: position.valid,
             altitude: position.altitude,
-            batteryLevel: (position as any).attributes?.batteryLevel ?? undefined,
+            batteryLevel: (position as any).attributes?.batteryLevel ?? (position as any).battery_level ?? undefined,
           } : undefined,
         };
       });
@@ -420,7 +421,7 @@ export default function FleetGPS() {
   };
 
   // ── Loading states ──
-  if (permissionsLoading) {
+  if (permissionsLoading || gpsSettingsLoading) {
     return (
       <AppLayout title="GPS Flota">
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -449,9 +450,9 @@ export default function FleetGPS() {
       <AppLayout title="GPS Flota">
         <div className="max-w-md mx-auto text-center py-20">
           <Satellite className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-          <h2 className="text-lg font-semibold mb-2">Traccar no configurado</h2>
+          <h2 className="text-lg font-semibold mb-2">GPS no configurado</h2>
           <p className="text-muted-foreground text-sm">
-            Configura la integración con Traccar en Ajustes → Integraciones para ver la ubicación de tus vehículos en tiempo real.
+            La integración GPS no está activa. Ve a Ajustes → Integraciones y activa "GPS Tracking - Xexun" para ver la ubicación de tus vehículos en tiempo real.
           </p>
         </div>
       </AppLayout>

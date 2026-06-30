@@ -202,6 +202,7 @@ import {
   handleGpsRouteHistory,
   handleGpsFleetStatus,
   handleGpsFleetDailyKm,
+  handleGpsDiagnostics,
 } from "../gpsEndpoint";
 import {
   handleXexunPush,
@@ -484,6 +485,7 @@ async function startServer() {
   app.post("/api/gps/route-history", handleGpsRouteHistory);
   app.post("/api/gps/fleet-status", handleGpsFleetStatus);
   app.post("/api/gps/fleet-daily-km", handleGpsFleetDailyKm);
+  app.post("/api/gps/diagnostics", handleGpsDiagnostics);
   // Keep old /api/traccar/* routes as aliases for backward compatibility
   app.post("/api/traccar/test-connection", handleGpsTestConnection);
   app.post("/api/traccar/devices", handleGpsDevices);

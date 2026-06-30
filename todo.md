@@ -1285,3 +1285,6 @@
 - [x] GPS Integration: Actualizar frontend hooks (useTraccar → useGPS) y UI (quitar branding Traccar)
 - [x] GPS Integration: Actualizar TraccarDeviceSection para vincular dispositivos Xexun por IMEI
 - [x] GPS Integration: Actualizar integration_settings para guardar config Xexun en vez de Traccar
+- [x] GPS: Fix FleetGPS page 'Traccar no configurado' error (xexun_enabled ya activado en DB, actualizar vehiclesWithGPS para usar xexun_imei)
+- [x] GPS: Actualizar UI de configuración GPS para mostrar webhook URL de Xexun en vez de campos Traccar (server/email/password)
+- [x] GPS: Añadir panel de diagnóstico GPS con último push por dispositivo y detección de dispositivos sin datos (>30 min)

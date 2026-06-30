@@ -80,25 +80,16 @@ export function IntegrationSettingsSection() {
   const [rentlyClientId, setRentlyClientId] = useState('');
   const [rentlyClientSecret, setRentlyClientSecret] = useState('');
 
-  // Traccar form state
-  const { settings: traccarSettings, hasTraccar, saveSettings: saveTraccarSettings, testConnection: testTraccarConnection, settingsLoading: traccarLoading } = useTraccar();
-  const [traccarUrl, setTraccarUrl] = useState('');
-  const [traccarEmail, setTraccarEmail] = useState('');
-  const [traccarPassword, setTraccarPassword] = useState('');
-  const [showTraccarPassword, setShowTraccarPassword] = useState(false);
-  const [testingTraccar, setTestingTraccar] = useState(false);
-  const [savingTraccar, setSavingTraccar] = useState(false);
+  // GPS (Xexun) state
+  const { settings: gpsSettings, hasTraccar: hasGPS, saveSettings: saveGpsSettings, testConnection: testGpsConnection, settingsLoading: gpsLoading } = useTraccar();
+  const [testingGps, setTestingGps] = useState(false);
+  const [savingGps, setSavingGps] = useState(false);
   const [archiveDays, setArchiveDays] = useState(10);
 
   const isTeamPlan = currentPlan === 'team';
 
-  // Initialize Traccar form state
-  useEffect(() => {
-    if (traccarSettings) {
-      setTraccarUrl(traccarSettings.traccar_server_url || '');
-      setTraccarEmail(traccarSettings.traccar_email || '');
-    }
-  }, [traccarSettings]);
+  // GPS webhook URL for display
+  const webhookUrl = gpsSettings?.webhook_url || '/api/xexun/push';
 
   // Initialize form state when settings load
   useEffect(() => {
@@ -247,39 +238,25 @@ export function IntegrationSettingsSection() {
     }
   };
 
-  const handleSaveTraccar = async () => {
-    if (!traccarUrl || !traccarEmail) {
-      toast.error('URL del servidor y email son obligatorios');
-      return;
-    }
-    setSavingTraccar(true);
-    const success = await saveTraccarSettings(traccarUrl, traccarEmail, traccarPassword);
-    setSavingTraccar(false);
+  const handleEnableGps = async () => {
+    setSavingGps(true);
+    const success = await saveGpsSettings('', '', '');
+    setSavingGps(false);
     if (success) {
-      toast.success('Configuración de Traccar guardada');
-      setTraccarPassword('');
+      toast.success('Integración GPS activada');
     } else {
-      toast.error('Error al guardar configuración de Traccar');
+      toast.error('Error al activar GPS');
     }
   };
 
-  const handleTestTraccar = async () => {
-    const url = traccarUrl;
-    const email = traccarEmail;
-    const password = traccarPassword || (hasTraccar ? '__EXISTING__' : '');
-    if (!url || !email) {
-      toast.error('Completa URL y email primero');
-      return;
-    }
-    setTestingTraccar(true);
-    // If no new password entered but has existing, we need to get it from backend
-    // The test endpoint will use the stored password if we pass the org_id
-    const result = await testTraccarConnection(url, email, password === '__EXISTING__' ? '' : password);
-    setTestingTraccar(false);
+  const handleTestGps = async () => {
+    setTestingGps(true);
+    const result = await testGpsConnection();
+    setTestingGps(false);
     if (result.ok) {
-      toast.success('Conexión exitosa con Traccar');
+      toast.success(result.message || 'Conexión GPS activa');
     } else {
-      toast.error(result.error || 'Error de conexión con Traccar');
+      toast.error(result.error || 'GPS no configurado');
     }
   };
 
@@ -648,74 +625,75 @@ export function IntegrationSettingsSection() {
         </div>
       </div>
 
-      {/* Traccar GPS Tracking */}
+      {/* Xexun GPS Tracking */}
       <div className="space-y-3 p-4 rounded-lg border border-green-500/20 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-green-500" />
-            <Label className="text-base font-semibold">Traccar - GPS Tracking</Label>
+            <Label className="text-base font-semibold">GPS Tracking - Xexun</Label>
           </div>
-          <StatusBadge connected={hasTraccar} />
+          <StatusBadge connected={hasGPS} />
         </div>
         <p className="text-sm text-muted-foreground">
-          Conecta tu servidor Traccar para rastrear la ubicación de los vehículos en tiempo real
+          Seguimiento GPS en tiempo real mediante dispositivos Xexun X24 OBD
         </p>
         
-        <div className="grid gap-3">
-          <div className="space-y-2">
-            <Label className="text-xs">URL del Servidor</Label>
-            <Input
-              placeholder="https://tu-servidor.traccar.org"
-              value={traccarUrl}
-              onChange={(e) => setTraccarUrl(e.target.value)}
-            />
-          </div>
+        {hasGPS ? (
+          <div className="grid gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Webhook URL (Data Push)</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={webhookUrl}
+                  className="font-mono text-xs bg-muted"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.origin + webhookUrl);
+                    toast.success('URL copiada al portapapeles');
+                  }}
+                >
+                  Copiar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Configura esta URL en tracker.xexun.com → Data Push para recibir posiciones automáticamente.
+              </p>
+            </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs">Email</Label>
-            <Input
-              type="email"
-              placeholder="admin@traccar.org"
-              value={traccarEmail}
-              onChange={(e) => setTraccarEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs">Contraseña</Label>
-            <div className="relative">
-              <Input
-                type={showTraccarPassword ? 'text' : 'password'}
-                placeholder={hasTraccar ? '••••••••' : 'Contraseña de Traccar'}
-                value={traccarPassword}
-                onChange={(e) => setTraccarPassword(e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                onClick={() => setShowTraccarPassword(!showTraccarPassword)}
-              >
-                {showTraccarPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
+            <div className="space-y-2">
+              <Label className="text-xs">Estado</Label>
+              <p className="text-sm text-green-600 font-medium">Integración activa</p>
+              <p className="text-xs text-muted-foreground">
+                Los dispositivos vinculados enviarán datos GPS, OBD y alarmas a través del webhook.
+                Vincula cada dispositivo por su IMEI en Flota → Vehículos → GPS.
+              </p>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Activa la integración para comenzar a recibir datos GPS de tus dispositivos Xexun.
+            </p>
+            <Button onClick={handleEnableGps} disabled={savingGps} size="sm">
+              {savingGps && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Activar GPS
+            </Button>
+          </div>
+        )}
 
         <div className="flex gap-2">
-          <Button onClick={handleSaveTraccar} disabled={savingTraccar} size="sm">
-            {savingTraccar && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Guardar
-          </Button>
           <Button 
-            onClick={handleTestTraccar} 
-            disabled={(!hasTraccar && !traccarUrl) || testingTraccar} 
+            onClick={handleTestGps} 
+            disabled={!hasGPS || testingGps} 
             variant="outline" 
             size="sm"
           >
-            {testingTraccar && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Probar conexión
+            {testingGps && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Verificar estado
           </Button>
         </div>
       </div>

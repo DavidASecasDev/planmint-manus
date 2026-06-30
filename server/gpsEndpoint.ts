@@ -761,3 +761,102 @@ export async function handleGpsFleetDailyKm(req: Request, res: Response) {
     return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
   }
 }
+
+/**
+ * POST /api/gps/diagnostics
+ * Get diagnostic info for all linked GPS devices: last push time, battery, stale detection.
+ */
+export async function handleGpsDiagnostics(req: Request, res: Response) {
+  try {
+    const { organization_id } = req.body;
+    if (!organization_id) {
+      return res.status(400).json({ ok: false, error: 'organization_id required' });
+    }
+
+    const sb = getServiceClient();
+
+    // Get all fleet vehicles with xexun_imei
+    const { data: fleetVehicles } = await sb
+      .from('fleet_vehicles')
+      .select('id, matricula, marca, modelo, xexun_imei')
+      .eq('organization_id', organization_id)
+      .not('xexun_imei', 'is', null)
+      .order('matricula');
+
+    if (!fleetVehicles || fleetVehicles.length === 0) {
+      return res.json({ ok: true, devices: [], summary: { total: 0, online: 0, stale: 0, noData: 0 } });
+    }
+
+    const imeis = fleetVehicles.map(fv => fv.xexun_imei).filter(Boolean);
+    const { data: positions } = await sb
+      .from('device_positions')
+      .select('*')
+      .eq('organization_id', organization_id)
+      .in('imei', imeis);
+
+    const positionMap = new Map((positions || []).map(p => [p.imei, p]));
+    const now = Date.now();
+
+    let onlineCount = 0;
+    let staleCount = 0;
+    let noDataCount = 0;
+
+    const devices = fleetVehicles.map(fv => {
+      const pos = positionMap.get(fv.xexun_imei!);
+
+      if (!pos) {
+        noDataCount++;
+        return {
+          vehicleId: fv.id,
+          matricula: fv.matricula,
+          marca: fv.marca,
+          modelo: fv.modelo,
+          imei: fv.xexun_imei,
+          status: 'sin_datos' as const,
+          lastPush: null,
+          minutesSinceLastPush: null,
+          batteryLevel: null,
+          latitude: null,
+          longitude: null,
+          speed: null,
+        };
+      }
+
+      const lastUpdateMs = pos.last_update ? new Date(pos.last_update).getTime() : 0;
+      const minutesSince = lastUpdateMs ? Math.round((now - lastUpdateMs) / 60000) : null;
+      const isStale = minutesSince !== null && minutesSince > 30;
+
+      if (isStale) staleCount++;
+      else onlineCount++;
+
+      return {
+        vehicleId: fv.id,
+        matricula: fv.matricula,
+        marca: fv.marca,
+        modelo: fv.modelo,
+        imei: fv.xexun_imei,
+        status: isStale ? 'estancado' as const : 'activo' as const,
+        lastPush: pos.last_update,
+        minutesSinceLastPush: minutesSince,
+        batteryLevel: pos.battery_level ?? null,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        speed: pos.speed ? Math.round(pos.speed) : 0,
+      };
+    });
+
+    return res.json({
+      ok: true,
+      devices,
+      summary: {
+        total: devices.length,
+        online: onlineCount,
+        stale: staleCount,
+        noData: noDataCount,
+      },
+    });
+  } catch (err) {
+    console.error('[gps/diagnostics] Error:', err);
+    return res.status(500).json({ ok: false, error: 'Error interno del servidor' });
+  }
+}

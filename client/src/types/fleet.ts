@@ -23,6 +23,7 @@ export interface FleetVehicle {
   motor: string | null;
   cv: number | null;
   traccar_device_id: string | null;
+  xexun_imei: string | null;
   created_at: string;
   updated_at: string;
 }
