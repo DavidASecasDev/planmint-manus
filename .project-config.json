@@ -7,15 +7,17 @@
   ],
   "dev_command": "pnpm run dev",
   "env_vars": {
-    "DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}"
+    "DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}",
+    "DRIZZLE_DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}"
   },
   "experiments": null,
   "git_remote": {
     "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663452253312/ixFK4yeJEEAkh8kCZkpztM",
-    "access_key_id": "ASIAZV3A2ECZFBDOJFLE",
-    "secret_access_key": "YnE20aqq8NnSR4/UzBK8lVTgis60LS4gFcjHLTDt",
-    "session_token": "IQoJb3JpZ2luX2VjEAkaCXVzLWVhc3QtMSJGMEQCIF2sgkvE7A/mlnQsKIZFMR5X8kAEoLD2HtWYE19V93D8AiBvJ7K+G5DeXBI4CWRKryraaThDjtTu8E0ZOowQtMT9iSr/AwjR//////////8BEAQaDDY2NTM4NjA5ODg2NiIMCcxtTddzScMxBTLWKtMDhCme+Ik5KhLX+1VdxHt8Pu6tBtF54/EKssECQ8YRKMCRJtINHQQxPw7PZgFpdYAcf7GqrLM1PWIfUKd9kfDTeL1U5A1KS5DteXtowIYewAlg79lZ2UJ23AtUukC02j5uhRKpd5CeC4QSQRG0OAlr3Bxo4nFfAYGMOljw3+ZLm8SZRfNuzIOyOk73HSrMaRUlrue8jI+QXnFCR1ThufKw73NclFs3t5f6DvxOReaQgeduGrkNWeBA9eNAjNP5uOCFD8JaH5ayhxANprhCOocr3DGD9ujWFG6hVVf5dfZt76WeNwyNlsi8VI17TiXeKouhGKW1CadXDcJzVOz0aZG71QTzn5aZd6m5wBVlpTcW0AlR81fSrsINGpfT6VwEWUZA/ORCyqRstywkMnm27bxgFTlqMmiGIIo/FSwyogVZpIui2UBw4/nnwKRTnDNXCBOyvvA/s8C+w92pKgQOhRzoOhhVqEl89UR8uEkJwwEK8YLhaJ0gyNv/DWYopeqasgFQ8rpA8Flu6QSS03hhZmQe3WbXwHKP/k7n9hoPlJ2wXChLuudbUoI/ElPZJGz3hBK89G5Mrf4PbMkSwMbt7CJlIAtx+XfkiBqHi/xvnYP7MpSw9g0w0Lew0AY6ngGzwkkoow/AYIcogFVxUAvt5038Lzw6VE2h18f/rU3IrRv0kw2WUjCe3PGKXJW7krABVuc5n4ZPgKPmxFAVIGEp4yMSoqDckULqjFg9gG02v2SPaGnyhuMR0LelxqO1BlQcnmQQcMP4ylU+eiXqefZGLyueqhegANkAn4m8iF1QHMkHmo1r3412VgoyPQ91cwrpukAW9+0ZXhPATwaVWw==",
-    "expiration": "2026-05-19T20:14:08.000Z"
+    "access_key_id": "ASIAZV3A2ECZFG7N5TTD",
+    "secret_access_key": "U4qewRXUGt/ixJkEfO4r0Hi2A3I517/BQ6kvTdN8",
+    "session_token": "IQoJb3JpZ2luX2VjEPv//////////wEaCXVzLWVhc3QtMSJHMEUCIQCilTu9Eg3skWStsWn7Va5HSEuQiU5OKlSsF8zNVQ7XRQIgHBUGr2ItdPg6qQMAnrwDXvQuTDiIrQtYVA1FJu3Y8+wq/wMIxP//////////ARAEGgw2NjUzODYwOTg4NjYiDOJPQqkdYqf6LSZH/SrTAyRSK/Emi+XfBmXcpxe9feWG6IC+mTbrTmmEBRgncGml8X2otdwkNtXNRbcMFoqzE/7vIqIzivDkzNKe0m53MxN3xazONLuReat6KOsn4N2cJHRsjUc9sCR4F//RgA371li8p7DW7qYQvI5A5nmKfKjVN1OQPBvt+07uaTXbWouvb29xzaCgfkNokq/G85bGPRebnCm74cCqwqcviOm0L56BBe+nP4JsiAJqbwHcsYyt80bpwdjYeNI6ouAozH5x0qcR8TQy9dSg8ZEthkX8+78qsLt67B0APloQ7lwGcXBMHJrlQPfoFQHaETgFXV2bUR1BvzWfBBCd7zILlllXPyLbsRlX6R29hAFx5HLScUNZpqJXWDds7rJR4rs1h8d2Ni67h3r63EQqjVplC552bf8SgcyyUlWHCiMozMz5y9JCP83JoRhJk/WhUaqFlyIdSOXPKmX3bhqMDbczqt4nTsyMW4xksd4mDMtkE+qo+YtkAvkg8GRnWT23gejB+/TTmIUnB5Yv9V+0YTJn1tOlHCo1u08I5BY0p+euWY39nbMzAc3QxP2AUFBmeJyI1DTuByFKvguwowXPkDVZP7QjgtflgySrdLtUr4Be/38iPlabZDTPMJ++jtIGOp0BdKCeM8PNVYX7nBM8PSxBySQ/6yWDg7sa057GuG9SMyiXgh8dOrdYe4zqKbH47za+A8GLB92WeeKybSfDafSBG/AU0s8ba4boIF6+LAoHoMLShFophPuwmEk6gdYEV5GCe3W1VV/ksS77/rMQoWg0t+rakVJivJoAT7WRfGBuSfXEdjNRQJSO7kzM8+uyJ5dxn+2zU27F/LFqrtIuFA==",
+    "expiration": "2026-06-30T22:49:03.000Z",
+    "backend": "GIT_BACKEND_S3"
   },
   "name": "planmint-preview",
   "path": "/home/ubuntu/planmint-preview",
@@ -37,7 +39,9 @@
     "VITE_APP_TITLE": "PlanMint",
     "VITE_FRONTEND_FORGE_API_KEY": "FT6v5oAMZrjLRNRuCWuNjt",
     "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
-    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im",
+    "XEXUN_API_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJNYXJjdm9uRWliZXJnIiwiYXVkIjoiNjA1NiIsImxldmVsQ29kZSI6IjAwMDAwMDAxMDAwMDAyNTYwMDAwMDA5NyIsInNlc3Npb25Db2RlIjoiMWYxNWM5MDYtMTZiNi00YzFiLTgxYjMtNGRiNTcxNjkzMjgxIiwicm9sZUlkIjoiMzMyMyIsInN1cGVyUGFzc3dvcmRTdGF0dXMiOiJmYWxzZSIsImlzcyI6InhleHVuIiwiZGVwdElkIjo5MzU1LCJleHAiOjE4MTQzNTE2MTksImlhdCI6MTc4MjgxNTYxOX0.fKK23iJUwyCkkvMqdDNZzvQQ5cZRxkCfIQTDM_P4Rbs",
+    "XEXUN_DEPT_ID": "9355"
   },
   "template_id": "web-db-user",
   "test_command": "pnpm test"
