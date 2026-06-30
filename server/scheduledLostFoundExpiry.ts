@@ -12,10 +12,18 @@ import { getServiceClient } from "./supabaseAdmin";
 
 export async function handleScheduledLostFoundExpiry(req: Request, res: Response) {
   try {
-    // Validate this is a cron call via the platform header
+    // Validate this is a cron call (header or cookie-based cron identity)
     const cronTaskUid = req.headers["x-manus-cron-task-uid"];
     if (!cronTaskUid) {
-      return res.status(403).json({ error: "cron-only" });
+      try {
+        const { sdk } = await import("./_core/sdk");
+        const user = await sdk.authenticateRequest(req) as any;
+        if (!user.isCron) {
+          return res.status(403).json({ error: "cron-only" });
+        }
+      } catch {
+        return res.status(403).json({ error: "cron-only" });
+      }
     }
 
     const supabase = getServiceClient();

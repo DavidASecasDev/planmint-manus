@@ -117,9 +117,17 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
   const taskUid = req.headers["x-manus-cron-task-uid"] as string | undefined;
 
   try {
-    // Validate this is a cron call
+    // Validate this is a cron call (header or cookie-based cron identity)
     if (!taskUid) {
-      return res.status(403).json({ error: "cron-only" });
+      try {
+        const { sdk } = await import("./_core/sdk");
+        const user = await sdk.authenticateRequest(req) as any;
+        if (!user.isCron) {
+          return res.status(403).json({ error: "cron-only" });
+        }
+      } catch {
+        return res.status(403).json({ error: "cron-only" });
+      }
     }
 
     const token = process.env.XEXUN_API_TOKEN;
