@@ -56,10 +56,20 @@ export function useReservations(dateFilter?: ReservationsDateFilter) {
         if (effectiveDateFrom) {
           // We need to include reservations where EITHER desde OR hasta falls in the range
           // This ensures we don't miss reservations that span across the date boundary
-          query = query.or(
-            `and(desde.gte.${effectiveDateFrom}T00:00:00${effectiveDateTo ? `,desde.lte.${effectiveDateTo}T23:59:59` : ''}),` +
-            `and(hasta.gte.${effectiveDateFrom}T00:00:00${effectiveDateTo ? `,hasta.lte.${effectiveDateTo}T23:59:59` : ''})`
-          );
+          // Also include reservations where desde IS NULL but hasta is in range (manual devoluciones)
+          if (effectiveDateTo) {
+            query = query.or(
+              `and(desde.gte.${effectiveDateFrom}T00:00:00,desde.lte.${effectiveDateTo}T23:59:59),` +
+              `and(hasta.gte.${effectiveDateFrom}T00:00:00,hasta.lte.${effectiveDateTo}T23:59:59),` +
+              `and(desde.is.null,hasta.gte.${effectiveDateFrom}T00:00:00,hasta.lte.${effectiveDateTo}T23:59:59)`
+            );
+          } else {
+            query = query.or(
+              `and(desde.gte.${effectiveDateFrom}T00:00:00),` +
+              `and(hasta.gte.${effectiveDateFrom}T00:00:00),` +
+              `and(desde.is.null,hasta.gte.${effectiveDateFrom}T00:00:00)`
+            );
+          }
         }
         
         const { data, error } = await query.order('desde', { ascending: true });
