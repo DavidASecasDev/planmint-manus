@@ -435,9 +435,9 @@ export async function handleBulkUpsertSchedules(req: Request, res: Response) {
 
     const sb = getServiceClient();
 
-    // Permission: schedules.manage (bulk operations require full manage permission)
-    const { allowed: canManage } = await checkUserPermission(sb, orgId, userId, "schedules.manage");
-    if (!canManage) return res.status(403).json({ ok: false, error: "No permission to manage schedules (bulk operations)" });
+    // Permission: schedules.assign (same as single-cell assignment)
+    const { allowed: canAssign } = await checkUserPermission(sb, orgId, userId, "schedules.assign");
+    if (!canAssign) return res.status(403).json({ ok: false, error: "No permission to assign shifts" });
 
     const { entries } = req.body;
     if (!Array.isArray(entries) || entries.length === 0) {

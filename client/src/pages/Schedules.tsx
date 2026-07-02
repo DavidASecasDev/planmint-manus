@@ -203,7 +203,8 @@ export default function Schedules() {
 
   const capacityPanelRef = useRef<HTMLDivElement>(null);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedCell, setSelectedCell] = useState<{ teamId: string; userId: string; date: string } | null>(null);
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [lastClickedCell, setLastClickedCell] = useState<string | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ShiftTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState({
@@ -678,8 +679,78 @@ export default function Schedules() {
 
   const handleAssignShift = useCallback((userId: string, date: string, shiftTemplateId: string | null) => {
     upsertMutation.mutate({ userId, date, shiftTemplateId });
-    setSelectedCell(null);
+    setSelectedCells(new Set());
+    setLastClickedCell(null);
   }, [upsertMutation]);
+
+  // Multi-select cell handler
+  const handleCellSelect = useCallback((cell: { teamId: string; userId: string; date: string }, multiSelect: boolean) => {
+    const key = `${cell.teamId}__${cell.userId}__${cell.date}`;
+    if (multiSelect) {
+      setSelectedCells(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) {
+          next.delete(key);
+        } else {
+          next.add(key);
+        }
+        return next;
+      });
+    } else {
+      setSelectedCells(new Set([key]));
+    }
+    setLastClickedCell(key);
+  }, []);
+
+  // Bulk assign mutation
+  const bulkAssignMutation = useMutation({
+    mutationFn: async (params: { shiftTemplateId: string | null }) => {
+      const entries = Array.from(selectedCells).map(key => {
+        const [teamId, userId, date] = key.split('__');
+        return {
+          user_id: userId,
+          date,
+          shift_template_id: params.shiftTemplateId,
+          team_id: teamId,
+          notes: null,
+        };
+      });
+      if (params.shiftTemplateId === null) {
+        // For clearing, we need to upsert with null shift_template_id
+        // The backend will handle deletion for null shift_template_id entries
+        // Use individual upserts for clearing since bulk doesn't support delete
+        for (const entry of entries) {
+          await apiInvoke('upsert-schedule', {
+            body: {
+              organizationId: orgId,
+              user_id: entry.user_id,
+              date: entry.date,
+              shift_template_id: null,
+            },
+          });
+        }
+        return entries.length;
+      }
+      const res = await apiInvoke('bulk-upsert-schedules', {
+        body: { organizationId: orgId, entries },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al asignar turnos');
+      return entries.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+      setSelectedCells(new Set());
+      setLastClickedCell(null);
+      toast.success(`Turno asignado a ${count} celdas`);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleBulkAssignShift = useCallback((shiftTemplateId: string | null) => {
+    bulkAssignMutation.mutate({ shiftTemplateId });
+  }, [bulkAssignMutation]);
 
   const resetTemplateForm = () => {
     setTemplateForm({ name: '', start_time: '', end_time: '', color: '#3B82F6', is_day_off: false });
@@ -1022,9 +1093,10 @@ export default function Schedules() {
                   scheduleLookup={scheduleLookup}
                   shiftTemplates={shiftTemplates}
                   dayStats={dayStats}
-                  selectedCell={selectedCell}
-                  onSelectCell={setSelectedCell}
+                  selectedCells={selectedCells}
+                  onSelectCell={handleCellSelect}
                   onAssignShift={handleAssignShift}
+                  onBulkAssignShift={handleBulkAssignShift}
                   canAssign={canAssign}
                   onReorderMember={(canAssign || canManage) ? handleReorderMember : undefined}
                   onDragReorder={(canAssign || canManage) ? handleDragReorder : undefined}
@@ -1221,9 +1293,10 @@ interface TeamScheduleGridProps {
   scheduleLookup: Map<string, ScheduleEntry>;
   shiftTemplates: ShiftTemplate[];
   dayStats: Record<string, DayStats>;
-  selectedCell: { teamId: string; userId: string; date: string } | null;
-  onSelectCell: (cell: { teamId: string; userId: string; date: string } | null) => void;
+  selectedCells: Set<string>;
+  onSelectCell: (cell: { teamId: string; userId: string; date: string }, multiSelect: boolean) => void;
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
+  onBulkAssignShift?: (shiftTemplateId: string | null) => void;
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
   onDragReorder?: (teamId: string, orderedUserIds: string[], oldMembers: StaffMember[]) => void;
@@ -1242,9 +1315,10 @@ function TeamScheduleGrid({
   scheduleLookup,
   shiftTemplates,
   dayStats,
-  selectedCell,
+  selectedCells,
   onSelectCell,
   onAssignShift,
+  onBulkAssignShift,
   canAssign,
   onReorderMember,
   onDragReorder,
@@ -1464,7 +1538,9 @@ function TeamScheduleGrid({
                         : null;
                       const today = isToday(d);
                       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                      const isSelected = selectedCell?.teamId === team.team_id && selectedCell?.userId === member.id && selectedCell?.date === dateStr;
+                      const cellKey = `${team.team_id}__${member.id}__${dateStr}`;
+                      const isSelected = selectedCells.has(cellKey);
+                      const isSingleSelected = isSelected && selectedCells.size === 1;
 
                       const cellNote = noteLookup.get(`${member.id}:${dateStr}`) || null;
 
@@ -1490,17 +1566,19 @@ function TeamScheduleGrid({
                             />
                           {canAssign ? (
                           <Popover
-                            open={isSelected}
+                            open={isSingleSelected}
                             onOpenChange={open => {
-                              if (!open) onSelectCell(null);
+                              if (!open) onSelectCell({ teamId: team.team_id, userId: member.id, date: dateStr }, false);
                             }}
                           >
                             <PopoverTrigger asChild>
                               <button
-                                onClick={() => onSelectCell({ teamId: team.team_id, userId: member.id, date: dateStr })}
+                                onClick={(e) => onSelectCell({ teamId: team.team_id, userId: member.id, date: dateStr }, e.ctrlKey || e.metaKey)}
                                 className={cn(
                                   "w-full min-h-[36px] rounded-md text-xs font-medium transition-all",
-                                  "border border-transparent hover:border-primary/30 hover:shadow-sm",
+                                  isSelected
+                                    ? "ring-2 ring-primary ring-offset-1"
+                                    : "border border-transparent hover:border-primary/30 hover:shadow-sm",
                                   shift
                                     ? "text-white shadow-sm"
                                     : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40"
@@ -1720,6 +1798,45 @@ function TeamScheduleGrid({
           )}
         </DragOverlay>
         </DndContext>
+
+        {/* Floating multi-select assignment bar */}
+        {selectedCells.size > 1 && onBulkAssignShift && (
+          <div className="sticky bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t border-border shadow-lg px-4 py-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-primary whitespace-nowrap">
+                {selectedCells.size} celdas seleccionadas
+              </span>
+              <div className="flex-1 flex flex-wrap gap-1.5">
+                {shiftTemplates.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => onBulkAssignShift(t.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors hover:bg-muted/60 border border-border/50 hover:border-primary/30"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <span>{t.name}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => onBulkAssignShift(null)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors border border-border/50"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Quitar</span>
+                </button>
+              </div>
+              <button
+                onClick={() => { /* clear selection handled by parent */ }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
