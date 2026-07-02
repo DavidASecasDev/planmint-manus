@@ -1523,39 +1523,38 @@ function TeamScheduleGrid({
                                 )}
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-48 p-2" align="center" side="bottom">
-                              <div className="space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground px-1 pb-1 border-b border-border/30 mb-1">
+                            <PopoverContent className="w-auto max-w-[320px] p-3" align="center" side="bottom">
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-2">
                                   Asignar turno
                                 </p>
-                                {shiftTemplates.map(t => (
-                                  <button
-                                    key={t.id}
-                                    onClick={() => onAssignShift(member.id, dateStr, t.id)}
-                                    className={cn(
-                                      "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-muted/60",
-                                      entry?.shift_template_id === t.id && "bg-muted"
-                                    )}
-                                  >
-                                    <div
-                                      className="w-3 h-3 rounded-full flex-shrink-0"
-                                      style={{ backgroundColor: t.color }}
-                                    />
-                                    <span className="truncate">{t.name}</span>
-                                  </button>
-                                ))}
-                                {entry?.shift_template_id && (
-                                  <>
-                                    <div className="border-t border-border/30 my-1" />
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  {shiftTemplates.map(t => (
+                                    <button
+                                      key={t.id}
+                                      onClick={() => onAssignShift(member.id, dateStr, t.id)}
+                                      className={cn(
+                                        "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-muted/60 border border-transparent",
+                                        entry?.shift_template_id === t.id && "bg-muted border-primary/30 ring-1 ring-primary/20"
+                                      )}
+                                    >
+                                      <div
+                                        className="w-4 h-4 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: t.color }}
+                                      />
+                                      <span className="truncate max-w-[80px] text-center leading-tight">{t.name}</span>
+                                    </button>
+                                  ))}
+                                  {entry?.shift_template_id && (
                                     <button
                                       onClick={() => onAssignShift(member.id, dateStr, null)}
-                                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                      className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
                                     >
-                                      <X className="h-3 w-3" />
-                                      <span>Quitar turno</span>
+                                      <X className="h-4 w-4" />
+                                      <span>Quitar</span>
                                     </button>
-                                  </>
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </PopoverContent>
                           </Popover>
