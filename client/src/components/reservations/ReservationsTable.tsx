@@ -1802,6 +1802,7 @@ export function ReservationsTable() {
                           {col.key === 'tiempo_desplazamiento' && (() => {
                             const mins = row.travelMinutes;
                             const arrived = llegoState[row.id];
+                            const destination = row.direccion || row.lugar;
 
                             // Already arrived — show real travel time with comparison
                             if (arrived) {
@@ -1832,10 +1833,65 @@ export function ReservationsTable() {
                               );
                             }
 
-                            // Normal state — show estimated travel time
-                            if (mins === null) return <span className="text-xs px-1 text-muted-foreground/50">—</span>;
+                            // Editable state — allow click to set/change travel time manually
+                            // Show current value as clickable, or "—" if no value
+                            const handleTravelTimeClick = async () => {
+                              if (row.isCompleted) return;
+                              if (!destination) {
+                                toast.error('Introduce un lugar o dirección primero para poder asignar tiempo de trayecto');
+                                return;
+                              }
+                              const currentValue = mins != null && mins > 0 ? String(mins) : '';
+                              const input = window.prompt(
+                                'Tiempo de trayecto (minutos, solo ida):',
+                                currentValue
+                              );
+                              if (input === null) return; // cancelled
+                              const parsed = parseInt(input.trim(), 10);
+                              if (isNaN(parsed) || parsed < 0) {
+                                toast.error('Introduce un número válido de minutos (0 o más)');
+                                return;
+                              }
+                              try {
+                                await apiInvoke('travel-time-overrides/upsert', {
+                                  body: {
+                                    destination: destination,
+                                    travelMinutes: parsed,
+                                  },
+                                });
+                                window.dispatchEvent(new Event('capacity-refresh-needed'));
+                                toast.success(`Tiempo de trayecto actualizado: ${parsed} min`);
+                              } catch (err) {
+                                console.error('[ReservationsTable] Error saving travel time:', err);
+                                toast.error('Error al guardar el tiempo de trayecto');
+                              }
+                            };
+
+                            // Normal state — show estimated travel time (clickable to edit)
+                            if (mins === null) return (
+                              <button
+                                type="button"
+                                onClick={handleTravelTimeClick}
+                                disabled={row.isCompleted}
+                                className={cn(
+                                  "text-xs px-1 text-muted-foreground/50 hover:text-muted-foreground hover:underline cursor-pointer transition-colors",
+                                  row.isCompleted && "cursor-default hover:no-underline"
+                                )}
+                                title="Click para introducir tiempo de trayecto"
+                              >
+                                —
+                              </button>
+                            );
                             if (mins === 0) return (
-                              <span className="text-xs px-1 font-medium text-emerald-600 dark:text-emerald-400">Base</span>
+                              <button
+                                type="button"
+                                onClick={handleTravelTimeClick}
+                                disabled={row.isCompleted}
+                                className="text-xs px-1 font-medium text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                                title="Click para editar tiempo de trayecto"
+                              >
+                                Base
+                              </button>
                             );
                             const color = mins <= 15
                               ? 'text-emerald-600 dark:text-emerald-400'
@@ -1843,9 +1899,15 @@ export function ReservationsTable() {
                                 ? 'text-amber-600 dark:text-amber-400'
                                 : 'text-red-600 dark:text-red-400';
                             return (
-                              <span className={cn("text-xs px-1 font-medium tabular-nums", color, row.isCompleted && "line-through opacity-60")}>
+                              <button
+                                type="button"
+                                onClick={handleTravelTimeClick}
+                                disabled={row.isCompleted}
+                                className={cn("text-xs px-1 font-medium tabular-nums hover:underline cursor-pointer", color, row.isCompleted && "line-through opacity-60 cursor-default hover:no-underline")}
+                                title="Click para editar tiempo de trayecto"
+                              >
                                 {mins} min
-                              </span>
+                              </button>
                             );
                           })()}
                           {col.type === 'readonly' && col.key === 'cliente' && (() => {

@@ -1301,3 +1301,4 @@
 - [x] Horarios: Desacoplar nombres de empleados de los turnos - reordenar nombres no debe mover los turnos asignados
 - [x] Horarios: Asignación múltiple - seleccionar varias celdas y asignar el mismo turno a todas de golpe
 - [x] Transfers: Permitir introducir manualmente el tiempo de trayecto al crear un transfer
+- [x] Transfers: Permitir editar el tiempo de trayecto directamente desde la columna Trayecto en la tabla de Programación (inline click-to-edit)
