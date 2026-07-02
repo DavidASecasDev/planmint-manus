@@ -1300,3 +1300,4 @@
 - [x] Horarios: Reemplazar selector de horas caótico por uno más intuitivo y compatible con Mac
 - [x] Horarios: Desacoplar nombres de empleados de los turnos - reordenar nombres no debe mover los turnos asignados
 - [x] Horarios: Asignación múltiple - seleccionar varias celdas y asignar el mismo turno a todas de golpe
+- [x] Transfers: Permitir introducir manualmente el tiempo de trayecto al crear un transfer

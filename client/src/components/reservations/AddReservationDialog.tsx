@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { CalendarIcon, Plus, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useReservations } from '@/hooks/useReservations';
+import { apiInvoke } from '@/lib/apiClient';
 import { toast } from 'sonner';
 
 type TipoOperacion = 'Entrega' | 'Devolución' | 'Transfer';
@@ -48,6 +49,7 @@ export function AddReservationDialog() {
   const [auto, setAuto] = useState('');
   const [lugar, setLugar] = useState('');
   const [notas, setNotas] = useState('');
+  const [tiempoTrayecto, setTiempoTrayecto] = useState<string>('');
 
   const resetForm = () => {
     setTipoOperacion('Entrega');
@@ -61,9 +63,10 @@ export function AddReservationDialog() {
     setAuto('');
     setLugar('');
     setNotas('');
+    setTiempoTrayecto('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!fecha) {
@@ -83,6 +86,15 @@ export function AddReservationDialog() {
     // Generar ID único para reserva manual
     const manualId = `MANUAL-${Date.now()}`;
 
+    // Parse travel time for Transfer
+    const travelMinutes = tipoOperacion === 'Transfer' && tiempoTrayecto
+      ? parseInt(tiempoTrayecto, 10)
+      : null;
+
+    // Determine the lugar value — for Transfers with manual travel time,
+    // ensure lugar is set so staffCapacity can look it up in travel_time_cache
+    const lugarValue = lugar || undefined;
+
     createReservation.mutate({
       external_reservation_id: manualId,
       tipo_actividad: tipoOperacion,
@@ -94,12 +106,29 @@ export function AddReservationDialog() {
       auto: auto || undefined,
       desde: tipoOperacion === 'Entrega' || tipoOperacion === 'Transfer' ? fechaISO : undefined,
       hasta: tipoOperacion === 'Devolución' ? fechaISO : undefined,
-      lugar_entrega: tipoOperacion === 'Entrega' || tipoOperacion === 'Transfer' ? lugar : undefined,
-      lugar_devolucion: tipoOperacion === 'Devolución' ? lugar : undefined,
+      lugar_entrega: tipoOperacion === 'Entrega' || tipoOperacion === 'Transfer' ? lugarValue : undefined,
+      lugar_devolucion: tipoOperacion === 'Devolución' ? lugarValue : undefined,
       notas: notas || undefined,
       origen_reserva: 'Manual',
     }, {
-      onSuccess: () => {
+      onSuccess: async () => {
+        // If Transfer with manual travel time, save it to travel_time_cache
+        if (tipoOperacion === 'Transfer' && travelMinutes && travelMinutes > 0 && lugarValue) {
+          try {
+            await apiInvoke('travel-time-overrides/upsert', {
+              body: {
+                destination: lugarValue,
+                travelMinutes: travelMinutes,
+              },
+            });
+            // Trigger capacity refresh so the travel time appears immediately
+            window.dispatchEvent(new Event('capacity-refresh-needed'));
+          } catch (err) {
+            console.error('[AddReservationDialog] Error saving travel time override:', err);
+            // Don't block the success flow — reservation was created successfully
+            toast.warning('Reserva creada, pero no se pudo guardar el tiempo de trayecto');
+          }
+        }
         toast.success('Reserva creada correctamente');
         resetForm();
         setOpen(false);
@@ -243,6 +272,27 @@ export function AddReservationDialog() {
               placeholder="Lugar de la operación"
             />
           </div>
+
+          {/* Tiempo de trayecto — solo para Transfer */}
+          {tipoOperacion === 'Transfer' && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                Tiempo de trayecto (min)
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                max="300"
+                value={tiempoTrayecto}
+                onChange={(e) => setTiempoTrayecto(e.target.value)}
+                placeholder="ej. 15"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tiempo estimado de ida en minutos. Se mostrará en la columna de desplazamiento.
+              </p>
+            </div>
+          )}
 
           {/* Notas */}
           <div className="space-y-2">
