@@ -78,6 +78,7 @@ import { useScheduleNotes } from '@/hooks/useScheduleNotes';
 import type { ScheduleNote } from '@/hooks/useScheduleNotes';
 import { CellNoteIndicator } from '@/components/schedules/CellNoteIndicator';
 import { TravelTimeEditor } from '@/components/TravelTimeEditor';
+import { TimePicker } from '@/components/ui/time-picker';
 import {
   Tooltip,
   TooltipContent,
@@ -422,14 +423,62 @@ export default function Schedules() {
     const newMembers = [...members];
     const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
     if (targetIndex < 0 || targetIndex >= newMembers.length) return;
-    // Only change visual order — shifts are NOT touched
+    // Swap the two users' shifts so shifts stay in their original row position
+    const userA = members[memberIndex];
+    const userB = members[targetIndex];
+    swapShiftsMutation.mutate({ user_a_id: userA.id, user_b_id: userB.id });
+    // Also update the visual name order
     [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
     const ordered_user_ids = newMembers.map(m => m.id);
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
   };
 
-  const handleDragReorder = (teamId: string, orderedUserIds: string[]) => {
-    // Only change visual order — shifts are NOT touched
+  // Mutation to rotate shifts among multiple users (for multi-position drag)
+  const rotateShiftsMutation = useMutation({
+    mutationFn: async (params: { user_ids: string[] }) => {
+      const res = await apiInvoke('rotate-user-schedules', {
+        body: {
+          user_ids: params.user_ids,
+          start_date: weekStart,
+          end_date: weekEnd,
+        },
+      });
+      if (res.error) throw new Error(res.error.message || 'Error al rotar horarios');
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleDragReorder = (teamId: string, orderedUserIds: string[], oldMembers: StaffMember[]) => {
+    // Find which users changed position and rotate their shifts
+    // so shifts stay in their original row positions
+    const oldOrder = oldMembers.map(m => m.id);
+    const newOrder = orderedUserIds;
+
+    // Find the contiguous range of users that were affected by the drag
+    let startIdx = -1;
+    let endIdx = -1;
+    for (let i = 0; i < oldOrder.length; i++) {
+      if (oldOrder[i] !== newOrder[i]) {
+        if (startIdx === -1) startIdx = i;
+        endIdx = i;
+      }
+    }
+
+    if (startIdx !== -1 && endIdx !== -1) {
+      // Get the affected users in their ORIGINAL order for the rotation
+      const affectedOriginalOrder = oldOrder.slice(startIdx, endIdx + 1);
+      if (affectedOriginalOrder.length >= 2) {
+        rotateShiftsMutation.mutate({ user_ids: affectedOriginalOrder });
+      }
+    }
+
+    // Update the visual name order
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
   };
 
@@ -1028,22 +1077,16 @@ export default function Schedules() {
               </div>
               {!templateForm.is_day_off && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Hora inicio</Label>
-                    <Input
-                      type="time"
-                      value={templateForm.start_time}
-                      onChange={e => setTemplateForm(f => ({ ...f, start_time: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Hora fin</Label>
-                    <Input
-                      type="time"
-                      value={templateForm.end_time}
-                      onChange={e => setTemplateForm(f => ({ ...f, end_time: e.target.value }))}
-                    />
-                  </div>
+                  <TimePicker
+                    label="Hora inicio"
+                    value={templateForm.start_time}
+                    onChange={val => setTemplateForm(f => ({ ...f, start_time: val }))}
+                  />
+                  <TimePicker
+                    label="Hora fin"
+                    value={templateForm.end_time}
+                    onChange={val => setTemplateForm(f => ({ ...f, end_time: val }))}
+                  />
                 </div>
               )}
               <div>
@@ -1183,7 +1226,7 @@ interface TeamScheduleGridProps {
   onAssignShift: (userId: string, date: string, shiftTemplateId: string | null) => void;
   canAssign: boolean;
   onReorderMember?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
-  onDragReorder?: (teamId: string, orderedUserIds: string[]) => void;
+  onDragReorder?: (teamId: string, orderedUserIds: string[], oldMembers: StaffMember[]) => void;
   onSwapShifts?: (teamId: string, members: StaffMember[], memberIndex: number, direction: 'up' | 'down') => void;
   canManageNotes: boolean;
   noteLookup: Map<string, ScheduleNote>;
@@ -1257,7 +1300,7 @@ function TeamScheduleGrid({
     const newIndex = team.members.findIndex(m => m.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(team.members, oldIndex, newIndex);
-    onDragReorder(team.team_id, reordered.map(m => m.id));
+    onDragReorder(team.team_id, reordered.map(m => m.id), team.members);
   };
 
   const memberIds = useMemo(() => team.members.map(m => m.id), [team.members]);

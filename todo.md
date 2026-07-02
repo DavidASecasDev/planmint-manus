@@ -1297,3 +1297,5 @@
 - [x] GPS Fix: Usar speedPlat en vez de speed para la velocidad mostrada (speed=1 siempre del GPS, speedPlat=velocidad real calculada por plataforma). Si speedPlat es 0 o undefined, mostrar 0 km/h (parado).
 - [x] GPS UI: Mostrar en la tarjeta de cada vehículo: batería (electricity), PDOP, CSQ y signalStrength
 - [x] Bug Fix: Reservas manuales (Devolución) con desde=NULL no aparecen en Programación porque el filtro de fechas no contempla el caso desde IS NULL + hasta en rango
+- [x] Horarios: Reemplazar selector de horas caótico por uno más intuitivo y compatible con Mac
+- [x] Horarios: Desacoplar nombres de empleados de los turnos - reordenar nombres no debe mover los turnos asignados
