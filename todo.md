@@ -1302,3 +1302,4 @@
 - [x] Horarios: Asignación múltiple - seleccionar varias celdas y asignar el mismo turno a todas de golpe
 - [x] Transfers: Permitir introducir manualmente el tiempo de trayecto al crear un transfer
 - [x] Transfers: Permitir editar el tiempo de trayecto directamente desde la columna Trayecto en la tabla de Programación (inline click-to-edit)
+- [x] Bug: Columna Check-in en Programación pierde su valor (se resetea a blanco) al día siguiente de ser actualizada a "Hecho"

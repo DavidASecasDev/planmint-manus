@@ -1095,6 +1095,27 @@ export async function handleSyncRently(req: Request, res: Response) {
         delete updateData.lugar_devolucion_direccion;
         delete updateData.lugar_entrega_ciudad;
         delete updateData.lugar_devolucion_ciudad;
+
+        // ─── PROTECT OPERATIONAL FIELDS (Programación) ─────────────────────
+        // These fields are managed exclusively by users in the Programación view.
+        // Rently never provides them, but we delete them defensively to ensure
+        // they are never accidentally overwritten by future mapping changes.
+        delete updateData.checkin;
+        delete updateData.checkin_entrega;
+        delete updateData.checkin_devolucion;
+        delete updateData.pagado;
+        delete updateData.pagado_entrega;
+        delete updateData.pagado_devolucion;
+        delete updateData.hosp;
+        delete updateData.hosp_entrega;
+        delete updateData.hosp_devolucion;
+        delete updateData.contacto;
+        delete updateData.contacto_entrega;
+        delete updateData.contacto_devolucion;
+        delete updateData.notas;
+        delete updateData.notas_entrega;
+        delete updateData.notas_devolucion;
+
         // Note: auto, modelo, notas_internas are also user-editable but we keep
         // syncing them from Rently because vehicle assignment changes in Rently
         // should be reflected. Users rarely change these manually.

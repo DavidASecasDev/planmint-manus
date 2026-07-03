@@ -691,6 +691,12 @@ export function ReservationsTable() {
          return (r.estado as string) || null;
        }
        
+       // Para campos operacionales, fallback al campo legacy si el específico está vacío
+       const operationalFallbackFields = ['checkin', 'pagado', 'hosp', 'contacto', 'notas'];
+       if (!specificValue && operationalFallbackFields.includes(key)) {
+         return (r[key as keyof typeof r] as string) || null;
+       }
+       
        return specificValue;
     }
     
@@ -1054,6 +1060,14 @@ export function ReservationsTable() {
      // Para 'estado', fallback al campo principal
      if (fieldKey === 'estado' && !specificValue) {
        return (r.estado as string) || null;
+     }
+     
+     // Para campos operacionales (checkin, pagado, hosp, contacto, notas),
+     // si el campo específico está vacío, intentar fallback al campo legacy.
+     // Esto cubre reservas que fueron actualizadas antes de la migración a campos por operación.
+     const operationalFallbackFields = ['checkin', 'pagado', 'hosp', 'contacto', 'notas'];
+     if (!specificValue && operationalFallbackFields.includes(fieldKey)) {
+       return (r[fieldKey as keyof typeof r] as string) || null;
      }
      
      return specificValue;

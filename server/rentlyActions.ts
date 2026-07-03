@@ -358,6 +358,23 @@ async function syncSingleBooking(
   delete updateData.lugar_entrega_ciudad;
   delete updateData.lugar_devolucion_ciudad;
 
+  // Protect operational fields (Programación) - same as full sync
+  delete updateData.checkin;
+  delete updateData.checkin_entrega;
+  delete updateData.checkin_devolucion;
+  delete updateData.pagado;
+  delete updateData.pagado_entrega;
+  delete updateData.pagado_devolucion;
+  delete updateData.hosp;
+  delete updateData.hosp_entrega;
+  delete updateData.hosp_devolucion;
+  delete updateData.contacto;
+  delete updateData.contacto_entrega;
+  delete updateData.contacto_devolucion;
+  delete updateData.notas;
+  delete updateData.notas_entrega;
+  delete updateData.notas_devolucion;
+
   if (newStatus === "Completada") {
     updateData.estado_terminada_at = new Date().toISOString();
   }
