@@ -671,14 +671,16 @@ export function ReservationsTable() {
     if (reservationIds.length === 0) return;
 
     let cancelled = false;
-    apiInvoke<{ data: { reservation_id: string; operation_type: string; changed_by_name: string; created_at: string }[] }>('get-checkin-audit-log', {
+    apiInvoke<{ data: { reservation_id: string; operation_type: string; field_name: string; changed_by_name: string; created_at: string }[] }>('get-checkin-audit-log', {
       body: { reservation_ids: reservationIds },
     }).then(resp => {
       if (cancelled || !resp.data?.data) return;
-      // Build a map: "reservationId_operationType" -> latest audit entry
+      // Build a map: "reservationId_operationType_baseField" -> latest audit entry
       const map: Record<string, { changed_by_name: string; created_at: string }> = {};
       for (const entry of resp.data.data) {
-        const key = `${entry.reservation_id}_${entry.operation_type}`;
+        // Extract base field name (e.g., 'checkin_entrega' -> 'checkin', 'pagado_devolucion' -> 'pagado')
+        const baseField = entry.field_name.replace(/_entrega$|_devolucion$/, '');
+        const key = `${entry.reservation_id}_${entry.operation_type}_${baseField}`;
         // Since entries are ordered by created_at DESC, first one is the latest
         if (!map[key]) {
           map[key] = { changed_by_name: entry.changed_by_name, created_at: entry.created_at };
@@ -1141,18 +1143,21 @@ export function ReservationsTable() {
       }
     }
 
-    // Log check-in changes to audit trail (fire-and-forget)
-    if (fieldKey === 'checkin' && value) {
-      const oldCheckin = getOperationFieldValue(row, 'checkin');
-      if (oldCheckin !== value) {
+    // Log operational field changes to audit trail (fire-and-forget)
+    // Covers: checkin, pagado, hosp, contacto
+    const auditedFields = ['checkin', 'pagado', 'hosp', 'contacto'];
+    if (auditedFields.includes(fieldKey) && value) {
+      const oldValue = getOperationFieldValue(row, fieldKey);
+      if (oldValue !== value) {
         const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devolución' ? 'devolucion' : 'transfer';
-        const fieldName = row.tipoOperacion === 'Entrega' ? 'checkin_entrega' : row.tipoOperacion === 'Devolución' ? 'checkin_devolucion' : 'checkin';
+        const suffix = row.tipoOperacion === 'Entrega' ? '_entrega' : row.tipoOperacion === 'Devolución' ? '_devolucion' : '';
+        const fieldName = suffix ? `${fieldKey}${suffix}` : fieldKey;
         apiInvoke('checkin-audit-log', {
           body: {
             reservation_id: row.reservationId,
             operation_type: opType,
             field_name: fieldName,
-            old_value: oldCheckin || null,
+            old_value: oldValue || null,
             new_value: value,
             changed_by_name: profile?.name || 'Usuario',
           },
@@ -2086,7 +2091,7 @@ export function ReservationsTable() {
                                   </TooltipProvider>
                                 )}
                               </div>
-                            ) : col.key === 'checkin' ? (
+                            ) : ['checkin', 'pagado', 'hosp', 'contacto'].includes(col.key) ? (
                               <div className="flex items-center gap-0.5">
                                 <ChipSelect
                                   fieldName={col.fieldName as 'estado' | 'tipo_actividad' | 'pagado' | 'hosp' | 'checkin' | 'contacto'}
@@ -2095,7 +2100,7 @@ export function ReservationsTable() {
                                 />
                                 {canViewCheckinAudit && (() => {
                                   const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devolución' ? 'devolucion' : 'transfer';
-                                  const auditKey = `${row.reservationId}_${opType}`;
+                                  const auditKey = `${row.reservationId}_${opType}_${col.key}`;
                                   const audit = checkinAuditMap[auditKey];
                                   if (!audit) return null;
                                   return (

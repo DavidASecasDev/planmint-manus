@@ -1307,3 +1307,5 @@
 - [x] Check-in Audit: Crear endpoint backend para registrar el cambio de check-in con usuario y timestamp
 - [x] Check-in Audit: Crear permiso 'checkin_audit.view' que solo el Owner puede otorgar
 - [x] Check-in Audit: Mostrar tooltip/indicador en la columna Check-in con quién lo marcó y cuándo (solo visible para Owner y usuarios con permiso)
+- [x] Auditoría: Extender registro de cambios a columnas "Pagado", "Hosp" y "Contacto" (misma tabla checkin_audit_log, mismo permiso)
+- [x] Auditoría: Mostrar tooltip de historial en columnas Pagado, Hosp y Contacto (solo visible para Owner y usuarios con permiso)
