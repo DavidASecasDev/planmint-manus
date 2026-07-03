@@ -162,7 +162,7 @@ import {
 import { handleRepairRentlyPoll } from "../repairRentlyPoll";
 import { handleGetReservationStatusHistory, handleLogReservationStatusChange, handleGetReactivatedReservationIds, handleGetReactivatedReservations } from "../reservationHistoryEndpoint";
 import { handleLogManualMovementEdit, handleGetManualMovementHistory } from "../manualMovementHistoryEndpoint";
-import { handleLogCheckinAudit, handleGetCheckinAuditLog } from "../checkinAuditEndpoint";
+import { handleLogCheckinAudit, handleGetCheckinAuditLog, handleGetAuditHistory } from "../checkinAuditEndpoint";
 import {
   handleGetPreparationList,
   handleAddPreparationItem,
@@ -474,6 +474,7 @@ async function startServer() {
   // Check-in audit trail
   app.post("/api/checkin-audit-log", handleLogCheckinAudit);
   app.post("/api/get-checkin-audit-log", handleGetCheckinAuditLog);
+  app.post("/api/get-audit-history", handleGetAuditHistory);
 
   // ─── GPS Tracking (Xexun X24) ─────────────────────────────────────────────
   app.post("/api/xexun/push", handleXexunPush);

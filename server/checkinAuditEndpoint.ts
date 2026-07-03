@@ -54,6 +54,92 @@ export async function handleLogCheckinAudit(req: Request, res: Response) {
 }
 
 /**
+ * Returns paginated audit history with filters.
+ * Only accessible by owner or users with 'reservations.view_checkin_audit' permission.
+ * Body: { page?, limit?, field_name?, changed_by_name?, reservation_search?, date_from?, date_to? }
+ */
+export async function handleGetAuditHistory(req: Request, res: Response) {
+  try {
+    const { organizationId, userId } = await authenticateSupabaseRequest(
+      req.headers.authorization
+    );
+
+    const serviceClient = getServiceClient();
+
+    // Check permission
+    const { data: permCheck } = await serviceClient.rpc("has_permission", {
+      p_user_id: userId,
+      p_organization_id: organizationId,
+      p_permission: "reservations.view_checkin_audit",
+    });
+
+    if (!permCheck) {
+      return res.status(403).json({ ok: false, error: "No tienes permiso para ver el historial de auditoría" });
+    }
+
+    const {
+      page = 1,
+      limit = 50,
+      field_name,
+      changed_by_name,
+      reservation_search,
+      date_from,
+      date_to,
+    } = req.body;
+
+    const offset = (page - 1) * Math.min(limit, 100);
+    const safeLimit = Math.min(limit, 100);
+
+    let query = serviceClient
+      .from("checkin_audit_log")
+      .select("id, reservation_id, operation_type, field_name, old_value, new_value, changed_by_name, changed_by_user_id, created_at", { count: "exact" })
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
+
+    if (field_name && field_name !== 'all') {
+      // Filter by base field (checkin, pagado, hosp, contacto)
+      query = query.ilike("field_name", `${field_name}%`);
+    }
+
+    if (changed_by_name && changed_by_name.trim()) {
+      query = query.ilike("changed_by_name", `%${changed_by_name.trim()}%`);
+    }
+
+    if (reservation_search && reservation_search.trim()) {
+      query = query.ilike("reservation_id", `%${reservation_search.trim()}%`);
+    }
+
+    if (date_from) {
+      query = query.gte("created_at", date_from);
+    }
+
+    if (date_to) {
+      // Add end of day
+      const endDate = new Date(date_to);
+      endDate.setHours(23, 59, 59, 999);
+      query = query.lte("created_at", endDate.toISOString());
+    }
+
+    query = query.range(offset, offset + safeLimit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("[get-audit-history] Query error:", error);
+      return res.status(500).json({ ok: false, error: "Failed to fetch audit history" });
+    }
+
+    return res.json({ ok: true, data: { items: data || [], total: count || 0, page, limit: safeLimit } });
+  } catch (err: any) {
+    if (err instanceof AuthError) {
+      return res.status(err.status).json({ ok: false, error: err.message });
+    }
+    console.error("[get-audit-history] Error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+}
+
+/**
  * Returns check-in audit entries for given reservation IDs.
  * Only accessible by owner or users with 'reservations.view_checkin_audit' permission.
  * Body: { reservation_ids: string[] }

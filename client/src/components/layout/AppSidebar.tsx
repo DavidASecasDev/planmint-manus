@@ -8,7 +8,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package, Satellite, Activity, ParkingSquare } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, DollarSign, PackageSearch, GanttChart, SprayCan, Package, Satellite, Activity, ParkingSquare, ClipboardPen } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
 import { DockContainer, DockItem } from '@/components/ui/dock-sidebar';
@@ -163,6 +163,7 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/lost-found': 'lost_found.view',
   '/timeline': 'reservations.view',
   '/preparation': 'preparation.view',
+  '/audit-history': 'reservations.view_checkin_audit',
 };
 
 const menuItems = [
@@ -186,6 +187,7 @@ const configItems = [
   { title: 'Etiquetas', url: '/tags', icon: Tag },
   { title: 'Automatizaciones', url: '/automations', icon: Zap },
   { title: 'Plantillas', url: '/templates', icon: LayoutTemplate },
+  { title: 'Historial Auditoría', url: '/audit-history', icon: ClipboardPen },
   { title: 'Ajustes', url: '/settings', icon: Settings },
 ];
 

@@ -108,6 +108,7 @@ const PublicTracking = lazy(() => import("./pages/PublicTracking"));
 const Reservations = lazy(() => import("./pages/Reservations"));
 const ReservationDetail = lazy(() => import("./pages/ReservationDetail"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
+const AuditHistory = lazy(() => import("./pages/AuditHistory"));
 
 // Garatech Module
 const GaratechDashboard = lazy(() => import("./pages/garatech/Dashboard"));
@@ -313,6 +314,14 @@ function QueryRecovery() {
               element={
                 <ProtectedRoute>
                   <ReservationDetail />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/audit-history" 
+              element={
+                <ProtectedRoute>
+                  <AuditHistory />
                 </ProtectedRoute>
               } 
             />
