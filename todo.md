@@ -1303,3 +1303,7 @@
 - [x] Transfers: Permitir introducir manualmente el tiempo de trayecto al crear un transfer
 - [x] Transfers: Permitir editar el tiempo de trayecto directamente desde la columna Trayecto en la tabla de Programación (inline click-to-edit)
 - [x] Bug: Columna Check-in en Programación pierde su valor (se resetea a blanco) al día siguiente de ser actualizada a "Hecho"
+- [x] Check-in Audit: Crear tabla checkin_audit_log en Supabase para registrar quién marca check-in como "Hecho"
+- [x] Check-in Audit: Crear endpoint backend para registrar el cambio de check-in con usuario y timestamp
+- [x] Check-in Audit: Crear permiso 'checkin_audit.view' que solo el Owner puede otorgar
+- [x] Check-in Audit: Mostrar tooltip/indicador en la columna Check-in con quién lo marcó y cuándo (solo visible para Owner y usuarios con permiso)

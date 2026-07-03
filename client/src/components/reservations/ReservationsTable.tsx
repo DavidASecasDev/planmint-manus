@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil, History } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
@@ -29,6 +29,7 @@ import { useStaffCapacity, type CapacityOperation } from '@/hooks/useStaffCapaci
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -141,6 +142,7 @@ function DebouncedColumnInput({ value, onChange, placeholder, className }: {
 
 export function ReservationsTable() {
   const { profile, session } = useAuth();
+  const { hasPermission } = usePermissions();
   const { triggerNotification } = useNotificationTrigger();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
@@ -340,6 +342,10 @@ export function ReservationsTable() {
     }
     return map;
   }, [capacityData, extraDaysOps]);
+
+  // Check-in audit data (only fetched if user has permission)
+  const canViewCheckinAudit = hasPermission('reservations.view_checkin_audit');
+  const [checkinAuditMap, setCheckinAuditMap] = useState<Record<string, { changed_by_name: string; created_at: string }>>({});
 
   // Derive columnFilters from URL params (cf_ prefix)
   const columnFilters = useMemo<ColumnFilters>(() => {
@@ -657,6 +663,31 @@ export function ReservationsTable() {
     })();
     return () => { cancelled = true; };
   }, [operationRows]);
+
+  // Fetch check-in audit data for visible reservations (only if user has permission)
+  useEffect(() => {
+    if (!canViewCheckinAudit || operationRows.length === 0) return;
+    const reservationIds = Array.from(new Set(operationRows.map(r => r.reservationId)));
+    if (reservationIds.length === 0) return;
+
+    let cancelled = false;
+    apiInvoke<{ data: { reservation_id: string; operation_type: string; changed_by_name: string; created_at: string }[] }>('get-checkin-audit-log', {
+      body: { reservation_ids: reservationIds },
+    }).then(resp => {
+      if (cancelled || !resp.data?.data) return;
+      // Build a map: "reservationId_operationType" -> latest audit entry
+      const map: Record<string, { changed_by_name: string; created_at: string }> = {};
+      for (const entry of resp.data.data) {
+        const key = `${entry.reservation_id}_${entry.operation_type}`;
+        // Since entries are ordered by created_at DESC, first one is the latest
+        if (!map[key]) {
+          map[key] = { changed_by_name: entry.changed_by_name, created_at: entry.created_at };
+        }
+      }
+      setCheckinAuditMap(map);
+    }).catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [canViewCheckinAudit, operationRows]);
 
   // Helper para obtener valor de campo según operación (para filtros)
   const getRowFieldValue = (row: OperationRow, key: string): string | null => {
@@ -1107,6 +1138,25 @@ export function ReservationsTable() {
             },
           }).catch((err) => console.warn('[en-camino-tracking] Delete on status change error:', err));
         }
+      }
+    }
+
+    // Log check-in changes to audit trail (fire-and-forget)
+    if (fieldKey === 'checkin' && value) {
+      const oldCheckin = getOperationFieldValue(row, 'checkin');
+      if (oldCheckin !== value) {
+        const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devolución' ? 'devolucion' : 'transfer';
+        const fieldName = row.tipoOperacion === 'Entrega' ? 'checkin_entrega' : row.tipoOperacion === 'Devolución' ? 'checkin_devolucion' : 'checkin';
+        apiInvoke('checkin-audit-log', {
+          body: {
+            reservation_id: row.reservationId,
+            operation_type: opType,
+            field_name: fieldName,
+            old_value: oldCheckin || null,
+            new_value: value,
+            changed_by_name: profile?.name || 'Usuario',
+          },
+        }).catch(() => { /* fire-and-forget */ });
       }
     }
 
@@ -2035,6 +2085,33 @@ export function ReservationsTable() {
                                     </Tooltip>
                                   </TooltipProvider>
                                 )}
+                              </div>
+                            ) : col.key === 'checkin' ? (
+                              <div className="flex items-center gap-0.5">
+                                <ChipSelect
+                                  fieldName={col.fieldName as 'estado' | 'tipo_actividad' | 'pagado' | 'hosp' | 'checkin' | 'contacto'}
+                                  value={getOperationFieldValue(row, col.key)}
+                                  onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
+                                />
+                                {canViewCheckinAudit && (() => {
+                                  const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devolución' ? 'devolucion' : 'transfer';
+                                  const auditKey = `${row.reservationId}_${opType}`;
+                                  const audit = checkinAuditMap[auditKey];
+                                  if (!audit) return null;
+                                  return (
+                                    <TooltipProvider delayDuration={200}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <History className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs max-w-[220px]">
+                                          <p className="font-medium">Marcado por: {audit.changed_by_name}</p>
+                                          <p className="text-muted-foreground">{format(new Date(audit.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  );
+                                })()}
                               </div>
                             ) : (
                               <ChipSelect

@@ -60,6 +60,7 @@ export type PermissionKey =
   | 'reservations.view'
   | 'reservations.create'
   | 'reservations.manage'
+  | 'reservations.view_checkin_audit'
   // Garatech
   | 'garatech.view'
   | 'garatech.create'
