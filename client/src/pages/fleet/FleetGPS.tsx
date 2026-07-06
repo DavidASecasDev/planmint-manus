@@ -69,16 +69,27 @@ const DEFAULT_ZOOM = 11;
 const REFRESH_INTERVAL = 10_000; // 10s auto-refresh for near real-time tracking
 
 // ── Vehicle marker icon builder ──
-function createVehicleIcon(isOnline: boolean, isSelected: boolean, course: number = 0): L.DivIcon {
-  const color = isOnline ? '#22c55e' : '#94a3b8';
-  const borderColor = isSelected ? '#c9a96e' : 'white';
-  const size = isSelected ? 44 : 36;
-  const shadowSize = isSelected ? 52 : 44;
+function createVehicleIcon(isOnline: boolean, isSelected: boolean, course: number = 0, isFollowing: boolean = false): L.DivIcon {
+  const color = isFollowing ? '#2563eb' : isOnline ? '#22c55e' : '#94a3b8';
+  const borderColor = isFollowing ? '#60a5fa' : isSelected ? '#c9a96e' : 'white';
+  const size = isFollowing ? 46 : isSelected ? 44 : 36;
+  const shadowSize = isFollowing ? 58 : isSelected ? 52 : 44;
   const rotation = course || 0;
 
+  // Pulsing ring for followed vehicle
+  const pulseRing = isFollowing
+    ? `<div style="position:absolute;inset:0;border-radius:50%;border:3px solid #3b82f6;animation:follow-pulse 1.5s ease-out infinite;"></div>
+       <div style="position:absolute;inset:4px;border-radius:50%;border:2px solid #60a5fa;opacity:0.5;animation:follow-pulse 1.5s ease-out infinite 0.3s;"></div>`
+    : '';
+
+  const bgPulse = isFollowing
+    ? 'animation:follow-glow 2s ease-in-out infinite;'
+    : (isOnline && isSelected ? 'animation:pulse 2s infinite;' : '');
+
   const svg = `<div style="position:relative;width:${shadowSize}px;height:${shadowSize}px;display:flex;align-items:center;justify-content:center">
-    <div style="position:absolute;inset:${(shadowSize - size) / 2}px;background:${color};opacity:0.15;border-radius:50%;${isOnline && isSelected ? 'animation:pulse 2s infinite;' : ''}"></div>
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">
+    ${pulseRing}
+    <div style="position:absolute;inset:${(shadowSize - size) / 2}px;background:${color};opacity:0.15;border-radius:50%;${bgPulse}"></div>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="filter:drop-shadow(0 2px 6px rgba(37,99,235,${isFollowing ? '0.5' : '0.3'}))">
       <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="${borderColor}" stroke-width="3"/>
       <g transform="rotate(${rotation} ${size/2} ${size/2})">
         <path d="M${size/2} ${size*0.22} L${size*0.68} ${size*0.68} L${size/2} ${size*0.58} L${size*0.32} ${size*0.68} Z" fill="white" opacity="0.9"/>
@@ -87,7 +98,7 @@ function createVehicleIcon(isOnline: boolean, isSelected: boolean, course: numbe
   </div>`;
 
   return L.divIcon({
-    className: 'fleet-vehicle-marker',
+    className: `fleet-vehicle-marker${isFollowing ? ' fleet-marker-following' : ''}`,
     html: svg,
     iconSize: [shadowSize, shadowSize],
     iconAnchor: [shadowSize / 2, shadowSize / 2],
@@ -315,12 +326,12 @@ export default function FleetGPS() {
     return vehiclesWithGPS.find(v => v.id === selectedVehicleId) || null;
   }, [selectedVehicleId, vehiclesWithGPS]);
 
-  // Follow vehicle effect - keep map centered
+  // Follow vehicle effect - keep map centered at street level
   useEffect(() => {
     if (!followingVehicleId) return;
     const vehicle = vehiclesWithGPS.find(v => v.id === followingVehicleId);
     if (vehicle?.position) {
-      setMapTarget({ center: [vehicle.position.latitude, vehicle.position.longitude], zoom: 16 });
+      setMapTarget({ center: [vehicle.position.latitude, vehicle.position.longitude], zoom: 17 });
     }
   }, [followingVehicleId, vehiclesWithGPS]);
 
@@ -634,7 +645,9 @@ export default function FleetGPS() {
                             key={vehicle.id}
                             vehicle={vehicle}
                             isSelected={selectedVehicleId === vehicle.id}
+                            isFollowing={followingVehicleId === vehicle.id}
                             onClick={() => handleSelectVehicle(vehicle)}
+                            onFollow={(e) => { e.stopPropagation(); handleFollowVehicle(vehicle.id); }}
                           />
                         ))}
                       </div>
@@ -774,12 +787,13 @@ export default function FleetGPS() {
               if (!vehicle.position) return null;
               const isOnline = vehicle.device?.status === 'online';
               const isSelected = selectedVehicleId === vehicle.id;
+              const isFollowed = followingVehicleId === vehicle.id;
 
               return (
                 <AnimatedMarker
                   key={vehicle.id}
                   position={[vehicle.position.latitude, vehicle.position.longitude]}
-                  icon={createVehicleIcon(isOnline, isSelected, vehicle.position.course)}
+                  icon={createVehicleIcon(isOnline, isSelected, vehicle.position.course, isFollowed)}
                   markerId={vehicle.id}
                   animationDuration={2000}
                   onClick={() => handleSelectVehicle(vehicle)}
@@ -838,12 +852,52 @@ export default function FleetGPS() {
             })}
           </MapContainer>
 
+          {/* LIVE follow banner */}
+          <AnimatePresence>
+            {followingVehicleId && (() => {
+              const followedVehicle = vehiclesWithGPS.find(v => v.id === followingVehicleId);
+              if (!followedVehicle) return null;
+              return (
+                <motion.div
+                  key="live-banner"
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]"
+                >
+                  <div className="bg-white/95 backdrop-blur-md border border-blue-200 rounded-full px-4 py-2 shadow-lg flex items-center gap-3">
+                    {/* Pulsing live dot */}
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                    </span>
+                    <span className="text-xs font-bold text-red-600 uppercase tracking-wider">LIVE</span>
+                    <span className="text-xs font-semibold text-foreground">{followedVehicle.matricula}</span>
+                    {followedVehicle.position?.speed != null && followedVehicle.position.speed > 0 && (
+                      <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                        {Math.round(followedVehicle.position.speed * 1.852)} km/h
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setFollowingVehicleId(null)}
+                      className="ml-1 p-1 rounded-full hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Dejar de seguir"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
+
           {/* Status bar overlay */}
           <div className="absolute bottom-4 right-4 z-[1000] flex items-center gap-2">
             <div className="bg-white/90 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-2 flex items-center gap-2 shadow-md">
               <Radio className={cn("h-3 w-3", refreshing ? "text-primary animate-pulse" : "text-green-500")} />
               <span className="text-[11px] font-medium text-muted-foreground">
-                Auto-refresh 30s
+                Auto-refresh 10s
               </span>
             </div>
             {geofences.length > 0 && (
@@ -953,11 +1007,15 @@ function ZoomControl() {
 function VehicleCard({
   vehicle,
   isSelected,
+  isFollowing,
   onClick,
+  onFollow,
 }: {
   vehicle: FleetVehicleGPS;
   isSelected: boolean;
+  isFollowing: boolean;
   onClick: () => void;
+  onFollow: (e: React.MouseEvent) => void;
 }) {
   const isOnline = vehicle.device?.status === 'online';
   const speed = vehicle.position?.speed;
@@ -974,20 +1032,27 @@ function VehicleCard({
       onClick={onClick}
       className={cn(
         "p-3 rounded-xl cursor-pointer transition-all border",
-        isSelected
-          ? "bg-primary/5 border-primary/30 shadow-sm"
-          : "bg-white border-transparent hover:bg-muted/30 hover:border-border/50"
+        isFollowing
+          ? "bg-blue-50/80 border-blue-300 shadow-md ring-1 ring-blue-200"
+          : isSelected
+            ? "bg-primary/5 border-primary/30 shadow-sm"
+            : "bg-white border-transparent hover:bg-muted/30 hover:border-border/50"
       )}
     >
       <div className="flex items-center gap-3">
         {/* Status dot */}
         <div className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm",
-          isOnline
-            ? "bg-gradient-to-br from-green-400 to-green-600"
-            : "bg-gradient-to-br from-gray-300 to-gray-400"
+          "w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm relative",
+          isFollowing
+            ? "bg-gradient-to-br from-blue-400 to-blue-600"
+            : isOnline
+              ? "bg-gradient-to-br from-green-400 to-green-600"
+              : "bg-gradient-to-br from-gray-300 to-gray-400"
         )}>
           <Car className="h-4.5 w-4.5 text-white" />
+          {isFollowing && (
+            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white animate-pulse" />
+          )}
         </div>
 
         {/* Vehicle info */}
@@ -1088,6 +1153,25 @@ function VehicleCard({
           </p>
         );
       })()}
+
+      {/* Follow button */}
+      {isOnline && vehicle.position && (
+        <div className="flex items-center justify-end mt-2">
+          <button
+            onClick={onFollow}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all",
+              isFollowing
+                ? "bg-blue-100 text-blue-700 border border-blue-200 shadow-sm"
+                : "text-muted-foreground hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100"
+            )}
+            title={isFollowing ? 'Dejar de seguir' : 'Seguir en tiempo real'}
+          >
+            <Crosshair className={cn("h-3 w-3", isFollowing && "animate-pulse")} />
+            {isFollowing ? 'Siguiendo' : 'Seguir'}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

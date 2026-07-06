@@ -1311,3 +1311,12 @@
 - [x] Auditoría: Mostrar tooltip de historial en columnas Pagado, Hosp y Contacto (solo visible para Owner y usuarios con permiso)
 - [x] Auditoría: Crear página dedicada de historial completo con filtros por fecha, usuario y reserva (protegida por permiso)
 - [x] Bug: Posiciones GPS en nuestra app (GPS Flota) no coinciden con las posiciones reales en tracker.xexun.com - investigar y corregir
+- [ ] GPS Flota: Reducir intervalo de polling a 15 segundos para posiciones más actualizadas
+- [x] GPS Flota: Animar marcadores con transición suave cuando cambia la posición del vehículo
+- [x] GPS Flota: Añadir flechas de dirección en los marcadores según el rumbo (course)
+- [x] GPS Flota: Implementar modo "Seguir vehículo" que centra el mapa en un coche específico mientras se mueve
+- [x] GPS Flota: Botón "Seguir" en tarjeta de vehículo del sidebar para activar seguimiento sin abrir panel de detalle
+- [x] GPS Flota: Banner flotante LIVE con indicador pulsante cuando se sigue un vehículo (muestra matrícula, velocidad, botón cerrar)
+- [x] GPS Flota: Marcador pulsante azul diferenciado para el vehículo seguido (anillos animados + glow)
+- [x] GPS Flota: Tarjeta de vehículo resaltada en azul cuando está en modo seguimiento
+- [x] GPS Flota: Corregir texto del status bar (mostraba 30s, ahora muestra 10s correctamente)
