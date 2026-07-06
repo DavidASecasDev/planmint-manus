@@ -177,15 +177,17 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
 
         if (imeis.length === 0) continue;
 
-        // 3. Fetch positions from Xexun API (last 2 minutes window)
+        // 3. Fetch positions from Xexun API (last 5 minutes window)
+        // Using 5 min instead of 2 min to avoid missing positions when devices
+        // report infrequently or between poll cycles
         const now = Date.now();
-        const twoMinAgo = now - 120000;
+        const fiveMinAgo = now - 300000;
 
-        const records = await fetchXexunPositions(token, imeis, twoMinAgo, now);
+        const records = await fetchXexunPositions(token, imeis, fiveMinAgo, now);
         totalPolled += imeis.length;
 
         if (records.length === 0) {
-          // No new data in the last 2 minutes - that's fine
+          // No new data in the last 5 minutes - that's fine
           continue;
         }
 
@@ -235,7 +237,7 @@ export async function handleScheduledXexunPoll(req: Request, res: Response) {
               address: null,
               battery_level: record.electricity ?? null,
               device_status: "online",
-              last_update: new Date().toISOString(),
+              last_update: deviceTime, // Use actual device time, not poll time
               attributes,
             }, { onConflict: "organization_id,imei" });
 

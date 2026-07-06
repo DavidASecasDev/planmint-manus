@@ -1310,3 +1310,4 @@
 - [x] Auditoría: Extender registro de cambios a columnas "Pagado", "Hosp" y "Contacto" (misma tabla checkin_audit_log, mismo permiso)
 - [x] Auditoría: Mostrar tooltip de historial en columnas Pagado, Hosp y Contacto (solo visible para Owner y usuarios con permiso)
 - [x] Auditoría: Crear página dedicada de historial completo con filtros por fecha, usuario y reserva (protegida por permiso)
+- [x] Bug: Posiciones GPS en nuestra app (GPS Flota) no coinciden con las posiciones reales en tracker.xexun.com - investigar y corregir

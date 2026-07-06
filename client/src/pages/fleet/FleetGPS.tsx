@@ -1070,14 +1070,24 @@ function VehicleCard({
         </p>
       )}
 
-      {/* Time */}
-      {vehicle.position?.deviceTime && (
-        <p className="text-[10px] text-muted-foreground/60 mt-1 ml-[52px]">
-          {new Date(vehicle.position.deviceTime).toLocaleString('es-ES', {
-            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-          })}
-        </p>
-      )}
+      {/* Time - show staleness warning if position is older than 5 minutes */}
+      {vehicle.position?.deviceTime && (() => {
+        const posAge = Date.now() - new Date(vehicle.position.deviceTime).getTime();
+        const isStale = posAge > 5 * 60 * 1000; // >5 min
+        const isVeryStale = posAge > 30 * 60 * 1000; // >30 min
+        return (
+          <p className={`text-[10px] mt-1 ml-[52px] ${isVeryStale ? 'text-red-400' : isStale ? 'text-amber-400' : 'text-muted-foreground/60'}`}>
+            {new Date(vehicle.position.deviceTime).toLocaleString('es-ES', {
+              day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+            })}
+            {isStale && (
+              <span className="ml-1">
+                {isVeryStale ? '⚠️' : '⏱️'}
+              </span>
+            )}
+          </p>
+        );
+      })()}
     </motion.div>
   );
 }
