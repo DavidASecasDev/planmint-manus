@@ -1320,3 +1320,6 @@
 - [x] GPS Flota: Marcador pulsante azul diferenciado para el vehículo seguido (anillos animados + glow)
 - [x] GPS Flota: Tarjeta de vehículo resaltada en azul cuando está en modo seguimiento
 - [x] GPS Flota: Corregir texto del status bar (mostraba 30s, ahora muestra 10s correctamente)
+- [x] GPS Flota: Alerta de velocidad excesiva — detectar cuando un vehículo supera el umbral configurable (default 120 km/h) y mostrar alerta visual en el mapa
+- [x] GPS Flota: Control de umbral de velocidad — permitir al usuario ajustar el límite de velocidad desde la interfaz GPS (persistido en localStorage)
+- [x] GPS Flota: Historial de alertas de velocidad — mostrar en el panel de alertas las infracciones de velocidad detectadas

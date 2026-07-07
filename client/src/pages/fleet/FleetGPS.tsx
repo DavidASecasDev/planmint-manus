@@ -232,6 +232,24 @@ export default function FleetGPS() {
   const [routePlaybackIndex, setRoutePlaybackIndex] = useState<number>(-1);
   const [followingVehicleId, setFollowingVehicleId] = useState<string | null>(null);
 
+  // Overspeed alert state
+  const [speedThreshold, setSpeedThreshold] = useState<number>(() => {
+    try { return Number(localStorage.getItem('gps_speed_threshold')) || 120; } catch { return 120; }
+  });
+  const [overspeedAlerts, setOverspeedAlerts] = useState<Array<{
+    id: string;
+    vehicleId: string;
+    matricula: string;
+    speed: number;
+    threshold: number;
+    lat: number;
+    lng: number;
+    timestamp: Date;
+  }>>([]);
+  const [showOverspeedBanner, setShowOverspeedBanner] = useState(false);
+  const [currentOverspeedVehicle, setCurrentOverspeedVehicle] = useState<string | null>(null);
+  const lastOverspeedAlertRef = useRef<string | null>(null);
+
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Permission check
@@ -334,6 +352,52 @@ export default function FleetGPS() {
       setMapTarget({ center: [vehicle.position.latitude, vehicle.position.longitude], zoom: 17 });
     }
   }, [followingVehicleId, vehiclesWithGPS]);
+
+  // Overspeed detection — check ALL vehicles on every data refresh
+  useEffect(() => {
+    if (!vehiclesWithGPS.length) return;
+    vehiclesWithGPS.forEach(vehicle => {
+      if (!vehicle.position || vehicle.device?.status !== 'online') return;
+      const speedKmh = Math.round(vehicle.position.speed * 1.852);
+      if (speedKmh > speedThreshold) {
+        const alertKey = `${vehicle.id}-${Math.floor(Date.now() / 30000)}`; // Deduplicate within 30s windows
+        if (alertKey === lastOverspeedAlertRef.current) return;
+        lastOverspeedAlertRef.current = alertKey;
+
+        const newAlert = {
+          id: `overspeed-${vehicle.id}-${Date.now()}`,
+          vehicleId: vehicle.id,
+          matricula: vehicle.matricula,
+          speed: speedKmh,
+          threshold: speedThreshold,
+          lat: vehicle.position.latitude,
+          lng: vehicle.position.longitude,
+          timestamp: new Date(),
+        };
+
+        setOverspeedAlerts(prev => [newAlert, ...prev].slice(0, 50));
+        setShowOverspeedBanner(true);
+        setCurrentOverspeedVehicle(vehicle.id);
+
+        // Toast notification
+        toast.error(
+          `${vehicle.matricula} a ${speedKmh} km/h`,
+          { description: `Excede el l\u00edmite de ${speedThreshold} km/h`, duration: 6000 }
+        );
+
+        // Auto-hide banner after 8s
+        setTimeout(() => {
+          setShowOverspeedBanner(false);
+          setCurrentOverspeedVehicle(null);
+        }, 8000);
+      }
+    });
+  }, [vehiclesWithGPS, speedThreshold]);
+
+  // Persist speed threshold to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('gps_speed_threshold', String(speedThreshold)); } catch {}
+  }, [speedThreshold]);
 
   // Handle vehicle selection — pan map + open detail panel
   const handleSelectVehicle = (vehicle: FleetVehicleGPS) => {
@@ -523,9 +587,9 @@ export default function FleetGPS() {
                   >
                     <ShieldAlert className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
                     Alertas
-                    {geofenceAlerts.length > 0 && (
+                    {(geofenceAlerts.length + overspeedAlerts.length) > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                        {geofenceAlerts.length > 9 ? '9+' : geofenceAlerts.length}
+                        {(geofenceAlerts.length + overspeedAlerts.length) > 9 ? '9+' : (geofenceAlerts.length + overspeedAlerts.length)}
                       </span>
                     )}
                   </button>
@@ -709,16 +773,83 @@ export default function FleetGPS() {
 
                 {sidebarTab === 'alerts' && (
                   <div className="p-2 space-y-1">
+                    {/* Speed threshold config */}
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 mb-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Gauge className="h-3.5 w-3.5 text-red-500" />
+                        <span className="text-xs font-semibold text-red-700">L\u00edmite de velocidad</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min={60}
+                          max={200}
+                          step={10}
+                          value={speedThreshold}
+                          onChange={e => setSpeedThreshold(Number(e.target.value))}
+                          className="flex-1 h-1.5 accent-red-500 cursor-pointer"
+                        />
+                        <span className="text-sm font-bold text-red-600 min-w-[52px] text-right">{speedThreshold} km/h</span>
+                      </div>
+                    </div>
+
+                    {/* Overspeed alerts section */}
+                    {overspeedAlerts.length > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 px-1 py-1.5">
+                          <AlertTriangle className="h-3 w-3 text-red-500" />
+                          <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wider">Velocidad excesiva ({overspeedAlerts.length})</span>
+                        </div>
+                        {overspeedAlerts.slice(0, 10).map(alert => (
+                          <div
+                            key={alert.id}
+                            onClick={() => setMapTarget({ center: [alert.lat, alert.lng], zoom: 16 })}
+                            className="p-3 rounded-xl border bg-white border-red-100 hover:border-red-200 transition-all cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-red-50 border-2 border-red-300">
+                                <Gauge className="h-3.5 w-3.5 text-red-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-semibold">{alert.matricula}</span>
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-red-200 text-red-700 bg-red-50">
+                                    {alert.speed} km/h
+                                  </Badge>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  L\u00edmite: {alert.threshold} km/h (+{alert.speed - alert.threshold} km/h)
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-[10px] text-muted-foreground">
+                                  {alert.timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Geofence alerts section */}
+                    {geofenceAlerts.length > 0 && (
+                      <div className="flex items-center gap-2 px-1 py-1.5 mt-2">
+                        <ShieldAlert className="h-3 w-3 text-blue-500" />
+                        <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">Geocercas ({geofenceAlerts.length})</span>
+                      </div>
+                    )}
+
                     {alertsLoading ? (
                       <div className="flex items-center justify-center py-12">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
-                    ) : geofenceAlerts.length === 0 ? (
+                    ) : geofenceAlerts.length === 0 && overspeedAlerts.length === 0 ? (
                       <div className="text-center py-12 px-4">
                         <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-muted-foreground/20" />
                         <p className="text-sm text-muted-foreground mb-2">Sin alertas</p>
                         <p className="text-xs text-muted-foreground">
-                          Las alertas aparecerán cuando un vehículo entre o salga de una geocerca activa
+                          Las alertas aparecer\u00e1n cuando un veh\u00edculo exceda la velocidad l\u00edmite o entre/salga de una geocerca
                         </p>
                       </div>
                     ) : (
@@ -885,6 +1016,55 @@ export default function FleetGPS() {
                       title="Dejar de seguir"
                     >
                       <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
+
+          {/* Overspeed alert banner */}
+          <AnimatePresence>
+            {showOverspeedBanner && currentOverspeedVehicle && (() => {
+              const overspeedVehicle = vehiclesWithGPS.find(v => v.id === currentOverspeedVehicle);
+              const latestAlert = overspeedAlerts[0];
+              if (!overspeedVehicle || !latestAlert) return null;
+              return (
+                <motion.div
+                  key="overspeed-banner"
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[1001]"
+                >
+                  <div className="bg-red-50/95 backdrop-blur-md border-2 border-red-300 rounded-2xl px-5 py-3 shadow-xl flex items-center gap-4">
+                    {/* Warning icon with pulse */}
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-30" />
+                      <div className="relative w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
+                        <Gauge className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                    {/* Info */}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-red-800">EXCESO DE VELOCIDAD</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs font-mono font-bold text-red-700">{latestAlert.matricula}</span>
+                        <span className="text-xs text-red-600">—</span>
+                        <span className="text-lg font-black text-red-600">{latestAlert.speed}</span>
+                        <span className="text-xs font-semibold text-red-500">km/h</span>
+                      </div>
+                      <p className="text-[10px] text-red-500 mt-0.5">L\u00edmite: {latestAlert.threshold} km/h</p>
+                    </div>
+                    {/* Close */}
+                    <button
+                      onClick={() => { setShowOverspeedBanner(false); setCurrentOverspeedVehicle(null); }}
+                      className="ml-2 p-1.5 rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </motion.div>
