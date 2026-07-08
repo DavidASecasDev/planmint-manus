@@ -1342,3 +1342,7 @@
 - [x] Transfers: Mostrar duración estimada del trayecto junto al mini-mapa
 - [x] Transfers: Vista calendario mensual — visualizar transfers programados por fecha para planificación operativa de conductores
 - [x] Transfers: Calendario con filtros por estado y tipo de vehículo
+- [x] Transfers: Vista resumen diario por franjas horarias — agrupar transfers confirmados del día en bloques mañana (06:00-12:00), mediodía (12:00-16:00), tarde (16:00-22:00)
+- [x] Transfers: Selector de fecha en vista diaria para navegar entre días
+- [x] Transfers: Mostrar conductor asignado, vehículo, cliente y ruta en cada slot del resumen diario
+- [x] Transfers: Toggle para activar/desactivar la vista resumen diario desde el listado de transfers

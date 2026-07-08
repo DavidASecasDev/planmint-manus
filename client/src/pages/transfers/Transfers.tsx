@@ -4,12 +4,13 @@ import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { usePermissions } from '@/hooks/usePermissions';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { TransfersCalendar } from '@/components/transfers/TransfersCalendar';
+import { TransfersDailySummary } from '@/components/transfers/TransfersDailySummary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays } from 'lucide-react';
+import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, LayoutGrid } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CLIENT_TYPE_META, VEHICLE_TYPE_META } from '@/types/transfers';
@@ -24,11 +25,11 @@ export default function Transfers() {
     status: 'all',
     clientType: 'all',
   });
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>(() => {
-    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar') || 'list';
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'daily'>(() => {
+    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar' | 'daily') || 'list';
   });
 
-  const handleViewModeChange = (mode: 'list' | 'calendar') => {
+  const handleViewModeChange = (mode: 'list' | 'calendar' | 'daily') => {
     setViewMode(mode);
     localStorage.setItem('transfers_view_mode', mode);
   };
@@ -68,8 +69,18 @@ export default function Transfers() {
               size="sm"
               className="rounded-none h-9"
               onClick={() => handleViewModeChange('calendar')}
+              title="Calendario mensual"
             >
               <CalendarDays className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'daily' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none h-9"
+              onClick={() => handleViewModeChange('daily')}
+              title="Resumen diario"
+            >
+              <LayoutGrid className="w-4 h-4" />
             </Button>
           </div>
           {canCreate && (
@@ -156,6 +167,11 @@ export default function Transfers() {
       {/* Calendar view */}
       {viewMode === 'calendar' && (
         <TransfersCalendar requests={requests} />
+      )}
+
+      {/* Daily summary view */}
+      {viewMode === 'daily' && (
+        <TransfersDailySummary requests={requests} />
       )}
 
       {/* Request list */}
