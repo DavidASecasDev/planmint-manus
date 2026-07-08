@@ -112,6 +112,16 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
   // Accept request
   const acceptMutation = useMutation({
     mutationFn: async (requestId: string) => {
+      // 1. Get the full request with items before updating
+      const { data: requestData, error: fetchErr } = await supabaseQuery
+        .from('transfer_requests')
+        .select('*, items:transfer_items(*)')
+        .eq('id', requestId)
+        .single();
+
+      if (fetchErr || !requestData) throw new Error(fetchErr?.message || 'Request not found');
+
+      // 2. Update request status to accepted
       const { error } = await supabaseQuery
         .from('transfer_requests')
         .update({
@@ -124,17 +134,72 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
 
       if (error) throw new Error(error.message);
 
-      // Update all pending items to accepted
+      // 3. Update all pending items to accepted
       await supabaseQuery
         .from('transfer_items')
         .update({ status: 'aceptado' })
         .eq('request_id', requestId)
         .eq('status', 'pendiente');
+
+      // 4. Auto-create reservation entries in Programación for each item
+      const items = (requestData as any).items || [];
+      for (const item of items) {
+        // Build the transfer datetime from date + time
+        let transferDatetime: string | null = null;
+        if (item.transfer_date) {
+          const timePart = item.transfer_time || '00:00';
+          transferDatetime = `${item.transfer_date}T${timePart}:00`;
+        }
+
+        // Build direction label for notes
+        const dirLabel = item.direction === 'vuelta' ? '[VUELTA]' : '[IDA]';
+        const itemNotes = [
+          dirLabel,
+          item.notes,
+          requestData.villa_name ? `Villa: ${requestData.villa_name}` : null,
+          requestData.boat_name ? `Barco: ${requestData.boat_name}` : null,
+          requestData.berth_number ? `Amarre: ${requestData.berth_number}` : null,
+          item.flight_number ? `Vuelo: ${item.flight_number}` : null,
+          item.pax_count ? `${item.pax_count} pax` : null,
+        ].filter(Boolean).join(' | ');
+
+        // Map vehicle_type to modelo
+        const vehicleModel = item.vehicle_type === 'vito' ? 'Vito' : item.vehicle_type === 'v-class' ? 'V-Class' : item.vehicle_type || null;
+
+        const reservationData = {
+          organization_id: orgId,
+          external_reservation_id: `TRF-${item.id}`,
+          tipo_actividad: 'Transfer',
+          cliente_nombre: requestData.client_name || requestData.broker_name || 'Transfer',
+          telefono: requestData.client_phone || null,
+          email: requestData.client_email || null,
+          contacto: requestData.client_phone || null,
+          desde: transferDatetime,
+          confirmed_entrega_datetime: transferDatetime,
+          lugar_entrega: item.pickup_location || null,
+          lugar_devolucion: item.dropoff_location || null,
+          lugar_entrega_direccion: item.pickup_location || null,
+          lugar_devolucion_direccion: item.dropoff_location || null,
+          modelo: vehicleModel,
+          notas: itemNotes || null,
+          origen_reserva: 'Transfer Broker',
+          es_transferencia: true,
+          transfer_completado: false,
+          transfer_item_id: item.id,
+          transfer_request_id: requestId,
+          imported_by: profile?.id || null,
+        };
+
+        await supabaseQuery
+          .from('reservations')
+          .insert(reservationData);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
-      toast.success('Solicitud aceptada');
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      toast.success('Solicitud aceptada — transfers añadidos a Programación');
     },
     onError: (e: Error) => toast.error(e.message),
   });

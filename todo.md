@@ -1347,3 +1347,6 @@
 - [x] Transfers: Mostrar conductor asignado, vehículo, cliente y ruta en cada slot del resumen diario
 - [x] Transfers: Toggle para activar/desactivar la vista resumen diario desde el listado de transfers
 - [x] Bug: Sidebar lateral no visible en módulo Transfers — añadir AppLayout wrapper a Transfers, TransferDetail, TransferNew
+- [x] Transfers: Auto-crear entrada en Programación (reservations) cuando un transfer pasa a estado 'aceptado'
+- [x] Transfers: Mapear campos del transfer_item a la reserva (fecha, hora, dirección, cliente, tipo actividad 'Transfer')
+- [x] Transfers: Crear una reserva por cada transfer_item del request aceptado
