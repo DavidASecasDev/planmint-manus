@@ -119,7 +119,7 @@ export function VehicleKanbanBoard({ vehiclesByStatus, allVehicles }: VehicleKan
   }, [activeVehicle]);
 
   const boardContent = (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 h-[calc(100vh-280px)] min-h-0">
       {VEHICLE_STATUS_COLUMNS.map((column) => (
         <VehicleKanbanColumn
           key={column.status}

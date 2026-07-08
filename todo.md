@@ -1379,3 +1379,4 @@
 - [x] Migración Rently: Actualizar default de explore en rentlyHub.ts
 - [x] Migración Rently: Actualizar RentlyExplorer.tsx shortcut path
 - [x] Migración Rently: Actualizar client/src/types/rently.ts con nuevos DTOs
+- [x] Bug: Estado de Coches — columnas del Kanban no permiten scroll vertical independiente, no se pueden ver todos los vehículos

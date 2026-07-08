@@ -42,7 +42,7 @@ export function VehicleKanbanColumn({
 
   return (
     <div className={cn(
-      'flex flex-col rounded-xl border bg-card transition-opacity duration-200',
+      'flex flex-col rounded-xl border bg-card transition-opacity duration-200 min-h-0 overflow-hidden',
       isInvalidTarget && 'opacity-40',
     )}>
       {/* Column Header */}
@@ -74,7 +74,7 @@ export function VehicleKanbanColumn({
           isHighlightedTarget && !isOver && 'bg-primary/5',
         )}
       >
-        <ScrollArea className="flex-1 p-3 max-h-[calc(100vh-280px)]">
+        <ScrollArea className="h-full p-3">
           <SortableContext items={vehicleIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-3">
               {vehicles.length === 0 ? (
