@@ -1,12 +1,57 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
+import { makeRequest } from "./_core/map";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 
 export const appRouter = router({
   system: systemRouter,
+  maps: router({
+    directions: protectedProcedure
+      .input(z.object({
+        origin: z.string(),
+        destination: z.string(),
+        originPlaceId: z.string().optional(),
+        destinationPlaceId: z.string().optional(),
+      }))
+      .query(async ({ input }) => {
+        try {
+          const params: Record<string, string> = {
+            mode: 'driving',
+          };
+          if (input.originPlaceId) {
+            params.origin = `place_id:${input.originPlaceId}`;
+          } else {
+            params.origin = input.origin;
+          }
+          if (input.destinationPlaceId) {
+            params.destination = `place_id:${input.destinationPlaceId}`;
+          } else {
+            params.destination = input.destination;
+          }
+          const result = await makeRequest<any>('/maps/api/directions/json', params);
+          if (result.status !== 'OK' || !result.routes?.length) {
+            return { success: false as const, error: result.status || 'No route found' };
+          }
+          const route = result.routes[0];
+          const leg = route.legs[0];
+          return {
+            success: true as const,
+            distance: leg.distance,
+            duration: leg.duration,
+            startAddress: leg.start_address,
+            endAddress: leg.end_address,
+            overviewPolyline: route.overview_polyline?.points || '',
+            bounds: route.bounds,
+          };
+        } catch (err: any) {
+          console.error('[Maps] Directions error:', err.message);
+          return { success: false as const, error: err.message };
+        }
+      }),
+  }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

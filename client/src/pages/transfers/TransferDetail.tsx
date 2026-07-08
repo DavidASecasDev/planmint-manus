@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Check, X, UserPlus, MapPin, Clock, Phone, Ship, Building2, Plane, Car, ExternalLink } from 'lucide-react';
+import { TransferRouteMap } from '@/components/transfers/TransferRouteMap';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CLIENT_TYPE_META, VEHICLE_TYPE_META, DIRECTION_META } from '@/types/transfers';
@@ -313,6 +314,16 @@ export default function TransferDetail() {
               {/* Passengers */}
               {item.pax_count && item.pax_count > 0 && (
                 <p className="text-xs text-muted-foreground">{item.pax_count} pasajero{item.pax_count > 1 ? 's' : ''}</p>
+              )}
+
+              {/* Route map */}
+              {item.pickup_location && item.dropoff_location && (
+                <TransferRouteMap
+                  pickupLocation={item.pickup_location}
+                  dropoffLocation={item.dropoff_location}
+                  pickupPlaceId={item.pickup_place_id}
+                  dropoffPlaceId={item.dropoff_place_id}
+                />
               )}
 
               {/* Notes */}

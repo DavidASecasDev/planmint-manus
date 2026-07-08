@@ -1338,3 +1338,7 @@
 - [x] Transfers Redesign: Mantener funcionalidad Clonar adaptada al nuevo modelo
 - [x] Transfers Redesign: Campo flight_number opcional mantenido
 - [x] Transfers Redesign: Broker puede cancelar solicitud en cualquier estado
+- [x] Transfers: Mini-mapa en detalle de transfer — mostrar ruta dibujada entre pickup y dropoff usando Google Maps Directions API
+- [x] Transfers: Mostrar duración estimada del trayecto junto al mini-mapa
+- [x] Transfers: Vista calendario mensual — visualizar transfers programados por fecha para planificación operativa de conductores
+- [x] Transfers: Calendario con filtros por estado y tipo de vehículo

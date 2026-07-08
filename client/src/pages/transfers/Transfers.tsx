@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { usePermissions } from '@/hooks/usePermissions';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
+import { TransfersCalendar } from '@/components/transfers/TransfersCalendar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight } from 'lucide-react';
+import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CLIENT_TYPE_META, VEHICLE_TYPE_META } from '@/types/transfers';
@@ -23,6 +24,14 @@ export default function Transfers() {
     status: 'all',
     clientType: 'all',
   });
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>(() => {
+    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar') || 'list';
+  });
+
+  const handleViewModeChange = (mode: 'list' | 'calendar') => {
+    setViewMode(mode);
+    localStorage.setItem('transfers_view_mode', mode);
+  };
 
   const { requests, isLoading, cloneRequest, deleteRequest } = useTransferRequests(filters);
 
@@ -43,12 +52,33 @@ export default function Transfers() {
           <h1 className="text-2xl font-bold">Transfers</h1>
           <p className="text-muted-foreground">Gestión de solicitudes de transfer</p>
         </div>
-        {canCreate && (
-        <Button onClick={() => navigate('/transfers/new')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Solicitud
-        </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none h-9"
+              onClick={() => handleViewModeChange('list')}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none h-9"
+              onClick={() => handleViewModeChange('calendar')}
+            >
+              <CalendarDays className="w-4 h-4" />
+            </Button>
+          </div>
+          {canCreate && (
+            <Button onClick={() => navigate('/transfers/new')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Solicitud
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -123,8 +153,13 @@ export default function Transfers() {
         </Select>
       </div>
 
+      {/* Calendar view */}
+      {viewMode === 'calendar' && (
+        <TransfersCalendar requests={requests} />
+      )}
+
       {/* Request list */}
-      {isLoading ? (
+      {viewMode === 'list' && (isLoading ? (
         <div className="space-y-3">
           {[1,2,3].map(i => <Card key={i} className="animate-pulse h-24" />)}
         </div>
@@ -227,7 +262,7 @@ export default function Transfers() {
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 }
