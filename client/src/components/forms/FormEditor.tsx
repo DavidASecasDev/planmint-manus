@@ -249,7 +249,7 @@ export function FormEditor() {
           });
         }
         toast.success('Formulario creado correctamente');
-        navigate(`/transfers/forms/${created.id}`);
+        navigate(`/forms/${created.id}/edit`);
       } else {
         await updateForm({ id: formId!, ...formData });
         toast.success('Formulario guardado correctamente');
@@ -273,7 +273,7 @@ export function FormEditor() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/transfers/forms')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/forms')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>

@@ -594,6 +594,17 @@ function QueryRecovery() {
             />
 
             <Route 
+              path="/forms/new" 
+              element={
+                <ProtectedRoute>
+                  <ModuleRoute moduleKey="forms" moduleName="Formularios">
+                    <FormEditorPage />
+                  </ModuleRoute>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
               path="/forms/:id/edit" 
               element={
                 <ProtectedRoute>

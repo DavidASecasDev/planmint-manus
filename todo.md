@@ -1361,3 +1361,14 @@
 - [x] Transfers Cleanup: Eliminar permiso 'transfers.manage_pricing' de permissionDefinitions, enterprise types, usePermissions, shared/permissionDefaults, RoleEditor, EffectivePermissionsView, MemberPermissionsEditor
 - [x] Transfers Cleanup: Eliminar registros de endpoints muertos en server/_core/index.ts (parse-transfer-document, create-movements-from-transfer, transfer-route-estimate)
 - [x] Transfers Cleanup: Actualizar tests — eliminar assertions sobre archivos/permisos eliminados (effectivePermissions, permissionOverrides, rpcMigration, permissions.test, marginAlerts.test, syncRequestTotals.test)
+- [x] Auditoría Forms: Módulo funcional — tablas con datos (2 formularios, 24 campos), habilitado en Azul Cars
+- [x] Auditoría Forms: Corregir navegaciones rotas — /transfers/forms/... → /forms/... y /forms/:id/edit
+- [x] Auditoría Forms: Añadir ruta /forms/new en App.tsx
+- [x] Auditoría Forms: Añadir entrada "Formularios" al sidebar con moduleKey y permiso forms.view
+- [x] Auditoría Reports: Todas las sub-rutas funcionales (General, Travel, Personal, Team, Areas, Vehicles, Movements, Garatech, Exports)
+- [x] Auditoría Reports: Eliminar tab "Transfers" muerto de ReportsLayout.tsx (apuntaba a /reports/transfers eliminado)
+- [x] Limpieza global: Eliminar 3 páginas sin ruta — Bookings.tsx, BookingNew.tsx, BookingDetail.tsx (3081 líneas de Rently sin importar)
+- [x] Limpieza global: Eliminar 4 hooks sin uso — useBillingActions, useEnterpriseStatus, useMRRMetrics, useTrialMetrics
+- [x] Limpieza global: Eliminar 16 componentes sin uso — InviteMemberDialog, PendingInvitationsList, InsightsCard, WeeklyDigestCard, AreaAccessDenied, EnterprisePoliciesSection, ProvisioningLogsSection, SAMLConfigSection, SCIMGroupMappingsSection, SCIMTokensSection, SCIMUsersSection, DamageReportFormDialog, RepairDetailSheet, WorkshopDetailSheet, WorkshopFormDialog, WorkshopHistorySheet, ReferralCard, ScheduleNotesRow, SubtaskList, BrokerSelect, SyncVehiclesButton
+- [x] Limpieza global: Eliminar 3 paquetes npm sin uso — pg, vite-plugin-pwa, streamdown
+- [x] Limpieza global: Actualizar tests que referenciaban archivos eliminados (BrokerSelect)

@@ -250,12 +250,5 @@ describe('Frontend permission gates use granular permissions', () => {
     expect(code).toContain("transfers.create");
   });
 
-  it('BrokerSelect uses transfers.manage_brokers', () => {
-    const code = fs.readFileSync(
-      path.join(ROOT, 'client', 'src', 'components', 'transfers', 'BrokerSelect.tsx'),
-      'utf-8'
-    );
-    expect(code).toContain("transfers.manage_brokers");
-  });
 
 });

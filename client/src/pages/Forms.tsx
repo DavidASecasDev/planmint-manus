@@ -69,7 +69,7 @@ export default function Forms() {
   ) || [];
 
   const handleEdit = (form: Form) => {
-    navigate(`/transfers/forms/${form.id}`);
+    navigate(`/forms/${form.id}/edit`);
   };
 
   const handleDelete = async () => {
@@ -174,7 +174,7 @@ export default function Forms() {
       }
       
       toast.success('Formulario de transfer creado');
-      navigate(`/transfers/forms/${createdForm.id}`);
+      navigate(`/forms/${createdForm.id}/edit`);
     } catch (error) {
       console.error('Error creating transfer template:', error);
       toast.error('Error al crear el formulario');
@@ -194,7 +194,7 @@ export default function Forms() {
             </p>
           </div>
           {(canCreate || canManage) && (
-            <Button onClick={() => navigate('/transfers/forms/new')}>
+            <Button onClick={() => navigate('/forms/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Nuevo formulario
             </Button>
@@ -275,7 +275,7 @@ export default function Forms() {
               }
             </p>
             {!search && (canCreate || canManage) && (
-              <Button onClick={() => navigate('/transfers/forms/new')}>
+              <Button onClick={() => navigate('/forms/new')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Crear formulario
               </Button>

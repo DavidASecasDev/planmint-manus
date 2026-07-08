@@ -134,14 +134,6 @@ describe('Permission Override System', () => {
   });
 
   describe('Frontend: Transfer component permission checks', () => {
-    it('BrokerSelect should use transfers.manage_brokers for adding brokers', () => {
-      const code = fs.readFileSync(
-        path.join(projectRoot, 'client/src/components/transfers/BrokerSelect.tsx'), 'utf-8'
-      );
-      expect(code).toContain("hasPermission('transfers.manage_brokers')");
-    });
-
-
     it('BrokerTable should use transfers.manage_brokers for broker deletion', () => {
       const code = fs.readFileSync(
         path.join(projectRoot, 'client/src/components/transfers/BrokerTable.tsx'), 'utf-8'

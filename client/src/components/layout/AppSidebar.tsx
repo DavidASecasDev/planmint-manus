@@ -92,6 +92,7 @@ const MENU_MODULE_MAP: Record<string, ModuleKey> = {
   '/fleet/equipment': 'fleet',
   '/fleet/damages': 'garatech',
   '/garatech/damages': 'garatech',
+  '/forms': 'forms',
   '/lost-found': 'lost_found',
   '/timeline': 'reservations',
   '/preparation': 'preparation',
@@ -160,6 +161,7 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/lost-found': 'lost_found.view',
   '/timeline': 'reservations.view',
   '/preparation': 'preparation.view',
+  '/forms': 'forms.view',
   '/audit-history': 'reservations.view_checkin_audit',
 };
 
@@ -178,6 +180,7 @@ const menuItems = [
   { title: 'Horarios', url: '/schedules', icon: CalendarClock },
   { title: 'Objetos Perdidos', url: '/lost-found', icon: PackageSearch },
   { title: 'Solicitudes Servicio', url: '/service-requests', icon: ArrowLeftRight },
+  { title: 'Formularios', url: '/forms', icon: FileText },
 ];
 
 const configItems = [
