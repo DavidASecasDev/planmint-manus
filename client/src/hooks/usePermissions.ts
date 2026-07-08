@@ -76,7 +76,6 @@ export type PermissionKey =
   | 'transfers.update'
   | 'transfers.change_status'
   | 'transfers.delete'
-  | 'transfers.manage_pricing'
   | 'transfers.manage_brokers'
   | 'transfers.manage'
   // Forms

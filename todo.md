@@ -1350,3 +1350,14 @@
 - [x] Transfers: Auto-crear entrada en Programación (reservations) cuando un transfer pasa a estado 'aceptado'
 - [x] Transfers: Mapear campos del transfer_item a la reserva (fecha, hora, dirección, cliente, tipo actividad 'Transfer')
 - [x] Transfers: Crear una reserva por cada transfer_item del request aceptado
+- [x] Transfers Cleanup: Eliminar enlace 'Tarifas' del sidebar (ruta inexistente, 404)
+- [x] Transfers Cleanup: Eliminar enlace 'Formularios' del submenú transfers (apuntaba a módulo Forms no relacionado)
+- [x] Transfers Cleanup: Eliminar ruta /reports/transfers (placeholder vacío)
+- [x] Transfers Cleanup: Eliminar ruta /transfers/:id/edit y componente TransferEdit.tsx (solo redirigía a detail)
+- [x] Transfers Cleanup: Eliminar rutas /transfers/forms y /transfers/forms/new (módulo Forms no relacionado)
+- [x] Transfers Cleanup: Eliminar archivos muertos — syncRequestTotals.ts, syncRequestTotals.pure.ts, marginAlerts.ts, parseTransferDocument.ts, createMovementsFromTransfer.ts, transferRouteEstimateEndpoint.ts
+- [x] Transfers Cleanup: Eliminar stubs — TransferItemBlock.tsx, ProviderSelect.tsx, useTransferQuotePdf.ts, useRouteEstimate.ts, RouteEstimateBadge.tsx
+- [x] Transfers Cleanup: Eliminar documentos obsoletos — transfer-redesign-proposal.md, transfer-to-reservation-mapping.md, scripts/seed-transfer-pricing.sql
+- [x] Transfers Cleanup: Eliminar permiso 'transfers.manage_pricing' de permissionDefinitions, enterprise types, usePermissions, shared/permissionDefaults, RoleEditor, EffectivePermissionsView, MemberPermissionsEditor
+- [x] Transfers Cleanup: Eliminar registros de endpoints muertos en server/_core/index.ts (parse-transfer-document, create-movements-from-transfer, transfer-route-estimate)
+- [x] Transfers Cleanup: Actualizar tests — eliminar assertions sobre archivos/permisos eliminados (effectivePermissions, permissionOverrides, rpcMigration, permissions.test, marginAlerts.test, syncRequestTotals.test)

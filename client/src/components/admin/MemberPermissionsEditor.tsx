@@ -89,7 +89,6 @@ function mapCustomRoleToFlatPermissions(permissionsJson: Record<string, any>): R
   flat['transfers.update'] = permissionsJson?.transfers?.update ?? permissionsJson?.transfers?.manage ?? false;
   flat['transfers.change_status'] = permissionsJson?.transfers?.change_status ?? permissionsJson?.transfers?.manage ?? false;
   flat['transfers.delete'] = permissionsJson?.transfers?.delete ?? false;
-  flat['transfers.manage_pricing'] = permissionsJson?.transfers?.manage_pricing ?? permissionsJson?.transfers?.manage ?? false;
   flat['transfers.manage_brokers'] = permissionsJson?.transfers?.manage_brokers ?? permissionsJson?.transfers?.manage ?? false;
   flat['transfers.manage'] = permissionsJson?.transfers?.manage ?? false;
   // Forms

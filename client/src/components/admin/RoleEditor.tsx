@@ -87,7 +87,6 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       update: 'Permite editar datos de solicitudes',
       change_status: 'Permite cambiar estado de solicitudes',
       delete: 'Permite eliminar transfers',
-      manage_pricing: 'Permite editar precios de items',
       manage_brokers: 'Permite gestionar brokers y proveedores',
       manage: 'Permite gestionar todos los transfers',
     },

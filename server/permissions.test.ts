@@ -189,7 +189,6 @@ describe("flattenCustomRolePermissions", () => {
     expect(result["transfers.create"]).toBe(true);
     expect(result["transfers.manage"]).toBe(false);
     expect(result["transfers.delete"]).toBe(true);
-    expect(result["transfers.manage_pricing"]).toBe(false); // falls back to manage=false
   });
 
   it("correctly maps fleet permissions", () => {

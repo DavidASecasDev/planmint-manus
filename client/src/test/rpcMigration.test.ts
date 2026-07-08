@@ -59,12 +59,6 @@ describe('RPC Migration Completeness', () => {
     expect(code).toContain('apiInvoke');
   });
 
-  it('useTransferQuotePdf should use apiInvoke for get_next_transfer_document_number', async () => {
-    const source = await import('../hooks/useTransferQuotePdf?raw');
-    const code = (source as any).default || '';
-    expect(code).not.toContain("supabase.rpc('get_next_transfer_document_number'");
-    expect(code).toContain('apiInvoke');
-  });
 
   it('CreateOrganization should use apiInvoke for create_organization_with_owner', async () => {
     const source = await import('../pages/onboarding/CreateOrganization?raw');

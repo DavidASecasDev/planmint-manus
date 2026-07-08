@@ -108,7 +108,6 @@ function mapCustomRoleToFlatPermissions(pj: Record<string, any>): Record<string,
   flat['transfers.update'] = pj?.transfers?.update ?? pj?.transfers?.manage ?? false;
   flat['transfers.change_status'] = pj?.transfers?.change_status ?? pj?.transfers?.manage ?? false;
   flat['transfers.delete'] = pj?.transfers?.delete ?? false;
-  flat['transfers.manage_pricing'] = pj?.transfers?.manage_pricing ?? pj?.transfers?.manage ?? false;
   flat['transfers.manage_brokers'] = pj?.transfers?.manage_brokers ?? pj?.transfers?.manage ?? false;
   flat['transfers.manage'] = pj?.transfers?.manage ?? false;
   // Forms

@@ -45,7 +45,7 @@ export interface RolePermissions {
   // Garatech module permissions
   garatech: { view: boolean; create: boolean; update: boolean; change_status: boolean; edit_dates: boolean; manage_catalog: boolean; manage_accidents: boolean; manage: boolean };
   // Transfers
-  transfers: { view: boolean; create: boolean; update: boolean; change_status: boolean; delete: boolean; manage_pricing: boolean; manage_brokers: boolean; manage: boolean };
+  transfers: { view: boolean; create: boolean; update: boolean; change_status: boolean; delete: boolean; manage_brokers: boolean; manage: boolean };
   // Forms
   forms: { view: boolean; create: boolean; update: boolean; delete: boolean; view_responses: boolean; manage: boolean };
   // Vehicles
@@ -371,7 +371,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
   reports: { view: false, export: false, view_financial: false },
   reservations: { view: false, create: false, manage: false },
   garatech: { view: true, create: false, update: false, change_status: false, edit_dates: false, manage_catalog: false, manage_accidents: false, manage: false },
-  transfers: { view: false, create: false, update: false, change_status: false, delete: false, manage_pricing: false, manage_brokers: false, manage: false },
+  transfers: { view: false, create: false, update: false, change_status: false, delete: false, manage_brokers: false, manage: false },
   forms: { view: true, create: false, update: false, delete: false, view_responses: false, manage: false },
   vehicles: { view: true, create: false, update: false, archive: false, manage_daily_tasks: false, change_status: true, complete_tasks: true, manage_locations: false, sync: false, import: false, manage: false },
   time_tracking: { view: true, view_team: false, create: false, manage: false },
@@ -470,7 +470,6 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     update: 'Editar transfers',
     change_status: 'Cambiar estado',
     delete: 'Eliminar transfers',
-    manage_pricing: 'Gestionar precios',
     manage_brokers: 'Gestionar brokers',
     manage: 'Gestionar todo',
   },

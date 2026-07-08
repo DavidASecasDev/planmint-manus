@@ -258,11 +258,4 @@ describe('Frontend permission gates use granular permissions', () => {
     expect(code).toContain("transfers.manage_brokers");
   });
 
-  it('TransferItemBlock uses transfers.manage_pricing', () => {
-    const code = fs.readFileSync(
-      path.join(ROOT, 'client', 'src', 'components', 'transfers', 'TransferItemBlock.tsx'),
-      'utf-8'
-    );
-    expect(code).toContain("transfers.manage_pricing");
-  });
 });

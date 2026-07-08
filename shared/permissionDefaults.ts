@@ -45,7 +45,7 @@ export const ALL_PERMISSION_KEYS = [
   // Garatech
   "garatech.view", "garatech.create", "garatech.update", "garatech.change_status", "garatech.edit_dates", "garatech.manage_catalog", "garatech.manage_accidents", "garatech.manage",
   // Transfers
-  "transfers.view", "transfers.create", "transfers.update", "transfers.change_status", "transfers.delete", "transfers.manage_pricing", "transfers.manage_brokers", "transfers.manage",
+  "transfers.view", "transfers.create", "transfers.update", "transfers.change_status", "transfers.delete", "transfers.manage_brokers", "transfers.manage",
   // Forms
   "forms.view", "forms.create", "forms.update", "forms.delete", "forms.view_responses", "forms.manage",
   // Vehicles
@@ -114,7 +114,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "integrations.manage_api_keys",
     "reservations.create", "reservations.manage",
     "garatech.create", "garatech.update", "garatech.change_status", "garatech.edit_dates", "garatech.manage_catalog", "garatech.manage_accidents", "garatech.manage",
-    "transfers.create", "transfers.update", "transfers.change_status", "transfers.delete", "transfers.manage_pricing", "transfers.manage_brokers", "transfers.manage",
+    "transfers.create", "transfers.update", "transfers.change_status", "transfers.delete", "transfers.manage_brokers", "transfers.manage",
     "forms.create", "forms.update", "forms.delete", "forms.view_responses", "forms.manage",
     "vehicles.create", "vehicles.update", "vehicles.archive", "vehicles.manage_daily_tasks", "vehicles.change_status", "vehicles.complete_tasks", "vehicles.manage_locations", "vehicles.sync", "vehicles.import", "vehicles.manage",
     "time_tracking.view_team", "time_tracking.create", "time_tracking.manage",
@@ -273,7 +273,6 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["transfers.update"] = pj?.transfers?.update ?? pj?.transfers?.manage ?? false;
   flat["transfers.change_status"] = pj?.transfers?.change_status ?? pj?.transfers?.manage ?? false;
   flat["transfers.delete"] = pj?.transfers?.delete ?? false;
-  flat["transfers.manage_pricing"] = pj?.transfers?.manage_pricing ?? pj?.transfers?.manage ?? false;
   flat["transfers.manage_brokers"] = pj?.transfers?.manage_brokers ?? pj?.transfers?.manage ?? false;
   flat["transfers.manage"] = pj?.transfers?.manage ?? false;
   // Forms

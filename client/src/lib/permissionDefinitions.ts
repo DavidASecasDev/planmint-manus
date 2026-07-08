@@ -103,7 +103,6 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'transfers.update', label: 'Editar transfers', description: 'Permite modificar datos de solicitudes existentes' },
       { key: 'transfers.change_status', label: 'Cambiar estado', description: 'Permite cambiar el estado de transfers (confirmado, completado, etc.)' },
       { key: 'transfers.delete', label: 'Eliminar transfers', description: 'Permite eliminar transfers de forma permanente' },
-      { key: 'transfers.manage_pricing', label: 'Gestionar precios', description: 'Permite editar precios y tarifas de items de transfer' },
       { key: 'transfers.manage_brokers', label: 'Gestionar brokers', description: 'Permite gestionar brokers y proveedores de transfers' },
       { key: 'transfers.manage', label: 'Gestionar todo (Transfers)', description: 'Acceso completo para gestionar transfers' },
     ],

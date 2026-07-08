@@ -126,7 +126,7 @@ describe('PERMISSION_CATEGORIES completeness', () => {
     // Garatech
     'garatech.view', 'garatech.create', 'garatech.update', 'garatech.change_status', 'garatech.edit_dates', 'garatech.manage_catalog', 'garatech.manage_accidents', 'garatech.manage',
     // Transfers
-    'transfers.view', 'transfers.create', 'transfers.update', 'transfers.change_status', 'transfers.delete', 'transfers.manage_pricing', 'transfers.manage_brokers', 'transfers.manage',
+    'transfers.view', 'transfers.create', 'transfers.update', 'transfers.change_status', 'transfers.delete', 'transfers.manage_brokers', 'transfers.manage',
     // Forms
     'forms.view', 'forms.create', 'forms.update', 'forms.delete', 'forms.view_responses', 'forms.manage',
     // Vehicles

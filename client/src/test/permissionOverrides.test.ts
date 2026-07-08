@@ -40,7 +40,6 @@ describe('Permission Override System', () => {
       const sharedCode = fs.readFileSync(path.join(projectRoot, 'shared', 'permissionDefaults.ts'), 'utf-8');
       expect(sharedCode).toContain('flat["transfers.create"]');
       expect(sharedCode).toContain('flat["transfers.manage"]');
-      expect(sharedCode).toContain('flat["transfers.manage_pricing"]');
       expect(sharedCode).toContain('flat["transfers.manage_brokers"]');
     });
 
@@ -142,19 +141,6 @@ describe('Permission Override System', () => {
       expect(code).toContain("hasPermission('transfers.manage_brokers')");
     });
 
-    it('ProviderSelect should use transfers.manage_brokers for adding providers', () => {
-      const code = fs.readFileSync(
-        path.join(projectRoot, 'client/src/components/transfers/ProviderSelect.tsx'), 'utf-8'
-      );
-      expect(code).toContain("hasPermission('transfers.manage_brokers')");
-    });
-
-    it('TransferItemBlock should use transfers.manage_pricing for price editing', () => {
-      const code = fs.readFileSync(
-        path.join(projectRoot, 'client/src/components/transfers/TransferItemBlock.tsx'), 'utf-8'
-      );
-      expect(code).toContain("hasPermission('transfers.manage_pricing')");
-    });
 
     it('BrokerTable should use transfers.manage_brokers for broker deletion', () => {
       const code = fs.readFileSync(

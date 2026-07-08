@@ -152,7 +152,7 @@ const Transfers = lazy(() => import("./pages/transfers/Transfers"));
 const TransferDetail = lazy(() => import("./pages/transfers/TransferDetail"));
 const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement"));
 const TransferNew = lazy(() => import("./pages/transfers/TransferNew"));
-const TransferEdit = lazy(() => import("./pages/transfers/TransferEdit"));
+
 
 // Lost & Found
 const LostFoundList = lazy(() => import("./pages/LostFoundList"));
@@ -592,34 +592,7 @@ function QueryRecovery() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/transfers/forms" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute 
-                    moduleKey="forms" 
-                    moduleName="Formularios"
-                    moduleDescription="El módulo de Formularios no está habilitado para tu organización."
-                  >
-                    <Forms />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/transfers/forms/new" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute 
-                    moduleKey="forms" 
-                    moduleName="Formularios"
-                    moduleDescription="El módulo de Formularios no está habilitado para tu organización."
-                  >
-                    <Forms />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/forms/:id/edit" 
               element={
@@ -705,16 +678,7 @@ function QueryRecovery() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/reports/transfers" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute moduleKey="reports" moduleName="Informes">
-                    <div className="p-8 text-center text-muted-foreground">Módulo de reportes de transfers eliminado</div>
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/reports/garatech" 
               element={
@@ -1089,16 +1053,7 @@ function QueryRecovery() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/transfers/:id/edit" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
-                    <TransferEdit />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/transfers/requests/:id" 
               element={

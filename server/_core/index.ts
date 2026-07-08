@@ -13,8 +13,6 @@ import { handleSyncRently } from "../syncRently";
 import { handleAiAssistant } from "../aiAssistant";
 import { handleRentlyHub } from "../rentlyHub";
 import { handleRentlyActions } from "../rentlyActions";
-import { handleParseTransferDocument } from "../parseTransferDocument";
-import { handleCreateMovementsFromTransfer } from "../createMovementsFromTransfer";
 import { handleSignupWithInvitation } from "../signupWithInvitation";
 import { handleGetVapidKey } from "../vapidKey";
 import { handleApplyTemplate } from "../applyTemplate";
@@ -138,7 +136,6 @@ import {
   handleAssignReinforcement,
 } from "../reinforcementEndpoint";
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
-import { handleTransferRouteEstimate } from "../transferRouteEstimateEndpoint";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleGeocodeCacheLookup, handleGeocodeCacheSave, handleGeocodeCacheManualSet } from "../geocodeCacheEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats, handlePublicTrack, handleGetShareToken, handlePublicTrackEta } from "../enCaminoTrackingEndpoint";
@@ -272,8 +269,6 @@ async function startServer() {
   app.post("/api/rently-actions", handleRentlyActions);
   app.post("/api/repair-service-sync", handleRepairServiceSync);
   app.post("/api/repair-rently-poll", handleRepairRentlyPoll);
-  app.post("/api/parse-transfer-document", handleParseTransferDocument);
-  app.post("/api/create-movements-from-transfer", handleCreateMovementsFromTransfer);
   app.post("/api/signup-with-invitation", handleSignupWithInvitation);
   app.post("/api/get-vapid-key", handleGetVapidKey);
   app.post("/api/apply-template", handleApplyTemplate);
@@ -396,7 +391,6 @@ async function startServer() {
   app.post("/api/get-unassigned-operations", handleGetUnassignedOperations);
   app.post("/api/assign-reinforcement", handleAssignReinforcement);
   app.post("/api/places-autocomplete", handlePlacesAutocomplete);
-  app.post("/api/transfer-route-estimate", handleTransferRouteEstimate);
   app.post("/api/geocode", handleGeocode);
   app.post("/api/geocode-cache/lookup", handleGeocodeCacheLookup);
   app.post("/api/geocode-cache/save", handleGeocodeCacheSave);
