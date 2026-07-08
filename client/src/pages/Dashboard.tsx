@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { OperationalPanel } from '@/components/dashboard/OperationalPanel';
 import { EquipmentStockWidget } from '@/components/dashboard/EquipmentStockWidget';
-import { TransferKPIWidget } from '@/components/dashboard/TransferKPIWidget';
 import { StaffCapacityAlert } from '@/components/StaffCapacityAlert';
 import { useMemo } from 'react';
 import { format } from 'date-fns';
@@ -72,7 +71,7 @@ export default function Dashboard() {
         <OperationalPanel />
 
         {/* Transfer KPIs */}
-        <TransferKPIWidget />
+        
 
         {/* Equipment Stock Widget */}
         <EquipmentStockWidget />

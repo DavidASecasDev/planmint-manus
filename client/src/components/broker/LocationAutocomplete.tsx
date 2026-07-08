@@ -29,6 +29,8 @@ interface Prediction {
 interface LocationAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  /** Called with full prediction data when user selects from dropdown */
+  onSelect?: (data: { description: string; placeId: string }) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -37,6 +39,7 @@ interface LocationAutocompleteProps {
 export function LocationAutocomplete({
   value,
   onChange,
+  onSelect,
   placeholder = 'Escribe una dirección...',
   className,
   disabled,
@@ -155,6 +158,7 @@ export function LocationAutocomplete({
 
   const handleSelectPrediction = (prediction: Prediction) => {
     onChange(prediction.description);
+    onSelect?.({ description: prediction.description, placeId: prediction.placeId });
     setShowDropdown(false);
     setPredictions([]);
     // Keep focus on input after selection

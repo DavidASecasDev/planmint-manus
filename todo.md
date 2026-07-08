@@ -1323,3 +1323,18 @@
 - [x] GPS Flota: Alerta de velocidad excesiva — detectar cuando un vehículo supera el umbral configurable (default 120 km/h) y mostrar alerta visual en el mapa
 - [x] GPS Flota: Control de umbral de velocidad — permitir al usuario ajustar el límite de velocidad desde la interfaz GPS (persistido en localStorage)
 - [x] GPS Flota: Historial de alertas de velocidad — mostrar en el panel de alertas las infracciones de velocidad detectadas
+- [x] Transfers Redesign: Migrar esquema DB — añadir columnas nuevas a transfer_requests (client_phone, client_email, villa_name, boat_name, berth_number, rejection_reason, accepted_by, accepted_at)
+- [x] Transfers Redesign: Migrar esquema DB — añadir columnas nuevas a transfer_items (linked_item_id, direction, transfer_time, pickup_lat, pickup_lng, pickup_place_id, dropoff_lat, dropoff_lng, dropoff_place_id)
+- [x] Transfers Redesign: Reescribir tipos TypeScript (transfers.ts) con nuevo modelo simplificado
+- [x] Transfers Redesign: Reescribir hooks (useBrokerRequests, useTransferRequests, useTransferItems) para nuevo modelo
+- [x] Transfers Redesign: Nuevo formulario broker simplificado (1 página: tipo cliente villa/charter, datos cliente, transfer con Google Maps, vuelta opcional, notas)
+- [x] Transfers Redesign: Nuevo detalle broker (ver estado, conductor asignado, abrir ubicación en Google Maps)
+- [x] Transfers Redesign: Nuevo formulario interno Azul Cars para crear transfers (mismos campos + asignación directa conductor)
+- [x] Transfers Redesign: Nuevo detalle interno con botones Aceptar/Rechazar y formulario asignación conductor
+- [x] Transfers Redesign: Adaptar listado/kanban/calendario a nuevos estados (pendiente, aceptado, conductor_asignado, en_curso, completado, rechazado, cancelado)
+- [x] Transfers Redesign: Actualizar TransferStatusBadge y TransferFilters para nuevos estados
+- [x] Transfers Redesign: Ida y vuelta como movimientos separados ligados por linked_item_id
+- [x] Transfers Redesign: Eliminar código muerto (pricing, documentos, facturas, proveedores, packs)
+- [x] Transfers Redesign: Mantener funcionalidad Clonar adaptada al nuevo modelo
+- [x] Transfers Redesign: Campo flight_number opcional mantenido
+- [x] Transfers Redesign: Broker puede cancelar solicitud en cualquier estado

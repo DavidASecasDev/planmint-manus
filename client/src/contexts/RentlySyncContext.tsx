@@ -4,7 +4,7 @@ import { apiInvoke } from '@/lib/apiClient';
 import { useIntegrationSettings } from '@/hooks/useIntegrationSettings';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { useVehiclePrepAlerts } from '@/hooks/useVehiclePrepAlerts';
-import { useStaleTransferAlerts } from '@/hooks/useStaleTransferAlerts';
+
 import { useEquipmentShortageAlerts } from '@/hooks/useEquipmentShortageAlerts';
 import { toast } from 'sonner';
 import type { RentlySyncPageResponse, RentlySyncResult, RentlySyncStatus } from '@/types/rently';
@@ -55,7 +55,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
   const { settings, loading: settingsLoading } = useIntegrationSettings();
   const { hasRently, loading: flagsLoading } = useIntegrationFlags();
   const { checkAndAlert: checkAndAlertVehiclePrep } = useVehiclePrepAlerts();
-  const { checkAndAlert: checkAndAlertStaleTransfers } = useStaleTransferAlerts();
+
   const { checkAndAlert: checkAndAlertEquipmentShortage } = useEquipmentShortageAlerts();
 
   const [syncing, setSyncing] = useState(false);
@@ -269,13 +269,6 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
       }
 
-      try {
-        const staleAlertsSent = await checkAndAlertStaleTransfers();
-        if (staleAlertsSent > 0) console.log(`[AutoSync] Sent ${staleAlertsSent} stale transfer alert(s)`);
-      } catch (staleErr) {
-        console.warn('[AutoSync] Stale transfer alert check failed:', staleErr);
-      }
-
       // Equipment shortage alerts
       try {
         const shortageAlerts = await checkAndAlertEquipmentShortage();
@@ -305,7 +298,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         resetCountdown();
       }
     }
-  }, [syncVehiclesAfterReservations, checkAndAlertVehiclePrep, checkAndAlertStaleTransfers, autoSyncEnabled, isConfigured, resetCountdown]);
+  }, [syncVehiclesAfterReservations, checkAndAlertVehiclePrep, autoSyncEnabled, isConfigured, resetCountdown]);
 
   const pauseSync = useCallback(() => { pauseRequestedRef.current = true; }, []);
   const cancelSync = useCallback(() => { cancelRequestedRef.current = true; }, []);

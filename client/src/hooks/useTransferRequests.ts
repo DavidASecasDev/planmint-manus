@@ -1,250 +1,397 @@
+/**
+ * Hook for internal Azul Cars transfer request management — simplified model
+ * Supports: list, accept, reject, assign driver, update status, delete, clone
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useTransferAutomation } from '@/hooks/useTransferAutomation';
-import type { TransferRequest, TransferRequestStatus, TransferFilters, TransferDocument, TransferItem } from '@/types/transfers';
+import type {
+  TransferRequest,
+  TransferRequestStatus,
+  TransferItem,
+  TransferFilters,
+  ClientType,
+  VehicleType,
+} from '@/types/transfers';
+
+export interface CreateInternalRequestData {
+  broker_name: string;
+  client_type: ClientType;
+  client_name: string;
+  client_phone: string;
+  client_email?: string;
+  villa_name?: string;
+  boat_name?: string;
+  berth_number?: string;
+  notes?: string;
+  items: Array<{
+    direction: 'ida' | 'vuelta';
+    transfer_date: string | null;
+    transfer_time: string | null;
+    pickup_location: string | null;
+    pickup_lat?: number | null;
+    pickup_lng?: number | null;
+    pickup_place_id?: string | null;
+    dropoff_location: string | null;
+    dropoff_lat?: number | null;
+    dropoff_lng?: number | null;
+    dropoff_place_id?: string | null;
+    vehicle_type: VehicleType;
+    pax_count: number | null;
+    flight_number?: string | null;
+    notes?: string | null;
+  }>;
+}
 
 export function useTransferRequests(filters?: Partial<TransferFilters>) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
-  const { onTransferCreated, onTransferStatusChanged } = useTransferAutomation();
+  const orgId = profile?.organization_id;
 
   const { data: requests = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['transfer-requests', profile?.organization_id, filters],
+    queryKey: ['transfer-requests', orgId, filters],
     queryFn: async (): Promise<TransferRequest[]> => {
-      if (!profile?.organization_id) return [];
+      if (!orgId) return [];
 
       let query = supabaseQuery
         .from('transfer_requests')
         .select(`
           *,
-          items:transfer_items(id, transfer_date, status, price_with_commission)
+          items:transfer_items(id, transfer_date, transfer_time, status, pickup_location, dropoff_location, pax_count, vehicle_type, direction, driver_name, driver_phone, linked_item_id, flight_number, pickup_place_id, dropoff_place_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, position, notes)
         `)
-        .eq('organization_id', profile.organization_id);
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false });
 
-      // Apply filters
-      if (filters?.status && filters.status !== 'all') {
-        query = query.eq('status', filters.status);
-      }
-
-      if (filters?.broker) {
-        query = query.ilike('broker_name', `%${filters.broker}%`);
-      }
-      if (filters?.search) {
-        query = query.or(`broker_name.ilike.%${filters.search}%,client_name.ilike.%${filters.search}%,request_number.ilike.%${filters.search}%`);
-      }
-
-      if (filters?.serviceType && filters.serviceType !== 'all') {
-        query = query.eq('service_type', filters.serviceType);
-      }
-
-      // Filter archived: by default hide archived, show only when toggle is on
-      if (!filters?.showArchived) {
-        query = query.is('archived_at', null);
+      if (filters) {
+        if (filters.status && filters.status !== 'all') {
+          query = query.eq('status', filters.status);
+        }
+        if (filters.broker) {
+          query = query.ilike('broker_name', `%${filters.broker}%`);
+        }
+        if (filters.clientType && filters.clientType !== 'all') {
+          query = query.eq('client_type', filters.clientType);
+        }
+        if (filters.search) {
+          query = query.or(`client_name.ilike.%${filters.search}%,request_number.ilike.%${filters.search}%,broker_name.ilike.%${filters.search}%`);
+        }
+        if (filters.dateFrom) {
+          query = query.gte('created_at', filters.dateFrom);
+        }
+        if (filters.dateTo) {
+          query = query.lte('created_at', filters.dateTo + 'T23:59:59');
+        }
       }
 
       const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching transfer requests:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       // Process data to add computed fields
       const processed = (data || []).map((request: any) => {
         const items = request.items || [];
-        const dates = items.map((i: { transfer_date: string | null }) => i.transfer_date).filter(Boolean).sort();
-        const total_amount = items.reduce((sum: number, i: { price_with_commission: number | null }) => 
-          sum + (i.price_with_commission || 0), 0);
+        const dates = items.map((i: any) => i.transfer_date).filter(Boolean).sort();
         return {
           ...request,
-          status: request.status as TransferRequestStatus,
           items_count: items.length,
           first_transfer_date: dates[0] || null,
-          total_amount,
         };
       }) as TransferRequest[];
 
-      // Filter by date range (based on first_transfer_date from items)
-      let filtered = processed;
-      if (filters?.dateFrom) {
-        filtered = filtered.filter(r => {
-          if (!r.first_transfer_date) return false;
-          return r.first_transfer_date >= filters.dateFrom!;
-        });
-      }
-      if (filters?.dateTo) {
-        filtered = filtered.filter(r => {
-          if (!r.first_transfer_date) return false;
-          return r.first_transfer_date <= filters.dateTo!;
-        });
-      }
-
-      // Sort by first_transfer_date (requests without date go to the end)
-      return filtered.sort((a, b) => {
+      // Sort by first_transfer_date
+      return processed.sort((a, b) => {
         if (!a.first_transfer_date && !b.first_transfer_date) return 0;
         if (!a.first_transfer_date) return 1;
         if (!b.first_transfer_date) return -1;
         return new Date(a.first_transfer_date).getTime() - new Date(b.first_transfer_date).getTime();
       });
     },
-    enabled: !!profile?.organization_id,
+    enabled: !!orgId,
   });
 
-  const createRequest = useMutation({
-    mutationFn: async (data: Partial<TransferRequest>) => {
-      if (!profile?.organization_id) throw new Error('No organization');
-
-      const { data: result, error } = await supabaseQuery
-        .from('transfer_requests')
-        .insert([{
-          organization_id: profile.organization_id,
-          request_number: '', // Will be auto-generated by trigger
-          broker_name: data.broker_name!,
-          broker_id: data.broker_id || null,
-          client_name: data.client_name!,
-          is_external_provider: data.is_external_provider ?? false,
-          external_provider_name: data.external_provider_name,
-          notes: data.notes,
-          created_by: profile.id,
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: (result: any, variables: Partial<TransferRequest>) => {
-      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
-      toast.success('Solicitud de transfer creada');
-      // Fire automation for transfer_created
-      if (result?.id) {
-        onTransferCreated({
-          request_id: result.id,
-          status: 'pendiente',
-          broker_id: variables.broker_id,
-          broker_name: variables.broker_name,
-          client_name: variables.client_name,
-          request_number: result.request_number,
-        });
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(`Error al crear solicitud: ${error.message}`);
-    },
-  });
-
-  const updateRequest = useMutation({
-    mutationFn: async ({ id, ...data }: Partial<TransferRequest> & { id: string }) => {
+  // Accept request
+  const acceptMutation = useMutation({
+    mutationFn: async (requestId: string) => {
       const { error } = await supabaseQuery
         .from('transfer_requests')
-        .update(data)
-        .eq('id', id);
+        .update({
+          status: 'aceptado',
+          accepted_by: profile?.id,
+          accepted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', requestId);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
+
+      // Update all pending items to accepted
+      await supabaseQuery
+        .from('transfer_items')
+        .update({ status: 'aceptado' })
+        .eq('request_id', requestId)
+        .eq('status', 'pendiente');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
-      toast.success('Solicitud actualizada');
+      queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
+      toast.success('Solicitud aceptada');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al actualizar: ${error.message}`);
-    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status, previousStatus, brokerId, brokerName, clientName, requestNumber }: {
-      id: string;
-      status: TransferRequestStatus;
-      previousStatus?: string;
-      brokerId?: string | null;
-      brokerName?: string;
-      clientName?: string;
-      requestNumber?: string;
-    }) => {
+  // Reject request
+  const rejectMutation = useMutation({
+    mutationFn: async ({ requestId, reason }: { requestId: string; reason: string }) => {
       const { error } = await supabaseQuery
         .from('transfer_requests')
-        .update({ status })
+        .update({
+          status: 'rechazado',
+          rejection_reason: reason,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', requestId);
+
+      if (error) throw new Error(error.message);
+
+      // Cancel all items
+      await supabaseQuery
+        .from('transfer_items')
+        .update({ status: 'cancelado' })
+        .eq('request_id', requestId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
+      toast.success('Solicitud rechazada');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Assign driver to an item
+  const assignDriverMutation = useMutation({
+    mutationFn: async ({ itemId, driverName, driverPhone }: { itemId: string; driverName: string; driverPhone: string }) => {
+      const { error } = await supabaseQuery
+        .from('transfer_items')
+        .update({ driver_name: driverName, driver_phone: driverPhone })
+        .eq('id', itemId);
+
+      if (error) throw new Error(error.message);
+
+      // Check if all items in the request have drivers assigned
+      const { data: item } = await supabaseQuery
+        .from('transfer_items')
+        .select('request_id')
+        .eq('id', itemId)
+        .single();
+
+      if (item) {
+        const { data: allItems } = await supabaseQuery
+          .from('transfer_items')
+          .select('driver_name, status')
+          .eq('request_id', (item as any).request_id)
+          .neq('status', 'cancelado');
+
+        const allAssigned = allItems?.every((i: any) => i.driver_name);
+        if (allAssigned) {
+          await supabaseQuery
+            .from('transfer_requests')
+            .update({ status: 'conductor_asignado', updated_at: new Date().toISOString() })
+            .eq('id', (item as any).request_id);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
+      toast.success('Conductor asignado');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Update request status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: TransferRequestStatus }) => {
+      const { error } = await supabaseQuery
+        .from('transfer_requests')
+        .update({ status, updated_at: new Date().toISOString() })
         .eq('id', id);
 
-      if (error) throw error;
-      return { id, status, previousStatus, brokerId, brokerName, clientName, requestNumber };
+      if (error) throw new Error(error.message);
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
       toast.success('Estado actualizado');
-      // Fire automation for transfer_status_changed
-      if (result) {
-        onTransferStatusChanged({
-          request_id: result.id,
-          status: result.status,
-          previous_status: result.previousStatus,
-          broker_id: result.brokerId,
-          broker_name: result.brokerName,
-          client_name: result.clientName,
-          request_number: result.requestNumber,
-        });
-      }
     },
-    onError: (error: Error) => {
-      toast.error(`Error al cambiar estado: ${error.message}`);
-    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const archiveRequest = useMutation({
-    mutationFn: async (id: string) => {
+  // Update item status
+  const updateItemStatusMutation = useMutation({
+    mutationFn: async ({ itemId, status }: { itemId: string; status: string }) => {
       const { error } = await supabaseQuery
-        .from('transfer_requests')
-        .update({ archived_at: new Date().toISOString() })
-        .eq('id', id);
+        .from('transfer_items')
+        .update({ status })
+        .eq('id', itemId);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
-      toast.success('Solicitud archivada');
+      queryClient.invalidateQueries({ queryKey: ['transfer-request'] });
     },
-    onError: (error: Error) => {
-      toast.error(`Error al archivar: ${error.message}`);
-    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const unarchiveRequest = useMutation({
+  // Delete request
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabaseQuery
-        .from('transfer_requests')
-        .update({ archived_at: null })
-        .eq('id', id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
-      toast.success('Solicitud desarchivada');
-    },
-    onError: (error: Error) => {
-      toast.error(`Error al desarchivar: ${error.message}`);
-    },
-  });
-
-  const deleteRequest = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabaseQuery
-        .from('transfer_requests')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await supabaseQuery.from('transfer_items').delete().eq('request_id', id);
+      const { error } = await supabaseQuery.from('transfer_requests').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
       toast.success('Solicitud eliminada');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al eliminar: ${error.message}`);
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Create internal request (Azul Cars creates directly)
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateInternalRequestData) => {
+      if (!orgId || !profile?.id) throw new Error('No session');
+
+      const { count } = await supabaseQuery
+        .from('transfer_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+
+      const requestNumber = `TRF-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
+
+      const { data: newRequest, error: reqError } = await supabaseQuery
+        .from('transfer_requests')
+        .insert({
+          organization_id: orgId,
+          request_number: requestNumber,
+          broker_name: data.broker_name,
+          status: 'pendiente',
+          client_type: data.client_type,
+          client_name: data.client_name,
+          client_phone: data.client_phone || null,
+          client_email: data.client_email || null,
+          villa_name: data.client_type === 'villa' ? (data.villa_name || null) : null,
+          boat_name: data.client_type === 'charter' ? (data.boat_name || null) : null,
+          berth_number: data.client_type === 'charter' ? (data.berth_number || null) : null,
+          notes: data.notes || null,
+          created_by: profile.id,
+        })
+        .select()
+        .single();
+
+      if (reqError || !newRequest) throw new Error(reqError?.message || 'Error creating request');
+
+      const itemsToInsert = data.items.map((item, idx) => ({
+        request_id: newRequest.id,
+        organization_id: orgId,
+        position: idx + 1,
+        direction: item.direction,
+        transfer_date: item.transfer_date || null,
+        transfer_time: item.transfer_time || null,
+        pickup_location: item.pickup_location || null,
+        pickup_lat: item.pickup_lat || null,
+        pickup_lng: item.pickup_lng || null,
+        pickup_place_id: item.pickup_place_id || null,
+        dropoff_location: item.dropoff_location || null,
+        dropoff_lat: item.dropoff_lat || null,
+        dropoff_lng: item.dropoff_lng || null,
+        dropoff_place_id: item.dropoff_place_id || null,
+        vehicle_type: item.vehicle_type,
+        pax_count: item.pax_count,
+        flight_number: item.flight_number || null,
+        notes: item.notes || null,
+        status: 'pendiente',
+      }));
+
+      await supabaseQuery.from('transfer_items').insert(itemsToInsert);
+      return newRequest;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      toast.success('Solicitud creada');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Clone request
+  const cloneMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const request = requests.find(r => r.id === requestId);
+      if (!request || !orgId || !profile?.id) throw new Error('Request not found');
+
+      const { count } = await supabaseQuery
+        .from('transfer_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+
+      const requestNumber = `TRF-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
+
+      const { data: newRequest, error: reqError } = await supabaseQuery
+        .from('transfer_requests')
+        .insert({
+          organization_id: orgId,
+          request_number: requestNumber,
+          broker_id: request.broker_id,
+          broker_name: request.broker_name,
+          status: 'pendiente',
+          client_type: request.client_type,
+          client_name: request.client_name,
+          client_phone: request.client_phone,
+          client_email: request.client_email,
+          villa_name: request.villa_name,
+          boat_name: request.boat_name,
+          berth_number: request.berth_number,
+          notes: request.notes,
+          created_by: profile.id,
+        })
+        .select()
+        .single();
+
+      if (reqError || !newRequest) throw new Error(reqError?.message || 'Error cloning');
+
+      if (request.items && request.items.length > 0) {
+        const clonedItems = request.items.map((item, idx) => ({
+          request_id: newRequest.id,
+          organization_id: orgId,
+          position: idx + 1,
+          direction: item.direction,
+          transfer_date: item.transfer_date,
+          transfer_time: item.transfer_time,
+          pickup_location: item.pickup_location,
+          pickup_lat: item.pickup_lat,
+          pickup_lng: item.pickup_lng,
+          pickup_place_id: item.pickup_place_id,
+          dropoff_location: item.dropoff_location,
+          dropoff_lat: item.dropoff_lat,
+          dropoff_lng: item.dropoff_lng,
+          dropoff_place_id: item.dropoff_place_id,
+          vehicle_type: item.vehicle_type,
+          pax_count: item.pax_count,
+          flight_number: item.flight_number,
+          notes: item.notes,
+          status: 'pendiente',
+        }));
+
+        await supabaseQuery.from('transfer_items').insert(clonedItems);
+      }
+
+      return newRequest;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfer-requests'] });
+      toast.success('Solicitud clonada');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return {
@@ -252,14 +399,15 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
     isLoading,
     error,
     refetch,
-    createRequest: createRequest.mutateAsync,
-    updateRequest: updateRequest.mutate,
-    updateStatus: updateStatus.mutate,
-    archiveRequest: archiveRequest.mutate,
-    unarchiveRequest: unarchiveRequest.mutate,
-    deleteRequest: deleteRequest.mutate,
-    isCreating: createRequest.isPending,
-    isUpdating: updateRequest.isPending,
+    acceptRequest: acceptMutation.mutateAsync,
+    rejectRequest: rejectMutation.mutateAsync,
+    assignDriver: assignDriverMutation.mutateAsync,
+    updateStatus: updateStatusMutation.mutate,
+    updateItemStatus: updateItemStatusMutation.mutateAsync,
+    deleteRequest: deleteMutation.mutate,
+    createRequest: createMutation.mutateAsync,
+    cloneRequest: cloneMutation.mutateAsync,
+    isCreating: createMutation.isPending,
   };
 }
 
@@ -275,8 +423,7 @@ export function useTransferRequest(id: string | undefined) {
         .from('transfer_requests')
         .select(`
           *,
-          items:transfer_items(*),
-          documents:transfer_documents(*)
+          items:transfer_items(*)
         `)
         .eq('id', id)
         .single();
@@ -286,27 +433,14 @@ export function useTransferRequest(id: string | undefined) {
         throw error;
       }
 
-      // Map documents to correct types (JSON fields from DB need casting)
-      const documents = (data.documents || []).map((doc: unknown) => doc as TransferDocument);
       const items = (data.items || []).map((item: unknown) => item as TransferItem);
 
       return {
         ...data,
-        status: data.status as TransferRequestStatus,
-        documents,
         items,
       } as TransferRequest;
     },
     enabled: !!id && !!profile?.organization_id,
-    // Poll every 3 seconds when any document is being processed by AI
-    refetchInterval: (query) => {
-      const request = query.state.data;
-      if (!request) return false;
-      const hasProcessing = request.documents?.some(
-        (d: TransferDocument) => d.ai_status === 'pending' || d.ai_status === 'processing'
-      );
-      return hasProcessing ? 3000 : false;
-    },
   });
 
   return query;

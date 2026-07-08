@@ -17,8 +17,6 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { useOrganizationModules } from '@/hooks/useOrganizationModules';
-import { TransferSettingsSection } from '@/components/transfers/TransferSettingsSection';
-import { ProviderTemplateManager } from '@/components/transfers/ProviderTemplateManager';
 
 import { UsageDashboard } from '@/components/analytics/UsageDashboard';
 import { NotificationPreferencesSection } from '@/components/settings/NotificationPreferencesSection';
@@ -377,7 +375,7 @@ export default function Settings() {
                 <CardDescription>Gestiona los brokers y proveedores externos</CardDescription>
               </CardHeader>
               <CardContent>
-                <TransferSettingsSection />
+                
               </CardContent>
             </Card>
           )}
@@ -395,7 +393,7 @@ export default function Settings() {
                 <CardDescription>Configura reglas de parsing por proveedor para mejorar la lectura automática de PDFs</CardDescription>
               </CardHeader>
               <CardContent>
-                <ProviderTemplateManager />
+                
               </CardContent>
             </Card>
           )}

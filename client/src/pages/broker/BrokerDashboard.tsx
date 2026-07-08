@@ -1,15 +1,15 @@
-/*
- * Azul Cars Brand — Broker Dashboard
+/**
+ * Azul Cars Brand — Broker Dashboard (Redesigned)
  * Uses semantic CSS tokens for dark/light mode compatibility
- * bg-background | bg-card | text-foreground | text-muted-foreground
  */
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { useBrokerRequests, BrokerFilters } from '@/hooks/useBrokerRequests';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
-import { BrokerRequestCard } from '@/components/broker/BrokerRequestCard';
+import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -25,12 +25,18 @@ import {
   Clock,
   CheckCircle2,
   LayoutList,
-  Send,
-  TrendingUp,
+  UserCheck,
+  Car,
+  Ship,
+  Building2,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import type { TransferRequest } from '@/types/transfers';
 
 export default function BrokerDashboard() {
   const { broker } = useBrokerAuth();
+  const navigate = useNavigate();
 
   const [filters, setFilters] = usePersistedFilters<BrokerFilters>({
     search: '',
@@ -69,20 +75,20 @@ export default function BrokerDashboard() {
           accentColor="#D97706"
         />
         <StatCard
-          label="En gestión"
-          value={stats.en_gestion}
-          icon={<TrendingUp className="h-5 w-5" />}
+          label="Aceptados"
+          value={stats.aceptado}
+          icon={<UserCheck className="h-5 w-5" />}
           accentColor="#2563EB"
         />
         <StatCard
-          label="Ppto. Enviado"
-          value={stats.presupuesto_enviado}
-          icon={<Send className="h-5 w-5" />}
+          label="En curso"
+          value={stats.en_curso}
+          icon={<Car className="h-5 w-5" />}
           accentColor="#EA580C"
         />
         <StatCard
-          label="Confirmados"
-          value={stats.confirmado}
+          label="Completados"
+          value={stats.completado}
           icon={<CheckCircle2 className="h-5 w-5" />}
           accentColor="#16A34A"
         />
@@ -125,9 +131,7 @@ export default function BrokerDashboard() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por cliente o número..."
             value={filters.search}
@@ -144,10 +148,11 @@ export default function BrokerDashboard() {
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="pendiente">Pendiente</SelectItem>
-            <SelectItem value="en_gestion">En gestión</SelectItem>
-            <SelectItem value="presupuesto_enviado">Ppto. Enviado</SelectItem>
-            <SelectItem value="confirmado">Confirmado</SelectItem>
+            <SelectItem value="aceptado">Aceptado</SelectItem>
+            <SelectItem value="conductor_asignado">Conductor asignado</SelectItem>
+            <SelectItem value="en_curso">En curso</SelectItem>
             <SelectItem value="completado">Completado</SelectItem>
+            <SelectItem value="rechazado">Rechazado</SelectItem>
             <SelectItem value="cancelado">Cancelado</SelectItem>
           </SelectContent>
         </Select>
@@ -179,10 +184,7 @@ export default function BrokerDashboard() {
           </div>
           <h3
             className="text-lg mb-1 text-foreground"
-            style={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-            }}
+            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}
           >
             No hay solicitudes
           </h3>
@@ -192,16 +194,7 @@ export default function BrokerDashboard() {
               : 'Crea tu primera solicitud de transfer'}
           </p>
           <Link to="/broker/new">
-            <Button
-              className="hover:brightness-110 bg-foreground text-background"
-              style={{
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 700,
-                fontSize: '11px',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase' as const,
-              }}
-            >
+            <Button className="hover:brightness-110 bg-foreground text-background">
               <Plus className="h-4 w-4 mr-2" />
               Nueva Solicitud
             </Button>
@@ -210,10 +203,57 @@ export default function BrokerDashboard() {
       ) : (
         <div className="space-y-3">
           {requests.map((request) => (
-            <BrokerRequestCard key={request.id} request={request} />
+            <BrokerRequestRow key={request.id} request={request} onClick={() => navigate(`/broker/requests/${request.id}`)} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function BrokerRequestRow({ request, onClick }: { request: TransferRequest; onClick: () => void }) {
+  const ClientIcon = request.client_type === 'charter' ? Ship : Building2;
+  const itemCount = request.items_count || request.items?.length || 0;
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-card border border-border rounded-lg p-4 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+            <ClientIcon className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm truncate">{request.client_name}</span>
+              <span className="text-xs text-muted-foreground">{request.request_number}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+              {request.first_transfer_date && (
+                <span>{format(new Date(request.first_transfer_date), 'dd MMM yyyy', { locale: es })}</span>
+              )}
+              <span>·</span>
+              <span>{itemCount} servicio{itemCount !== 1 ? 's' : ''}</span>
+              {request.broker_name && (
+                <>
+                  <span>·</span>
+                  <span>{request.broker_name}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {request.items?.some(i => i.driver_name) && (
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              Conductor asignado
+            </Badge>
+          )}
+          <TransferStatusBadge status={request.status} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -229,19 +269,14 @@ function StatCard({ label, value, icon, accentColor }: StatCardProps) {
   return (
     <div
       className="rounded-lg p-4 bg-card border border-border"
-      style={{
-        borderLeft: `3px solid ${accentColor}`,
-      }}
+      style={{ borderLeft: `3px solid ${accentColor}` }}
     >
       <div className="flex items-center justify-between mb-2">
         <span style={{ color: accentColor, opacity: 0.7 }}>{icon}</span>
       </div>
       <div
         className="text-2xl text-foreground"
-        style={{
-          fontFamily: 'Montserrat, sans-serif',
-          fontWeight: 800,
-        }}
+        style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}
       >
         {value}
       </div>

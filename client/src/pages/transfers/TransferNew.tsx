@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBrokerRequests } from '@/hooks/useBrokerRequests';
-import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
+import { useTransferRequests, type CreateInternalRequestData } from '@/hooks/useTransferRequests';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,17 +8,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, Ship, Building2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createEmptyTransferItem } from '@/types/transfers';
 import type { TransferItemFormData, ClientType, VehicleType } from '@/types/transfers';
 import { LocationAutocomplete } from '@/components/broker/LocationAutocomplete';
 
-export default function BrokerNewRequest() {
+export default function TransferNew() {
   const navigate = useNavigate();
-  const { createRequest, isCreating } = useBrokerRequests();
-  const { broker } = useBrokerAuth();
+  const { createRequest, isCreating } = useTransferRequests({});
 
+  // Request-level fields
+  const [brokerName, setBrokerName] = useState('Azul Cars');
   const [clientType, setClientType] = useState<ClientType>('villa');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -28,6 +28,8 @@ export default function BrokerNewRequest() {
   const [boatName, setBoatName] = useState('');
   const [berthNumber, setBerthNumber] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Items
   const [items, setItems] = useState<TransferItemFormData[]>([createEmptyTransferItem()]);
 
   const updateItem = (idx: number, updates: Partial<TransferItemFormData>) => {
@@ -48,17 +50,9 @@ export default function BrokerNewRequest() {
       toast.error('El nombre del cliente es obligatorio');
       return;
     }
-    if (items.some(item => !item.transfer_date || !item.transfer_time)) {
-      toast.error('Cada servicio debe tener fecha y hora');
-      return;
-    }
-    if (items.some(item => !item.pickup_location || !item.dropoff_location)) {
-      toast.error('Cada servicio debe tener recogida y destino');
-      return;
-    }
 
-    // Convert form items to the expected format
-    const finalItems: Array<import('@/hooks/useBrokerRequests').BrokerRequestItemData> = [];
+    // Build items array (including return trips)
+    const finalItems: CreateInternalRequestData['items'] = [];
     for (const item of items) {
       finalItems.push({
         direction: item.direction,
@@ -72,11 +66,13 @@ export default function BrokerNewRequest() {
         dropoff_lat: item.dropoff_lat,
         dropoff_lng: item.dropoff_lng,
         dropoff_place_id: item.dropoff_place_id,
-        vehicle_type: item.vehicle_type,
+        vehicle_type: item.vehicle_type as VehicleType,
         pax_count: item.pax_count ? parseInt(item.pax_count) : null,
         flight_number: item.flight_number || null,
         notes: item.notes || null,
       });
+
+      // If has_return, add the return trip
       if (item.has_return) {
         finalItems.push({
           direction: 'vuelta',
@@ -90,7 +86,7 @@ export default function BrokerNewRequest() {
           dropoff_lat: item.return_dropoff_lat || item.pickup_lat,
           dropoff_lng: item.return_dropoff_lng || item.pickup_lng,
           dropoff_place_id: item.return_dropoff_place_id || item.pickup_place_id,
-          vehicle_type: item.vehicle_type,
+          vehicle_type: item.vehicle_type as VehicleType,
           pax_count: item.pax_count ? parseInt(item.pax_count) : null,
           flight_number: null,
           notes: null,
@@ -100,6 +96,7 @@ export default function BrokerNewRequest() {
 
     try {
       await createRequest({
+        broker_name: brokerName,
         client_type: clientType,
         client_name: clientName,
         client_phone: clientPhone,
@@ -110,74 +107,52 @@ export default function BrokerNewRequest() {
         notes,
         items: finalItems,
       });
-      toast.success('Solicitud enviada correctamente');
-      navigate('/broker');
+      navigate('/transfers');
     } catch (e) {
       // Error handled by hook
     }
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto p-4 md:p-8">
+    <div className="space-y-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/broker')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/transfers')}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div>
-          <h1 className="text-xl font-bold">Nueva solicitud de transfer</h1>
-          <p className="text-sm text-muted-foreground">Completa los datos y envía la solicitud a Azul Cars para su confirmación</p>
-        </div>
+        <h1 className="text-xl font-bold">Nueva solicitud de transfer</h1>
       </div>
-
-      {/* Client type selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tipo de cliente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              className={`p-4 rounded-lg border-2 text-center transition-all ${
-                clientType === 'villa'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                  : 'border-muted hover:border-muted-foreground/30'
-              }`}
-              onClick={() => setClientType('villa')}
-            >
-              <Building2 className="w-8 h-8 mx-auto mb-2" />
-              <span className="font-medium">Villa</span>
-            </button>
-            <button
-              type="button"
-              className={`p-4 rounded-lg border-2 text-center transition-all ${
-                clientType === 'charter'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-muted hover:border-muted-foreground/30'
-              }`}
-              onClick={() => setClientType('charter')}
-            >
-              <Ship className="w-8 h-8 mx-auto mb-2" />
-              <span className="font-medium">Charter</span>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Client info */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Datos del cliente</CardTitle>
+          <CardTitle className="text-base">Información del cliente</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Broker / Origen</Label>
+              <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Nombre del broker" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de cliente</Label>
+              <Select value={clientType} onValueChange={v => setClientType(v as ClientType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="villa">Villa</SelectItem>
+                  <SelectItem value="charter">Charter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nombre del cliente *</Label>
               <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Nombre completo" />
             </div>
             <div className="space-y-2">
-              <Label>Teléfono de contacto *</Label>
+              <Label>Teléfono</Label>
               <Input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+34 600 000 000" />
             </div>
           </div>
@@ -195,7 +170,7 @@ export default function BrokerNewRequest() {
           )}
 
           {clientType === 'charter' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nombre del barco</Label>
                 <Input value={boatName} onChange={e => setBoatName(e.target.value)} placeholder="Ej: Lady Blue" />
@@ -223,13 +198,13 @@ export default function BrokerNewRequest() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Fecha *</Label>
+                <Label>Fecha</Label>
                 <Input type="date" value={item.transfer_date} onChange={e => updateItem(idx, { transfer_date: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Hora *</Label>
+                <Label>Hora</Label>
                 <Input type="time" value={item.transfer_time} onChange={e => updateItem(idx, { transfer_time: e.target.value })} />
               </div>
               <div className="space-y-2">
@@ -244,9 +219,9 @@ export default function BrokerNewRequest() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Punto de recogida *</Label>
+                <Label>Punto de recogida</Label>
                 <LocationAutocomplete
                   value={item.pickup_location}
                   onChange={(val) => updateItem(idx, { pickup_location: val })}
@@ -255,7 +230,7 @@ export default function BrokerNewRequest() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Destino *</Label>
+                <Label>Destino</Label>
                 <LocationAutocomplete
                   value={item.dropoff_location}
                   onChange={(val) => updateItem(idx, { dropoff_location: val })}
@@ -265,9 +240,9 @@ export default function BrokerNewRequest() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Nº pasajeros</Label>
+                <Label>Pasajeros</Label>
                 <Input type="number" min="1" max="8" value={item.pax_count} onChange={e => updateItem(idx, { pax_count: e.target.value })} placeholder="Nº" />
               </div>
               <div className="space-y-2">
@@ -275,21 +250,21 @@ export default function BrokerNewRequest() {
                 <Input value={item.flight_number} onChange={e => updateItem(idx, { flight_number: e.target.value })} placeholder="IB3456" />
               </div>
               <div className="space-y-2">
-                <Label>Notas</Label>
-                <Input value={item.notes} onChange={e => updateItem(idx, { notes: e.target.value })} placeholder="Notas del servicio..." />
+                <Label>Notas servicio</Label>
+                <Input value={item.notes} onChange={e => updateItem(idx, { notes: e.target.value })} placeholder="Notas..." />
               </div>
             </div>
 
             {/* Return trip toggle */}
-            <div className="flex items-center gap-3 pt-3 border-t">
+            <div className="flex items-center gap-3 pt-2 border-t">
               <Switch checked={item.has_return} onCheckedChange={v => updateItem(idx, { has_return: v })} />
-              <Label className="cursor-pointer">Crear servicio de vuelta vinculado</Label>
+              <Label className="cursor-pointer">Crear servicio de vuelta</Label>
             </div>
 
             {item.has_return && (
-              <div className="space-y-4 pl-4 border-l-2 border-purple-200 bg-purple-50/30 p-4 rounded-r-lg">
-                <p className="text-sm font-medium text-purple-700">Vuelta (servicio vinculado)</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4 pl-4 border-l-2 border-purple-200">
+                <p className="text-sm font-medium text-purple-700">Vuelta</p>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Fecha vuelta</Label>
                     <Input type="date" value={item.return_date} onChange={e => updateItem(idx, { return_date: e.target.value })} />
@@ -299,7 +274,7 @@ export default function BrokerNewRequest() {
                     <Input type="time" value={item.return_time} onChange={e => updateItem(idx, { return_time: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Recogida vuelta</Label>
                     <LocationAutocomplete
@@ -333,20 +308,15 @@ export default function BrokerNewRequest() {
       <Card>
         <CardContent className="pt-6 space-y-2">
           <Label>Notas generales (opcional)</Label>
-          <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información adicional para Azul Cars..." rows={3} />
+          <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información adicional..." rows={3} />
         </CardContent>
       </Card>
 
-      {/* Info banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-        <strong>Nota:</strong> Tu solicitud será revisada por Azul Cars. Una vez aceptada, se te asignará un conductor con su nombre y número de contacto.
-      </div>
-
       {/* Submit */}
-      <div className="flex justify-end gap-3 pb-8">
-        <Button variant="outline" onClick={() => navigate('/broker')}>Cancelar</Button>
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={() => navigate('/transfers')}>Cancelar</Button>
         <Button onClick={handleSubmit} disabled={isCreating}>
-          {isCreating ? 'Enviando...' : 'Enviar solicitud'}
+          {isCreating ? 'Creando...' : 'Crear solicitud'}
         </Button>
       </div>
     </div>

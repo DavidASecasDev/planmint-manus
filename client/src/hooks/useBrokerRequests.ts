@@ -1,8 +1,13 @@
+/**
+ * Hook for broker portal transfer requests — simplified model
+ * Brokers create requests, Azul Cars accepts/rejects and assigns drivers.
+ */
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import { toast } from 'sonner';
-import type { TransferRequest, TransferRequestStatus, TransferItem } from '@/types/transfers';
+import type { TransferRequest, TransferRequestStatus, TransferItem, ClientType, VehicleType, TransferDirection } from '@/types/transfers';
 
 export interface BrokerFilters {
   search?: string;
@@ -11,57 +16,47 @@ export interface BrokerFilters {
 }
 
 export interface BrokerRequestItemData {
+  direction: TransferDirection;
   transfer_date: string | null;
-  pickup_enabled: boolean;
+  transfer_time: string | null;
   pickup_location: string | null;
-  pickup_time: string | null;
-  dropoff_enabled: boolean;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  pickup_place_id: string | null;
   dropoff_location: string | null;
-  dropoff_time: string | null;
-  has_return: boolean;
-  return_pickup_enabled?: boolean;
-  return_pickup_location?: string | null;
-  return_pickup_time?: string | null;
-  return_dropoff_enabled?: boolean;
-  return_dropoff_location?: string | null;
-  return_dropoff_time?: string | null;
+  dropoff_lat: number | null;
+  dropoff_lng: number | null;
+  dropoff_place_id: string | null;
+  vehicle_type: VehicleType;
   pax_count: number | null;
-  vehicle_type?: string | null;
-  flight_number?: string | null;
-  notes?: string | null;
-  pack_duration?: string | null;
-  estimated_price?: number | null;
+  flight_number: string | null;
+  notes: string | null;
+  linked_item_id?: string | null;
 }
 
 export interface CreateBrokerRequestData {
+  client_type: ClientType;
   client_name: string;
-  client_type?: string;
-  service_type?: string;
-  client_reference?: string;
-  associated_service?: string;
+  client_phone: string;
+  client_email?: string;
+  villa_name?: string;
+  boat_name?: string;
+  berth_number?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
 
 export interface UpdateBrokerRequestData {
   id: string;
+  client_type: ClientType;
   client_name: string;
-  client_type?: string;
-  service_type?: string;
-  client_reference?: string;
-  associated_service?: string;
+  client_phone: string;
+  client_email?: string;
+  villa_name?: string;
+  boat_name?: string;
+  berth_number?: string;
   notes?: string;
   items: BrokerRequestItemData[];
-  /** Previous data for change tracking (optional) */
-  _previousData?: {
-    client_name?: string;
-    client_type?: string;
-    service_type?: string;
-    client_reference?: string;
-    associated_service?: string;
-    notes?: string;
-    items?: BrokerRequestItemData[];
-  };
 }
 
 export function useBrokerRequests(filters?: BrokerFilters) {
@@ -77,9 +72,10 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         .from('transfer_requests')
         .select(`
           *,
-          items:transfer_items(id, transfer_date, status, price_with_commission, pickup_location, dropoff_location, pax_count)
+          items:transfer_items(id, transfer_date, transfer_time, status, pickup_location, dropoff_location, pax_count, vehicle_type, direction, driver_name, driver_phone, linked_item_id, pickup_place_id, dropoff_place_id)
         `)
-        .eq('organization_id', broker.organization_id);
+        .eq('organization_id', broker.organization_id)
+        .order('created_at', { ascending: false });
 
       // Apply filters
       if (filters?.status && filters.status !== 'all') {
@@ -99,146 +95,129 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         throw error;
       }
 
-      // Process data to add computed fields
-      const processed = (data || []).map((request: any) => {
-        const items = request.items || [];
-        const dates = items.map((i: { transfer_date: string | null }) => i.transfer_date).filter(Boolean).sort();
-        const total_amount = items.reduce((sum: number, i: { price_with_commission: number | null }) => 
-          sum + (i.price_with_commission || 0), 0);
-        return {
-          ...request,
-          status: request.status as TransferRequestStatus,
-          items_count: items.length,
-          first_transfer_date: dates[0] || null,
-          total_amount,
-        };
-      }) as TransferRequest[];
+      return (data || []) as TransferRequest[];
+    },
+    enabled: !!broker?.organization_id,
+  });
 
-      // Sort by first_transfer_date
-      return processed.sort((a, b) => {
-        if (!a.first_transfer_date && !b.first_transfer_date) return 0;
-        if (!a.first_transfer_date) return 1;
-        if (!b.first_transfer_date) return -1;
-        return new Date(a.first_transfer_date).getTime() - new Date(b.first_transfer_date).getTime();
+  // Stats
+  const stats = useMemo(() => {
+    const total = requests.length;
+    const pendiente = requests.filter(r => r.status === 'pendiente').length;
+    const aceptado = requests.filter(r => r.status === 'aceptado' || r.status === 'conductor_asignado').length;
+    const en_curso = requests.filter(r => r.status === 'en_curso').length;
+    const completado = requests.filter(r => r.status === 'completado').length;
+    return { total, pendiente, aceptado, en_curso, completado };
+  }, [requests]);
+
+  // Brokers list (all brokers in the organization)
+  const [brokers, setBrokers] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    if (!broker?.organization_id) return;
+    supabaseQuery
+      .from('transfer_brokers')
+      .select('id, name')
+      .eq('organization_id', broker.organization_id)
+      .eq('is_active', true)
+      .then(({ data }) => {
+        if (data) setBrokers(data);
       });
-    },
-    enabled: !!broker?.organization_id,
-  });
+  }, [broker?.organization_id]);
 
-  // Get all brokers in the organization for filter dropdown
-  const { data: brokers = [] } = useQuery({
-    queryKey: ['broker-list', broker?.organization_id],
-    queryFn: async () => {
-      if (!broker?.organization_id) return [];
-      
-      const { data, error } = await supabaseQuery
-        .from('transfer_brokers')
-        .select('id, name')
-        .eq('organization_id', broker.organization_id)
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!broker?.organization_id,
-  });
-
-  const createRequest = useMutation({
+  // Create request mutation
+  const createMutation = useMutation({
     mutationFn: async (data: CreateBrokerRequestData) => {
-      if (!broker?.organization_id || !broker?.id) {
-        throw new Error('No broker session');
-      }
+      if (!broker?.organization_id || !broker?.id) throw new Error('No broker session');
 
-      // Create the request
-      const { data: requestResult, error: requestError } = await supabaseQuery
+      // Generate request number
+      const { data: countData } = await supabaseQuery
         .from('transfer_requests')
-        .insert([{
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', broker.organization_id);
+
+      const count = (countData as any)?.length || 0;
+      const requestNumber = `TRF-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+
+      // Create parent request
+      const { data: newRequest, error: reqError } = await supabaseQuery
+        .from('transfer_requests')
+        .insert({
           organization_id: broker.organization_id,
+          request_number: requestNumber,
           broker_id: broker.id,
           broker_name: broker.name,
-          client_name: data.client_name,
-          client_type: data.client_type || 'external_client',
-          service_type: data.service_type || 'point_to_point',
-          client_reference: data.client_reference || null,
-          associated_service: data.associated_service || null,
-          notes: data.notes || null,
           status: 'pendiente',
-          is_external_provider: false,
-          request_number: '', // Will be auto-generated
-        }])
+          client_type: data.client_type,
+          client_name: data.client_name,
+          client_phone: data.client_phone || null,
+          client_email: data.client_email || null,
+          villa_name: data.client_type === 'villa' ? (data.villa_name || null) : null,
+          boat_name: data.client_type === 'charter' ? (data.boat_name || null) : null,
+          berth_number: data.client_type === 'charter' ? (data.berth_number || null) : null,
+          notes: data.notes || null,
+        })
         .select()
         .single();
 
-      if (requestError) throw requestError;
-
-      // Create the items
-      if (data.items.length > 0) {
-        const itemsToInsert = data.items.map((item, index) => ({
-          request_id: requestResult.id,
-          organization_id: broker.organization_id,
-          position: index + 1,
-          transfer_date: item.transfer_date,
-          status: 'pendiente',
-          pickup_enabled: item.pickup_enabled,
-          pickup_location: item.pickup_location,
-          pickup_time: item.pickup_time,
-          dropoff_enabled: item.dropoff_enabled,
-          dropoff_location: item.dropoff_location,
-          dropoff_time: item.dropoff_time,
-          has_return: item.has_return,
-          return_pickup_enabled: item.return_pickup_enabled || false,
-          return_pickup_location: item.return_pickup_location || null,
-          return_pickup_time: item.return_pickup_time || null,
-          return_dropoff_enabled: item.return_dropoff_enabled || false,
-          return_dropoff_location: item.return_dropoff_location || null,
-          return_dropoff_time: item.return_dropoff_time || null,
-          pax_count: item.pax_count,
-          vehicle_type: item.vehicle_type || null,
-          flight_number: item.flight_number || null,
-          notes: item.notes || null,
-          driver_pending: true,
-          pack_duration: item.pack_duration || null,
-          estimated_price: item.estimated_price ?? null,
-        }));
-
-        const { error: itemsError } = await supabaseQuery
-          .from('transfer_items')
-          .insert(itemsToInsert);
-
-        if (itemsError) throw itemsError;
+      if (reqError || !newRequest) {
+        throw new Error(reqError?.message || 'Error creating request');
       }
 
-      // Log initial status in history
-      await supabaseQuery.from('transfer_status_history').insert({
-        request_id: requestResult.id,
+      // Create items
+      const itemsToInsert = data.items.map((item, idx) => ({
+        request_id: newRequest.id,
         organization_id: broker.organization_id,
-        previous_status: null,
-        new_status: 'pendiente',
-        changed_by_type: 'broker',
-        changed_by_id: broker.id,
-        changed_by_name: broker.name,
-        note: 'Solicitud creada',
-      });
+        position: idx + 1,
+        direction: item.direction,
+        transfer_date: item.transfer_date || null,
+        transfer_time: item.transfer_time || null,
+        pickup_location: item.pickup_location || null,
+        pickup_lat: item.pickup_lat,
+        pickup_lng: item.pickup_lng,
+        pickup_place_id: item.pickup_place_id || null,
+        dropoff_location: item.dropoff_location || null,
+        dropoff_lat: item.dropoff_lat,
+        dropoff_lng: item.dropoff_lng,
+        dropoff_place_id: item.dropoff_place_id || null,
+        vehicle_type: item.vehicle_type,
+        pax_count: item.pax_count,
+        flight_number: item.flight_number || null,
+        notes: item.notes || null,
+        status: 'pendiente',
+      }));
 
-      // Log creation in change history
-      await supabaseQuery.from('transfer_change_history').insert({
-        request_id: requestResult.id,
-        organization_id: broker.organization_id,
-        change_type: 'created',
-        changed_by_type: 'broker',
-        changed_by_id: broker.id,
-        changed_by_name: broker.name,
-        changes: JSON.stringify([{
-          field: 'client_name',
-          label: 'Nombre del cliente',
-          old_value: null,
-          new_value: data.client_name,
-        }]),
-        summary: `Solicitud creada para ${data.client_name} con ${data.items.length} trayecto(s)`,
-      }).then(() => {}).catch(() => {});
+      const { data: insertedItems, error: itemsError } = await supabaseQuery
+        .from('transfer_items')
+        .insert(itemsToInsert)
+        .select();
 
-      return requestResult;
+      if (itemsError) {
+        throw new Error(itemsError.message);
+      }
+
+      // Link return items to their outbound counterparts
+      if (insertedItems && insertedItems.length > 1) {
+        const outboundItems = insertedItems.filter((i: any) => i.direction === 'ida');
+        const returnItems = insertedItems.filter((i: any) => i.direction === 'vuelta');
+        
+        for (const returnItem of returnItems) {
+          // Find the corresponding outbound item (the one just before it in position)
+          const outbound = outboundItems.find((o: any) => o.position === (returnItem as any).position - 1);
+          if (outbound) {
+            await supabaseQuery
+              .from('transfer_items')
+              .update({ linked_item_id: (outbound as any).id })
+              .eq('id', (returnItem as any).id);
+            // Also link the outbound to the return
+            await supabaseQuery
+              .from('transfer_items')
+              .update({ linked_item_id: (returnItem as any).id })
+              .eq('id', (outbound as any).id);
+          }
+        }
+      }
+
+      return newRequest;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-requests'] });
@@ -249,194 +228,120 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     },
   });
 
-  const updateRequest = useMutation({
+  // Update request mutation (only when status is pendiente)
+  const updateMutation = useMutation({
     mutationFn: async (data: UpdateBrokerRequestData) => {
-      if (!broker?.organization_id || !broker?.id) {
-        throw new Error('No broker session');
-      }
+      if (!broker?.organization_id) throw new Error('No broker session');
 
-      // Update the request
-      const { error: updateError } = await supabaseQuery
+      // Update parent request
+      const { error: reqError } = await supabaseQuery
         .from('transfer_requests')
         .update({
+          client_type: data.client_type,
           client_name: data.client_name,
-          client_type: data.client_type || null,
-          service_type: data.service_type || null,
-          client_reference: data.client_reference || null,
-          associated_service: data.associated_service || null,
+          client_phone: data.client_phone || null,
+          client_email: data.client_email || null,
+          villa_name: data.client_type === 'villa' ? (data.villa_name || null) : null,
+          boat_name: data.client_type === 'charter' ? (data.boat_name || null) : null,
+          berth_number: data.client_type === 'charter' ? (data.berth_number || null) : null,
           notes: data.notes || null,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', data.id)
         .eq('status', 'pendiente');
 
-      if (updateError) throw updateError;
+      if (reqError) throw new Error(reqError.message);
 
-      // Delete existing items
-      const { error: deleteError } = await supabaseQuery
+      // Delete existing items and recreate
+      await supabaseQuery
         .from('transfer_items')
         .delete()
         .eq('request_id', data.id);
 
-      if (deleteError) throw deleteError;
+      // Recreate items
+      const itemsToInsert = data.items.map((item, idx) => ({
+        request_id: data.id,
+        organization_id: broker.organization_id,
+        position: idx + 1,
+        direction: item.direction,
+        transfer_date: item.transfer_date || null,
+        transfer_time: item.transfer_time || null,
+        pickup_location: item.pickup_location || null,
+        pickup_lat: item.pickup_lat,
+        pickup_lng: item.pickup_lng,
+        pickup_place_id: item.pickup_place_id || null,
+        dropoff_location: item.dropoff_location || null,
+        dropoff_lat: item.dropoff_lat,
+        dropoff_lng: item.dropoff_lng,
+        dropoff_place_id: item.dropoff_place_id || null,
+        vehicle_type: item.vehicle_type,
+        pax_count: item.pax_count,
+        flight_number: item.flight_number || null,
+        notes: item.notes || null,
+        status: 'pendiente',
+      }));
 
-      // Re-insert items
-      if (data.items.length > 0) {
-        const itemsToInsert = data.items.map((item, index) => ({
-          request_id: data.id,
-          organization_id: broker.organization_id,
-          position: index + 1,
-          transfer_date: item.transfer_date,
-          status: 'pendiente',
-          pickup_enabled: item.pickup_enabled,
-          pickup_location: item.pickup_location,
-          pickup_time: item.pickup_time,
-          dropoff_enabled: item.dropoff_enabled,
-          dropoff_location: item.dropoff_location,
-          dropoff_time: item.dropoff_time,
-          has_return: item.has_return,
-          return_pickup_enabled: item.return_pickup_enabled || false,
-          return_pickup_location: item.return_pickup_location || null,
-          return_pickup_time: item.return_pickup_time || null,
-          return_dropoff_enabled: item.return_dropoff_enabled || false,
-          return_dropoff_location: item.return_dropoff_location || null,
-          return_dropoff_time: item.return_dropoff_time || null,
-          pax_count: item.pax_count,
-          vehicle_type: item.vehicle_type || null,
-          flight_number: item.flight_number || null,
-          pack_duration: item.pack_duration || null,
-          estimated_price: item.estimated_price ?? null,
-          notes: item.notes || null,
-          driver_pending: true,
-        }));
+      const { data: insertedItems, error: itemsError } = await supabaseQuery
+        .from('transfer_items')
+        .insert(itemsToInsert)
+        .select();
 
-        const { error: itemsError } = await supabaseQuery
-          .from('transfer_items')
-          .insert(itemsToInsert);
+      if (itemsError) throw new Error(itemsError.message);
 
-        if (itemsError) throw itemsError;
-      }
-
-      // Log field-level changes in change history
-      if (data._previousData) {
-        const changes: Array<{ field: string; label: string; old_value: unknown; new_value: unknown }> = [];
-        const fieldLabels: Record<string, string> = {
-          client_name: 'Nombre del cliente',
-          client_type: 'Tipo de cliente',
-          service_type: 'Tipo de servicio',
-          client_reference: 'Referencia del cliente',
-          associated_service: 'Servicio asociado',
-          notes: 'Notas',
-        };
-        const prev = data._previousData;
-        for (const [key, label] of Object.entries(fieldLabels)) {
-          const oldVal = (prev as Record<string, unknown>)[key] ?? null;
-          const newVal = (data as unknown as Record<string, unknown>)[key] ?? null;
-          const oldNorm = oldVal === '' ? null : oldVal;
-          const newNorm = newVal === '' ? null : newVal;
-          if (JSON.stringify(oldNorm) !== JSON.stringify(newNorm)) {
-            changes.push({ field: key, label, old_value: oldNorm, new_value: newNorm });
+      // Link return items
+      if (insertedItems && insertedItems.length > 1) {
+        const outboundItems = insertedItems.filter((i: any) => i.direction === 'ida');
+        const returnItems = insertedItems.filter((i: any) => i.direction === 'vuelta');
+        
+        for (const returnItem of returnItems) {
+          const outbound = outboundItems.find((o: any) => o.position === (returnItem as any).position - 1);
+          if (outbound) {
+            await supabaseQuery
+              .from('transfer_items')
+              .update({ linked_item_id: (outbound as any).id })
+              .eq('id', (returnItem as any).id);
+            await supabaseQuery
+              .from('transfer_items')
+              .update({ linked_item_id: (returnItem as any).id })
+              .eq('id', (outbound as any).id);
           }
         }
-
-        // Check item-level changes
-        const prevItems = prev.items || [];
-        const newItems = data.items;
-        if (prevItems.length !== newItems.length) {
-          changes.push({
-            field: 'items_count',
-            label: 'Nº de trayectos',
-            old_value: prevItems.length,
-            new_value: newItems.length,
-          });
-        } else {
-          const itemFieldLabels: Record<string, string> = {
-            transfer_date: 'Fecha', pickup_location: 'Recogida', pickup_time: 'Hora recogida',
-            dropoff_location: 'Destino', dropoff_time: 'Hora destino', pax_count: 'Pasajeros',
-            vehicle_type: 'Vehículo', flight_number: 'Nº vuelo/ferry',
-          };
-          for (let i = 0; i < newItems.length; i++) {
-            for (const [key, label] of Object.entries(itemFieldLabels)) {
-              const oldVal = (prevItems[i] as unknown as Record<string, unknown>)?.[key] ?? null;
-              const newVal = (newItems[i] as unknown as Record<string, unknown>)[key] ?? null;
-              const oldNorm = oldVal === '' ? null : oldVal;
-              const newNorm = newVal === '' ? null : newVal;
-              if (JSON.stringify(oldNorm) !== JSON.stringify(newNorm)) {
-                changes.push({
-                  field: `item_${i + 1}.${key}`,
-                  label: `Trayecto ${i + 1} - ${label}`,
-                  old_value: oldNorm,
-                  new_value: newNorm,
-                });
-              }
-            }
-          }
-        }
-
-        if (changes.length > 0) {
-          const summaryParts = changes.slice(0, 3).map(c => c.label);
-          const summary = `Editado: ${summaryParts.join(', ')}${changes.length > 3 ? ` y ${changes.length - 3} más` : ''}`;
-          await supabaseQuery.from('transfer_change_history').insert({
-            request_id: data.id,
-            organization_id: broker.organization_id,
-            change_type: 'updated',
-            changed_by_type: 'broker',
-            changed_by_id: broker.id,
-            changed_by_name: broker.name,
-            changes: JSON.stringify(changes),
-            summary,
-          }).then(() => {}).catch(() => {});
-        }
       }
-
-      return data.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['broker-request-detail'] });
-      queryClient.invalidateQueries({ queryKey: ['transfer-change-history'] });
       toast.success('Solicitud actualizada correctamente');
     },
     onError: (error: Error) => {
-      toast.error(`Error al actualizar solicitud: ${error.message}`);
+      toast.error(`Error al actualizar: ${error.message}`);
     },
   });
 
-  const updateRequestStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: 'confirmado' | 'en_gestion' }) => {
-      if (!broker?.organization_id) throw new Error('No broker session');
-
+  // Cancel request mutation (broker can cancel at any status)
+  const cancelMutation = useMutation({
+    mutationFn: async (requestId: string) => {
       const { error } = await supabaseQuery
         .from('transfer_requests')
-        .update({ status })
-        .eq('id', id)
-        .eq('status', 'presupuesto_enviado');
+        .update({ status: 'cancelado', updated_at: new Date().toISOString() })
+        .eq('id', requestId);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
+
+      // Also cancel all pending items
+      await supabaseQuery
+        .from('transfer_items')
+        .update({ status: 'cancelado' })
+        .eq('request_id', requestId)
+        .in('status', ['pendiente', 'aceptado']);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['broker-request-detail'] });
-      toast.success(
-        variables.status === 'confirmado'
-          ? 'Presupuesto aceptado correctamente'
-          : 'Solicitud de cambios enviada'
-      );
+      toast.success('Solicitud cancelada');
     },
     onError: (error: Error) => {
-      toast.error(`Error: ${error.message}`);
+      toast.error(`Error al cancelar: ${error.message}`);
     },
   });
-
-  // Stats calculation
-  const stats = {
-    total: requests.length,
-    pendiente: requests.filter(r => r.status === 'pendiente').length,
-    en_gestion: requests.filter(r => r.status === 'en_gestion').length,
-    presupuesto_enviado: requests.filter(r => r.status === 'presupuesto_enviado').length,
-    confirmado: requests.filter(r => r.status === 'confirmado').length,
-    completado: requests.filter(r => r.status === 'completado').length,
-    cancelado: requests.filter(r => r.status === 'cancelado').length,
-  };
 
   return {
     requests,
@@ -445,47 +350,11 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     isLoading,
     error,
     refetch,
-    createRequest: createRequest.mutateAsync,
-    isCreating: createRequest.isPending,
-    updateRequest: updateRequest.mutateAsync,
-    isUpdating: updateRequest.isPending,
-    updateRequestStatus: updateRequestStatus.mutateAsync,
-    isUpdatingStatus: updateRequestStatus.isPending,
+    createRequest: createMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    updateRequest: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
+    cancelRequest: cancelMutation.mutateAsync,
+    isCancelling: cancelMutation.isPending,
   };
-}
-
-export function useBrokerRequestDetail(id: string | undefined) {
-  const { broker } = useBrokerAuth();
-
-  return useQuery({
-    queryKey: ['broker-request-detail', id],
-    queryFn: async (): Promise<TransferRequest | null> => {
-      if (!id) return null;
-
-      // SECURITY: Always filter by organization_id to prevent cross-org access
-      const { data, error } = await supabaseQuery
-        .from('transfer_requests')
-        .select(`
-          *,
-          items:transfer_items(*),
-          documents:transfer_documents(*)
-        `)
-        .eq('id', id)
-        .eq('organization_id', broker!.organization_id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching request detail:', error);
-        throw error;
-      }
-
-      return {
-        ...data,
-        status: data.status as TransferRequestStatus,
-        items: (data.items || []) as TransferItem[],
-        documents: (data.documents || []) as unknown as TransferRequest['documents'],
-      } as unknown as TransferRequest;
-    },
-    enabled: !!id && !!broker?.organization_id,
-  });
 }

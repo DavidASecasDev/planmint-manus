@@ -90,7 +90,7 @@ const ReportsAreas = lazy(() => import("./pages/ReportsAreas"));
 const ReportsTeam = lazy(() => import("./pages/ReportsTeam"));
 const ReportsVehicles = lazy(() => import("./pages/ReportsVehicles"));
 const ReportsMovements = lazy(() => import("./pages/ReportsMovements"));
-const ReportsTransfers = lazy(() => import("./pages/ReportsTransfers"));
+// ReportsTransfers removed (pricing eliminated)
 const ReportsGaratech = lazy(() => import("./pages/ReportsGaratech"));
 const ReportsTravel = lazy(() => import("./pages/ReportsTravel"));
 
@@ -98,7 +98,7 @@ const ReportsTravel = lazy(() => import("./pages/ReportsTravel"));
 const Forms = lazy(() => import("./pages/Forms"));
 const FormEditorPage = lazy(() => import("./pages/FormEditor"));
 const PublicForm = lazy(() => import("./pages/PublicForm"));
-const PublicTransferForm = lazy(() => import("./pages/PublicTransferForm"));
+// PublicTransferForm removed (pricing eliminated)
 const PublicOperations = lazy(() => import("./pages/PublicOperations"));
 const PublicOperationsTV = lazy(() => import("./pages/PublicOperationsTV"));
 const PublicPreparation = lazy(() => import("./pages/PublicPreparation"));
@@ -151,9 +151,8 @@ const Parking = lazy(() => import("./pages/fleet/Parking"));
 const Transfers = lazy(() => import("./pages/transfers/Transfers"));
 const TransferDetail = lazy(() => import("./pages/transfers/TransferDetail"));
 const BrokerManagement = lazy(() => import("./pages/transfers/BrokerManagement"));
-const TransferPricing = lazy(() => import("./pages/transfers/TransferPricing"));
-const InternalNewTransferWizard = lazy(() => import("./pages/transfers/InternalNewTransferWizard"));
-const InternalEditTransferWizard = lazy(() => import("./pages/transfers/InternalEditTransferWizard"));
+const TransferNew = lazy(() => import("./pages/transfers/TransferNew"));
+const TransferEdit = lazy(() => import("./pages/transfers/TransferEdit"));
 
 // Lost & Found
 const LostFoundList = lazy(() => import("./pages/LostFoundList"));
@@ -245,7 +244,7 @@ function QueryRecovery() {
             <Route path="/" element={<Index />} />
             {/* Public form routes */}
             <Route path="/f/:slug" element={<PublicForm />} />
-            <Route path="/transfer/:slug" element={<PublicTransferForm />} />
+
             <Route path="/ops/preparacion" element={<PublicPreparation />} />
             <Route path="/ops/operaciones" element={<PublicOperationsTV />} />
             <Route path="/ops/:slug" element={<PublicOperations />} />
@@ -711,7 +710,7 @@ function QueryRecovery() {
               element={
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="reports" moduleName="Informes">
-                    <ReportsTransfers />
+                    <div className="p-8 text-center text-muted-foreground">Módulo de reportes de transfers eliminado</div>
                   </ModuleRoute>
                 </ProtectedRoute>
               } 
@@ -1081,21 +1080,11 @@ function QueryRecovery() {
               } 
             />
             <Route 
-              path="/transfers/tarifas" 
-              element={
-                <ProtectedRoute>
-                  <ModuleRoute moduleKey="transfers" moduleName="Transfers">
-                    <TransferPricing />
-                  </ModuleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
               path="/transfers/new" 
               element={
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="transfers" moduleName="Transfers">
-                    <InternalNewTransferWizard />
+                    <TransferNew />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 
@@ -1105,7 +1094,7 @@ function QueryRecovery() {
               element={
                 <ProtectedRoute>
                   <ModuleRoute moduleKey="transfers" moduleName="Transfers">
-                    <InternalEditTransferWizard />
+                    <TransferEdit />
                   </ModuleRoute>
                 </ProtectedRoute>
               } 

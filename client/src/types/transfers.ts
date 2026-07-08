@@ -1,19 +1,14 @@
-// Types for the Transfers module - Yacht broker transportation management
+// Types for the Transfers module — Simplified request/acceptance model
 
-export type TransferRequestStatus = 'pendiente' | 'en_gestion' | 'presupuesto_enviado' | 'confirmado' | 'completado' | 'cancelado';
+export type TransferRequestStatus = 'pendiente' | 'aceptado' | 'conductor_asignado' | 'en_curso' | 'completado' | 'rechazado' | 'cancelado';
 
-export type TransferItemStatus = 'pendiente' | 'confirmado' | 'completado' | 'cancelado';
+export type TransferItemStatus = 'pendiente' | 'aceptado' | 'en_curso' | 'completado' | 'cancelado';
 
-export type TransferDocumentType = 'presupuesto' | 'factura';
+export type ClientType = 'villa' | 'charter';
 
+export type VehicleType = 'mercedes_vito' | 'mercedes_v_class';
 
-export type ClientType = 'external_client' | 'broker_client';
-
-export type ServiceType = 'point_to_point' | 'pack';
-
-export type PackDuration = '2h' | '4h' | '8h' | '12h';
-
-export type AIStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'error';
+export type TransferDirection = 'ida' | 'vuelta';
 
 export interface TransferRequest {
   id: string;
@@ -21,166 +16,107 @@ export interface TransferRequest {
   request_number: string;
   broker_id: string | null;
   broker_name: string;
-  client_name: string;
   status: TransferRequestStatus;
+  // Client info
   client_type: ClientType;
-  service_type: ServiceType;
-  client_reference: string | null;
-  associated_service: string | null;
-  is_external_provider: boolean;
-  external_provider_name: string | null;
+  client_name: string;
+  client_phone: string | null;
+  client_email: string | null;
+  // Villa-specific
+  villa_name: string | null;
+  // Charter-specific
+  boat_name: string | null;
+  berth_number: string | null;
+  // Notes
   notes: string | null;
+  // Rejection
+  rejection_reason: string | null;
+  // Acceptance
+  accepted_by: string | null;
+  accepted_at: string | null;
+  // Metadata
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  archived_at: string | null;
-  // Financial fields
-  provider_cost: number | null;
-  client_total: number | null;
-  internal_margin: number | null;
-  quote_number: string | null;
-  invoice_number: string | null;
-  quote_generated_at: string | null;
-  invoice_generated_at: string | null;
   // Joined fields
   items?: TransferItem[];
-  documents?: TransferDocument[];
   items_count?: number;
   first_transfer_date?: string | null;
-  total_amount?: number;
 }
 
 export interface TransferItem {
   id: string;
   request_id: string;
   organization_id: string;
+  linked_item_id: string | null;
+  direction: TransferDirection;
   position: number;
   transfer_date: string | null;
+  transfer_time: string | null;
+  // Route
+  pickup_location: string | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  pickup_place_id: string | null;
+  dropoff_location: string | null;
+  dropoff_lat: number | null;
+  dropoff_lng: number | null;
+  dropoff_place_id: string | null;
+  // Vehicle & passengers
+  vehicle_type: VehicleType | null;
+  pax_count: number | null;
+  // Flight (optional, for airport transfers)
+  flight_number: string | null;
+  // Driver (assigned by Azul Cars)
+  driver_name: string | null;
+  driver_phone: string | null;
+  // Status & notes
   status: TransferItemStatus;
-  // Ida - Recogida
-  pickup_enabled: boolean;
-  pickup_location: string | null;
-  pickup_time: string | null;
-  // Ida - Llegada
-  dropoff_enabled: boolean;
-  dropoff_location: string | null;
-  dropoff_time: string | null;
-  // Vuelta
-  has_return: boolean;
-  return_pickup_enabled: boolean;
-  return_pickup_location: string | null;
-  return_pickup_time: string | null;
-  return_dropoff_enabled: boolean;
-  return_dropoff_location: string | null;
-  return_dropoff_time: string | null;
-  // Vuelo/Ferry
-  flight_number: string | null;
-  // Pasajeros y conductor
-  pax_count: number | null;
-  driver_name: string | null;
-  driver_phone: string | null;
-  driver_pending: boolean;
   notes: string | null;
-  created_at: string;
-  // Pack & estimated pricing
-  pack_duration: PackDuration | null;
-  estimated_price: number | null;
-  // Pricing fields
-  zone: string | null;
-  zone_address: string | null;
-  vehicle_type: string | null;
-  base_price: number | null;
-  price_with_commission: number | null;
-  price_manually_set: boolean;
-  provider_cost: number | null;
-}
-
-export interface ExtractedTransferItem {
-  date: string | null;
-  pickup_time: string | null;
-  pickup_location: string | null;
-  dropoff_location: string | null;
-  dropoff_time: string | null;
-  vehicle_type: string | null;
-  pax_count: number | null;
-  amount: number | null;
-  notes: string | null;
-  // Enhanced fields from improved parsing
-  flight_number: string | null;
-  has_return: boolean;
-  return_pickup_location: string | null;
-  return_dropoff_location: string | null;
-  return_pickup_time: string | null;
-  return_date: string | null;
-  driver_name: string | null;
-  driver_phone: string | null;
-  confidence: number | null;
-}
-
-export interface TransferDocumentAIData {
-  document_type?: string;
-  total_amount?: number;
-  date?: string | null;
-  provider_name?: string | null;
-  provider_phone?: string | null;
-  provider_email?: string | null;
-  client_reference?: string | null;
-  currency?: string;
-  confidence?: number;
-  items?: ExtractedTransferItem[];
-  // Legacy fields
-  amount?: number;
-  details?: string;
-  [key: string]: unknown;
-}
-
-export interface TransferDocument {
-  id: string;
-  request_id: string;
-  organization_id: string;
-  document_type: TransferDocumentType;
-  storage_path: string;
-  file_name: string;
-  ai_status: AIStatus;
-  detected_amount: number | null;
-  detected_date: string | null;
-  detected_provider: string | null;
-  ai_raw_data: TransferDocumentAIData | null;
-  detected_items?: ExtractedTransferItem[];
-  uploaded_by: string | null;
   created_at: string;
 }
 
 // Form types for creating/editing
 export interface TransferRequestFormData {
-  broker_name: string;
+  client_type: ClientType;
   client_name: string;
-  is_external_provider: boolean;
-  external_provider_name: string;
+  client_phone: string;
+  client_email: string;
+  villa_name: string;
+  boat_name: string;
+  berth_number: string;
   notes: string;
-  transfer_count: number;
 }
 
 export interface TransferItemFormData {
+  id: string;
+  direction: TransferDirection;
   transfer_date: string;
-  pickup_enabled: boolean;
+  transfer_time: string;
   pickup_location: string;
-  pickup_time: string;
-  dropoff_enabled: boolean;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  pickup_place_id: string | null;
   dropoff_location: string;
-  dropoff_time: string;
-  has_return: boolean;
-  return_pickup_enabled: boolean;
-  return_pickup_location: string;
-  return_pickup_time: string;
-  return_dropoff_enabled: boolean;
-  return_dropoff_location: string;
-  return_dropoff_time: string;
-  pax_count: number;
-  driver_name: string;
-  driver_phone: string;
-  driver_pending: boolean;
+  dropoff_lat: number | null;
+  dropoff_lng: number | null;
+  dropoff_place_id: string | null;
+  vehicle_type: VehicleType;
+  pax_count: string;
+  flight_number: string;
   notes: string;
+  // Return trip
+  has_return: boolean;
+  return_date: string;
+  return_time: string;
+  return_pickup_location: string;
+  return_pickup_lat: number | null;
+  return_pickup_lng: number | null;
+  return_pickup_place_id: string | null;
+  return_dropoff_location: string;
+  return_dropoff_lat: number | null;
+  return_dropoff_lng: number | null;
+  return_dropoff_place_id: string | null;
 }
 
 // Filter types
@@ -188,48 +124,74 @@ export interface TransferFilters {
   search: string;
   broker: string;
   status: TransferRequestStatus | 'all';
-  serviceType: ServiceType | 'all';
+  clientType: ClientType | 'all';
   dateFrom: string;
   dateTo: string;
-  showArchived: boolean;
 }
 
 // Status metadata for UI
-export const TRANSFER_REQUEST_STATUS_META: Record<TransferRequestStatus, { label: string; color: string; icon?: string }> = {
+export const TRANSFER_REQUEST_STATUS_META: Record<TransferRequestStatus, { label: string; color: string }> = {
   pendiente: { label: 'Pendiente', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
-  en_gestion: { label: 'En gestión', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  presupuesto_enviado: { label: 'Ppto. Enviado', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  confirmado: { label: 'Confirmado', color: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  completado: { label: 'Completado', color: 'bg-primary/10 text-primary border-primary/20' },
+  aceptado: { label: 'Aceptado', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  conductor_asignado: { label: 'Conductor asignado', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
+  en_curso: { label: 'En curso', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  completado: { label: 'Completado', color: 'bg-green-500/10 text-green-600 border-green-500/20' },
+  rechazado: { label: 'Rechazado', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
   cancelado: { label: 'Cancelado', color: 'bg-destructive/10 text-destructive border-destructive/20' },
-};
-
-export interface TransferItemVehicle {
-  id: string;
-  transfer_item_id: string;
-  organization_id: string;
-  vehicle_type: string;
-  vehicle_label: string | null;
-  driver_name: string | null;
-  driver_phone: string | null;
-  notes: string | null;
-  position: number;
-  created_at: string;
-}
-
-export const CLIENT_TYPE_META: Record<ClientType, { label: string; color: string }> = {
-  external_client: { label: 'Cliente directo', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  broker_client: { label: 'Cliente Isle Of Mallorca', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-};
-
-export const SERVICE_TYPE_META: Record<ServiceType, { label: string; color: string }> = {
-  point_to_point: { label: 'Punto a punto', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
-  pack: { label: 'Pack por horas', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
 };
 
 export const TRANSFER_ITEM_STATUS_META: Record<TransferItemStatus, { label: string; color: string }> = {
   pendiente: { label: 'Pendiente', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
-  confirmado: { label: 'Confirmado', color: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  completado: { label: 'Completado', color: 'bg-primary/10 text-primary border-primary/20' },
+  aceptado: { label: 'Aceptado', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  en_curso: { label: 'En curso', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  completado: { label: 'Completado', color: 'bg-green-500/10 text-green-600 border-green-500/20' },
   cancelado: { label: 'Cancelado', color: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
+
+export const CLIENT_TYPE_META: Record<ClientType, { label: string; color: string; icon: string }> = {
+  villa: { label: 'Villa', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', icon: 'Building2' },
+  charter: { label: 'Charter', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: 'Ship' },
+};
+
+export const DIRECTION_META: Record<TransferDirection, { label: string; color: string }> = {
+  ida: { label: 'Ida', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  vuelta: { label: 'Vuelta', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
+};
+
+export const VEHICLE_TYPE_META: Record<VehicleType, { label: string; description: string }> = {
+  mercedes_vito: { label: 'Mercedes Vito', description: 'Hasta 7 pasajeros' },
+  mercedes_v_class: { label: 'Mercedes V-Class', description: 'Hasta 6 pasajeros, premium' },
+};
+
+// Helper to create an empty form item
+export function createEmptyTransferItem(): TransferItemFormData {
+  return {
+    id: crypto.randomUUID(),
+    direction: 'ida',
+    transfer_date: '',
+    transfer_time: '',
+    pickup_location: '',
+    pickup_lat: null,
+    pickup_lng: null,
+    pickup_place_id: null,
+    dropoff_location: '',
+    dropoff_lat: null,
+    dropoff_lng: null,
+    dropoff_place_id: null,
+    vehicle_type: 'mercedes_v_class',
+    pax_count: '',
+    flight_number: '',
+    notes: '',
+    has_return: false,
+    return_date: '',
+    return_time: '',
+    return_pickup_location: '',
+    return_pickup_lat: null,
+    return_pickup_lng: null,
+    return_pickup_place_id: null,
+    return_dropoff_location: '',
+    return_dropoff_lat: null,
+    return_dropoff_lng: null,
+    return_dropoff_place_id: null,
+  };
+}
