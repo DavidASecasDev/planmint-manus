@@ -17,10 +17,17 @@ import { releaseParkingSpotByVehicle } from "./parkingEndpoints";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/**
+ * RentlyBooking — shape returned by /api/bookings/list (post-deprecation).
+ * Entities are now lightweight "Description" DTOs.
+ * DeliveryPlace/ReturnPlace are replaced by integer IDs.
+ * Heavy fields (PriceItems, Attributes, etc.) are removed from list.
+ */
 interface RentlyBooking {
   Id: number;
   CreationDate?: string;
   CurrentStatus: number;
+  // CustomerDescription DTO (subset of full Customer)
   Customer?: {
     Firstname?: string;
     Lastname?: string;
@@ -30,18 +37,27 @@ interface RentlyBooking {
     DocumentId?: string;
   };
   CustomerPrice?: number;
+  // CarDescription DTO (subset of full Car)
   Car?: {
     Id?: number;
     Plate?: string;
+    // ModelDescription DTO
     Model?: { Name?: string; Category?: { Name?: string } };
   };
   FromDate?: string;
   ToDate?: string;
   TotalDays?: number;
+  // New: Place IDs instead of objects (post /api/bookings/list migration)
+  DeliveryPlaceId?: number | null;
+  ReturnPlaceId?: number | null;
+  // Legacy fields kept for backwards-compat with detail endpoint
   DeliveryPlace?: { Name?: string; Address?: string };
   ReturnPlace?: { Name?: string; Address?: string };
   DropoffInfo?: { Date?: string };
   Origin?: { Name?: string };
+  // New fields added in /api/bookings/list
+  IsFullBonus?: boolean;
+  FeeNoShow?: boolean;
 }
 
 interface RentlyBookingDetail extends RentlyBooking {
@@ -213,13 +229,61 @@ export async function getRentlyToken(host: string, clientId: string, clientSecre
   }
 }
 
+// ─── Places cache (resolves DeliveryPlaceId/ReturnPlaceId → Name) ────────────
+
+interface RentlyPlaceEntry {
+  Id: number;
+  Name?: string;
+  Address?: string;
+}
+
+const placesCache = new Map<string, Map<number, RentlyPlaceEntry>>();
+
+async function getPlacesMap(host: string, token: string): Promise<Map<number, RentlyPlaceEntry>> {
+  if (placesCache.has(host)) return placesCache.get(host)!;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`https://${host}/api/places`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      console.warn(`[sync-rently] Failed to fetch places: ${response.status}`);
+      return new Map();
+    }
+    const data = await response.json();
+    const places: RentlyPlaceEntry[] = Array.isArray(data) ? data : (data?.Results || []);
+    const map = new Map<number, RentlyPlaceEntry>();
+    for (const p of places) {
+      if (p.Id) map.set(p.Id, p);
+    }
+    placesCache.set(host, map);
+    console.log(`[sync-rently] Places cache loaded: ${map.size} entries`);
+    return map;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    console.warn(`[sync-rently] Error fetching places:`, error?.message);
+    return new Map();
+  }
+}
+
+/** Clear places cache (e.g. between sync sessions if needed) */
+export function clearPlacesCache() {
+  placesCache.clear();
+}
+
 async function fetchSinglePage(
   host: string,
   token: string,
   offset: number
 ): Promise<{ bookings: RentlyBooking[]; nextOffset: number | null; hasMore: boolean }> {
   const params = new URLSearchParams({ offset: String(offset), limit: String(PAGE_SIZE) });
-  const url = `https://${host}/api/bookings?${params}`;
+  // Migrated from deprecated /api/bookings → /api/bookings/list (deadline: 2026-07-13)
+  const url = `https://${host}/api/bookings/list?${params}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -341,14 +405,17 @@ async function fetchDetailsInParallel(
 export function mapBookingToReservation(
   booking: RentlyBooking,
   organizationId: string,
-  userId: string
+  userId: string,
+  placesMap?: Map<number, RentlyPlaceEntry>
 ): Record<string, unknown> {
   const customer = booking.Customer || {};
   const car = booking.Car || {};
   const carModel = car.Model || {};
   const category = carModel.Category || {};
-  const deliveryPlace = booking.DeliveryPlace || {};
-  const returnPlace = booking.ReturnPlace || {};
+
+  // Resolve places: prefer legacy objects (detail endpoint), fall back to ID lookup
+  const deliveryPlace = booking.DeliveryPlace || (booking.DeliveryPlaceId && placesMap?.get(booking.DeliveryPlaceId)) || {};
+  const returnPlace = booking.ReturnPlace || (booking.ReturnPlaceId && placesMap?.get(booking.ReturnPlaceId)) || {};
   const dropoffInfo = booking.DropoffInfo || {};
   const origin = booking.Origin || {};
 
@@ -851,6 +918,9 @@ export async function handleSyncRently(req: Request, res: Response) {
 
     if (!syncStatus) throw new Error("Failed to initialize sync status");
 
+    // ─── Load places cache for resolving DeliveryPlaceId/ReturnPlaceId ────────
+    const placesMap = await getPlacesMap(host, rentlyToken);
+
     // ─── MULTI-PAGE LOOP ─────────────────────────────────────────────────────
     // Process up to PAGES_PER_REQUEST pages in a single HTTP request
     const requestStartTime = Date.now();
@@ -930,7 +1000,7 @@ export async function handleSyncRently(req: Request, res: Response) {
       totalFilteredCount += filteredCount;
 
       // Map to reservations
-      const reservations = validBookings.map((b) => mapBookingToReservation(b, organizationId, userId));
+      const reservations = validBookings.map((b) => mapBookingToReservation(b, organizationId, userId, placesMap));
 
       // ─── SMART ENRICHMENT ──────────────────────────────────────────────
       // Only enrich bookings that are: new, never enriched, status changed, or active (status <= 2)

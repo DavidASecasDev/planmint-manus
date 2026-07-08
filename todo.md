@@ -1372,3 +1372,10 @@
 - [x] Limpieza global: Eliminar 16 componentes sin uso — InviteMemberDialog, PendingInvitationsList, InsightsCard, WeeklyDigestCard, AreaAccessDenied, EnterprisePoliciesSection, ProvisioningLogsSection, SAMLConfigSection, SCIMGroupMappingsSection, SCIMTokensSection, SCIMUsersSection, DamageReportFormDialog, RepairDetailSheet, WorkshopDetailSheet, WorkshopFormDialog, WorkshopHistorySheet, ReferralCard, ScheduleNotesRow, SubtaskList, BrokerSelect, SyncVehiclesButton
 - [x] Limpieza global: Eliminar 3 paquetes npm sin uso — pg, vite-plugin-pwa, streamdown
 - [x] Limpieza global: Actualizar tests que referenciaban archivos eliminados (BrokerSelect)
+- [x] Migración Rently: Cambiar /api/bookings → /api/bookings/list en syncRently.ts (fetchSinglePage)
+- [x] Migración Rently: Actualizar tipo RentlyBooking para nuevo modelo (DTOs reducidos: CustomerDescription, CarDescription, DeliveryPlaceId/ReturnPlaceId en vez de objetos Place)
+- [x] Migración Rently: Adaptar mapBookingToReservation para nuevos campos (DeliveryPlaceId/ReturnPlaceId → resolver nombre via places cache)
+- [x] Migración Rently: Actualizar DOMAIN_REGISTRY en rentlyHub.ts (/api/bookings → /api/bookings/list)
+- [x] Migración Rently: Actualizar default de explore en rentlyHub.ts
+- [x] Migración Rently: Actualizar RentlyExplorer.tsx shortcut path
+- [x] Migración Rently: Actualizar client/src/types/rently.ts con nuevos DTOs

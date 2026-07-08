@@ -35,6 +35,12 @@ export interface RentlyOrigin {
   Name?: string;
 }
 
+/**
+ * RentlyBooking — shape returned by /api/bookings/list (post-deprecation 2026-07-13).
+ * Entities are now lightweight "Description" DTOs.
+ * DeliveryPlace/ReturnPlace replaced by integer IDs.
+ * Heavy fields (PriceItems, Attributes, etc.) removed from list response.
+ */
 export interface RentlyBooking {
   Id: number;
   CreationDate?: string;
@@ -45,10 +51,17 @@ export interface RentlyBooking {
   FromDate?: string;
   ToDate?: string;
   TotalDays?: number;
+  // New: Place IDs instead of objects (post /api/bookings/list migration)
+  DeliveryPlaceId?: number | null;
+  ReturnPlaceId?: number | null;
+  // Legacy fields kept for backwards-compat with detail endpoint
   DeliveryPlace?: RentlyPlace;
   ReturnPlace?: RentlyPlace;
   DropoffInfo?: RentlyDropoffInfo;
   Origin?: RentlyOrigin;
+  // New fields added in /api/bookings/list
+  IsFullBonus?: boolean;
+  FeeNoShow?: boolean;
 }
 
 export interface RentlyBookingsResponse {

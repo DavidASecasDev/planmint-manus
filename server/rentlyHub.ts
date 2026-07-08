@@ -17,7 +17,7 @@ const DOMAIN_REGISTRY = [
     description: "Gestión de reservas y alquileres",
     syncStrategy: "incremental",
     endpoints: [
-      { method: "list", path: "/api/bookings", description: "Listar reservas", type: "GET" },
+      { method: "list", path: "/api/bookings/list", description: "Listar reservas", type: "GET" },
       { method: "get", path: "/api/booking/{id}", description: "Detalle de reserva", type: "GET" },
       { method: "drivers", path: "/api/booking/{id}/drivers", description: "Conductores de reserva", type: "GET" },
     ],
@@ -306,7 +306,7 @@ export async function handleRentlyHub(req: Request, res: Response) {
         const creds = await getRentlyCredentials(organizationId);
         const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
 
-        let path = endpoint || "/api/bookings";
+        let path = endpoint || "/api/bookings/list";
         if (params) {
           const queryParams = new URLSearchParams();
           Object.entries(params).forEach(([key, value]) => queryParams.set(key, String(value)));

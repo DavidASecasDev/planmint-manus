@@ -474,7 +474,7 @@ export default function RentlyExplorer() {
                       { label: "Sucursales", path: "/api/branchoffices", method: "GET" },
                       { label: "Vehiculos", path: "/api/cars", method: "GET" },
                       { label: "Categorias", path: "/api/categories", method: "GET" },
-                      { label: "Reservas", path: "/api/bookings", method: "GET" },
+                      { label: "Reservas", path: "/api/bookings/list", method: "GET" },
                       { label: "Clientes", path: "/api/customers", method: "GET" },
                     ].map((shortcut) => (
                       <Button
