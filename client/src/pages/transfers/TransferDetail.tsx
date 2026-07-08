@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,17 +29,19 @@ export default function TransferDetail() {
   const request = requests.find(r => r.id === id);
 
   if (isLoading) {
-    return <div className="p-8 text-center text-muted-foreground">Cargando...</div>;
+    return <AppLayout title="Transfer"><div className="p-8 text-center text-muted-foreground">Cargando...</div></AppLayout>;
   }
 
   if (!request) {
     return (
+      <AppLayout title="Transfer">
       <div className="p-8 text-center">
         <p className="text-muted-foreground mb-4">Solicitud no encontrada</p>
         <Button variant="outline" onClick={() => navigate('/transfers')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Volver
         </Button>
       </div>
+      </AppLayout>
     );
   }
 
@@ -83,6 +86,7 @@ export default function TransferDetail() {
   };
 
   return (
+    <AppLayout title={`Transfer ${request?.request_number || ''}`}>
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -357,5 +361,6 @@ export default function TransferDetail() {
         </Card>
       )}
     </div>
+    </AppLayout>
   );
 }

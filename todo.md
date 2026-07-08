@@ -1346,3 +1346,4 @@
 - [x] Transfers: Selector de fecha en vista diaria para navegar entre días
 - [x] Transfers: Mostrar conductor asignado, vehículo, cliente y ruta en cada slot del resumen diario
 - [x] Transfers: Toggle para activar/desactivar la vista resumen diario desde el listado de transfers
+- [x] Bug: Sidebar lateral no visible en módulo Transfers — añadir AppLayout wrapper a Transfers, TransferDetail, TransferNew

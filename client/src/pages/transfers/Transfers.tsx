@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { usePermissions } from '@/hooks/usePermissions';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { TransfersCalendar } from '@/components/transfers/TransfersCalendar';
 import { TransfersDailySummary } from '@/components/transfers/TransfersDailySummary';
@@ -46,6 +47,7 @@ export default function Transfers() {
   }, [requests]);
 
   return (
+    <AppLayout title="Transfers">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -280,5 +282,6 @@ export default function Transfers() {
         </div>
       ))}
     </div>
+    </AppLayout>
   );
 }

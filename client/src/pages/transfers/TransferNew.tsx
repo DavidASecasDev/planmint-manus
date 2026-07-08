@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTransferRequests, type CreateInternalRequestData } from '@/hooks/useTransferRequests';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -114,6 +115,7 @@ export default function TransferNew() {
   };
 
   return (
+    <AppLayout title="Nueva Solicitud">
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -320,5 +322,6 @@ export default function TransferNew() {
         </Button>
       </div>
     </div>
+    </AppLayout>
   );
 }
