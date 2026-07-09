@@ -235,6 +235,21 @@ export function AppSidebar() {
     staleTime: 30000,
   });
 
+  // Check if current user has broker portal access
+  const userId = profile?.id;
+  const { data: hasBrokerAccess = false } = useQuery({
+    queryKey: ['has-broker-access', userId, orgId],
+    queryFn: async () => {
+      if (!userId || !orgId) return false;
+      const result = await apiInvoke<{ exists: boolean }>('check-broker-access', {
+        body: { userId },
+      });
+      return result.data?.exists ?? false;
+    },
+    enabled: !!userId && !!orgId,
+    staleTime: 300_000, // 5 min cache
+  });
+
   // CRITICAL: While auth/permissions/modules are still loading, show ALL menu items
   // to prevent the sidebar from flickering or showing a reduced set of items.
   // Once loading completes, the real filter will apply.
@@ -750,6 +765,23 @@ export function AppSidebar() {
                 <MessageSquare className="h-4 w-4" />
                 Enviar feedback
               </Button>
+
+              {/* Broker Portal Link - only if user has broker access */}
+              {hasBrokerAccess && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open('/broker/dashboard', '_blank')}
+                  className={cn(
+                    "w-full gap-2 transition-colors border-sidebar-border text-sidebar-foreground/60 bg-transparent",
+                    "hover:text-sidebar-accent-foreground hover:border-sidebar-foreground/20",
+                    isMobile && "h-11"
+                  )}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  Portal Broker
+                </Button>
+              )}
 
               {/* Organization Switcher */}
               <OrgSwitcher collapsed={false} />

@@ -12,7 +12,8 @@ import { BrokerTable } from '@/components/transfers/BrokerTable';
 import { BrokerDialog } from '@/components/transfers/BrokerDialog';
 import { BrokerRegistrationList } from '@/components/transfers/BrokerRegistrationList';
 import { BrokerInviteDialog } from '@/components/transfers/BrokerInviteDialog';
-import { Users, UserCheck, KeyRound, Plus, Search, ShieldAlert, Clock, Link2 } from 'lucide-react';
+import { LinkEmployeeAsBrokerDialog } from '@/components/transfers/LinkEmployeeAsBrokerDialog';
+import { Users, UserCheck, KeyRound, Plus, Search, ShieldAlert, Clock, Link2, UserPlus } from 'lucide-react';
 
 export default function BrokerManagement() {
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
@@ -31,6 +32,7 @@ export default function BrokerManagement() {
   const [editingBroker, setEditingBroker] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('brokers');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [linkEmployeeDialogOpen, setLinkEmployeeDialogOpen] = useState(false);
 
   // Wait for permissions to load
   if (permissionsLoading) {
@@ -89,6 +91,10 @@ export default function BrokerManagement() {
             <p className="text-muted-foreground">Administra los brokers externos y su acceso al portal</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setLinkEmployeeDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Vincular Empleado
+            </Button>
             <Button variant="outline" onClick={() => setInviteDialogOpen(true)}>
               <Link2 className="h-4 w-4 mr-2" />
               Invitar Broker
@@ -228,6 +234,10 @@ export default function BrokerManagement() {
         <BrokerInviteDialog
           open={inviteDialogOpen}
           onOpenChange={setInviteDialogOpen}
+        />
+        <LinkEmployeeAsBrokerDialog
+          open={linkEmployeeDialogOpen}
+          onOpenChange={setLinkEmployeeDialogOpen}
         />
       </div>
     </AppLayout>

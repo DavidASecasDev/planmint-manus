@@ -52,6 +52,8 @@ import {
 } from "../brokerRegistrationEndpoints";
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
 import { handleGetTransferBrokers } from "../brokerListEndpoint";
+import { handleLinkEmployeeAsBroker } from "../linkEmployeeAsBroker";
+import { handleCheckBrokerAccess } from "../checkBrokerAccess";
 import { handleSupabaseQuery } from "../supabaseProxy";
 import { handleGetOperationalDashboard } from "../dashboardEndpoint";
 import { handleValidateBrokerInvite } from "../validateBrokerInvite";
@@ -316,6 +318,8 @@ async function startServer() {
   app.post("/api/approve-broker-registration", handleApproveBrokerRegistration);
   app.post("/api/reject-broker-registration", handleRejectBrokerRegistration);
   app.post("/api/get-transfer-brokers", handleGetTransferBrokers);
+  app.post("/api/link-employee-as-broker", handleLinkEmployeeAsBroker);
+  app.post("/api/check-broker-access", handleCheckBrokerAccess);
   app.post("/api/supabase-query", handleSupabaseQuery);
 
   // ─── Org data endpoints (bypass RLS for non-owner users) ──────────────────

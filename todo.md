@@ -1383,3 +1383,5 @@
 - [x] Fix: BrokerLogin.clearNonBrokerSession no debe hacer signOut si el usuario tiene sesión PlanMint válida
 - [x] Fix: BrokerAuthContext.login no debe hacer signOut si el usuario no tiene broker_profiles (solo informar)
 - [x] Fix: Verificar que BrokerProtectedRoute no destruye sesión al redirigir a login (ya era correcto, solo redirige)
+- [x] Feature: Botón "Vincular empleado como broker" en gestión de brokers (admin) — crear endpoint + UI
+- [x] Feature: Enlace rápido "Portal Broker" en sidebar para empleados que también son brokers
