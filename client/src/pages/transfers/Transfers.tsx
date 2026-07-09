@@ -14,6 +14,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, CalendarRange, LayoutGrid, FileDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CLIENT_TYPE_META, VEHICLE_TYPE_META } from '@/types/transfers';
@@ -25,12 +27,22 @@ export default function Transfers() {
   const handleDownloadPdf = async (e: React.MouseEvent, requestId: string, requestNumber: string) => {
     e.stopPropagation();
     try {
+      // Get fresh token from supabase session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token || session?.access_token;
+      if (!token) {
+        toast.error('Sesion no disponible. Recarga la pagina.');
+        return;
+      }
       const response = await fetch(`/api/transfer-pdf/${requestId}`, {
         headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
-      if (!response.ok) throw new Error('Error al generar PDF');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || `Error ${response.status}`);
+      }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -40,8 +52,10 @@ export default function Transfers() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+      toast.success('PDF descargado');
+    } catch (err: any) {
       console.error('PDF download error:', err);
+      toast.error(err.message || 'Error al generar PDF');
     }
   };
 

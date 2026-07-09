@@ -26,15 +26,19 @@ const COLORS = {
   darkGray: '#333333',
 };
 
-// Font paths (Liberation Sans supports Spanish characters)
-const FONT_REGULAR = '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf';
-const FONT_BOLD = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf';
+// Use built-in Helvetica fonts (available everywhere, no system font dependency)
+const FONT_REGULAR = 'Helvetica';
+const FONT_BOLD = 'Helvetica-Bold';
 
 // Logo path - resolve relative to this file
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOGO_PATH = path.resolve(__dirname, '..', 'server', 'assets', 'logo.png');
-// Fallback for dev environment
-const LOGO_PATH_DEV = path.resolve(__dirname, 'assets', 'logo.png');
+// In production: dist/index.js -> ../server/assets/logo.png
+// In dev: server/transferPdf.ts -> ./assets/logo.png
+const LOGO_PATHS = [
+  path.resolve(__dirname, 'assets', 'logo.png'),           // dev: server/assets/logo.png
+  path.resolve(__dirname, '..', 'server', 'assets', 'logo.png'), // prod: dist/../server/assets/logo.png
+  path.resolve(process.cwd(), 'server', 'assets', 'logo.png'),   // fallback: cwd/server/assets/logo.png
+];
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-';
@@ -123,9 +127,10 @@ export async function handleTransferPdf(req: Request, res: Response) {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     doc.pipe(res);
 
-    // Register fonts
-    doc.registerFont('Regular', FONT_REGULAR);
-    doc.registerFont('Bold', FONT_BOLD);
+    // Use built-in PDFKit fonts (no registration needed for Helvetica)
+    // 'Regular' and 'Bold' are aliases we use throughout
+    const fontRegular = FONT_REGULAR;
+    const fontBold = FONT_BOLD;
 
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
@@ -136,23 +141,23 @@ export async function handleTransferPdf(req: Request, res: Response) {
     doc.restore();
 
     // Logo image
-    const logoPath = fs.existsSync(LOGO_PATH) ? LOGO_PATH : LOGO_PATH_DEV;
-    if (fs.existsSync(logoPath)) {
+    const logoPath = LOGO_PATHS.find(p => fs.existsSync(p));
+    if (logoPath) {
       doc.image(logoPath, 50, 20, { height: 60 });
     } else {
       // Fallback to text if logo not found
-      doc.font('Bold').fontSize(28).fillColor(COLORS.white);
+      doc.font(fontBold).fontSize(28).fillColor(COLORS.white);
       doc.text('AZUL', 50, 30, { continued: true });
       doc.fillColor(COLORS.gold).text('.', { continued: false });
     }
     
-    doc.font('Regular').fontSize(10).fillColor(COLORS.lightGold);
+    doc.font(fontRegular).fontSize(10).fillColor(COLORS.lightGold);
     doc.text('TRANSFERS', 50, 82);
 
     // Request number on the right
-    doc.font('Bold').fontSize(12).fillColor(COLORS.white);
-    doc.text(`Nº ${request.request_number}`, 350, 35, { align: 'right', width: pageWidth - 300 });
-    doc.font('Regular').fontSize(9).fillColor(COLORS.lightGold);
+    doc.font(fontBold).fontSize(12).fillColor(COLORS.white);
+    doc.text(`No ${request.request_number}`, 350, 35, { align: 'right', width: pageWidth - 300 });
+    doc.font(fontRegular).fontSize(9).fillColor(COLORS.lightGold);
     doc.text(`Fecha: ${formatDate(request.created_at)}`, 350, 55, { align: 'right', width: pageWidth - 300 });
 
     // ===== GOLD DIVIDER =====
@@ -162,15 +167,15 @@ export async function handleTransferPdf(req: Request, res: Response) {
 
     // ===== CLIENT INFORMATION SECTION =====
     // Section header
-    doc.font('Bold').fontSize(11).fillColor(COLORS.darkNavy);
-    doc.text('INFORMACIÓN DEL CLIENTE', 50, yPos);
+    doc.font(fontBold).fontSize(11).fillColor(COLORS.darkNavy);
+    doc.text('INFORMACION DEL CLIENTE', 50, yPos);
     yPos += 20;
 
     // Client info grid
     const drawField = (label: string, value: string, x: number, y: number, width: number) => {
-      doc.font('Regular').fontSize(8).fillColor(COLORS.mediumGray);
+      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
       doc.text(label, x, y);
-      doc.font('Regular').fontSize(10).fillColor(COLORS.darkGray);
+      doc.font(fontRegular).fontSize(10).fillColor(COLORS.darkGray);
       doc.text(value || '-', x, y + 12, { width });
     };
 
@@ -180,7 +185,7 @@ export async function handleTransferPdf(req: Request, res: Response) {
     drawField('Tipo', getClientTypeLabel(request.client_type), 50 + colWidth + 20, yPos, colWidth);
     yPos += 40;
 
-    drawField('Teléfono', request.client_phone || '-', 50, yPos, colWidth);
+    drawField('Telefono', request.client_phone || '-', 50, yPos, colWidth);
     drawField('Email', request.client_email || '-', 50 + colWidth + 20, yPos, colWidth);
     yPos += 40;
 
@@ -188,7 +193,7 @@ export async function handleTransferPdf(req: Request, res: Response) {
       drawField('Villa', request.villa_name, 50, yPos, colWidth);
       yPos += 40;
     } else if (request.client_type === 'charter') {
-      drawField('Embarcación', request.boat_name || '-', 50, yPos, colWidth);
+      drawField('Embarcacion', request.boat_name || '-', 50, yPos, colWidth);
       drawField('Amarre', request.berth_number || '-', 50 + colWidth + 20, yPos, colWidth);
       yPos += 40;
     }
@@ -203,7 +208,7 @@ export async function handleTransferPdf(req: Request, res: Response) {
     doc.moveTo(50, yPos).lineTo(doc.page.width - 50, yPos).strokeColor('#DDDDDD').lineWidth(0.5).stroke();
     yPos += 15;
 
-    doc.font('Bold').fontSize(11).fillColor(COLORS.darkNavy);
+    doc.font(fontBold).fontSize(11).fillColor(COLORS.darkNavy);
     doc.text('SERVICIOS DE TRANSFER', 50, yPos);
     yPos += 25;
 
@@ -224,7 +229,7 @@ export async function handleTransferPdf(req: Request, res: Response) {
       const cardY = yPos + 10;
 
       // Transfer number and direction badge
-      doc.font('Bold').fontSize(10).fillColor(COLORS.darkNavy);
+      doc.font(fontBold).fontSize(10).fillColor(COLORS.darkNavy);
       doc.text(`Transfer ${index + 1}`, cardX, cardY);
       
       // Direction badge
@@ -233,17 +238,17 @@ export async function handleTransferPdf(req: Request, res: Response) {
       doc.save();
       doc.roundedRect(badgeX, cardY - 2, 45, 16, 3).fill(COLORS.gold);
       doc.restore();
-      doc.font('Bold').fontSize(8).fillColor(COLORS.white);
+      doc.font(fontBold).fontSize(8).fillColor(COLORS.white);
       doc.text(dirLabel, badgeX + 5, cardY + 2, { width: 35, align: 'center' });
 
       // Date and time
-      doc.font('Regular').fontSize(9).fillColor(COLORS.mediumGray);
-      doc.text(`${formatDate(item.transfer_date)} · ${formatTime(item.transfer_time)}`, cardX + 150, cardY);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.mediumGray);
+      doc.text(`${formatDate(item.transfer_date)} - ${formatTime(item.transfer_time)}`, cardX + 150, cardY);
 
       // Flight number if present
       if (item.flight_number) {
-        doc.font('Regular').fontSize(9).fillColor(COLORS.gold);
-        doc.text(`✈ ${item.flight_number}`, cardX + 320, cardY);
+        doc.font(fontRegular).fontSize(9).fillColor(COLORS.gold);
+        doc.text(`Vuelo: ${item.flight_number}`, cardX + 320, cardY);
       }
 
       // Route
@@ -253,9 +258,9 @@ export async function handleTransferPdf(req: Request, res: Response) {
       doc.save();
       doc.circle(cardX + 5, routeY + 5, 4).fill(COLORS.gold);
       doc.restore();
-      doc.font('Regular').fontSize(8).fillColor(COLORS.mediumGray);
+      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
       doc.text('RECOGIDA', cardX + 15, routeY - 2);
-      doc.font('Regular').fontSize(9).fillColor(COLORS.darkGray);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
       doc.text(item.pickup_location || '-', cardX + 15, routeY + 10, { width: pageWidth - 40 });
 
       // Dotted line
@@ -269,15 +274,15 @@ export async function handleTransferPdf(req: Request, res: Response) {
       doc.save();
       doc.circle(cardX + 5, dropY + 5, 4).fill(COLORS.darkNavy);
       doc.restore();
-      doc.font('Regular').fontSize(8).fillColor(COLORS.mediumGray);
+      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
       doc.text('DESTINO', cardX + 15, dropY - 2);
-      doc.font('Regular').fontSize(9).fillColor(COLORS.darkGray);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
       doc.text(item.dropoff_location || '-', cardX + 15, dropY + 10, { width: pageWidth - 40 });
 
       // Bottom row: vehicle, pax, driver
       const bottomY = cardY + 100;
-      doc.font('Regular').fontSize(8).fillColor(COLORS.mediumGray);
-      doc.text('Vehículo: ', cardX, bottomY, { continued: true });
+      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
+      doc.text('Vehiculo: ', cardX, bottomY, { continued: true });
       doc.fillColor(COLORS.darkGray).text(getVehicleLabel(item.vehicle_type));
 
       doc.fillColor(COLORS.mediumGray).text('Pasajeros: ', cardX + 180, bottomY, { continued: true });
@@ -302,10 +307,10 @@ export async function handleTransferPdf(req: Request, res: Response) {
       doc.moveTo(50, yPos).lineTo(doc.page.width - 50, yPos).strokeColor('#DDDDDD').lineWidth(0.5).stroke();
       yPos += 15;
 
-      doc.font('Bold').fontSize(11).fillColor(COLORS.darkNavy);
+      doc.font(fontBold).fontSize(11).fillColor(COLORS.darkNavy);
       doc.text('NOTAS', 50, yPos);
       yPos += 18;
-      doc.font('Regular').fontSize(9).fillColor(COLORS.darkGray);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
       doc.text(request.notes, 50, yPos, { width: pageWidth });
     }
 
@@ -313,9 +318,9 @@ export async function handleTransferPdf(req: Request, res: Response) {
     const footerY = doc.page.height - 60;
     doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).strokeColor(COLORS.gold).lineWidth(0.5).stroke();
     
-    doc.font('Regular').fontSize(8).fillColor(COLORS.mediumGray);
-    doc.text('Azul Cars · Servicio de Transfers Premium', 50, footerY + 10, { align: 'center', width: pageWidth });
-    doc.text('Este documento es una confirmación del servicio solicitado.', 50, footerY + 22, { align: 'center', width: pageWidth });
+    doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
+    doc.text('Azul Cars - Servicio de Transfers Premium', 50, footerY + 10, { align: 'center', width: pageWidth });
+    doc.text('Este documento es una confirmacion del servicio solicitado.', 50, footerY + 22, { align: 'center', width: pageWidth });
 
     // Finalize PDF
     doc.end();
