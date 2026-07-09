@@ -305,6 +305,7 @@ export default function FleetDetail() {
         <TraccarDeviceSection
           fleetVehicleId={vehicle.id}
           currentTraccarDeviceId={vehicle.traccar_device_id}
+          currentXexunImei={vehicle.xexun_imei}
           onDeviceLinked={() => {}}
         />
 

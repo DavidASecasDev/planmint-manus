@@ -1389,3 +1389,4 @@
 - [x] Mejora: Usar react-query invalidation en vez de window.location.reload() tras desvincular broker
 - [x] Feature: Log de auditoría — registrar quién vinculó/desvinculó a cada broker y cuándo
 - [x] Mejora: Toast de confirmación (sonner) al vincular/desvincular broker exitosamente
+- [x] Bug: Localizador GPS no aparece en perfil de vehículo 7757LVK — faltaba prop currentXexunImei en FleetDetail
