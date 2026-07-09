@@ -31,7 +31,18 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TransferBroker, useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { usePermissions } from '@/hooks/usePermissions';
-import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2, UserMinus } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2, UserMinus, RefreshCw, Copy, Check, Loader2 } from 'lucide-react';
+import { apiInvoke } from '@/lib/apiClient';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { BrokerPortalDialog } from './BrokerPortalDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -49,6 +60,11 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(true);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const [selectedBroker, setSelectedBroker] = useState<TransferBroker | null>(null);
 
   const canDelete = hasPermission('transfers.delete') || hasPermission('transfers.manage_brokers') || hasPermission('transfers.manage');
@@ -73,6 +89,61 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
   const handlePortalClick = (broker: TransferBroker) => {
     setSelectedBroker(broker);
     setPortalDialogOpen(true);
+  };
+
+  const generatePassword = (length = 12): string => {
+    const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lowercase = 'abcdefghjkmnpqrstuvwxyz';
+    const numbers = '23456789';
+    const symbols = '!@#$%&*';
+    const all = uppercase + lowercase + numbers + symbols;
+    let password = '';
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += symbols[Math.floor(Math.random() * symbols.length)];
+    for (let i = password.length; i < length; i++) {
+      password += all[Math.floor(Math.random() * all.length)];
+    }
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const handleResetPasswordClick = (broker: TransferBroker) => {
+    setSelectedBroker(broker);
+    setNewPassword(generatePassword());
+    setShowNewPassword(true);
+    setPasswordCopied(false);
+    setResetPasswordDialogOpen(true);
+  };
+
+  const handleCopyNewPassword = async () => {
+    await navigator.clipboard.writeText(newPassword);
+    setPasswordCopied(true);
+    toast.success('Contraseña copiada al portapapeles');
+    setTimeout(() => setPasswordCopied(false), 2000);
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!selectedBroker || !newPassword) return;
+    setIsResettingPassword(true);
+    try {
+      const result = await apiInvoke<{ success: boolean; error?: string }>('reset-broker-password', {
+        body: { brokerId: selectedBroker.id, newPassword },
+      });
+      if (result.error) {
+        toast.error(result.error.message || 'Error al resetear contraseña');
+      } else {
+        toast.success('Contraseña actualizada', {
+          description: `La contraseña de ${selectedBroker.name} ha sido cambiada.`,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error al resetear contraseña');
+    } finally {
+      setIsResettingPassword(false);
+      setResetPasswordDialogOpen(false);
+      setSelectedBroker(null);
+    }
   };
 
   if (isLoading) {
@@ -192,6 +263,14 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
                       )}
                       {broker.user_id && (
                         <DropdownMenuItem
+                          onClick={() => handleResetPasswordClick(broker)}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Resetear Contraseña
+                        </DropdownMenuItem>
+                      )}
+                      {broker.user_id && (
+                        <DropdownMenuItem
                           onClick={() => {
                             setSelectedBroker(broker);
                             setUnlinkDialogOpen(true);
@@ -291,6 +370,82 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Resetear Contraseña</DialogTitle>
+            <DialogDescription>
+              Nueva contraseña para <strong>{selectedBroker?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nueva contraseña</Label>
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-24 font-mono"
+                />
+                <div className="absolute right-0 top-0 h-full flex items-center gap-0.5 pr-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 hover:bg-transparent"
+                    onClick={handleCopyNewPassword}
+                    title="Copiar"
+                  >
+                    {passwordCopied ? (
+                      <Check className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 hover:bg-transparent"
+                    onClick={() => {
+                      setNewPassword(generatePassword());
+                      setPasswordCopied(false);
+                    }}
+                    title="Generar nueva"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Copia la contraseña y compártela con el broker. No podrás verla después.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setResetPasswordDialogOpen(false)}
+              disabled={isResettingPassword}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmResetPassword}
+              disabled={isResettingPassword || newPassword.length < 6}
+            >
+              {isResettingPassword ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Guardando...</>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Portal Configuration Dialog */}
       {selectedBroker && (
