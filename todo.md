@@ -1388,3 +1388,4 @@
 - [x] Feature: Opción "Desvincular broker" para revocar acceso al portal broker sin eliminar cuenta PlanMint
 - [x] Mejora: Usar react-query invalidation en vez de window.location.reload() tras desvincular broker
 - [x] Feature: Log de auditoría — registrar quién vinculó/desvinculó a cada broker y cuándo
+- [x] Mejora: Toast de confirmación (sonner) al vincular/desvincular broker exitosamente

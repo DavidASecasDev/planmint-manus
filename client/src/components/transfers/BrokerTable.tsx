@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -269,8 +270,14 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
                   // Invalidate broker queries for seamless UI update
                   await queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
                   await queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
+                  toast.success('Acceso al portal revocado', {
+                    description: `${selectedBroker.name} ya no tiene acceso al portal de brokers`,
+                  });
                 } catch (err) {
                   console.error('Error unlinking broker:', err);
+                  toast.error('Error al desvincular', {
+                    description: 'No se pudo revocar el acceso. Inténtalo de nuevo.',
+                  });
                 } finally {
                   setIsUnlinking(false);
                 }
