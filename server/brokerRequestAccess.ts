@@ -67,7 +67,22 @@ export async function handleRequestBrokerAccess(req: Request, res: Response) {
         return res.status(409).json({ error: "pending_request" });
       }
       if (existingRequest.status === "approved") {
-        return res.status(409).json({ error: "already_approved" });
+        // Check if the broker still actually exists in transfer_brokers
+        const { data: activeBroker } = await sb
+          .from("transfer_brokers")
+          .select("id")
+          .eq("organization_id", organization_id)
+          .eq("email", trimmedEmail)
+          .maybeSingle();
+
+        if (activeBroker) {
+          return res.status(409).json({ error: "already_approved" });
+        }
+        // Broker was deleted but request remains — clean up and allow re-registration
+        await sb
+          .from("broker_registration_requests")
+          .delete()
+          .eq("id", existingRequest.id);
       }
       if (existingRequest.status === "rejected") {
         // Allow re-registration after rejection: delete the old request
@@ -103,15 +118,31 @@ export async function handleRequestBrokerAccess(req: Request, res: Response) {
         );
 
         if (existingUser) {
-          // Check if they already have a broker profile (already approved)
+          // Check if they already have a broker profile with an active transfer_broker
           const { data: existingProfile } = await sb
             .from("broker_profiles")
-            .select("id")
+            .select("id, broker_id")
             .eq("user_id", existingUser.id)
             .maybeSingle();
 
           if (existingProfile) {
-            return res.status(409).json({ error: "already_approved" });
+            // Verify the linked broker still exists in transfer_brokers
+            if (existingProfile.broker_id) {
+              const { data: linkedBroker } = await sb
+                .from("transfer_brokers")
+                .select("id")
+                .eq("id", existingProfile.broker_id)
+                .maybeSingle();
+
+              if (linkedBroker) {
+                return res.status(409).json({ error: "already_approved" });
+              }
+            }
+            // Broker was deleted but profile remains — clean up orphan and allow re-registration
+            await sb
+              .from("broker_profiles")
+              .delete()
+              .eq("id", existingProfile.id);
           }
 
           userId = existingUser.id;
