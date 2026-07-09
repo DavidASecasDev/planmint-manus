@@ -1395,3 +1395,4 @@
 - [x] Feature: Añadir campo contraseña al diálogo "Nuevo Broker" para crear cuenta auth automáticamente y dar acceso inmediato al portal
 - [x] Feature: Auto-generar contraseña segura en diálogo Nuevo Broker con botón copiar al portapapeles
 - [x] Feature: Botón "Resetear contraseña" en tabla de brokers para cambiar contraseña sin eliminar broker
+- [x] Feature: Generar PDF profesional de solicitud de transfer con branding Azul Cars (descargable desde tabla y detalle)

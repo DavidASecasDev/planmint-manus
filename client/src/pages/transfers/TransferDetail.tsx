@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Check, X, UserPlus, MapPin, Clock, Phone, Ship, Building2, Plane, Car, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Check, X, UserPlus, MapPin, Clock, Phone, Ship, Building2, Plane, Car, ExternalLink, FileDown } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { TransferRouteMap } from '@/components/transfers/TransferRouteMap';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -26,7 +27,31 @@ export default function TransferDetail() {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showDriverForm, setShowDriverForm] = useState(false);
 
+  const { session } = useAuth();
   const request = requests.find(r => r.id === id);
+
+  const handleDownloadPdf = async () => {
+    if (!request) return;
+    try {
+      const response = await fetch(`/api/transfer-pdf/${request.id}`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+      });
+      if (!response.ok) throw new Error('Error al generar PDF');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transfer-${request.request_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF download error:', err);
+    }
+  };
 
   if (isLoading) {
     return <AppLayout title="Transfer"><div className="p-8 text-center text-muted-foreground">Cargando...</div></AppLayout>;
@@ -103,6 +128,9 @@ export default function TransferDetail() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf} title="Descargar PDF">
+            <FileDown className="w-4 h-4 mr-1" /> PDF
+          </Button>
           {request.status === 'pendiente' && (
             <>
               <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowRejectForm(true)}>

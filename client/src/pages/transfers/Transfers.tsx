@@ -11,13 +11,39 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, LayoutGrid, FileDown } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CLIENT_TYPE_META, VEHICLE_TYPE_META } from '@/types/transfers';
 import type { TransferRequestStatus, ClientType, TransferFilters } from '@/types/transfers';
 
 export default function Transfers() {
+  const { session } = useAuth();
+
+  const handleDownloadPdf = async (e: React.MouseEvent, requestId: string, requestNumber: string) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`/api/transfer-pdf/${requestId}`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+      });
+      if (!response.ok) throw new Error('Error al generar PDF');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transfer-${requestNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF download error:', err);
+    }
+  };
+
   const navigate = useNavigate();
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
   const canCreate = !permissionsLoading && (hasPermission('transfers.create') || hasPermission('transfers.manage'));
@@ -252,6 +278,15 @@ export default function Transfers() {
                     </div>
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={e => handleDownloadPdf(e, request.id, request.request_number)}
+                        title="Descargar PDF"
+                      >
+                        <FileDown className="w-4 h-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
