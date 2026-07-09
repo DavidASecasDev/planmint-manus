@@ -1386,3 +1386,5 @@
 - [x] Feature: Botón "Vincular empleado como broker" en gestión de brokers (admin) — crear endpoint + UI
 - [x] Feature: Enlace rápido "Portal Broker" en sidebar para empleados que también son brokers
 - [x] Feature: Opción "Desvincular broker" para revocar acceso al portal broker sin eliminar cuenta PlanMint
+- [x] Mejora: Usar react-query invalidation en vez de window.location.reload() tras desvincular broker
+- [x] Feature: Log de auditoría — registrar quién vinculó/desvinculó a cada broker y cuándo

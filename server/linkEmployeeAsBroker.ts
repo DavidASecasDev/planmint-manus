@@ -127,6 +127,28 @@ export async function handleLinkEmployeeAsBroker(req: Request, res: Response) {
 
     console.log(`[link-employee-as-broker] Linked employee ${memberId} to broker ${resolvedBrokerId}`);
 
+    // 6. Audit log
+    try {
+      await sb.from("audit_logs").insert({
+        organization_id: organizationId,
+        actor_user_id: userId,
+        actor_role: "admin",
+        action: "broker.link_employee",
+        entity_type: "broker_profiles",
+        entity_id: resolvedBrokerId,
+        metadata_json: JSON.stringify({
+          linked_user_id: memberId,
+          linked_user_name: memberName,
+          linked_user_email: memberEmail,
+          broker_id: resolvedBrokerId,
+        }),
+        ip_address: req.ip || req.headers["x-forwarded-for"]?.toString() || null,
+        user_agent: req.headers["user-agent"] || null,
+      });
+    } catch (auditErr) {
+      console.error("[link-employee-as-broker] Audit log failed:", auditErr);
+    }
+
     return res.json({ 
       success: true, 
       brokerId: resolvedBrokerId,

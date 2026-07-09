@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Table,
   TableBody,
@@ -42,7 +43,9 @@ interface BrokerTableProps {
 export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
   const { hasPermission } = usePermissions();
   const { toggleActive, deleteBroker } = useTransferBrokers();
+  const queryClient = useQueryClient();
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [isUnlinking, setIsUnlinking] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
   const [selectedBroker, setSelectedBroker] = useState<TransferBroker | null>(null);
@@ -254,24 +257,29 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              disabled={isUnlinking}
               onClick={async () => {
                 if (!selectedBroker?.user_id) return;
+                setIsUnlinking(true);
                 try {
                   const { apiInvoke } = await import('@/lib/apiClient');
                   await apiInvoke('unlink-employee-as-broker', {
                     body: { memberId: selectedBroker.user_id },
                   });
-                  // Invalidate broker list
-                  window.location.reload();
+                  // Invalidate broker queries for seamless UI update
+                  await queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
+                  await queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
                 } catch (err) {
                   console.error('Error unlinking broker:', err);
+                } finally {
+                  setIsUnlinking(false);
                 }
                 setUnlinkDialogOpen(false);
                 setSelectedBroker(null);
               }}
               className="bg-amber-600 text-white hover:bg-amber-700"
             >
-              Desvincular
+              {isUnlinking ? 'Desvinculando...' : 'Desvincular'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
