@@ -186,17 +186,13 @@ export function useTransferBrokers() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('transfer_brokers')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const result = await apiInvoke<{ success: boolean; error?: string }>('delete-broker', { body: { brokerId: id } });
+      if (result.error) throw new Error(result.error.message || 'Error al eliminar broker');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
-      toast.success('Broker eliminado');
+      toast.success('Broker eliminado completamente');
     },
     onError: () => {
       toast.error('Error al eliminar broker');

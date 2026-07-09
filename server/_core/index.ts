@@ -52,6 +52,7 @@ import {
 } from "../brokerRegistrationEndpoints";
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
 import { handleGetTransferBrokers } from "../brokerListEndpoint";
+import { handleDeleteBroker } from "../deleteBroker";
 import { handleLinkEmployeeAsBroker } from "../linkEmployeeAsBroker";
 import { handleUnlinkEmployeeAsBroker } from "../unlinkEmployeeAsBroker";
 import { handleCheckBrokerAccess } from "../checkBrokerAccess";
@@ -319,6 +320,7 @@ async function startServer() {
   app.post("/api/approve-broker-registration", handleApproveBrokerRegistration);
   app.post("/api/reject-broker-registration", handleRejectBrokerRegistration);
   app.post("/api/get-transfer-brokers", handleGetTransferBrokers);
+  app.post("/api/delete-broker", handleDeleteBroker);
   app.post("/api/link-employee-as-broker", handleLinkEmployeeAsBroker);
   app.post("/api/unlink-employee-as-broker", handleUnlinkEmployeeAsBroker);
   app.post("/api/check-broker-access", handleCheckBrokerAccess);
