@@ -1392,3 +1392,4 @@
 - [x] Bug: Localizador GPS no aparece en perfil de vehículo 7757LVK — faltaba prop currentXexunImei en FleetDetail
 - [x] Feature: Indicador GPS en lista de flota y tarjetas Kanban para vehículos con localizador vinculado
 - [x] Bug: Eliminar broker no limpia auth.users, broker_profiles ni broker_registration_requests — impide re-registro con mismo email
+- [x] Feature: Añadir campo contraseña al diálogo "Nuevo Broker" para crear cuenta auth automáticamente y dar acceso inmediato al portal
