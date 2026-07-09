@@ -140,19 +140,20 @@ export async function handleTransferPdf(req: Request, res: Response) {
     doc.rect(0, 0, doc.page.width, 100).fill(COLORS.darkNavy);
     doc.restore();
 
-    // Logo image
+    // Logo image (banner format 998x208 → ~4.8:1 aspect ratio)
     const logoPath = LOGO_PATHS.find(p => fs.existsSync(p));
     if (logoPath) {
-      doc.image(logoPath, 50, 20, { height: 60 });
+      // Height 50px → width ~240px, centered vertically in 100px header
+      doc.image(logoPath, 50, 25, { height: 50 });
     } else {
       // Fallback to text if logo not found
       doc.font(fontBold).fontSize(28).fillColor(COLORS.white);
       doc.text('AZUL', 50, 30, { continued: true });
-      doc.fillColor(COLORS.gold).text('.', { continued: false });
+      doc.fillColor(COLORS.gold).text(' CARS', { continued: false });
     }
     
     doc.font(fontRegular).fontSize(10).fillColor(COLORS.lightGold);
-    doc.text('TRANSFERS', 50, 82);
+    doc.text('TRANSFERS', 50, 78);
 
     // Request number on the right
     doc.font(fontBold).fontSize(12).fillColor(COLORS.white);
