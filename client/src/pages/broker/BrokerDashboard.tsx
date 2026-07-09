@@ -1,12 +1,14 @@
 /**
  * Azul Cars Brand — Broker Dashboard (Redesigned)
- * Uses semantic CSS tokens for dark/light mode compatibility
+ * Calendar is the default view, with toggle to list view
  */
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { useBrokerRequests, BrokerFilters } from '@/hooks/useBrokerRequests';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
+import { BrokerCalendar } from '@/components/broker/BrokerCalendar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -29,14 +31,28 @@ import {
   Car,
   Ship,
   Building2,
+  CalendarDays,
+  List,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransferRequest } from '@/types/transfers';
 
+type ViewMode = 'calendar' | 'list';
+
 export default function BrokerDashboard() {
   const { broker } = useBrokerAuth();
   const navigate = useNavigate();
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('broker-dashboard-view');
+    return (saved === 'list' || saved === 'calendar') ? saved : 'calendar';
+  });
+
+  const handleViewChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('broker-dashboard-view', mode);
+  };
 
   const [filters, setFilters] = usePersistedFilters<BrokerFilters>({
     search: '',
@@ -110,102 +126,131 @@ export default function BrokerDashboard() {
         </div>
       </div>
 
-      {/* Section Header */}
-      <div className="mb-6">
-        <h2
-          className="text-lg mb-1 text-foreground"
-          style={{
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Solicitudes de la Organización
-        </h2>
-        <div
-          className="w-20 h-[2px] rounded"
-          style={{ background: 'linear-gradient(90deg, oklch(0.72 0.10 80), transparent)' }}
-        />
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por cliente o número..."
-            value={filters.search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10 h-10 bg-card border-border text-foreground"
-            style={{ fontFamily: 'Barlow, sans-serif' }}
+      {/* Section Header with View Toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2
+            className="text-lg mb-1 text-foreground"
+            style={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Solicitudes de la Organización
+          </h2>
+          <div
+            className="w-20 h-[2px] rounded"
+            style={{ background: 'linear-gradient(90deg, oklch(0.72 0.10 80), transparent)' }}
           />
         </div>
-
-        <Select value={filters.status || 'all'} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-full sm:w-[160px] h-10 bg-card border-border text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value="pendiente">Pendiente</SelectItem>
-            <SelectItem value="aceptado">Aceptado</SelectItem>
-            <SelectItem value="conductor_asignado">Conductor asignado</SelectItem>
-            <SelectItem value="en_curso">En curso</SelectItem>
-            <SelectItem value="completado">Completado</SelectItem>
-            <SelectItem value="rechazado">Rechazado</SelectItem>
-            <SelectItem value="cancelado">Cancelado</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filters.brokerId || 'all'} onValueChange={handleBrokerChange}>
-          <SelectTrigger className="w-full sm:w-[180px] h-10 bg-card border-border text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-            <SelectValue placeholder="Broker" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los brokers</SelectItem>
-            {brokers.map((b: any) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name} {b.id === broker?.id && '(tú)'}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => handleViewChange('calendar')}
+            title="Vista calendario"
+          >
+            <CalendarDays className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => handleViewChange('list')}
+            title="Vista lista"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Request List */}
+      {/* Content based on view mode */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-muted">
-            <FileText className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3
-            className="text-lg mb-1 text-foreground"
-            style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}
-          >
-            No hay solicitudes
-          </h3>
-          <p className="mb-4 text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
-            {filters.search || filters.status !== 'all' || filters.brokerId !== 'all'
-              ? 'No se encontraron solicitudes con los filtros aplicados'
-              : 'Crea tu primera solicitud de transfer'}
-          </p>
-          <Link to="/broker/new">
-            <Button className="hover:brightness-110 bg-foreground text-background">
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Solicitud
-            </Button>
-          </Link>
-        </div>
+      ) : viewMode === 'calendar' ? (
+        <BrokerCalendar requests={requests} />
       ) : (
-        <div className="space-y-3">
-          {requests.map((request) => (
-            <BrokerRequestRow key={request.id} request={request} onClick={() => navigate(`/broker/requests/${request.id}`)} />
-          ))}
-        </div>
+        <>
+          {/* Filters (only in list view) */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por cliente o número..."
+                value={filters.search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-10 h-10 bg-card border-border text-foreground"
+                style={{ fontFamily: 'Barlow, sans-serif' }}
+              />
+            </div>
+
+            <Select value={filters.status || 'all'} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-full sm:w-[160px] h-10 bg-card border-border text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="pendiente">Pendiente</SelectItem>
+                <SelectItem value="aceptado">Aceptado</SelectItem>
+                <SelectItem value="conductor_asignado">Conductor asignado</SelectItem>
+                <SelectItem value="en_curso">En curso</SelectItem>
+                <SelectItem value="completado">Completado</SelectItem>
+                <SelectItem value="rechazado">Rechazado</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filters.brokerId || 'all'} onValueChange={handleBrokerChange}>
+              <SelectTrigger className="w-full sm:w-[180px] h-10 bg-card border-border text-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                <SelectValue placeholder="Broker" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los brokers</SelectItem>
+                {brokers.map((b: any) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name} {b.id === broker?.id && '(tú)'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Request List */}
+          {requests.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-muted">
+                <FileText className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3
+                className="text-lg mb-1 text-foreground"
+                style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}
+              >
+                No hay solicitudes
+              </h3>
+              <p className="mb-4 text-muted-foreground" style={{ fontFamily: 'Barlow, sans-serif' }}>
+                {filters.search || filters.status !== 'all' || filters.brokerId !== 'all'
+                  ? 'No se encontraron solicitudes con los filtros aplicados'
+                  : 'Crea tu primera solicitud de transfer'}
+              </p>
+              <Link to="/broker/new">
+                <Button className="hover:brightness-110 bg-foreground text-background">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nueva Solicitud
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {requests.map((request) => (
+                <BrokerRequestRow key={request.id} request={request} onClick={() => navigate(`/broker/requests/${request.id}`)} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

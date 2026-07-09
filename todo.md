@@ -1398,3 +1398,4 @@
 - [x] Feature: Generar PDF profesional de solicitud de transfer con branding Azul Cars (descargable desde tabla y detalle)
 - [x] Feature: Embeber logo PNG real de Azul Cars en el PDF de transfer en lugar del texto "AZUL."
 - [x] Feature: Vista semanal en calendario de transfers con detalle por hora y conductores asignados
+- [x] Feature: Calendario mensual como vista por defecto en el portal de brokers (solo transfers asignados al broker)
