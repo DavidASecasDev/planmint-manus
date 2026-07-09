@@ -100,14 +100,10 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
       // Verificar si hay una sesión válida antes de configurar listeners
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      // Si hay error de sesión inválida, limpiar
+      // If there's a session error, just clear local broker state.
+      // Do NOT call signOut() as it would destroy a valid PlanMint session.
       if (error) {
-        log.warn('Invalid broker session, clearing:', error.message);
-        try {
-          await supabase.auth.signOut();
-        } catch (e) {
-          // Ignorar errores de signOut
-        }
+        log.warn('Invalid/expired session for broker context:', error.message);
         setUser(null);
         setBroker(null);
         setLoading(false);
@@ -163,7 +159,6 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
       
       if (!profile) {
         // Check if user has a pending/rejected registration request
-        // Query broker_registrations table directly instead of broken RPC
         let status: { has_request: boolean; status?: string; rejection_reason?: string } | null = null;
         try {
           const { data: regData } = await (supabase as any)
@@ -180,7 +175,8 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
           status = { has_request: false };
         }
         
-        await supabase.auth.signOut();
+        // DO NOT sign out — the user may have a valid PlanMint session.
+        // Just report the error without destroying their auth state.
         setLoading(false);
         
         if (status?.has_request) {
@@ -195,11 +191,11 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
           }
         }
         
-        return { error: 'No tienes acceso al portal de brokers' };
+        return { error: 'No tienes acceso al portal de brokers. Contacta con tu administrador.' };
       }
       
       if (!profile.is_active) {
-        await supabase.auth.signOut();
+        // Inactive broker — also don't sign out, just report
         setLoading(false);
         return { error: 'Tu cuenta de broker está desactivada' };
       }

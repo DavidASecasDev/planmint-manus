@@ -43,18 +43,24 @@ export default function BrokerLogin() {
           data: { session },
         } = await supabase.auth.getSession();
         if (session?.user) {
-          // Query broker_profiles table directly instead of broken RPC
+          // Check if user already has a broker profile — if so, they'll be
+          // redirected to /broker by the isBroker effect below.
+          // If NOT a broker, do NOT sign them out — their PlanMint session
+          // must remain intact. Just show the login form.
           const { data: brokerData } = await (supabase as any)
             .from('broker_profiles')
             .select('id')
             .eq('user_id', session.user.id)
             .maybeSingle();
           if (!brokerData) {
-            await supabase.auth.signOut();
+            // User is logged into PlanMint but has no broker access.
+            // Previously we did signOut() here which destroyed their PlanMint session.
+            // Now we just proceed — they'll see the login form or a "no access" message.
+            console.info('[BrokerLogin] User has PlanMint session but no broker profile — preserving session');
           }
         }
       } catch (err) {
-        console.warn('[BrokerLogin] Error clearing session:', err);
+        console.warn('[BrokerLogin] Error checking session:', err);
       } finally {
         setClearingSession(false);
       }

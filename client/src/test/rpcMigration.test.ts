@@ -119,7 +119,7 @@ describe('Non-core RPC Fail-Graceful Migration', () => {
     const code = (source as any).default || '';
     expect(code).not.toContain("supabase.rpc('get_broker_registration_status'");
     expect(code).not.toContain(".rpc('get_broker_profile'");
-    expect(code).toContain("broker_registrations");
+    expect(code).toContain("broker_registration_requests");
     expect(code).toContain("broker_profiles");
   });
 
