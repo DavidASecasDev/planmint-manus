@@ -7,6 +7,8 @@
 import { Request, Response } from "express";
 import PDFDocument from "pdfkit";
 import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import {
   getServiceClient,
   authenticateSupabaseRequest,
@@ -27,6 +29,12 @@ const COLORS = {
 // Font paths (Liberation Sans supports Spanish characters)
 const FONT_REGULAR = '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf';
 const FONT_BOLD = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf';
+
+// Logo path - resolve relative to this file
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOGO_PATH = path.resolve(__dirname, '..', 'server', 'assets', 'logo.png');
+// Fallback for dev environment
+const LOGO_PATH_DEV = path.resolve(__dirname, 'assets', 'logo.png');
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-';
@@ -127,13 +135,19 @@ export async function handleTransferPdf(req: Request, res: Response) {
     doc.rect(0, 0, doc.page.width, 100).fill(COLORS.darkNavy);
     doc.restore();
 
-    // Logo text (since we can't easily embed the PNG in deployed env)
-    doc.font('Bold').fontSize(28).fillColor(COLORS.white);
-    doc.text('AZUL', 50, 30, { continued: true });
-    doc.fillColor(COLORS.gold).text('.', { continued: false });
+    // Logo image
+    const logoPath = fs.existsSync(LOGO_PATH) ? LOGO_PATH : LOGO_PATH_DEV;
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 50, 20, { height: 60 });
+    } else {
+      // Fallback to text if logo not found
+      doc.font('Bold').fontSize(28).fillColor(COLORS.white);
+      doc.text('AZUL', 50, 30, { continued: true });
+      doc.fillColor(COLORS.gold).text('.', { continued: false });
+    }
     
     doc.font('Regular').fontSize(10).fillColor(COLORS.lightGold);
-    doc.text('TRANSFERS', 50, 65);
+    doc.text('TRANSFERS', 50, 82);
 
     // Request number on the right
     doc.font('Bold').fontSize(12).fillColor(COLORS.white);

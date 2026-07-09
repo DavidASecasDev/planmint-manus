@@ -1396,3 +1396,4 @@
 - [x] Feature: Auto-generar contraseña segura en diálogo Nuevo Broker con botón copiar al portapapeles
 - [x] Feature: Botón "Resetear contraseña" en tabla de brokers para cambiar contraseña sin eliminar broker
 - [x] Feature: Generar PDF profesional de solicitud de transfer con branding Azul Cars (descargable desde tabla y detalle)
+- [x] Feature: Embeber logo PNG real de Azul Cars en el PDF de transfer en lugar del texto "AZUL."
