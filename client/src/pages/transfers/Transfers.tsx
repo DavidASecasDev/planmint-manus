@@ -5,13 +5,14 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { TransfersCalendar } from '@/components/transfers/TransfersCalendar';
+import { TransfersWeeklyCalendar } from '@/components/transfers/TransfersWeeklyCalendar';
 import { TransfersDailySummary } from '@/components/transfers/TransfersDailySummary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, LayoutGrid, FileDown } from 'lucide-react';
+import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, CalendarRange, LayoutGrid, FileDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,11 +53,11 @@ export default function Transfers() {
     status: 'all',
     clientType: 'all',
   });
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'daily'>(() => {
-    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar' | 'daily') || 'calendar';
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'weekly' | 'daily'>(() => {
+    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar' | 'weekly' | 'daily') || 'calendar';
   });
 
-  const handleViewModeChange = (mode: 'list' | 'calendar' | 'daily') => {
+  const handleViewModeChange = (mode: 'list' | 'calendar' | 'weekly' | 'daily') => {
     setViewMode(mode);
     localStorage.setItem('transfers_view_mode', mode);
   };
@@ -100,6 +101,15 @@ export default function Transfers() {
               title="Calendario mensual"
             >
               <CalendarDays className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'weekly' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none h-9"
+              onClick={() => handleViewModeChange('weekly')}
+              title="Vista semanal"
+            >
+              <CalendarRange className="w-4 h-4" />
             </Button>
             <Button
               variant={viewMode === 'daily' ? 'default' : 'ghost'}
@@ -195,6 +205,11 @@ export default function Transfers() {
       {/* Calendar view */}
       {viewMode === 'calendar' && (
         <TransfersCalendar requests={requests} />
+      )}
+
+      {/* Weekly view */}
+      {viewMode === 'weekly' && (
+        <TransfersWeeklyCalendar requests={requests} />
       )}
 
       {/* Daily summary view */}
