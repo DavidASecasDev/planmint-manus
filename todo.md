@@ -1399,3 +1399,4 @@
 - [x] Feature: Embeber logo PNG real de Azul Cars en el PDF de transfer en lugar del texto "AZUL."
 - [x] Feature: Vista semanal en calendario de transfers con detalle por hora y conductores asignados
 - [x] Feature: Calendario mensual como vista por defecto en el portal de brokers (solo transfers asignados al broker)
+- [x] Feature: Vista semanal con detalle por hora en el portal de brokers (igual que el panel principal)

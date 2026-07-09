@@ -9,6 +9,7 @@ import { useBrokerRequests, BrokerFilters } from '@/hooks/useBrokerRequests';
 import { useBrokerAuth } from '@/contexts/BrokerAuthContext';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { BrokerCalendar } from '@/components/broker/BrokerCalendar';
+import { BrokerWeeklyCalendar } from '@/components/broker/BrokerWeeklyCalendar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +39,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransferRequest } from '@/types/transfers';
 
-type ViewMode = 'calendar' | 'list';
+type ViewMode = 'calendar' | 'weekly' | 'list';
 
 export default function BrokerDashboard() {
   const { broker } = useBrokerAuth();
@@ -46,7 +47,7 @@ export default function BrokerDashboard() {
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem('broker-dashboard-view');
-    return (saved === 'list' || saved === 'calendar') ? saved : 'calendar';
+    return (saved === 'list' || saved === 'calendar' || saved === 'weekly') ? saved as ViewMode : 'calendar';
   });
 
   const handleViewChange = (mode: ViewMode) => {
@@ -150,9 +151,18 @@ export default function BrokerDashboard() {
             size="icon"
             className="h-8 w-8"
             onClick={() => handleViewChange('calendar')}
-            title="Vista calendario"
+            title="Vista mensual"
           >
             <CalendarDays className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'weekly' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => handleViewChange('weekly')}
+            title="Vista semanal"
+          >
+            <LayoutList className="h-4 w-4" />
           </Button>
           <Button
             variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -173,6 +183,8 @@ export default function BrokerDashboard() {
         </div>
       ) : viewMode === 'calendar' ? (
         <BrokerCalendar requests={requests} />
+      ) : viewMode === 'weekly' ? (
+        <BrokerWeeklyCalendar requests={requests} />
       ) : (
         <>
           {/* Filters (only in list view) */}
