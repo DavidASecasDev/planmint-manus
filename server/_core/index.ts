@@ -53,6 +53,7 @@ import {
 import { handleRequestBrokerAccess } from "../brokerRequestAccess";
 import { handleGetTransferBrokers } from "../brokerListEndpoint";
 import { handleLinkEmployeeAsBroker } from "../linkEmployeeAsBroker";
+import { handleUnlinkEmployeeAsBroker } from "../unlinkEmployeeAsBroker";
 import { handleCheckBrokerAccess } from "../checkBrokerAccess";
 import { handleSupabaseQuery } from "../supabaseProxy";
 import { handleGetOperationalDashboard } from "../dashboardEndpoint";
@@ -319,6 +320,7 @@ async function startServer() {
   app.post("/api/reject-broker-registration", handleRejectBrokerRegistration);
   app.post("/api/get-transfer-brokers", handleGetTransferBrokers);
   app.post("/api/link-employee-as-broker", handleLinkEmployeeAsBroker);
+  app.post("/api/unlink-employee-as-broker", handleUnlinkEmployeeAsBroker);
   app.post("/api/check-broker-access", handleCheckBrokerAccess);
   app.post("/api/supabase-query", handleSupabaseQuery);
 

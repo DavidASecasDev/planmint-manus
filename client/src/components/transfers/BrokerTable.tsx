@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TransferBroker, useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { usePermissions } from '@/hooks/usePermissions';
-import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2, UserMinus } from 'lucide-react';
 import { BrokerPortalDialog } from './BrokerPortalDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -42,6 +42,7 @@ interface BrokerTableProps {
 export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
   const { hasPermission } = usePermissions();
   const { toggleActive, deleteBroker } = useTransferBrokers();
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
   const [selectedBroker, setSelectedBroker] = useState<TransferBroker | null>(null);
@@ -185,6 +186,18 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
                           Configurar Portal
                         </DropdownMenuItem>
                       )}
+                      {broker.user_id && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedBroker(broker);
+                            setUnlinkDialogOpen(true);
+                          }}
+                          className="text-amber-600 focus:text-amber-600"
+                        >
+                          <UserMinus className="h-4 w-4 mr-2" />
+                          Desvincular Portal
+                        </DropdownMenuItem>
+                      )}
                       {canDelete && (
                         <>
                           <DropdownMenuSeparator />
@@ -223,6 +236,42 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unlink Broker Portal Confirmation */}
+      <AlertDialog open={unlinkDialogOpen} onOpenChange={setUnlinkDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desvincular acceso al portal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se revocará el acceso al portal de brokers para{' '}
+              <strong>{selectedBroker?.name}</strong>. El empleado seguirá teniendo su cuenta de PlanMint intacta, pero ya no podrá acceder al portal de brokers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!selectedBroker?.user_id) return;
+                try {
+                  const { apiInvoke } = await import('@/lib/apiClient');
+                  await apiInvoke('unlink-employee-as-broker', {
+                    body: { memberId: selectedBroker.user_id },
+                  });
+                  // Invalidate broker list
+                  window.location.reload();
+                } catch (err) {
+                  console.error('Error unlinking broker:', err);
+                }
+                setUnlinkDialogOpen(false);
+                setSelectedBroker(null);
+              }}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              Desvincular
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
