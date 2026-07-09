@@ -31,7 +31,7 @@ export default function BrokerRegister() {
 
   // Form state
   const [name, setName] = useState('');
-  const [company, setCompany] = useState('');
+
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -106,7 +106,6 @@ export default function BrokerRegister() {
           body: JSON.stringify({
             organization_id: organization.id,
             name: name.trim(),
-            company: company?.trim() || null,
             email: email.trim().toLowerCase(),
             phone: phone?.trim() || null,
             password,
@@ -418,19 +417,6 @@ export default function BrokerRegister() {
               />
             </div>
 
-            {/* Company */}
-            <div className="space-y-2">
-              <Label style={labelStyle}>Empresa</Label>
-              <Input
-                type="text"
-                placeholder="Nombre de tu empresa"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                disabled={isSubmitting}
-                className="h-11"
-                style={inputStyle}
-              />
-            </div>
 
             {/* Email */}
             <div className="space-y-2">
