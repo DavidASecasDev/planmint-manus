@@ -1648,7 +1648,9 @@ export type Database = {
           photo_url: string | null
           proveedor: string | null
           status: string
+          traccar_device_id: string | null
           updated_at: string
+          xexun_imei: string | null
         }
         Insert: {
           categoria?: string | null
@@ -1673,7 +1675,9 @@ export type Database = {
           photo_url?: string | null
           proveedor?: string | null
           status?: string
+          traccar_device_id?: string | null
           updated_at?: string
+          xexun_imei?: string | null
         }
         Update: {
           categoria?: string | null
@@ -1698,7 +1702,9 @@ export type Database = {
           photo_url?: string | null
           proveedor?: string | null
           status?: string
+          traccar_device_id?: string | null
           updated_at?: string
+          xexun_imei?: string | null
         }
         Relationships: [
           {

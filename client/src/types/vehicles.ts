@@ -52,6 +52,8 @@ export interface FleetVehicleInfo {
   km_recogida: number | null;
   km_devolucion: number | null;
   photo_url: string | null;
+  xexun_imei: string | null;
+  traccar_device_id: string | null;
 }
 
 export interface VehicleWithTasks extends Vehicle {

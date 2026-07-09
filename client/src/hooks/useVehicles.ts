@@ -114,7 +114,7 @@ export function useVehicles() {
       if (fleetVehicleIds.length > 0) {
         const { data: fleetData } = await supabase
           .from('fleet_vehicles')
-          .select('id, marca, color, combustible, numero_bastidor, numero_contrato, proveedor, fecha_inicio_contrato, fecha_fin_contrato, km_recogida, km_devolucion, photo_url')
+          .select('id, marca, color, combustible, numero_bastidor, numero_contrato, proveedor, fecha_inicio_contrato, fecha_fin_contrato, km_recogida, km_devolucion, photo_url, xexun_imei, traccar_device_id')
           .in('id', fleetVehicleIds);
 
         if (fleetData) {

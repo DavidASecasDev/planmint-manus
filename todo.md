@@ -1390,3 +1390,4 @@
 - [x] Feature: Log de auditoría — registrar quién vinculó/desvinculó a cada broker y cuándo
 - [x] Mejora: Toast de confirmación (sonner) al vincular/desvincular broker exitosamente
 - [x] Bug: Localizador GPS no aparece en perfil de vehículo 7757LVK — faltaba prop currentXexunImei en FleetDetail
+- [x] Feature: Indicador GPS en lista de flota y tarjetas Kanban para vehículos con localizador vinculado

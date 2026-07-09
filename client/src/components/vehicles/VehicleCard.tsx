@@ -5,7 +5,7 @@ import { VehicleWithTasks, CLEANING_TASKS, VehicleStatus, ServiceType } from '@/
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Car, Lock, ShieldCheck, ShieldX, ClipboardCheck, ArrowRightLeft } from 'lucide-react';
+import { User, MoreVertical, Archive, Wrench, CheckCircle, MapPin, Car, Lock, ShieldCheck, ShieldX, ClipboardCheck, ArrowRightLeft, Navigation } from 'lucide-react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -241,7 +241,12 @@ export function VehicleCard({ vehicle, onSelect, canDrag = false, isDragOverlay 
           <CardHeader className="p-3 pb-2">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-bold text-base tracking-wide">{vehicle.matricula}</h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-bold text-base tracking-wide">{vehicle.matricula}</h3>
+                  {(vehicle.fleet_info?.xexun_imei || vehicle.fleet_info?.traccar_device_id) && (
+                    <Navigation className="h-3.5 w-3.5 text-emerald-600" />
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground truncate max-w-[140px]">
                   {vehicle.modelo || 'Sin modelo'}
                 </p>

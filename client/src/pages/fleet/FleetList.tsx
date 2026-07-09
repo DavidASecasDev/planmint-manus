@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkeletonTransition } from '@/components/ui/skeleton-transition';
-import { Plus, Search, Upload, ChevronRight, Car, Palette, Fuel, Zap, Settings, Calendar, Building2, Layers, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Upload, ChevronRight, Car, Palette, Fuel, Zap, Settings, Calendar, Building2, Layers, AlertTriangle, Navigation } from 'lucide-react';
 import { FLEET_STATUS_OPTIONS, type FleetVehicleStatus } from '@/types/fleet';
 import { FleetImportDialog } from '@/components/fleet/FleetImportDialog';
 import { useQuery } from '@tanstack/react-query';
@@ -249,6 +249,15 @@ export default function FleetList() {
                               >
                                 <AlertTriangle className="h-3 w-3" />
                                 {damageCounts[v.id]}
+                              </Badge>
+                            )}
+                            {(v.xexun_imei || v.traccar_device_id) && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-2 py-0 h-5 rounded-full font-medium border-0 bg-emerald-500/10 text-emerald-600 gap-1"
+                              >
+                                <Navigation className="h-3 w-3" />
+                                GPS
                               </Badge>
                             )}
                           </div>
