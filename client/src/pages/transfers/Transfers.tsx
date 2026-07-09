@@ -53,7 +53,7 @@ export default function Transfers() {
     clientType: 'all',
   });
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'daily'>(() => {
-    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar' | 'daily') || 'list';
+    return (localStorage.getItem('transfers_view_mode') as 'list' | 'calendar' | 'daily') || 'calendar';
   });
 
   const handleViewModeChange = (mode: 'list' | 'calendar' | 'daily') => {
