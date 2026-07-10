@@ -10,14 +10,8 @@ import { Loader2, Users, UserCheck, CalendarCheck, Sparkles, Bus, AlertTriangle,
 
 // Operational notification events with metadata
 const OPERATIONAL_EVENTS = [
-  { key: 'rental_assigned', label: 'Asignación Rental', description: 'Cuando se asigna un empleado a una entrega/devolución', icon: UserCheck },
-  { key: 'escoba_assigned', label: 'Asignación Escoba', description: 'Cuando se asigna un empleado como escoba', icon: Paintbrush },
-  { key: 'hora_confirmada', label: 'Hora Confirmada', description: 'Cuando se confirma la hora de una operación', icon: CalendarCheck },
-  { key: 'vehiculo_listo', label: 'Vehículo Listo', description: 'Cuando un vehículo termina la preparación', icon: Sparkles },
-  { key: 'shuttle_programado', label: 'Shuttle Programado', description: 'Cuando se marca una operación como shuttle', icon: Bus },
-  { key: 'refuerzo_necesario', label: 'Refuerzo Necesario', description: 'Cuando se detecta que se necesitan refuerzos', icon: AlertTriangle },
-  { key: 'nueva_reserva', label: 'Nueva Reserva', description: 'Cuando se crea una nueva reserva', icon: Plus },
-  { key: 'reserva_cancelada', label: 'Reserva Cancelada', description: 'Cuando se cancela o archiva una reserva', icon: XCircle },
+  { key: 'transfer_status_change', label: 'Nueva Solicitud de Transfer', description: 'Cuando se recibe una nueva solicitud de transfer', icon: Plus },
+  { key: 'nueva_reserva', label: 'Nueva Reserva (Hoy)', description: 'Cuando entra una nueva reserva para el día en curso', icon: CalendarCheck },
 ] as const;
 
 interface EventConfig {

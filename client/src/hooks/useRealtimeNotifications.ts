@@ -146,6 +146,9 @@ export function useRealtimeNotifications() {
         (payload) => {
           const n = payload.new as any;
           lastSeenAtRef.current = new Date().toISOString();
+          // Only process notifications for allowed types
+          const ALLOWED_REALTIME_TYPES = ['transfer_status_change', 'nueva_reserva'];
+          if (!ALLOWED_REALTIME_TYPES.includes(n.type)) return;
           handleNewNotification(n);
         }
       )
@@ -162,11 +165,14 @@ export function useRealtimeNotifications() {
 
     const interval = setInterval(async () => {
       try {
+        // Only poll for allowed notification types
+        const ALLOWED_POLL_TYPES = ['transfer_status_change', 'nueva_reserva'];
         const { data, error } = await supabaseQuery
           .from('notifications')
           .select('id, title, body, type, entity_type, entity_id, created_at')
           .eq('user_id', user.id)
           .eq('is_read', false)
+          .in('type', ALLOWED_POLL_TYPES)
           .gt('created_at', lastSeenAtRef.current)
           .order('created_at', { ascending: true })
           .limit(5);

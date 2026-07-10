@@ -1401,3 +1401,4 @@
 - [x] Feature: Calendario mensual como vista por defecto en el portal de brokers (solo transfers asignados al broker)
 - [x] Feature: Vista semanal con detalle por hora en el portal de brokers (igual que el panel principal)
 - [x] Feature: API externa para Bluebnc (BYM) - crear solicitudes de transfer desde sistema externo con autenticación por API key
+- [x] Feature: Simplificar notificaciones - solo mostrar: nueva solicitud de transfer y nueva reserva para el día en curso

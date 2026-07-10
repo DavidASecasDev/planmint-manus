@@ -27,9 +27,12 @@ export function useNotifications() {
     queryKey: ['notifications', organizationId],
     queryFn: async (): Promise<NotificationWithDetails[]> => {
       if (!organizationId) return [];
+      // Only show notifications for: new transfer requests and new reservations for today
+      const ALLOWED_TYPES = ['transfer_status_change', 'nueva_reserva'];
       const { data, error } = await supabaseQuery
         .from('notifications')
         .select('*')
+        .in('type', ALLOWED_TYPES)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -120,9 +123,12 @@ export function useNotifications() {
     queryKey: ['notifications-unread-count', organizationId],
     queryFn: async (): Promise<number> => {
       if (!organizationId) return 0;
+      // Only count unread for allowed notification types
+      const ALLOWED_TYPES_COUNT = ['transfer_status_change', 'nueva_reserva'];
       const { count, error } = await supabaseQuery
         .from('notifications')
         .select('*', { count: 'exact', head: true })
+        .in('type', ALLOWED_TYPES_COUNT)
         .eq('is_read', false);
 
       if (error) {

@@ -260,22 +260,9 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         await syncVehiclesAfterReservations();
       }
 
-      // Vehicle prep and stale transfer alert notifications
-      // Re-enabled: hooks have localStorage throttle (6h) + 7-day DB dedup window
-      try {
-        const alertsSent = await checkAndAlertVehiclePrep();
-        if (alertsSent > 0) console.log(`[AutoSync] Sent ${alertsSent} vehicle prep alert(s)`);
-      } catch (alertErr) {
-        console.warn('[AutoSync] Vehicle prep alert check failed:', alertErr);
-      }
-
-      // Equipment shortage alerts
-      try {
-        const shortageAlerts = await checkAndAlertEquipmentShortage();
-        if (shortageAlerts > 0) console.log(`[AutoSync] Sent ${shortageAlerts} equipment shortage alert(s)`);
-      } catch (eqErr) {
-        console.warn('[AutoSync] Equipment shortage alert check failed:', eqErr);
-      }
+      // Vehicle prep and equipment shortage alert notifications — DISABLED
+      // Only showing notifications for: new transfer requests and new reservations for today
+      // Kept hooks imported for future re-enablement if needed
 
       return finalResult;
     } catch (err) {
@@ -298,7 +285,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
         resetCountdown();
       }
     }
-  }, [syncVehiclesAfterReservations, checkAndAlertVehiclePrep, autoSyncEnabled, isConfigured, resetCountdown]);
+  }, [syncVehiclesAfterReservations, autoSyncEnabled, isConfigured, resetCountdown]);
 
   const pauseSync = useCallback(() => { pauseRequestedRef.current = true; }, []);
   const cancelSync = useCallback(() => { cancelRequestedRef.current = true; }, []);

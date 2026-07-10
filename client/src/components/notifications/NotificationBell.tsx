@@ -80,7 +80,7 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, fetchNotifications } = useNotifications();
   
-  useReminderNotifications();
+  // useReminderNotifications(); // DISABLED — only showing transfer requests and same-day reservations
 
   const handleNotificationClick = async (notification: NotificationWithDetails) => {
     if (!notification.is_read) {
