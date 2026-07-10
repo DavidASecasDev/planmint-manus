@@ -1402,3 +1402,4 @@
 - [x] Feature: Vista semanal con detalle por hora en el portal de brokers (igual que el panel principal)
 - [x] Feature: API externa para Bluebnc (BYM) - crear solicitudes de transfer desde sistema externo con autenticación por API key
 - [x] Feature: Simplificar notificaciones - solo mostrar: nueva solicitud de transfer y nueva reserva para el día en curso
+- [x] Feature: Resumen matinal automático a las 7:00 con recuento de transfers y reservas del día (notificación push)

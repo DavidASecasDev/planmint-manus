@@ -152,6 +152,7 @@ import { handleScheduledRentlyPoll } from "../scheduledRentlyPoll";
 import { handleScheduledRentlyEnrich } from "../scheduledRentlyEnrich";
 import { handleScheduledGeofenceCheck } from "../scheduledGeofenceCheck";
 import { handleScheduledXexunPoll } from "../scheduledXexunPoll";
+import { handleScheduledMorningSummary } from "../scheduledMorningSummary";
 import { handlePublicTimeline, handleAuthenticatedTimeline } from "../timelineEndpoint";
 import { handleRepairServiceSync } from "../repairServiceSync";
 import {
@@ -551,6 +552,7 @@ async function startServer() {
   app.post("/api/scheduled/rently-enrich", handleScheduledRentlyEnrich);
   app.post("/api/scheduled/geofence-check", handleScheduledGeofenceCheck);
   app.post("/api/scheduled/xexun-poll", handleScheduledXexunPoll);
+  app.post("/api/scheduled/morning-summary", handleScheduledMorningSummary);
 
   // Open Graph meta tags for /track/:token (must be before SPA catch-all)
   const { trackingOgMiddleware } = await import("../trackingOgMiddleware");
