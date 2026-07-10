@@ -236,6 +236,8 @@ import {
 } from "../parkingEndpoints";
 import notificationTriggerRouter from "../notificationTriggerEndpoint";
 import { handleChangeVehicleStatus, handleGetVehicleStatusHistory } from "../vehicleStatusChangeEndpoint";
+import externalApiTransfersRouter from "../externalApiTransfers";
+import { handleCreateApiKey, handleListApiKeys, handleRevokeApiKey, handleGetApiKeyLogs } from "../externalApiKeyManagement";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -532,6 +534,13 @@ async function startServer() {
   app.post("/api/parking/history", handleGetParkingHistory);
   app.post("/api/parking/overview", handleGetParkingOverview);
   app.post("/api/parking/seed-layout", handleSeedParkingLayout);
+
+  // ─── External API (B2B) ──────────────────────────────────────────────────
+  app.use("/api/external/v1/transfers", externalApiTransfersRouter);
+  app.post("/api/external/v1/keys", handleCreateApiKey);
+  app.get("/api/external/v1/keys", handleListApiKeys);
+  app.delete("/api/external/v1/keys/:id", handleRevokeApiKey);
+  app.get("/api/external/v1/keys/:id/logs", handleGetApiKeyLogs);
 
   // ─── Notification Trigger ─────────────────────────────────────────────────
   app.use("/api/notifications", notificationTriggerRouter);
