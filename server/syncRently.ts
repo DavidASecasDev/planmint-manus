@@ -179,7 +179,7 @@ const DOCUMENT_TYPE_MAP: Record<number, string> = {
 const EXCLUDED_NEW_STATUSES = [5]; // Cotizado
 const CANCELLATION_STATUS = 4;
 const PAGE_SIZE = 100;
-const REQUEST_TIMEOUT_MS = 45000;
+const REQUEST_TIMEOUT_MS = 60000;
 const DETAIL_TIMEOUT_MS = 15000;
 
 // ─── Performance tuning ─────────────────────────────────────────────────────
