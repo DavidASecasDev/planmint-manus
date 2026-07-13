@@ -181,6 +181,7 @@ import {
   handleStartPreparation,
 } from "../preparationProgressEndpoints";
 import { handleGetPreparationHistory } from "../preparationHistoryEndpoints";
+import { handleToggleCleaningTask } from "../toggleCleaningTaskEndpoint";
 import {
   handleGetProductCategories,
   handleCreateProductCategory,
@@ -451,6 +452,7 @@ async function startServer() {
   // Preparation progress (module)
   app.post("/api/get-preparation-progress", handleGetPreparationProgress);
   app.post("/api/start-preparation", handleStartPreparation);
+  app.post("/api/toggle-cleaning-task", handleToggleCleaningTask);
   app.post("/api/get-preparation-history", handleGetPreparationHistory);
 
   // Product stock management

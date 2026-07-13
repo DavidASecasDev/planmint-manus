@@ -285,30 +285,15 @@ export function useVehicles() {
       if (!profile?.id) {
         throw new Error('No se pudo identificar el usuario');
       }
-      
-      const { error } = await supabase
-        .from('vehicle_cleaning_tasks')
-        .update({
-          completed,
-          completed_at: completed ? new Date().toISOString() : null,
-          completed_by: completed ? profile.id : null,
-        })
-        .eq('id', taskId);
 
-      if (error) throw error;
+      // Route through backend to bypass RLS issues with expired Supabase sessions
+      const { data, error } = await apiInvoke<{ ok: boolean; taskId: string; completed: boolean; error?: string }>(
+        'toggle-cleaning-task',
+        { body: { taskId, completed, vehicleId, taskKey } }
+      );
 
-      // Record in cleaning history when completing a task
-      if (completed && vehicleId && taskKey && orgId) {
-        await supabase
-          .from('vehicle_cleaning_history')
-          .insert({
-            organization_id: orgId,
-            vehicle_id: vehicleId,
-            task_key: taskKey,
-            completed_by: profile.id,
-            completed_at: new Date().toISOString(),
-          });
-      }
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error || 'Error desconocido');
 
       // Auto-transition to 'limpio' is handled by DB trigger (auto_transition_vehicle_to_clean)
       

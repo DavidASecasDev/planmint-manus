@@ -1407,3 +1407,4 @@
 - [x] Feature: Campos de capitán en formulario de edición del broker
 - [x] Feature: Mostrar capitán en la vista del conductor para contactar directamente
 - [x] Feature: Validación de formato internacional (+34...) en teléfono del capitán
+- [x] Bug fix: "Limpieza interior" checkbox no se puede marcar para vehículo 1399MTN — sesión Supabase expirada causa fallo silencioso de RLS. Solución: redirigir toggle a través del backend (service role) vía /api/toggle-cleaning-task
