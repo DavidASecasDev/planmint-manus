@@ -1409,3 +1409,4 @@
 - [x] Feature: Validación de formato internacional (+34...) en teléfono del capitán
 - [x] Bug fix: "Limpieza interior" checkbox no se puede marcar para vehículo 1399MTN — sesión Supabase expirada causa fallo silencioso de RLS. Solución: redirigir toggle a través del backend (service role) vía /api/toggle-cleaning-task
 - [x] Bug fix v2: Mejorar toggle de tareas - eliminar check profile?.id bloqueante, añadir optimistic update para feedback instantáneo, rollback automático en error
+- [x] Bug fix v3 (CAUSA RAÍZ REAL): Trigger `auto_transition_vehicle_to_clean` NO era SECURITY DEFINER → al completar la ÚLTIMA tarea, el trigger intentaba UPDATE vehicles pero RLS lo bloqueaba (policy vehicles_manage_admins requiere rol admin/manager). Solución: ALTER FUNCTION auto_transition_vehicle_to_clean() SECURITY DEFINER. Vehículo 1399MTN marcado como limpio.
