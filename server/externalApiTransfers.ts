@@ -55,6 +55,8 @@ interface CreateTransferInput {
   villa_name?: string;
   boat_name?: string;
   berth_number?: string;
+  captain_name?: string;
+  captain_phone?: string;
   service_type?: "point_to_point" | "hourly" | "daily" | "airport" | "port";
   notes?: string;
   broker_reference?: string; // External reference from BYM
@@ -231,6 +233,8 @@ router.post("/", async (req: Request, res: Response) => {
         villa_name: input.villa_name || null,
         boat_name: input.boat_name || null,
         berth_number: input.berth_number || null,
+        captain_name: input.captain_name || null,
+        captain_phone: input.captain_phone || null,
         service_type: input.service_type || "point_to_point",
         notes: input.notes || null,
         client_reference: input.broker_reference || null,

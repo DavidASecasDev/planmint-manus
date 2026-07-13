@@ -141,6 +141,20 @@ export default function BrokerRequestDetail() {
               <p className="font-medium">{request.berth_number}</p>
             </div>
           )}
+          {request.client_type === 'charter' && request.captain_name && (
+            <div>
+              <span className="text-muted-foreground">Capitán</span>
+              <p className="font-medium">{request.captain_name}</p>
+            </div>
+          )}
+          {request.client_type === 'charter' && request.captain_phone && (
+            <div>
+              <span className="text-muted-foreground">Tel. Capitán</span>
+              <p className="font-medium">
+                <a href={`tel:${request.captain_phone}`} className="text-blue-600 hover:underline">{request.captain_phone}</a>
+              </p>
+            </div>
+          )}
           {request.client_type === 'villa' && request.villa_name && (
             <div>
               <span className="text-muted-foreground">Villa</span>

@@ -24,6 +24,8 @@ export interface CreateInternalRequestData {
   villa_name?: string;
   boat_name?: string;
   berth_number?: string;
+  captain_name?: string;
+  captain_phone?: string;
   notes?: string;
   items: Array<{
     direction: 'ida' | 'vuelta';
@@ -348,6 +350,8 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           villa_name: data.client_type === 'villa' ? (data.villa_name || null) : null,
           boat_name: data.client_type === 'charter' ? (data.boat_name || null) : null,
           berth_number: data.client_type === 'charter' ? (data.berth_number || null) : null,
+          captain_name: data.client_type === 'charter' ? (data.captain_name || null) : null,
+          captain_phone: data.client_type === 'charter' ? (data.captain_phone || null) : null,
           notes: data.notes || null,
           created_by: profile.id,
         })
@@ -416,6 +420,8 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           villa_name: request.villa_name,
           boat_name: request.boat_name,
           berth_number: request.berth_number,
+          captain_name: request.captain_name,
+          captain_phone: request.captain_phone,
           notes: request.notes,
           created_by: profile.id,
         })

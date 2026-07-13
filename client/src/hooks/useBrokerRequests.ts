@@ -42,6 +42,8 @@ export interface CreateBrokerRequestData {
   villa_name?: string;
   boat_name?: string;
   berth_number?: string;
+  captain_name?: string;
+  captain_phone?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
@@ -55,6 +57,8 @@ export interface UpdateBrokerRequestData {
   villa_name?: string;
   boat_name?: string;
   berth_number?: string;
+  captain_name?: string;
+  captain_phone?: string;
   notes?: string;
   items: BrokerRequestItemData[];
 }
@@ -154,6 +158,8 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           villa_name: data.client_type === 'villa' ? (data.villa_name || null) : null,
           boat_name: data.client_type === 'charter' ? (data.boat_name || null) : null,
           berth_number: data.client_type === 'charter' ? (data.berth_number || null) : null,
+          captain_name: data.client_type === 'charter' ? (data.captain_name || null) : null,
+          captain_phone: data.client_type === 'charter' ? (data.captain_phone || null) : null,
           notes: data.notes || null,
         })
         .select()
@@ -244,6 +250,8 @@ export function useBrokerRequests(filters?: BrokerFilters) {
           villa_name: data.client_type === 'villa' ? (data.villa_name || null) : null,
           boat_name: data.client_type === 'charter' ? (data.boat_name || null) : null,
           berth_number: data.client_type === 'charter' ? (data.berth_number || null) : null,
+          captain_name: data.client_type === 'charter' ? (data.captain_name || null) : null,
+          captain_phone: data.client_type === 'charter' ? (data.captain_phone || null) : null,
           notes: data.notes || null,
           updated_at: new Date().toISOString(),
         })

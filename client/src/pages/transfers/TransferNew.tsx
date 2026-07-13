@@ -28,6 +28,8 @@ export default function TransferNew() {
   const [villaName, setVillaName] = useState('');
   const [boatName, setBoatName] = useState('');
   const [berthNumber, setBerthNumber] = useState('');
+  const [captainName, setCaptainName] = useState('');
+  const [captainPhone, setCaptainPhone] = useState('');
   const [notes, setNotes] = useState('');
 
   // Items
@@ -105,6 +107,8 @@ export default function TransferNew() {
         villa_name: villaName,
         boat_name: boatName,
         berth_number: berthNumber,
+        captain_name: captainName,
+        captain_phone: captainPhone,
         notes,
         items: finalItems,
       });
@@ -172,16 +176,28 @@ export default function TransferNew() {
           )}
 
           {clientType === 'charter' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nombre del barco</Label>
-                <Input value={boatName} onChange={e => setBoatName(e.target.value)} placeholder="Ej: Lady Blue" />
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nombre del barco</Label>
+                  <Input value={boatName} onChange={e => setBoatName(e.target.value)} placeholder="Ej: Lady Blue" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número de amarre</Label>
+                  <Input value={berthNumber} onChange={e => setBerthNumber(e.target.value)} placeholder="Ej: A-42" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Número de amarre</Label>
-                <Input value={berthNumber} onChange={e => setBerthNumber(e.target.value)} placeholder="Ej: A-42" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nombre del capitán</Label>
+                  <Input value={captainName} onChange={e => setCaptainName(e.target.value)} placeholder="Ej: John Smith" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Teléfono del capitán</Label>
+                  <Input value={captainPhone} onChange={e => setCaptainPhone(e.target.value)} placeholder="+34 600 000 000" />
+                </div>
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>

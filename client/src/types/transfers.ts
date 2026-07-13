@@ -27,6 +27,8 @@ export interface TransferRequest {
   // Charter-specific
   boat_name: string | null;
   berth_number: string | null;
+  captain_name: string | null;
+  captain_phone: string | null;
   // Notes
   notes: string | null;
   // Rejection
@@ -85,6 +87,8 @@ export interface TransferRequestFormData {
   villa_name: string;
   boat_name: string;
   berth_number: string;
+  captain_name: string;
+  captain_phone: string;
   notes: string;
 }
 

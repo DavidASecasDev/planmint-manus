@@ -1403,3 +1403,4 @@
 - [x] Feature: API externa para Bluebnc (BYM) - crear solicitudes de transfer desde sistema externo con autenticación por API key
 - [x] Feature: Simplificar notificaciones - solo mostrar: nueva solicitud de transfer y nueva reserva para el día en curso
 - [x] Feature: Resumen matinal automático a las 7:00 con recuento de transfers y reservas del día (notificación push)
+- [x] Feature: Añadir campos "Nombre del capitán" y "Número del capitán" en solicitudes de transfer para clientes de charter
