@@ -53,6 +53,13 @@ export default function TransferNew() {
       toast.error('El nombre del cliente es obligatorio');
       return;
     }
+    if (clientType === 'charter' && captainPhone) {
+      const intlPhoneRegex = /^\+[1-9]\d{6,14}$/;
+      if (!intlPhoneRegex.test(captainPhone.replace(/\s/g, ''))) {
+        toast.error('El teléfono del capitán debe tener formato internacional (ej: +34 600 000 000)');
+        return;
+      }
+    }
 
     // Build items array (including return trips)
     const finalItems: CreateInternalRequestData['items'] = [];
@@ -195,6 +202,7 @@ export default function TransferNew() {
                 <div className="space-y-2">
                   <Label>Teléfono del capitán</Label>
                   <Input value={captainPhone} onChange={e => setCaptainPhone(e.target.value)} placeholder="+34 600 000 000" />
+                  <p className="text-xs text-muted-foreground">Formato internacional: +34 600 000 000</p>
                 </div>
               </div>
             </>

@@ -33,6 +33,8 @@ interface DailyTransferEvent {
   dropoffPlaceId: string | null;
   driverName: string | null;
   driverPhone: string | null;
+  captainName: string | null;
+  captainPhone: string | null;
   paxCount: number | null;
   flightNumber: string | null;
 }
@@ -108,6 +110,8 @@ export function TransfersDailySummary({ requests }: TransfersDailySummaryProps) 
           dropoffPlaceId: item.dropoff_place_id,
           driverName: item.driver_name,
           driverPhone: item.driver_phone,
+          captainName: req.captain_name,
+          captainPhone: req.captain_phone,
           paxCount: item.pax_count,
           flightNumber: item.flight_number,
         });
@@ -265,6 +269,22 @@ export function TransfersDailySummary({ requests }: TransfersDailySummaryProps) 
                               <ExternalLink className="w-2.5 h-2.5 shrink-0" />
                             </button>
                           </div>
+
+                          {/* Captain info for charter */}
+                          {evt.clientType === 'charter' && evt.captainName && (
+                            <div className="flex items-center gap-2 text-xs bg-blue-50 px-2 py-1 rounded">
+                              <span className="text-blue-700 font-medium">Capitán: {evt.captainName}</span>
+                              {evt.captainPhone && (
+                                <a
+                                  href={`tel:${evt.captainPhone}`}
+                                  className="flex items-center gap-0.5 text-blue-600 hover:underline"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <Phone className="w-3 h-3" /> {evt.captainPhone}
+                                </a>
+                              )}
+                            </div>
+                          )}
 
                           {/* Vehicle & driver row */}
                           <div className="flex items-center gap-3 text-xs">

@@ -1404,3 +1404,6 @@
 - [x] Feature: Simplificar notificaciones - solo mostrar: nueva solicitud de transfer y nueva reserva para el día en curso
 - [x] Feature: Resumen matinal automático a las 7:00 con recuento de transfers y reservas del día (notificación push)
 - [x] Feature: Añadir campos "Nombre del capitán" y "Número del capitán" en solicitudes de transfer para clientes de charter
+- [x] Feature: Campos de capitán en formulario de edición del broker
+- [x] Feature: Mostrar capitán en la vista del conductor para contactar directamente
+- [x] Feature: Validación de formato internacional (+34...) en teléfono del capitán

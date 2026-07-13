@@ -58,6 +58,13 @@ export default function BrokerNewRequest() {
       toast.error('Cada servicio debe tener recogida y destino');
       return;
     }
+    if (clientType === 'charter' && captainPhone) {
+      const intlPhoneRegex = /^\+[1-9]\d{6,14}$/;
+      if (!intlPhoneRegex.test(captainPhone.replace(/\s/g, ''))) {
+        toast.error('El teléfono del capitán debe tener formato internacional (ej: +34 600 000 000)');
+        return;
+      }
+    }
 
     // Convert form items to the expected format
     const finalItems: Array<import('@/hooks/useBrokerRequests').BrokerRequestItemData> = [];
@@ -218,6 +225,7 @@ export default function BrokerNewRequest() {
                 <div className="space-y-2">
                   <Label>Teléfono del capitán</Label>
                   <Input value={captainPhone} onChange={e => setCaptainPhone(e.target.value)} placeholder="+34 600 000 000" />
+                  <p className="text-xs text-muted-foreground">Formato internacional: +34 600 000 000</p>
                 </div>
               </div>
             </>

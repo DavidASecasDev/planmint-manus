@@ -4,7 +4,7 @@ import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, MapPin, Clock, Phone, Ship, Building2, Plane, Car, ExternalLink, User } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Phone, Ship, Building2, Plane, Car, ExternalLink, User, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DIRECTION_META, VEHICLE_TYPE_META, CLIENT_TYPE_META } from '@/types/transfers';
@@ -69,6 +69,11 @@ export default function BrokerRequestDetail() {
             Creado {format(new Date(request.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
           </p>
         </div>
+        {request.status === 'pendiente' && (
+          <Button variant="outline" onClick={() => navigate(`/broker/request/${id}/edit`)}>
+            <Pencil className="w-4 h-4 mr-2" /> Editar
+          </Button>
+        )}
         {canCancel && (
           <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleCancel}>
             Cancelar solicitud
