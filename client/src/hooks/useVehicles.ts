@@ -278,15 +278,10 @@ export function useVehicles() {
     },
   });
 
-  // Toggle a cleaning task - with optimistic update to avoid Sheet closing
+  // Toggle a cleaning task - routes through backend to bypass RLS/session issues
   const toggleTaskMutation = useMutation({
     mutationFn: async ({ taskId, completed, vehicleId, taskKey }: { taskId: string; completed: boolean; vehicleId?: string; taskKey?: string }) => {
-      // Verify we have the user profile before proceeding
-      if (!profile?.id) {
-        throw new Error('No se pudo identificar el usuario');
-      }
-
-      // Route through backend to bypass RLS issues with expired Supabase sessions
+      // Route through backend using service role (bypasses RLS entirely)
       const { data, error } = await apiInvoke<{ ok: boolean; taskId: string; completed: boolean; error?: string }>(
         'toggle-cleaning-task',
         { body: { taskId, completed, vehicleId, taskKey } }
@@ -295,9 +290,26 @@ export function useVehicles() {
       if (error) throw new Error(error.message);
       if (!data?.ok) throw new Error(data?.error || 'Error desconocido');
 
-      // Auto-transition to 'limpio' is handled by DB trigger (auto_transition_vehicle_to_clean)
-      
       return { taskId, completed, vehicleId };
+    },
+    onMutate: async ({ taskId, completed }) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['vehicles', orgId] });
+      // Snapshot previous value for rollback
+      const previousVehicles = queryClient.getQueryData(['vehicles', orgId]);
+      // Optimistically update the task in cache for instant UI feedback
+      queryClient.setQueryData(['vehicles', orgId], (old: any) => {
+        if (!old) return old;
+        return old.map((v: any) => ({
+          ...v,
+          cleaning_tasks: v.cleaning_tasks?.map((t: any) =>
+            t.id === taskId
+              ? { ...t, completed, completed_at: completed ? new Date().toISOString() : null, completed_by_profile: completed ? { name: profile?.name || '' } : null }
+              : t
+          ),
+        }));
+      });
+      return { previousVehicles };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles', orgId] });
@@ -305,15 +317,17 @@ export function useVehicles() {
       queryClient.invalidateQueries({ queryKey: ['vehicles-for-preparation'] });
       queryClient.invalidateQueries({ queryKey: ['preparation-list'] });
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
       console.error('[useVehicles] Toggle task error:', error);
+      // Rollback optimistic update on failure
+      if (context?.previousVehicles) {
+        queryClient.setQueryData(['vehicles', orgId], context.previousVehicles);
+      }
       toast({
         title: 'Error',
-        description: 'No se pudo actualizar la tarea.',
+        description: error.message || 'No se pudo actualizar la tarea.',
         variant: 'destructive',
       });
-      // Refetch on error to sync with server state
-      queryClient.invalidateQueries({ queryKey: ['vehicles', orgId] });
     },
   });
 
