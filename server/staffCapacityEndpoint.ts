@@ -417,7 +417,14 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
 
     const sb = getServiceClient();
 
-    // ── 1. Fetch reservations for this date ─────────────────────────────────
+    // ── 1. Fetch reservations that could have operations on this date ────────
+    // We need reservations where:
+    //   - confirmed_entrega_datetime or desde falls on this date (for Entrega/Transfer)
+    //   - confirmed_devolucion_datetime or hasta falls on this date (for Devolución)
+    // Using a broad filter: desde <= end_of_day AND hasta >= start_of_day (overlap check)
+    // Plus confirmed datetimes that might place operations on this date
+    const dayStart = `${date}T00:00:00`;
+    const dayEnd = `${date}T23:59:59`;
     const { data: reservations, error: resErr } = await sb
       .from("reservations")
       .select(
@@ -430,7 +437,13 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       )
       .eq("organization_id", orgId)
       .is("archived_at", null)
-      .neq("estado", "Cancelada");
+      .neq("estado", "Cancelada")
+      .or(
+        `and(desde.gte.${dayStart},desde.lte.${dayEnd}),` +
+        `and(hasta.gte.${dayStart},hasta.lte.${dayEnd}),` +
+        `and(confirmed_entrega_datetime.gte.${dayStart},confirmed_entrega_datetime.lte.${dayEnd}),` +
+        `and(confirmed_devolucion_datetime.gte.${dayStart},confirmed_devolucion_datetime.lte.${dayEnd})`
+      );
 
     if (resErr) throw resErr;
 
