@@ -18,6 +18,7 @@ import { ModuleRoute } from "@/components/modules/ModuleRoute";
 import { BrokerProtectedRoute } from "@/components/broker/BrokerProtectedRoute";
 import { ErrorBoundary, RouteErrorBoundary } from "@/components/ErrorBoundary";
 import { useVisibilityRecovery } from "@/hooks/useVisibilityRecovery";
+import { useVersionPolling } from "@/hooks/useVersionPolling";
 
 // PWA Components
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -230,6 +231,9 @@ function MainAppRoutes() {
 function QueryRecovery() {
   // Invalidate stale queries when user returns after 5+ min of inactivity
   useVisibilityRecovery(5 * 60 * 1000);
+
+  // Poll for new deployments and prompt user to reload
+  useVersionPolling();
 
   return (
     <AuthProvider>

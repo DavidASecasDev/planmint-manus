@@ -97,9 +97,16 @@ function vitePluginManusDebugCollector(): Plugin {
 }
 
 // =============================================================================
+// Build-time version hash (used for version polling)
+// =============================================================================
+const BUILD_VERSION = process.env.BUILD_VERSION || Date.now().toString(36);
+
+// =============================================================================
 // Build Supabase fallback defines
 // =============================================================================
-const fallbackDefine: Record<string, string> = {};
+const fallbackDefine: Record<string, string> = {
+  '__APP_BUILD_VERSION__': JSON.stringify(BUILD_VERSION),
+};
 // In dev mode, loadEnv is not available here since we export a plain config.
 // We set the fallbacks unconditionally; if the env vars are already set,
 // the real values will override these at runtime.

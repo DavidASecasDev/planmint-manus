@@ -272,6 +272,13 @@ async function startServer() {
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 
+  // ─── Version endpoint (for frontend version polling) ─────────────────────
+  const SERVER_BUILD_VERSION = process.env.BUILD_VERSION || '__dev__';
+  app.get("/api/version", (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.json({ version: SERVER_BUILD_VERSION, timestamp: Date.now() });
+  });
+
   // ─── Migrated Edge Function endpoints ──────────────────────────────────────
   app.post("/api/ocr-plate", handleOcrPlate);
   app.post("/api/sync-rently", handleSyncRently);
