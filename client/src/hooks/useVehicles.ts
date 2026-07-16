@@ -41,6 +41,8 @@ export function useVehicles() {
       if (!vehiclesData || vehiclesData.length === 0) return [];
 
       // Fetch cleaning tasks for all vehicles with profile names for completed_by
+      // NOTE: Must set explicit limit > 1000 because Supabase defaults to 1000 rows
+      // and we have ~1148 tasks (152 vehicles × 7 tasks each)
       const vehicleIds = vehiclesData.map(v => v.id);
       const { data: tasksData, error: tasksError } = await supabase
         .from('vehicle_cleaning_tasks')
@@ -48,7 +50,8 @@ export function useVehicles() {
           *,
           completed_by_profile:profiles!vehicle_cleaning_tasks_completed_by_fkey(name)
         `)
-        .in('vehicle_id', vehicleIds);
+        .in('vehicle_id', vehicleIds)
+        .limit(5000);
 
       if (tasksError) throw tasksError;
 

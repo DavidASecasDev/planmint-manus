@@ -1415,3 +1415,4 @@
 - [x] Caché de tiempos de trayecto en BD: tabla travel_time_cache ya existía con 557 entradas, integrada en staffCapacity
 - [x] Version polling: detectar despliegues nuevos y forzar recarga automática del frontend
 - [x] Bug: El dropdown de dirección en la última fila de la tabla de reservas se corta — corregido: AddressAutocompleteCell ahora detecta si no hay espacio abajo y muestra el dropdown hacia arriba (flip up)
+- [x] Bug: Vehículo 0563MMX en estado "Sucio" muestra "No hay tareas de limpieza configuradas" — causa: query de vehicle_cleaning_tasks sin límite explícito, Supabase devuelve máx 1000 filas por defecto pero hay 1148 tareas. UUID fc307eb8... queda después de la fila 1127. Fix: añadido .limit(5000)
