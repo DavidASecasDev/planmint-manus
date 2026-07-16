@@ -53,16 +53,21 @@ export function AddressAutocompleteCell({
     }
   }, [isEditing]);
 
-  // Calculate dropdown position relative to viewport
+  // Calculate dropdown position relative to viewport, flipping upward if needed
   const updateDropdownPosition = useCallback(() => {
     if (!inputRef.current) return;
     const rect = inputRef.current.getBoundingClientRect();
+    const dropdownHeight = predictions.length * 44 + 8; // approx height per item + padding
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    // If not enough space below and more space above, flip upward
+    const flipUp = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
     setDropdownPos({
-      top: rect.bottom + 4,
+      top: flipUp ? rect.top - dropdownHeight - 4 : rect.bottom + 4,
       left: rect.left,
       width: Math.max(rect.width, 300),
     });
-  }, []);
+  }, [predictions.length]);
 
   // Update position when dropdown shows or on scroll
   useEffect(() => {
@@ -203,11 +208,12 @@ export function AddressAutocompleteCell({
     return createPortal(
       <div
         ref={dropdownRef}
-        className="fixed bg-popover border border-border rounded-md shadow-lg overflow-hidden"
+        className="fixed bg-popover border border-border rounded-md shadow-lg overflow-auto"
         style={{
           top: dropdownPos.top,
           left: dropdownPos.left,
           width: dropdownPos.width,
+          maxHeight: Math.min(predictions.length * 44 + 8, 280),
           zIndex: 9999,
         }}
       >

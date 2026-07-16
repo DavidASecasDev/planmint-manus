@@ -1414,3 +1414,4 @@
 - [x] Bug fix: Tiempo estimado de trayecto muestra "—" para algunas reservas — causa: endpoint staffCapacity traía TODAS las reservas sin filtro de fecha (1326 filas) pero Supabase limita a 1000. Solución: añadir filtro .or() por fecha en la query para traer solo reservas relevantes (~18 por día)
 - [x] Caché de tiempos de trayecto en BD: tabla travel_time_cache ya existía con 557 entradas, integrada en staffCapacity
 - [x] Version polling: detectar despliegues nuevos y forzar recarga automática del frontend
+- [x] Bug: El dropdown de dirección en la última fila de la tabla de reservas se corta — corregido: AddressAutocompleteCell ahora detecta si no hay espacio abajo y muestra el dropdown hacia arriba (flip up)
