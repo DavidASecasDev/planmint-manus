@@ -1892,38 +1892,7 @@ export function ReservationsTable() {
                                   </Tooltip>
                                 </TooltipProvider>
                               )}
-                              {col.key === 'auto' && (() => {
-                                const plate = row.reservation.auto;
-                                if (!plate) return null;
-                                const status = vehicleStatusMap.get(plate.toUpperCase().trim());
-                                if (!status || status === 'alquilado' || status === 'en_servicio') return null;
-                                const iconProps = { className: "h-3 w-3 shrink-0" };
-                                let icon: React.ReactNode = null;
-                                let label = '';
-                                if (status === 'limpio') {
-                                  icon = <Sparkles {...iconProps} style={{ color: '#34d399' }} />;
-                                  label = 'Limpio';
-                                } else if (status === 'sucio') {
-                                  icon = <Droplets {...iconProps} style={{ color: '#ef4444' }} />;
-                                  label = 'Sucio';
-                                } else if (status === 'incompleto') {
-                                  icon = <CircleDashed {...iconProps} style={{ color: '#f59e0b' }} />;
-                                  label = 'Incompleto';
-                                }
-                                if (!icon) return null;
-                                return (
-                                  <TooltipProvider delayDuration={200}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="flex-shrink-0">{icon}</span>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="text-xs">
-                                        {label}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                );
-                              })()}
+
                             </span>
                           )}
                           {col.key === 'tiempo_desplazamiento' && (() => {
@@ -2334,6 +2303,38 @@ export function ReservationsTable() {
                                     onChange={(value) => handleOperationFieldUpdate(row, col.key, value)}
                                   />
                                 </div>
+                                {col.key === 'auto' && (() => {
+                                  const plate = cellValue;
+                                  if (!plate) return null;
+                                  const vStatus = vehicleStatusMap.get(plate.toUpperCase().trim());
+                                  if (!vStatus || vStatus === 'alquilado' || vStatus === 'en_servicio') return null;
+                                  const iconCls = "h-3 w-3 shrink-0";
+                                  let statusIcon: React.ReactNode = null;
+                                  let statusLabel = '';
+                                  if (vStatus === 'limpio') {
+                                    statusIcon = <Sparkles className={iconCls} style={{ color: '#34d399' }} />;
+                                    statusLabel = 'Limpio';
+                                  } else if (vStatus === 'sucio') {
+                                    statusIcon = <Droplets className={iconCls} style={{ color: '#ef4444' }} />;
+                                    statusLabel = 'Sucio';
+                                  } else if (vStatus === 'incompleto') {
+                                    statusIcon = <CircleDashed className={iconCls} style={{ color: '#f59e0b' }} />;
+                                    statusLabel = 'Incompleto';
+                                  }
+                                  if (!statusIcon) return null;
+                                  return (
+                                    <TooltipProvider delayDuration={200}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex-shrink-0">{statusIcon}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                          {statusLabel}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  );
+                                })()}
                                 {isLugarEdited && (
                                   <TooltipProvider delayDuration={200}>
                                     <Tooltip>
