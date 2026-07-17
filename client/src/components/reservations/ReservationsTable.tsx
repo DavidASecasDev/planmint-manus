@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil, History } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil, History, Sparkles, Droplets, CircleDashed } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
@@ -18,6 +18,8 @@ import { AssigneeSelect } from './AssigneeSelect';
 import { EditableCell } from './EditableCell';
 import { AddressAutocompleteCell } from './AddressAutocompleteCell';
 import { apiInvoke } from '@/lib/apiClient';
+import { supabaseQuery } from '@/lib/supabaseQuery';
+import { useQuery } from '@tanstack/react-query';
 import { EditableDateTimeCell } from './EditableDateTimeCell';
 import { AddReservationDialog } from './AddReservationDialog';
 import { EditManualMovementDialog } from './EditManualMovementDialog';
@@ -243,6 +245,30 @@ export function ReservationsTable() {
       .finally(() => { if (!cancelled) setReactivatedLoading(false); });
     return () => { cancelled = true; };
   }, [showReactivated]);
+
+  // Vehicle cleanliness status map (matricula -> status) for showing icon next to plate
+  const vehicleOrgId = profile?.organization_id;
+  const { data: vehicleStatusMap = new Map<string, string>() } = useQuery({
+    queryKey: ['vehicle-status-map', vehicleOrgId],
+    queryFn: async (): Promise<Map<string, string>> => {
+      if (!vehicleOrgId) return new Map();
+      const { data, error } = await supabaseQuery
+        .from('vehicles')
+        .select('matricula, status')
+        .eq('organization_id', vehicleOrgId)
+        .or('is_archived.eq.false,is_archived.is.null');
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const v of (data || []) as { matricula: string; status: string }[]) {
+        if (v.matricula && v.status) {
+          map.set(v.matricula.toUpperCase().trim(), v.status);
+        }
+      }
+      return map;
+    },
+    enabled: !!vehicleOrgId,
+    staleTime: 30 * 1000, // 30s - status changes frequently during operations
+  });
 
   // Staff capacity data for enriching rows with travel time
   // Primary day (always fetched for StaffCapacityAlert + PunctualitySummary)
@@ -1866,6 +1892,38 @@ export function ReservationsTable() {
                                   </Tooltip>
                                 </TooltipProvider>
                               )}
+                              {col.key === 'auto' && (() => {
+                                const plate = row.reservation.auto;
+                                if (!plate) return null;
+                                const status = vehicleStatusMap.get(plate.toUpperCase().trim());
+                                if (!status || status === 'alquilado' || status === 'en_servicio') return null;
+                                const iconProps = { className: "h-3 w-3 shrink-0" };
+                                let icon: React.ReactNode = null;
+                                let label = '';
+                                if (status === 'limpio') {
+                                  icon = <Sparkles {...iconProps} style={{ color: '#34d399' }} />;
+                                  label = 'Limpio';
+                                } else if (status === 'sucio') {
+                                  icon = <Droplets {...iconProps} style={{ color: '#ef4444' }} />;
+                                  label = 'Sucio';
+                                } else if (status === 'incompleto') {
+                                  icon = <CircleDashed {...iconProps} style={{ color: '#f59e0b' }} />;
+                                  label = 'Incompleto';
+                                }
+                                if (!icon) return null;
+                                return (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="flex-shrink-0">{icon}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs">
+                                        {label}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              })()}
                             </span>
                           )}
                           {col.key === 'tiempo_desplazamiento' && (() => {
