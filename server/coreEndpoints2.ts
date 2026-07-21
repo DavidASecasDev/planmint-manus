@@ -43,20 +43,28 @@ export async function handleGetInactiveVehicles(req: Request, res: Response) {
     }
 
     // Get the last reservation date for each vehicle
-    const vehicleIds = vehicles.map((v) => v.id);
+    // reservations table uses 'auto' (matricula text) to link to vehicles, NOT vehicle_id
+    const matriculas = vehicles.map((v) => v.matricula).filter(Boolean);
     const { data: reservations } = await serviceClient
       .from("reservations")
-      .select("vehicle_id, hasta")
-      .in("vehicle_id", vehicleIds)
+      .select("auto, hasta")
+      .in("auto", matriculas)
       .order("hasta", { ascending: false });
 
-    // Build a map of vehicle_id -> last reservation date
-    const lastReservationMap: Record<string, string | null> = {};
+    // Build a map of matricula -> last reservation date
+    const lastResByMatricula: Record<string, string | null> = {};
     if (reservations) {
       for (const r of reservations) {
-        if (r.vehicle_id && !lastReservationMap[r.vehicle_id]) {
-          lastReservationMap[r.vehicle_id] = r.hasta;
+        if (r.auto && !lastResByMatricula[r.auto]) {
+          lastResByMatricula[r.auto] = r.hasta;
         }
+      }
+    }
+    // Convert to vehicle_id map for downstream usage
+    const lastReservationMap: Record<string, string | null> = {};
+    for (const v of vehicles) {
+      if (v.matricula && lastResByMatricula[v.matricula]) {
+        lastReservationMap[v.id] = lastResByMatricula[v.matricula];
       }
     }
 
