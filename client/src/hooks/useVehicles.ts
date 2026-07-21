@@ -41,19 +41,24 @@ export function useVehicles() {
       if (!vehiclesData || vehiclesData.length === 0) return [];
 
       // Fetch cleaning tasks for all vehicles with profile names for completed_by
-      // NOTE: Must set explicit limit > 1000 because Supabase defaults to 1000 rows
-      // and we have ~1148 tasks (152 vehicles × 7 tasks each)
+      // NOTE: We batch the .in() query to avoid PostgREST URL length limits
+      // (154 UUIDs × 37 chars = ~5700 chars which can exceed GET URL limits)
       const vehicleIds = vehiclesData.map(v => v.id);
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('vehicle_cleaning_tasks')
-        .select(`
-          *,
-          completed_by_profile:profiles!vehicle_cleaning_tasks_completed_by_fkey(name)
-        `)
-        .in('vehicle_id', vehicleIds)
-        .limit(5000);
-
-      if (tasksError) throw tasksError;
+      const BATCH_SIZE = 50; // 50 UUIDs per batch keeps URL well under limits
+      let tasksData: any[] = [];
+      for (let i = 0; i < vehicleIds.length; i += BATCH_SIZE) {
+        const batch = vehicleIds.slice(i, i + BATCH_SIZE);
+        const { data: batchTasks, error: batchError } = await supabase
+          .from('vehicle_cleaning_tasks')
+          .select(`
+            *,
+            completed_by_profile:profiles!vehicle_cleaning_tasks_completed_by_fkey(name)
+          `)
+          .in('vehicle_id', batch)
+          .limit(5000);
+        if (batchError) throw batchError;
+        if (batchTasks) tasksData = tasksData.concat(batchTasks);
+      }
 
       // Fetch current reservations for vehicles that are rented
       const rentedVehicles = vehiclesData.filter(v => v.current_reservation_id);
