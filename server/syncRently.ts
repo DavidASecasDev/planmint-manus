@@ -1050,14 +1050,19 @@ export async function handleSyncRently(req: Request, res: Response) {
       const externalIds = enrichedReservations.map((r) => r.external_reservation_id as string);
       const { data: existingReservations } = await serviceClient
         .from("reservations")
-        .select("id, external_reservation_id, estado")
+        .select("id, external_reservation_id, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime")
         .eq("organization_id", organizationId)
         .in("external_reservation_id", externalIds);
 
-      const existingMap = new Map<string, { id: string; estado: string }>();
+      const existingMap = new Map<string, { id: string; estado: string; confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null }>();
       if (existingReservations) {
         existingReservations.forEach((r) => {
-          existingMap.set(r.external_reservation_id, { id: r.id, estado: r.estado || "" });
+          existingMap.set(r.external_reservation_id, {
+            id: r.id,
+            estado: r.estado || "",
+            confirmed_entrega_datetime: r.confirmed_entrega_datetime || null,
+            confirmed_devolucion_datetime: r.confirmed_devolucion_datetime || null,
+          });
         });
       }
 
@@ -1140,8 +1145,41 @@ export async function handleSyncRently(req: Request, res: Response) {
         delete updateData.organization_id;
         delete updateData.imported_by;
         delete updateData.external_reservation_id;
-        delete updateData.confirmed_entrega_datetime;
-        delete updateData.confirmed_devolucion_datetime;
+
+        // ─── SMART CONFIRMED DATETIME UPDATE ─────────────────────────────
+        // When Rently moves a date FORWARD (e.g. contract extension, date change),
+        // also update the confirmed datetime so the Programación view shows it
+        // on the correct day. Only update if the new Rently date is strictly
+        // AFTER the current confirmed datetime (preserves manual edits to earlier times).
+        const existingForConfirmed = existingMap.get(update.fullData.external_reservation_id as string);
+        const newDesde = updateData.desde as string | null;
+        const newHasta = updateData.hasta as string | null;
+        const currentConfirmedEntrega = existingForConfirmed?.confirmed_entrega_datetime;
+        const currentConfirmedDevolucion = existingForConfirmed?.confirmed_devolucion_datetime;
+
+        if (newDesde && currentConfirmedEntrega) {
+          const newDesdeTs = new Date(newDesde).getTime();
+          const currentConfirmedEntregaTs = new Date(currentConfirmedEntrega).getTime();
+          if (!isNaN(newDesdeTs) && !isNaN(currentConfirmedEntregaTs) && newDesdeTs > currentConfirmedEntregaTs) {
+            updateData.confirmed_entrega_datetime = newDesde;
+          } else {
+            delete updateData.confirmed_entrega_datetime;
+          }
+        } else {
+          delete updateData.confirmed_entrega_datetime;
+        }
+
+        if (newHasta && currentConfirmedDevolucion) {
+          const newHastaTs = new Date(newHasta).getTime();
+          const currentConfirmedDevolucionTs = new Date(currentConfirmedDevolucion).getTime();
+          if (!isNaN(newHastaTs) && !isNaN(currentConfirmedDevolucionTs) && newHastaTs > currentConfirmedDevolucionTs) {
+            updateData.confirmed_devolucion_datetime = newHasta;
+          } else {
+            delete updateData.confirmed_devolucion_datetime;
+          }
+        } else {
+          delete updateData.confirmed_devolucion_datetime;
+        }
 
         // ─── PROTECT USER-EDITABLE FIELDS ─────────────────────────────────
         // These fields can be manually edited by users in the reservations table.
