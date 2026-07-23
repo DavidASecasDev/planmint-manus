@@ -1147,22 +1147,29 @@ export async function handleSyncRently(req: Request, res: Response) {
         delete updateData.external_reservation_id;
 
         // ─── SMART CONFIRMED DATETIME UPDATE ─────────────────────────────
-        // When Rently moves a date FORWARD (e.g. contract extension, date change),
-        // also update the confirmed datetime so the Programación view shows it
-        // on the correct day. Only update if the new Rently date is strictly
-        // AFTER the current confirmed datetime (preserves manual edits to earlier times).
+        // When Rently moves a date to a DIFFERENT (later) DAY (e.g. contract
+        // extension, date change), also update the confirmed datetime so the
+        // Programación view shows it on the correct day.
+        // If the Rently date is on the SAME day as the current confirmed datetime,
+        // do NOT overwrite — the user may have manually adjusted the time within
+        // the same day (e.g. client wants to pick up at 15:30 instead of 16:00).
         const existingForConfirmed = existingMap.get(update.fullData.external_reservation_id as string);
         const newDesde = updateData.desde as string | null;
         const newHasta = updateData.hasta as string | null;
         const currentConfirmedEntrega = existingForConfirmed?.confirmed_entrega_datetime;
         const currentConfirmedDevolucion = existingForConfirmed?.confirmed_devolucion_datetime;
 
+        // Helper: extract date portion (YYYY-MM-DD) from an ISO datetime string
+        const getDatePortion = (dt: string): string => dt.substring(0, 10);
+
         if (newDesde && currentConfirmedEntrega) {
-          const newDesdeTs = new Date(newDesde).getTime();
-          const currentConfirmedEntregaTs = new Date(currentConfirmedEntrega).getTime();
-          if (!isNaN(newDesdeTs) && !isNaN(currentConfirmedEntregaTs) && newDesdeTs > currentConfirmedEntregaTs) {
+          const newDesdeDate = getDatePortion(newDesde);
+          const currentConfirmedEntregaDate = getDatePortion(currentConfirmedEntrega);
+          if (newDesdeDate > currentConfirmedEntregaDate) {
+            // Rently moved to a later DAY → update confirmed to match
             updateData.confirmed_entrega_datetime = newDesde;
           } else {
+            // Same day or earlier day → preserve user's manual time adjustment
             delete updateData.confirmed_entrega_datetime;
           }
         } else {
@@ -1170,11 +1177,13 @@ export async function handleSyncRently(req: Request, res: Response) {
         }
 
         if (newHasta && currentConfirmedDevolucion) {
-          const newHastaTs = new Date(newHasta).getTime();
-          const currentConfirmedDevolucionTs = new Date(currentConfirmedDevolucion).getTime();
-          if (!isNaN(newHastaTs) && !isNaN(currentConfirmedDevolucionTs) && newHastaTs > currentConfirmedDevolucionTs) {
+          const newHastaDate = getDatePortion(newHasta);
+          const currentConfirmedDevolucionDate = getDatePortion(currentConfirmedDevolucion);
+          if (newHastaDate > currentConfirmedDevolucionDate) {
+            // Rently moved to a later DAY → update confirmed to match
             updateData.confirmed_devolucion_datetime = newHasta;
           } else {
+            // Same day or earlier day → preserve user's manual time adjustment
             delete updateData.confirmed_devolucion_datetime;
           }
         } else {

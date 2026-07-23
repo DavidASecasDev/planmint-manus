@@ -327,7 +327,7 @@ async function syncSingleBooking(
   const extId = String(bookingId);
   const { data: existing } = await serviceClient
     .from("reservations")
-    .select("id, estado")
+    .select("id, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime")
     .eq("organization_id", organizationId)
     .eq("external_reservation_id", extId)
     .single();
@@ -343,8 +343,34 @@ async function syncSingleBooking(
   delete updateData.organization_id;
   delete updateData.imported_by;
   delete updateData.external_reservation_id;
-  delete updateData.confirmed_entrega_datetime;
-  delete updateData.confirmed_devolucion_datetime;
+
+  // Smart confirmed datetime: only update if Rently moved to a DIFFERENT (later) DAY.
+  // Preserves same-day time adjustments (e.g. client wants 15:30 instead of 16:00).
+  const getDatePortion = (dt: string): string => dt.substring(0, 10);
+  const newDesde = updateData.desde as string | null;
+  const newHasta = updateData.hasta as string | null;
+  const currentConfirmedEntrega = (existing as any).confirmed_entrega_datetime as string | null;
+  const currentConfirmedDevolucion = (existing as any).confirmed_devolucion_datetime as string | null;
+
+  if (newDesde && currentConfirmedEntrega) {
+    if (getDatePortion(newDesde) > getDatePortion(currentConfirmedEntrega)) {
+      updateData.confirmed_entrega_datetime = newDesde;
+    } else {
+      delete updateData.confirmed_entrega_datetime;
+    }
+  } else {
+    delete updateData.confirmed_entrega_datetime;
+  }
+
+  if (newHasta && currentConfirmedDevolucion) {
+    if (getDatePortion(newHasta) > getDatePortion(currentConfirmedDevolucion)) {
+      updateData.confirmed_devolucion_datetime = newHasta;
+    } else {
+      delete updateData.confirmed_devolucion_datetime;
+    }
+  } else {
+    delete updateData.confirmed_devolucion_datetime;
+  }
 
   // Protect user-editable location fields (same as full sync)
   updateData.rently_lugar_entrega = updateData.lugar_entrega ?? null;

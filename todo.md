@@ -1420,3 +1420,4 @@
 - [x] Fix: 9 tablas sin RLS habilitado — RESUELTO: habilitado RLS + políticas org_access en manual_movement_edit_history, device_positions, device_position_history, travel_time_cache, vehicle_quality_audits, repair_sync_log, location_history, external_api_keys, external_api_logs
 - [x] Investigar y resolver errores de Postgres — RESUELTO: Error #1 "invalid input syntax for type uuid: Rental" viene del viejo plan-mint.com (no de nuestro código). Error #2 "column reservations.vehicle_id does not exist" corregido en coreEndpoints2.ts (cambiado a usar columna 'auto')
 - [x] Fix Rently sync: update confirmed_entrega/devolucion_datetime when Rently date moves forward (contract extension, date change)
+- [x] Fix sync: allow same-day earlier times in confirmed datetime (compare by date portion only, not timestamp)
