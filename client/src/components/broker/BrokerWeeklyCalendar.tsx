@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, MapPin, Car, User, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Car, User, ArrowRight, Baby } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransferRequest, TransferRequestStatus } from '@/types/transfers';
@@ -33,6 +33,7 @@ interface WeeklyEvent {
   driverName: string | null;
   paxCount: number | null;
   flightNumber: string | null;
+  babySeatsCount: number;
 }
 
 // Hours to display (6:00 to 23:00)
@@ -94,6 +95,7 @@ export function BrokerWeeklyCalendar({ requests }: BrokerWeeklyCalendarProps) {
           driverName: item.driver_name,
           paxCount: item.pax_count,
           flightNumber: item.flight_number,
+          babySeatsCount: (item as any).baby_seats_count || 0,
         });
       }
     }
@@ -256,6 +258,7 @@ export function BrokerWeeklyCalendar({ requests }: BrokerWeeklyCalendarProps) {
                               <div className="flex items-center gap-1">
                                 <span className="text-[10px] font-bold text-primary">{evt.time}</span>
                                 <span className="text-[10px] truncate font-medium">{evt.clientName}</span>
+                                {evt.babySeatsCount > 0 && <Baby className="w-3 h-3 shrink-0 text-pink-500" />}
                                 {evt.direction === 'vuelta' && (
                                   <span className="text-[9px] text-muted-foreground">↩</span>
                                 )}

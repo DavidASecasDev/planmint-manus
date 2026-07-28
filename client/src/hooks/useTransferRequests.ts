@@ -92,7 +92,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
       if (error) throw error;
 
       // Process data to add computed fields
-      const processed = (data || []).map((request: any) => {
+      let processed = (data || []).map((request: any) => {
         const items = request.items || [];
         const dates = items.map((i: any) => i.transfer_date).filter(Boolean).sort();
         return {
@@ -101,6 +101,13 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           first_transfer_date: dates[0] || null,
         };
       }) as TransferRequest[];
+
+      // Filter by baby seats if requested
+      if (filters?.hasBabySeats) {
+        processed = processed.filter((req: any) =>
+          req.items?.some((item: any) => item.baby_seats_count && item.baby_seats_count > 0)
+        );
+      }
 
       // Sort by first_transfer_date
       return processed.sort((a, b) => {

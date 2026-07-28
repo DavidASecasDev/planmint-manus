@@ -214,6 +214,16 @@ export default function Transfers() {
             <SelectItem value="charter">Charter</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant={filters.hasBabySeats ? 'default' : 'outline'}
+          size="sm"
+          className={`gap-1.5 ${filters.hasBabySeats ? 'bg-pink-500 hover:bg-pink-600 text-white' : ''}`}
+          onClick={() => setFilters(f => ({ ...f, hasBabySeats: !f.hasBabySeats }))}
+          title="Filtrar transfers con sillitas de beb\u00e9"
+        >
+          <Baby className="w-4 h-4" />
+          Sillitas
+        </Button>
       </div>
 
       {/* Calendar view */}

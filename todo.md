@@ -1438,3 +1438,6 @@
 - [x] Transfers: Permitir al usuario silenciar notificaciones sonoras desde su perfil/configuración
 - [x] Transfers: Enlace en el toast de nueva solicitud que lleve directamente a la lista de solicitudes pendientes
 - [x] Transfers: Mostrar icono de bebé junto al nombre del cliente cuando el transfer tenga sillitas (como en Programación)
+- [x] Transfers: Incluir información de sillitas de bebé en el PDF generado para el conductor
+- [x] Transfers: Filtro rápido en la lista de solicitudes para ver solo transfers con sillitas
+- [x] Broker portal: Mostrar icono de bebé en el calendario semanal del portal de brokers

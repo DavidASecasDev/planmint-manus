@@ -142,6 +142,7 @@ export interface TransferFilters {
   clientType: ClientType | 'all';
   dateFrom: string;
   dateTo: string;
+  hasBabySeats?: boolean;
 }
 
 // Status metadata for UI

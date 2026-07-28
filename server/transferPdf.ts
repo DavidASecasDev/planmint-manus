@@ -221,9 +221,19 @@ export async function handleTransferPdf(req: Request, res: Response) {
         yPos = 50;
       }
 
+      // Calculate card height (base 130 + extra for baby seats)
+      const hasBabySeats = item.baby_seats_count && item.baby_seats_count > 0;
+      let cardHeight = 130;
+      if (hasBabySeats) {
+        cardHeight += 20;
+        let seatsArr: any[] = [];
+        if (item.baby_seats) { try { seatsArr = typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats; } catch {} }
+        if (seatsArr.length > 0) cardHeight += 14;
+      }
+
       // Item card background
       doc.save();
-      doc.roundedRect(50, yPos, pageWidth, 130, 4).fill(COLORS.lightGray);
+      doc.roundedRect(50, yPos, pageWidth, cardHeight, 4).fill(COLORS.lightGray);
       doc.restore();
 
       const cardX = 60;
@@ -294,7 +304,31 @@ export async function handleTransferPdf(req: Request, res: Response) {
         doc.fillColor(COLORS.darkGray).text(item.driver_name);
       }
 
-      yPos += 145;
+      // Baby seats info
+      let extraHeight = 0;
+      if (item.baby_seats_count && item.baby_seats_count > 0) {
+        extraHeight = 20;
+        const babyY = bottomY + 15;
+        doc.font(fontBold).fontSize(8).fillColor('#D946A8');
+        doc.text(`\u{1F476} Sillitas de bebe: ${item.baby_seats_count}`, cardX, babyY);
+
+        // Parse baby_seats details
+        let seatsData: Array<{ age: number; weight: number }> = [];
+        if (item.baby_seats) {
+          try {
+            seatsData = typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats;
+          } catch {}
+        }
+
+        if (seatsData.length > 0) {
+          const detailStr = seatsData.map((s: any, i: number) => `Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg`).join('  |  ');
+          doc.font(fontRegular).fontSize(8).fillColor(COLORS.darkGray);
+          doc.text(detailStr, cardX, babyY + 12, { width: pageWidth - 40 });
+          extraHeight += 14;
+        }
+      }
+
+      yPos += 145 + extraHeight;
     });
 
     // ===== NOTES SECTION =====
