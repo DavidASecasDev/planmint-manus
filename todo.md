@@ -1443,3 +1443,4 @@
 - [x] Broker portal: Mostrar icono de bebé en el calendario semanal del portal de brokers
 - [x] Transfers: Categorización automática del grupo de sillita (Grupo 0/1/2/3) según peso introducido
 - [x] Broker portal: Icono de bebé en el calendario mensual del portal de brokers
+- [x] Transfers: Resumen de sillitas necesarias por día en cabecera del calendario (planificación de stock)

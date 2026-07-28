@@ -194,10 +194,19 @@ export function TransfersCalendar({ requests }: TransfersCalendarProps) {
                     !isCurrentMonth ? 'bg-muted/20 opacity-50' : ''
                   } ${isToday ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''}`}
                 >
-                  <div className={`text-xs font-medium mb-1 px-1 ${
+                  <div className={`text-xs font-medium mb-1 px-1 flex items-center gap-1 ${
                     isToday ? 'text-blue-600 font-bold' : 'text-muted-foreground'
                   }`}>
                     {format(day, 'd')}
+                    {(() => {
+                      const totalSeats = dayEvents.reduce((sum, e) => sum + e.babySeatsCount, 0);
+                      return totalSeats > 0 ? (
+                        <span className="flex items-center gap-0.5 ml-auto">
+                          <Baby className="w-3 h-3 text-pink-500" />
+                          <span className="text-[9px] font-bold text-pink-600">{totalSeats}</span>
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="space-y-0.5 max-h-[80px] overflow-y-auto">
                     {dayEvents.slice(0, 4).map((evt, evtIdx) => {

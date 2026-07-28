@@ -125,6 +125,23 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
     return counts;
   }, [weekDays, eventsByDayHour]);
 
+  // Count baby seats needed per day for stock planning
+  const babySeatsPerDay = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const day of weekDays) {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      let total = 0;
+      for (const h of HOURS) {
+        const events = eventsByDayHour[dateKey]?.[h] || [];
+        for (const evt of events) {
+          total += evt.babySeatsCount;
+        }
+      }
+      counts[dateKey] = total;
+    }
+    return counts;
+  }, [weekDays, eventsByDayHour]);
+
   const today = new Date();
 
   const getStatusBg = (status: TransferRequestStatus) => {
@@ -216,6 +233,12 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
                       <Badge variant="secondary" className="text-[9px] px-1 py-0 mt-0.5">
                         {count}
                       </Badge>
+                    )}
+                    {(babySeatsPerDay[dateKey] || 0) > 0 && (
+                      <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                        <Baby className="w-3 h-3 text-pink-500" />
+                        <span className="text-[9px] font-bold text-pink-600">{babySeatsPerDay[dateKey]}</span>
+                      </div>
                     )}
                   </div>
                 );
