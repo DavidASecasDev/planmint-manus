@@ -2,7 +2,7 @@
  * GET /api/transfer-pdf/:requestId
  * 
  * Generates a professional PDF for a transfer request with Azul Cars branding.
- * Returns the PDF as a downloadable file.
+ * Includes route map, baby seat info, and proper Spanish typography.
  */
 import { Request, Response } from "express";
 import PDFDocument from "pdfkit";
@@ -14,36 +14,57 @@ import {
   authenticateSupabaseRequest,
   AuthError,
 } from "./supabaseAdmin";
+import { makeRequest } from "./_core/map";
+import { ENV } from "./_core/env";
 
 // Azul Cars brand colors
 const COLORS = {
   darkNavy: '#0F1B2D',
+  navy: '#1A2B42',
   gold: '#C9A96E',
   lightGold: '#E8D5A8',
   white: '#FFFFFF',
-  lightGray: '#F5F5F5',
-  mediumGray: '#888888',
-  darkGray: '#333333',
+  offWhite: '#FAFAFA',
+  lightGray: '#F2F4F6',
+  borderGray: '#E5E7EB',
+  mediumGray: '#6B7280',
+  darkGray: '#374151',
+  black: '#111827',
+  pink: '#DB2777',
+  lightPink: '#FDF2F8',
 };
 
-// Use built-in Helvetica fonts (available everywhere, no system font dependency)
-const FONT_REGULAR = 'Helvetica';
-const FONT_BOLD = 'Helvetica-Bold';
-
-// Logo path - resolve relative to this file
+// Font paths - resolve relative to this file
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// In production: dist/index.js -> ../server/assets/logo.png
-// In dev: server/transferPdf.ts -> ./assets/logo.png
-const LOGO_PATHS = [
-  path.resolve(__dirname, 'assets', 'logo.png'),           // dev: server/assets/logo.png
-  path.resolve(__dirname, '..', 'server', 'assets', 'logo.png'), // prod: dist/../server/assets/logo.png
-  path.resolve(process.cwd(), 'server', 'assets', 'logo.png'),   // fallback: cwd/server/assets/logo.png
+const ASSET_PATHS = [
+  path.resolve(__dirname, 'assets'),
+  path.resolve(__dirname, '..', 'server', 'assets'),
+  path.resolve(process.cwd(), 'server', 'assets'),
 ];
+
+function getAssetPath(filename: string): string | null {
+  for (const dir of ASSET_PATHS) {
+    const p = path.join(dir, filename);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
   return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function formatDateShort(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'short',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -79,6 +100,84 @@ function getClientTypeLabel(type: string | null): string {
   }
 }
 
+function getBabySeatGroup(weight: number): string {
+  if (weight < 9) return 'Grupo 0';
+  if (weight < 18) return 'Grupo 1';
+  if (weight <= 36) return 'Grupo 2';
+  return 'Grupo 3';
+}
+
+function getBabySeatGroupDesc(weight: number): string {
+  if (weight < 9) return 'Grupo 0 (Recién nacido)';
+  if (weight < 18) return 'Grupo 1 (Infantil)';
+  if (weight <= 36) return 'Grupo 2 (Niño)';
+  return 'Grupo 3 (Elevador)';
+}
+
+/**
+ * Fetch a static map image for a route between two locations.
+ * Returns a Buffer of the PNG image, or null if it fails.
+ */
+async function fetchRouteMapImage(
+  origin: string,
+  destination: string,
+  polyline?: string
+): Promise<Buffer | null> {
+  try {
+    const baseUrl = ENV.forgeApiUrl?.replace(/\/+$/, '');
+    const apiKey = ENV.forgeApiKey;
+    if (!baseUrl || !apiKey) return null;
+
+    const url = new URL(`${baseUrl}/v1/maps/proxy/maps/api/staticmap`);
+    url.searchParams.append('key', apiKey);
+    url.searchParams.append('size', '480x160');
+    url.searchParams.append('maptype', 'roadmap');
+    url.searchParams.append('style', 'feature:all|saturation:-20');
+
+    if (polyline) {
+      // Use the encoded polyline for the path
+      url.searchParams.append('path', `weight:4|color:0x0F1B2Dff|enc:${polyline}`);
+    }
+
+    // Origin marker (gold)
+    url.searchParams.append('markers', `color:0xC9A96E|label:A|${origin}`);
+    // Destination marker (navy)
+    url.searchParams.append('markers', `color:0x0F1B2D|label:B|${destination}`);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) return null;
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    console.error('[transfer-pdf] Static map fetch error:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch directions (distance/duration + polyline) for a route.
+ */
+async function fetchDirections(origin: string, destination: string) {
+  try {
+    const result = await makeRequest<any>('/maps/api/directions/json', {
+      origin,
+      destination,
+      mode: 'driving',
+    });
+    if (result.status !== 'OK' || !result.routes?.length) return null;
+    const route = result.routes[0];
+    const leg = route.legs[0];
+    return {
+      distance: leg.distance?.text || '',
+      duration: leg.duration?.text || '',
+      polyline: route.overview_polyline?.points || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function handleTransferPdf(req: Request, res: Response) {
   try {
     const { userId, organizationId } = await authenticateSupabaseRequest(
@@ -110,14 +209,35 @@ export async function handleTransferPdf(req: Request, res: Response) {
     // Sort items by position
     const items = (request.items || []).sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
+    // Pre-fetch route data for each item (directions + map images)
+    const routeData: Array<{ distance: string; duration: string; mapImage: Buffer | null } | null> = [];
+    for (const item of items) {
+      if (item.pickup_location && item.dropoff_location) {
+        const directions = await fetchDirections(item.pickup_location, item.dropoff_location);
+        let mapImage: Buffer | null = null;
+        if (directions?.polyline) {
+          mapImage = await fetchRouteMapImage(item.pickup_location, item.dropoff_location, directions.polyline);
+        } else {
+          mapImage = await fetchRouteMapImage(item.pickup_location, item.dropoff_location);
+        }
+        routeData.push({
+          distance: directions?.distance || '',
+          duration: directions?.duration || '',
+          mapImage,
+        });
+      } else {
+        routeData.push(null);
+      }
+    }
+
     // Create PDF
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 40, bottom: 40, left: 50, right: 50 },
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
       info: {
         Title: `Transfer ${request.request_number}`,
         Author: 'Azul Cars',
-        Subject: 'Confirmación de Transfer',
+        Subject: 'Orden de Servicio - Transfer',
       },
     });
 
@@ -127,236 +247,326 @@ export async function handleTransferPdf(req: Request, res: Response) {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     doc.pipe(res);
 
-    // Use built-in PDFKit fonts (no registration needed for Helvetica)
-    // 'Regular' and 'Bold' are aliases we use throughout
-    const fontRegular = FONT_REGULAR;
-    const fontBold = FONT_BOLD;
+    // Register custom fonts
+    const robotoRegular = getAssetPath('Roboto-Regular.ttf');
+    const robotoBold = getAssetPath('Roboto-Bold.ttf');
+    const robotoMedium = getAssetPath('Roboto-Medium.ttf');
+    const robotoLight = getAssetPath('Roboto-Light.ttf');
 
-    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    if (robotoRegular) doc.registerFont('Regular', robotoRegular);
+    if (robotoBold) doc.registerFont('Bold', robotoBold);
+    if (robotoMedium) doc.registerFont('Medium', robotoMedium);
+    if (robotoLight) doc.registerFont('Light', robotoLight);
+
+    // Fallback to Helvetica if fonts not found
+    const fontRegular = robotoRegular ? 'Regular' : 'Helvetica';
+    const fontBold = robotoBold ? 'Bold' : 'Helvetica-Bold';
+    const fontMedium = robotoMedium ? 'Medium' : 'Helvetica';
+    const fontLight = robotoLight ? 'Light' : 'Helvetica';
+
+    const pageWidth = doc.page.width;
+    const contentWidth = pageWidth - 100; // 50px margins each side
+    const marginLeft = 50;
+    const marginRight = 50;
 
     // ===== HEADER =====
-    // Dark navy background header
+    // Full-width dark navy header
     doc.save();
-    doc.rect(0, 0, doc.page.width, 100).fill(COLORS.darkNavy);
+    doc.rect(0, 0, pageWidth, 90).fill(COLORS.darkNavy);
     doc.restore();
 
-    // Logo image (banner format 998x208 → ~4.8:1 aspect ratio)
-    const logoPath = LOGO_PATHS.find(p => fs.existsSync(p));
+    // Logo
+    const logoPath = getAssetPath('logo.png');
     if (logoPath) {
-      // Height 50px → width ~240px, centered vertically in 100px header
-      doc.image(logoPath, 50, 25, { height: 50 });
+      doc.image(logoPath, marginLeft, 22, { height: 44 });
     } else {
-      // Fallback to text if logo not found
-      doc.font(fontBold).fontSize(28).fillColor(COLORS.white);
-      doc.text('AZUL', 50, 30, { continued: true });
-      doc.fillColor(COLORS.gold).text(' CARS', { continued: false });
+      doc.font(fontBold).fontSize(24).fillColor(COLORS.white);
+      doc.text('AZUL', marginLeft, 28, { continued: true });
+      doc.fillColor(COLORS.gold).text(' CARS');
     }
+
+    // Request number and date (right side)
+    doc.font(fontBold).fontSize(11).fillColor(COLORS.white);
+    doc.text(`N\u00ba ${request.request_number}`, pageWidth - marginRight - 180, 28, { width: 180, align: 'right' });
+    doc.font(fontLight).fontSize(9).fillColor(COLORS.lightGold);
+    doc.text(formatDate(request.created_at), pageWidth - marginRight - 180, 46, { width: 180, align: 'right' });
     
-    doc.font(fontRegular).fontSize(10).fillColor(COLORS.lightGold);
-    doc.text('TRANSFERS', 50, 78);
+    // Subtitle
+    doc.font(fontMedium).fontSize(9).fillColor(COLORS.gold);
+    doc.text('ORDEN DE SERVICIO', marginLeft, 72);
 
-    // Request number on the right
-    doc.font(fontBold).fontSize(12).fillColor(COLORS.white);
-    doc.text(`No ${request.request_number}`, 350, 35, { align: 'right', width: pageWidth - 300 });
-    doc.font(fontRegular).fontSize(9).fillColor(COLORS.lightGold);
-    doc.text(`Fecha: ${formatDate(request.created_at)}`, 350, 55, { align: 'right', width: pageWidth - 300 });
+    // Gold accent line below header
+    doc.save();
+    doc.rect(0, 90, pageWidth, 3).fill(COLORS.gold);
+    doc.restore();
 
-    // ===== GOLD DIVIDER =====
-    doc.moveTo(50, 110).lineTo(doc.page.width - 50, 110).strokeColor(COLORS.gold).lineWidth(2).stroke();
-
-    let yPos = 130;
+    let yPos = 110;
 
     // ===== CLIENT INFORMATION SECTION =====
-    // Section header
-    doc.font(fontBold).fontSize(11).fillColor(COLORS.darkNavy);
-    doc.text('INFORMACION DEL CLIENTE', 50, yPos);
-    yPos += 20;
+    doc.font(fontBold).fontSize(10).fillColor(COLORS.darkNavy);
+    doc.text('INFORMACI\u00d3N DEL CLIENTE', marginLeft, yPos);
+    yPos += 5;
+    // Underline
+    doc.moveTo(marginLeft, yPos + 12).lineTo(marginLeft + 140, yPos + 12).strokeColor(COLORS.gold).lineWidth(1).stroke();
+    yPos += 22;
 
-    // Client info grid
+    // Client info in a clean grid
     const drawField = (label: string, value: string, x: number, y: number, width: number) => {
-      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
+      doc.font(fontLight).fontSize(7.5).fillColor(COLORS.mediumGray);
       doc.text(label, x, y);
-      doc.font(fontRegular).fontSize(10).fillColor(COLORS.darkGray);
-      doc.text(value || '-', x, y + 12, { width });
+      doc.font(fontRegular).fontSize(9.5).fillColor(COLORS.black);
+      doc.text(value || '-', x, y + 11, { width });
     };
 
-    const colWidth = (pageWidth - 20) / 2;
+    const col1X = marginLeft;
+    const col2X = marginLeft + contentWidth / 2 + 10;
+    const colWidth = contentWidth / 2 - 10;
 
-    drawField('Nombre del cliente', request.client_name || '-', 50, yPos, colWidth);
-    drawField('Tipo', getClientTypeLabel(request.client_type), 50 + colWidth + 20, yPos, colWidth);
-    yPos += 40;
+    drawField('Nombre del cliente', request.client_name || '-', col1X, yPos, colWidth);
+    drawField('Tipo de servicio', getClientTypeLabel(request.client_type), col2X, yPos, colWidth);
+    yPos += 38;
 
-    drawField('Telefono', request.client_phone || '-', 50, yPos, colWidth);
-    drawField('Email', request.client_email || '-', 50 + colWidth + 20, yPos, colWidth);
-    yPos += 40;
+    drawField('Tel\u00e9fono', request.client_phone || '-', col1X, yPos, colWidth);
+    drawField('Email', request.client_email || '-', col2X, yPos, colWidth);
+    yPos += 38;
 
     if (request.client_type === 'villa' && request.villa_name) {
-      drawField('Villa', request.villa_name, 50, yPos, colWidth);
-      yPos += 40;
+      drawField('Villa', request.villa_name, col1X, yPos, colWidth);
+      if (request.villa_address) {
+        drawField('Direcci\u00f3n', request.villa_address, col2X, yPos, colWidth);
+      }
+      yPos += 38;
     } else if (request.client_type === 'charter') {
-      drawField('Embarcacion', request.boat_name || '-', 50, yPos, colWidth);
-      drawField('Amarre', request.berth_number || '-', 50 + colWidth + 20, yPos, colWidth);
-      yPos += 40;
+      drawField('Embarcaci\u00f3n', request.boat_name || '-', col1X, yPos, colWidth);
+      drawField('Amarre', request.berth_number || '-', col2X, yPos, colWidth);
+      yPos += 38;
     }
 
     if (request.broker_name) {
-      drawField('Broker', request.broker_name, 50, yPos, colWidth);
-      yPos += 40;
+      drawField('Broker', request.broker_name, col1X, yPos, colWidth);
+      yPos += 38;
     }
 
     // ===== TRANSFERS SECTION =====
-    // Gray separator
-    doc.moveTo(50, yPos).lineTo(doc.page.width - 50, yPos).strokeColor('#DDDDDD').lineWidth(0.5).stroke();
-    yPos += 15;
+    // Section divider
+    doc.moveTo(marginLeft, yPos).lineTo(pageWidth - marginRight, yPos).strokeColor(COLORS.borderGray).lineWidth(0.5).stroke();
+    yPos += 18;
 
-    doc.font(fontBold).fontSize(11).fillColor(COLORS.darkNavy);
-    doc.text('SERVICIOS DE TRANSFER', 50, yPos);
-    yPos += 25;
+    doc.font(fontBold).fontSize(10).fillColor(COLORS.darkNavy);
+    doc.text('SERVICIOS DE TRANSFER', marginLeft, yPos);
+    yPos += 5;
+    doc.moveTo(marginLeft, yPos + 12).lineTo(marginLeft + 155, yPos + 12).strokeColor(COLORS.gold).lineWidth(1).stroke();
+    yPos += 22;
 
     // Draw each transfer item
-    items.forEach((item: any, index: number) => {
-      // Check if we need a new page
-      if (yPos > 680) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
+      const route = routeData[index];
+
+      // Calculate card height
+      const hasBabySeats = item.baby_seats_count && item.baby_seats_count > 0;
+      let seatsArr: any[] = [];
+      if (hasBabySeats && item.baby_seats) {
+        try { seatsArr = typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats; } catch {}
+      }
+
+      // Estimate height needed for this item
+      let estimatedHeight = 155; // base
+      if (hasBabySeats) estimatedHeight += 30 + (seatsArr.length * 14);
+      if (route?.mapImage) estimatedHeight += 175;
+
+      // Check if we need a new page (leave 60px for footer)
+      if (yPos + estimatedHeight > doc.page.height - 60) {
         doc.addPage();
         yPos = 50;
       }
 
-      // Calculate card height (base 130 + extra for baby seats)
-      const hasBabySeats = item.baby_seats_count && item.baby_seats_count > 0;
-      let cardHeight = 130;
-      if (hasBabySeats) {
-        cardHeight += 20;
-        let seatsArr: any[] = [];
-        if (item.baby_seats) { try { seatsArr = typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats; } catch {} }
-        if (seatsArr.length > 0) cardHeight += 14;
-      }
-
-      // Item card background
+      // Item card with subtle left border
+      const cardStartY = yPos;
+      
+      // Left accent bar
       doc.save();
-      doc.roundedRect(50, yPos, pageWidth, cardHeight, 4).fill(COLORS.lightGray);
+      doc.rect(marginLeft, yPos, 3, 28).fill(COLORS.gold);
       doc.restore();
 
-      const cardX = 60;
-      const cardY = yPos + 10;
-
-      // Transfer number and direction badge
+      // Transfer header row
+      const headerX = marginLeft + 12;
       doc.font(fontBold).fontSize(10).fillColor(COLORS.darkNavy);
-      doc.text(`Transfer ${index + 1}`, cardX, cardY);
-      
+      doc.text(`Transfer ${index + 1}`, headerX, yPos + 4);
+
       // Direction badge
       const dirLabel = getDirectionLabel(item.direction);
-      const badgeX = cardX + 80;
+      const badgeX = headerX + 72;
+      const badgeColor = item.direction === 'ida' ? COLORS.gold : COLORS.navy;
       doc.save();
-      doc.roundedRect(badgeX, cardY - 2, 45, 16, 3).fill(COLORS.gold);
+      doc.roundedRect(badgeX, yPos + 2, 42, 17, 8).fill(badgeColor);
       doc.restore();
-      doc.font(fontBold).fontSize(8).fillColor(COLORS.white);
-      doc.text(dirLabel, badgeX + 5, cardY + 2, { width: 35, align: 'center' });
+      doc.font(fontMedium).fontSize(7.5).fillColor(COLORS.white);
+      doc.text(dirLabel, badgeX + 3, yPos + 6, { width: 36, align: 'center' });
 
       // Date and time
-      doc.font(fontRegular).fontSize(9).fillColor(COLORS.mediumGray);
-      doc.text(`${formatDate(item.transfer_date)} - ${formatTime(item.transfer_time)}`, cardX + 150, cardY);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
+      const dateTimeStr = `${formatDateShort(item.transfer_date)}  \u2022  ${formatTime(item.transfer_time)} h`;
+      doc.text(dateTimeStr, headerX + 140, yPos + 6);
 
-      // Flight number if present
+      // Flight number
       if (item.flight_number) {
-        doc.font(fontRegular).fontSize(9).fillColor(COLORS.gold);
-        doc.text(`Vuelo: ${item.flight_number}`, cardX + 320, cardY);
+        doc.font(fontMedium).fontSize(8).fillColor(COLORS.mediumGray);
+        doc.text(`Vuelo: ${item.flight_number}`, pageWidth - marginRight - 120, yPos + 6, { width: 120, align: 'right' });
       }
 
-      // Route
-      const routeY = cardY + 25;
-      
+      yPos += 32;
+
+      // Route section with timeline dots
+      const routeX = marginLeft + 18;
+
       // Pickup
       doc.save();
-      doc.circle(cardX + 5, routeY + 5, 4).fill(COLORS.gold);
+      doc.circle(routeX, yPos + 5, 5).fill(COLORS.gold);
       doc.restore();
-      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
-      doc.text('RECOGIDA', cardX + 15, routeY - 2);
-      doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
-      doc.text(item.pickup_location || '-', cardX + 15, routeY + 10, { width: pageWidth - 40 });
+      // Small "A" in the circle
+      doc.font(fontBold).fontSize(6).fillColor(COLORS.white);
+      doc.text('A', routeX - 3, yPos + 2.5, { width: 6, align: 'center' });
 
-      // Dotted line
-      const dotY = routeY + 28;
+      doc.font(fontLight).fontSize(7).fillColor(COLORS.mediumGray);
+      doc.text('RECOGIDA', routeX + 14, yPos - 1);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.black);
+      doc.text(item.pickup_location || '-', routeX + 14, yPos + 9, { width: contentWidth - 50 });
+
+      // Connecting dotted line
+      yPos += 26;
       for (let i = 0; i < 3; i++) {
-        doc.circle(cardX + 5, dotY + i * 5, 1).fill('#CCCCCC');
+        doc.circle(routeX, yPos + i * 5, 1.2).fill(COLORS.borderGray);
       }
 
       // Dropoff
-      const dropY = routeY + 45;
+      yPos += 18;
       doc.save();
-      doc.circle(cardX + 5, dropY + 5, 4).fill(COLORS.darkNavy);
+      doc.circle(routeX, yPos + 5, 5).fill(COLORS.darkNavy);
       doc.restore();
-      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
-      doc.text('DESTINO', cardX + 15, dropY - 2);
-      doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
-      doc.text(item.dropoff_location || '-', cardX + 15, dropY + 10, { width: pageWidth - 40 });
+      doc.font(fontBold).fontSize(6).fillColor(COLORS.white);
+      doc.text('B', routeX - 3, yPos + 2.5, { width: 6, align: 'center' });
 
-      // Bottom row: vehicle, pax, driver
-      const bottomY = cardY + 100;
-      doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
-      doc.text('Vehiculo: ', cardX, bottomY, { continued: true });
-      doc.fillColor(COLORS.darkGray).text(getVehicleLabel(item.vehicle_type));
+      doc.font(fontLight).fontSize(7).fillColor(COLORS.mediumGray);
+      doc.text('DESTINO', routeX + 14, yPos - 1);
+      doc.font(fontRegular).fontSize(9).fillColor(COLORS.black);
+      doc.text(item.dropoff_location || '-', routeX + 14, yPos + 9, { width: contentWidth - 50 });
 
-      doc.fillColor(COLORS.mediumGray).text('Pasajeros: ', cardX + 180, bottomY, { continued: true });
-      doc.fillColor(COLORS.darkGray).text(`${item.pax_count || '-'}`);
+      yPos += 28;
+
+      // Route distance/duration info
+      if (route && (route.distance || route.duration)) {
+        doc.font(fontMedium).fontSize(8).fillColor(COLORS.mediumGray);
+        const routeInfo = [route.distance, route.duration].filter(Boolean).join('  \u2022  ');
+        doc.text(`\u2192  ${routeInfo}`, routeX + 14, yPos);
+        yPos += 16;
+      }
+
+      // Route map image
+      if (route?.mapImage) {
+        yPos += 4;
+        // Draw map with rounded corners effect (clip)
+        doc.save();
+        doc.roundedRect(marginLeft + 12, yPos, contentWidth - 12, 150, 6).clip();
+        doc.image(route.mapImage, marginLeft + 12, yPos, { width: contentWidth - 12, height: 150 });
+        doc.restore();
+        // Border around map
+        doc.roundedRect(marginLeft + 12, yPos, contentWidth - 12, 150, 6).strokeColor(COLORS.borderGray).lineWidth(0.5).stroke();
+        yPos += 158;
+      }
+
+      // Bottom info row: vehicle, passengers, driver
+      yPos += 6;
+      const infoY = yPos;
+      
+      // Light background for info row
+      doc.save();
+      doc.roundedRect(marginLeft + 12, infoY - 3, contentWidth - 12, 22, 4).fill(COLORS.lightGray);
+      doc.restore();
+
+      const infoX = marginLeft + 20;
+      doc.font(fontLight).fontSize(7.5).fillColor(COLORS.mediumGray);
+      doc.text('Veh\u00edculo', infoX, infoY);
+      doc.font(fontRegular).fontSize(8.5).fillColor(COLORS.darkGray);
+      doc.text(getVehicleLabel(item.vehicle_type), infoX, infoY + 9);
+
+      doc.font(fontLight).fontSize(7.5).fillColor(COLORS.mediumGray);
+      doc.text('Pasajeros', infoX + 150, infoY);
+      doc.font(fontRegular).fontSize(8.5).fillColor(COLORS.darkGray);
+      doc.text(`${item.pax_count || '-'}`, infoX + 150, infoY + 9);
 
       if (item.driver_name) {
-        doc.fillColor(COLORS.mediumGray).text('Conductor: ', cardX + 280, bottomY, { continued: true });
-        doc.fillColor(COLORS.darkGray).text(item.driver_name);
+        doc.font(fontLight).fontSize(7.5).fillColor(COLORS.mediumGray);
+        doc.text('Conductor', infoX + 240, infoY);
+        doc.font(fontRegular).fontSize(8.5).fillColor(COLORS.darkGray);
+        doc.text(item.driver_name, infoX + 240, infoY + 9);
       }
 
-      // Baby seats info
-      let extraHeight = 0;
-      if (item.baby_seats_count && item.baby_seats_count > 0) {
-        extraHeight = 20;
-        const babyY = bottomY + 15;
-        doc.font(fontBold).fontSize(8).fillColor('#D946A8');
-        doc.text(`\u{1F476} Sillitas de bebe: ${item.baby_seats_count}`, cardX, babyY);
+      yPos += 28;
 
-        // Parse baby_seats details
-        let seatsData: Array<{ age: number; weight: number }> = [];
-        if (item.baby_seats) {
-          try {
-            seatsData = typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats;
-          } catch {}
-        }
+      // Baby seats section
+      if (hasBabySeats) {
+        yPos += 4;
+        // Pink accent background
+        doc.save();
+        const babySectionHeight = 18 + (seatsArr.length > 0 ? seatsArr.length * 15 + 4 : 0);
+        doc.roundedRect(marginLeft + 12, yPos - 3, contentWidth - 12, babySectionHeight, 4).fill(COLORS.lightPink);
+        doc.restore();
 
-        if (seatsData.length > 0) {
-          const getGroup = (w: number) => w < 9 ? 'Grupo 0 - Reci\u00e9n nacido' : w < 18 ? 'Grupo 1 - Infantes' : w <= 36 ? 'Grupo 2 - Ni\u00f1o' : 'Grupo 3 - Elevador';
-          const detailStr = seatsData.map((s: any, i: number) => `Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg (${getGroup(s.weight)})`).join('  |  ');
-          doc.font(fontRegular).fontSize(8).fillColor(COLORS.darkGray);
-          doc.text(detailStr, cardX, babyY + 12, { width: pageWidth - 40 });
-          extraHeight += 14;
+        doc.font(fontBold).fontSize(8.5).fillColor(COLORS.pink);
+        doc.text(`Sillitas de beb\u00e9: ${item.baby_seats_count}`, marginLeft + 20, yPos);
+        yPos += 14;
+
+        if (seatsArr.length > 0) {
+          seatsArr.forEach((seat: any, sIdx: number) => {
+            doc.font(fontRegular).fontSize(8).fillColor(COLORS.darkGray);
+            const seatInfo = `Silla ${sIdx + 1}:  ${seat.age} a\u00f1os  \u2022  ${seat.weight} kg  \u2022  ${getBabySeatGroupDesc(seat.weight)}`;
+            doc.text(seatInfo, marginLeft + 28, yPos);
+            yPos += 14;
+          });
         }
+        yPos += 6;
       }
 
-      yPos += 145 + extraHeight;
-    });
+      // Separator between items
+      if (index < items.length - 1) {
+        yPos += 8;
+        doc.moveTo(marginLeft + 12, yPos).lineTo(pageWidth - marginRight, yPos).strokeColor(COLORS.borderGray).lineWidth(0.3).stroke();
+        yPos += 14;
+      }
+    }
 
     // ===== NOTES SECTION =====
     if (request.notes) {
-      if (yPos > 680) {
+      yPos += 12;
+      if (yPos > doc.page.height - 100) {
         doc.addPage();
         yPos = 50;
       }
 
-      yPos += 10;
-      doc.moveTo(50, yPos).lineTo(doc.page.width - 50, yPos).strokeColor('#DDDDDD').lineWidth(0.5).stroke();
-      yPos += 15;
+      doc.moveTo(marginLeft, yPos).lineTo(pageWidth - marginRight, yPos).strokeColor(COLORS.borderGray).lineWidth(0.5).stroke();
+      yPos += 16;
 
-      doc.font(fontBold).fontSize(11).fillColor(COLORS.darkNavy);
-      doc.text('NOTAS', 50, yPos);
-      yPos += 18;
+      doc.font(fontBold).fontSize(10).fillColor(COLORS.darkNavy);
+      doc.text('OBSERVACIONES', marginLeft, yPos);
+      yPos += 5;
+      doc.moveTo(marginLeft, yPos + 12).lineTo(marginLeft + 100, yPos + 12).strokeColor(COLORS.gold).lineWidth(1).stroke();
+      yPos += 20;
+
       doc.font(fontRegular).fontSize(9).fillColor(COLORS.darkGray);
-      doc.text(request.notes, 50, yPos, { width: pageWidth });
+      doc.text(request.notes, marginLeft, yPos, { width: contentWidth });
     }
 
     // ===== FOOTER =====
-    const footerY = doc.page.height - 60;
-    doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).strokeColor(COLORS.gold).lineWidth(0.5).stroke();
-    
-    doc.font(fontRegular).fontSize(8).fillColor(COLORS.mediumGray);
-    doc.text('Azul Cars - Servicio de Transfers Premium', 50, footerY + 10, { align: 'center', width: pageWidth });
-    doc.text('Este documento es una confirmacion del servicio solicitado.', 50, footerY + 22, { align: 'center', width: pageWidth });
+    // Draw footer at the bottom of the current page
+    const footerY = doc.page.height - 42;
+    doc.save();
+    doc.moveTo(marginLeft, footerY).lineTo(pageWidth - marginRight, footerY).strokeColor(COLORS.gold).lineWidth(0.5).stroke();
+    doc.restore();
+    doc.font(fontMedium).fontSize(7).fillColor(COLORS.mediumGray);
+    doc.text('Azul Cars  \u2022  Servicio Premium de Transfers', marginLeft, footerY + 6, { align: 'center', width: contentWidth, lineBreak: false });
+    doc.font(fontLight).fontSize(6.5).fillColor(COLORS.mediumGray);
+    doc.text('Este documento es una confirmaci\u00f3n del servicio solicitado. Para modificaciones, contacte con su gestor.', marginLeft, footerY + 17, { align: 'center', width: contentWidth, lineBreak: false });
 
     // Finalize PDF
     doc.end();

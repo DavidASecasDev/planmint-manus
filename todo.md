@@ -1447,3 +1447,7 @@
 - [x] Transfers: Notificación automática al equipo de operaciones cuando se crea un transfer con sillitas de bebé
 - [x] Transfers: Notificación consolidada de sillitas que incluya tanto transfers como reservas del mismo día
 - [x] Bug: TransferDetail muestra "recalculando ruta" pero no aparece el tiempo de ruta — Fix: maps.directions cambiado a publicProcedure + input format corregido para superjson
+- [x] PDF Transfer: Corregir caracteres rotos en sección de sillitas (emoji Unicode no soportado por PDFKit Helvetica)
+- [x] PDF Transfer: Añadir mapa estático de la ruta (Google Static Maps API)
+- [x] PDF Transfer: Mejorar diseño profesional general (spacing, tipografía, layout)
+- [x] PDF Transfer: Corregir errores de traducción/acentos (INFORMACION→INFORMACIÓN, Telefono→Teléfono, Embarcacion→Embarcación, Vehiculo→Vehículo)
