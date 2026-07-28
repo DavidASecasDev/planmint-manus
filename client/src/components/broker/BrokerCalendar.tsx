@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, MapPin, Clock, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Clock, User, Baby } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransferRequest, TransferRequestStatus } from '@/types/transfers';
@@ -30,6 +30,7 @@ interface CalendarEvent {
   pickupLocation?: string;
   dropoffLocation?: string;
   driverName?: string;
+  babySeatsCount: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -71,6 +72,7 @@ export function BrokerCalendar({ requests }: BrokerCalendarProps) {
           pickupLocation: item.pickup_location || undefined,
           dropoffLocation: item.dropoff_location || undefined,
           driverName: item.driver_name || undefined,
+          babySeatsCount: (item as any).baby_seats_count || 0,
         });
       }
     }
@@ -195,6 +197,7 @@ export function BrokerCalendar({ requests }: BrokerCalendarProps) {
                           <Clock className="w-2.5 h-2.5 shrink-0 opacity-60" />
                           <span className="font-semibold">{evt.time || '--:--'}</span>
                           <span className="truncate">{evt.clientName}</span>
+                          {evt.babySeatsCount > 0 && <Baby className="w-3 h-3 shrink-0 text-pink-500" />}
                         </div>
                         {evt.driverName && (
                           <div className="flex items-center gap-1 mt-0.5 opacity-70">

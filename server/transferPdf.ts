@@ -321,7 +321,8 @@ export async function handleTransferPdf(req: Request, res: Response) {
         }
 
         if (seatsData.length > 0) {
-          const detailStr = seatsData.map((s: any, i: number) => `Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg`).join('  |  ');
+          const getGroup = (w: number) => w < 9 ? 'Grupo 0 - Reci\u00e9n nacido' : w < 18 ? 'Grupo 1 - Infantes' : w <= 36 ? 'Grupo 2 - Ni\u00f1o' : 'Grupo 3 - Elevador';
+          const detailStr = seatsData.map((s: any, i: number) => `Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg (${getGroup(s.weight)})`).join('  |  ');
           doc.font(fontRegular).fontSize(8).fillColor(COLORS.darkGray);
           doc.text(detailStr, cardX, babyY + 12, { width: pageWidth - 40 });
           extraHeight += 14;

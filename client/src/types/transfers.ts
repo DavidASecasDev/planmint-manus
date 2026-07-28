@@ -98,6 +98,22 @@ export interface TransferRequestFormData {
 export interface BabySeatDetail {
   age: string;
   weight: string;
+  group?: string; // Auto-calculated from weight
+}
+
+/**
+ * Categoriza automáticamente el grupo de sillita según el peso.
+ * Grupo 0 - Recién nacido (0 - 9kg)
+ * Grupo 1 - Silla Infantes (9 - 18kg)
+ * Grupo 2 - Silla niño (18 - 36kg)
+ * Grupo 3 - Asiento Elevador (+36kg)
+ */
+export function getBabySeatGroup(weightKg: number): { group: string; label: string } {
+  if (weightKg <= 0) return { group: '-', label: '-' };
+  if (weightKg < 9) return { group: '0', label: 'Grupo 0 - Recién nacido' };
+  if (weightKg < 18) return { group: '1', label: 'Grupo 1 - Silla Infantes' };
+  if (weightKg <= 36) return { group: '2', label: 'Grupo 2 - Silla niño' };
+  return { group: '3', label: 'Grupo 3 - Asiento Elevador' };
 }
 
 export interface TransferItemFormData {

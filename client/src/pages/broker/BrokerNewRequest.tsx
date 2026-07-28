@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Trash2, Ship, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createEmptyTransferItem } from '@/types/transfers';
+import { createEmptyTransferItem, getBabySeatGroup } from '@/types/transfers';
 import type { TransferItemFormData, ClientType, VehicleType, BabySeatDetail } from '@/types/transfers';
 import { LocationAutocomplete } from '@/components/broker/LocationAutocomplete';
 
@@ -333,37 +333,44 @@ export default function BrokerNewRequest() {
               {item.baby_seats.length > 0 && (
                 <div className="space-y-2 pl-4 border-l-2 border-amber-200">
                   {item.baby_seats.map((seat, seatIdx) => (
-                    <div key={seatIdx} className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Edad silla {seatIdx + 1}</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="12"
-                          value={seat.age}
-                          onChange={e => {
-                            const newSeats = [...item.baby_seats];
-                            newSeats[seatIdx] = { ...newSeats[seatIdx], age: e.target.value };
-                            updateItem(idx, { baby_seats: newSeats });
-                          }}
-                          placeholder="Años"
-                        />
+                    <div key={seatIdx} className="space-y-1">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Edad silla {seatIdx + 1}</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="12"
+                            value={seat.age}
+                            onChange={e => {
+                              const newSeats = [...item.baby_seats];
+                              newSeats[seatIdx] = { ...newSeats[seatIdx], age: e.target.value };
+                              updateItem(idx, { baby_seats: newSeats });
+                            }}
+                            placeholder="Años"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Peso silla {seatIdx + 1} (kg)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="40"
+                            value={seat.weight}
+                            onChange={e => {
+                              const newSeats = [...item.baby_seats];
+                              newSeats[seatIdx] = { ...newSeats[seatIdx], weight: e.target.value };
+                              updateItem(idx, { baby_seats: newSeats });
+                            }}
+                            placeholder="kg"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Peso silla {seatIdx + 1} (kg)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="40"
-                          value={seat.weight}
-                          onChange={e => {
-                            const newSeats = [...item.baby_seats];
-                            newSeats[seatIdx] = { ...newSeats[seatIdx], weight: e.target.value };
-                            updateItem(idx, { baby_seats: newSeats });
-                          }}
-                          placeholder="kg"
-                        />
-                      </div>
+                      {seat.weight && parseInt(seat.weight) > 0 && (
+                        <p className="text-xs font-medium text-pink-600 pl-1">
+                          \u2192 {getBabySeatGroup(parseInt(seat.weight)).label}
+                        </p>
+                      )}
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground mt-1">Grupos: 0-9kg (Recién nacido) · 9-18kg (Infantes) · 18-36kg (Niño) · +36kg (Elevador)</p>

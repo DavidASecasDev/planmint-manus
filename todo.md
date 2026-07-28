@@ -1441,3 +1441,5 @@
 - [x] Transfers: Incluir información de sillitas de bebé en el PDF generado para el conductor
 - [x] Transfers: Filtro rápido en la lista de solicitudes para ver solo transfers con sillitas
 - [x] Broker portal: Mostrar icono de bebé en el calendario semanal del portal de brokers
+- [x] Transfers: Categorización automática del grupo de sillita (Grupo 0/1/2/3) según peso introducido
+- [x] Broker portal: Icono de bebé en el calendario mensual del portal de brokers
