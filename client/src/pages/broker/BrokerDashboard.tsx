@@ -258,7 +258,7 @@ export default function BrokerDashboard() {
           ) : (
             <div className="space-y-3">
               {requests.map((request) => (
-                <BrokerRequestRow key={request.id} request={request} onClick={() => navigate(`/broker/requests/${request.id}`)} />
+                <BrokerRequestRow key={request.id} request={request} onClick={() => navigate(`/broker/request/${request.id}`)} />
               ))}
             </div>
           )}

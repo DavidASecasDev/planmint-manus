@@ -40,6 +40,7 @@ import { OrgSwitcher } from '@/components/layout/OrgSwitcher';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useQuery } from '@tanstack/react-query';
 import { apiInvoke } from '@/lib/apiClient';
+import { supabaseQuery } from '@/lib/supabaseQuery';
 
 import { PermissionKey } from '@/hooks/usePermissions';
 
@@ -229,6 +230,24 @@ export function AppSidebar() {
       });
       if (result.error || !result.data?.ok) return 0;
       return result.data.count;
+    },
+    enabled: !!orgId,
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  // Pending transfers count for badge
+  const { data: pendingTransfersCount = 0 } = useQuery({
+    queryKey: ['pending-transfers-count', orgId],
+    queryFn: async () => {
+      if (!orgId) return 0;
+      const { count, error } = await supabaseQuery
+        .from('transfer_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .eq('status', 'pendiente');
+      if (error) return 0;
+      return count || 0;
     },
     enabled: !!orgId,
     refetchInterval: 60000,
@@ -592,7 +611,8 @@ export function AppSidebar() {
                             if (!dataReady) return true;
                             if ('permission' in subItem && subItem.permission) return hasPermission(subItem.permission);
                             return true;
-                          }
+                          },
+                          pendingTransfersCount,
                         )
                       }
 
