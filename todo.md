@@ -1437,3 +1437,4 @@
 - [x] Transfers: Notificación toast + sonido cuando llega una nueva solicitud pendiente (detectar incremento en el conteo)
 - [x] Transfers: Permitir al usuario silenciar notificaciones sonoras desde su perfil/configuración
 - [x] Transfers: Enlace en el toast de nueva solicitud que lleve directamente a la lista de solicitudes pendientes
+- [x] Transfers: Mostrar icono de bebé junto al nombre del cliente cuando el transfer tenga sillitas (como en Programación)

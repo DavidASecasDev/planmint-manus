@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
-import { ChevronLeft, ChevronRight, Ship, Building2, Car } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Ship, Building2, Car, Baby } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CLIENT_TYPE_META, VEHICLE_TYPE_META, TRANSFER_REQUEST_STATUS_META } from '@/types/transfers';
@@ -28,6 +28,7 @@ interface CalendarEvent {
   pickupLocation?: string;
   dropoffLocation?: string;
   driverName?: string;
+  babySeatsCount: number;
 }
 
 export function TransfersCalendar({ requests }: TransfersCalendarProps) {
@@ -60,6 +61,7 @@ export function TransfersCalendar({ requests }: TransfersCalendarProps) {
           pickupLocation: item.pickup_location || undefined,
           dropoffLocation: item.dropoff_location || undefined,
           driverName: item.driver_name || undefined,
+          babySeatsCount: item.baby_seats_count || 0,
         });
       }
     }
@@ -92,6 +94,7 @@ export function TransfersCalendar({ requests }: TransfersCalendarProps) {
           pickupLocation: item.pickup_location || undefined,
           dropoffLocation: item.dropoff_location || undefined,
           driverName: item.driver_name || undefined,
+          babySeatsCount: item.baby_seats_count || 0,
         });
       }
     }
@@ -215,6 +218,7 @@ export function TransfersCalendar({ requests }: TransfersCalendarProps) {
                           <span className="font-medium">{evt.time}</span>
                           {' '}
                           <span>{evt.clientName}</span>
+                          {evt.babySeatsCount > 0 && <Baby className="inline h-2.5 w-2.5 text-pink-500 ml-0.5" />}
                           {evt.direction === 'vuelta' && ' ↩'}
                         </div>
                       );

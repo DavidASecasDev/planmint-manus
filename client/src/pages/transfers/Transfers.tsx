@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, CalendarRange, LayoutGrid, FileDown } from 'lucide-react';
+import { Plus, Search, Ship, Building2, MapPin, Clock, Phone, Copy, Trash2, ChevronRight, List, CalendarDays, CalendarRange, LayoutGrid, FileDown, Baby } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -276,6 +276,18 @@ export default function Transfers() {
                       {/* Client & broker */}
                       <div className="flex items-center gap-4 text-sm">
                         <span className="font-medium">{request.client_name}</span>
+                        {(() => {
+                          const totalSeats = request.items?.reduce((sum: number, item: any) => sum + (item.baby_seats_count || 0), 0) || 0;
+                          if (totalSeats === 0) return null;
+                          return (
+                            <span className="inline-flex items-center gap-0.5 flex-shrink-0" title={`${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de bebé`}>
+                              <Baby className="h-3.5 w-3.5 text-pink-500" />
+                              {totalSeats > 1 && (
+                                <span className="text-[10px] font-bold text-pink-500">{totalSeats}</span>
+                              )}
+                            </span>
+                          );
+                        })()}
                         <span className="text-muted-foreground">· {request.broker_name}</span>
                         {request.client_phone && (
                           <span className="text-muted-foreground flex items-center gap-1">

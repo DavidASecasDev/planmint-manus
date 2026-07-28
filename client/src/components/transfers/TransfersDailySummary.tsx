@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
-import { ChevronLeft, ChevronRight, Sun, CloudSun, Sunset, MapPin, Car, User, Phone, Ship, Building2, ExternalLink, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sun, CloudSun, Sunset, MapPin, Car, User, Phone, Ship, Building2, ExternalLink, ArrowRight, Baby } from 'lucide-react';
 import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { VEHICLE_TYPE_META, DIRECTION_META } from '@/types/transfers';
@@ -37,6 +37,7 @@ interface DailyTransferEvent {
   captainPhone: string | null;
   paxCount: number | null;
   flightNumber: string | null;
+  babySeatsCount: number;
 }
 
 type TimeSlot = 'morning' | 'midday' | 'afternoon' | 'night';
@@ -114,6 +115,7 @@ export function TransfersDailySummary({ requests }: TransfersDailySummaryProps) 
           captainPhone: req.captain_phone,
           paxCount: item.pax_count,
           flightNumber: item.flight_number,
+          babySeatsCount: item.baby_seats_count || 0,
         });
       }
     }
@@ -229,6 +231,12 @@ export function TransfersDailySummary({ requests }: TransfersDailySummaryProps) 
                           {/* Client row */}
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">{evt.clientName}</span>
+                            {evt.babySeatsCount > 0 && (
+                              <span className="inline-flex items-center gap-0.5 flex-shrink-0" title={`${evt.babySeatsCount} sillita${evt.babySeatsCount > 1 ? 's' : ''} de bebé`}>
+                                <Baby className="h-3.5 w-3.5 text-pink-500" />
+                                {evt.babySeatsCount > 1 && <span className="text-[10px] font-bold text-pink-500">{evt.babySeatsCount}</span>}
+                              </span>
+                            )}
                             {evt.clientType === 'charter' ? (
                               <Badge variant="outline" className="text-[10px] gap-1">
                                 <Ship className="w-3 h-3" /> {evt.boatName || 'Charter'}

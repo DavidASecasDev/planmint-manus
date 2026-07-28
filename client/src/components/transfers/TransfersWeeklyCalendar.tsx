@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
-import { ChevronLeft, ChevronRight, MapPin, Car, User, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Car, User, ArrowRight, Baby } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { VEHICLE_TYPE_META, DIRECTION_META, TRANSFER_REQUEST_STATUS_META } from '@/types/transfers';
@@ -31,6 +31,7 @@ interface WeeklyEvent {
   driverName: string | null;
   paxCount: number | null;
   flightNumber: string | null;
+  babySeatsCount: number;
 }
 
 // Hours to display (6:00 to 23:00)
@@ -95,6 +96,7 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
           driverName: item.driver_name,
           paxCount: item.pax_count,
           flightNumber: item.flight_number,
+          babySeatsCount: item.baby_seats_count || 0,
         });
       }
     }
@@ -267,6 +269,11 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
                               <div className="flex items-center gap-1">
                                 <span className="text-[10px] font-bold text-primary">{evt.time}</span>
                                 <span className="text-[10px] truncate font-medium">{evt.clientName}</span>
+                                {evt.babySeatsCount > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 flex-shrink-0" title={`${evt.babySeatsCount} sillita${evt.babySeatsCount > 1 ? 's' : ''} de bebé`}>
+                                    <Baby className="h-2.5 w-2.5 text-pink-500" />
+                                  </span>
+                                )}
                                 {evt.direction === 'vuelta' && (
                                   <span className="text-[9px] text-muted-foreground">↩</span>
                                 )}
