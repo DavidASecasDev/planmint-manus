@@ -1434,3 +1434,4 @@
 - [x] Transfer form: Baby seats in broker list fetch query (useBrokerRequests)
 - [x] Transfers sidebar: Badge rojo con contador de solicitudes pendientes (sin gestionar) como en Preparación
 - [x] Bug: Portal de brokers - click en solicitud navega a /broker/requests/:id que da 404 — Fix: URL corregida a /broker/request/:id (singular)
+- [x] Transfers: Notificación toast + sonido cuando llega una nueva solicitud pendiente (detectar incremento en el conteo)
