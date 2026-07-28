@@ -320,6 +320,47 @@ export async function handleSupabaseQuery(req: Request, res: Response) {
       return res.status(500).json({ data: null, error: error.message, count: null });
     }
 
+    // Post-insert hook: notify owner when transfer items with baby seats are created
+    if (desc.operation === 'insert' && desc.table === 'transfer_items' && !error) {
+      try {
+        const insertedItems = Array.isArray(desc.data) ? desc.data : [desc.data];
+        const itemsWithBabySeats = insertedItems.filter((item: any) => item.baby_seats_count && item.baby_seats_count > 0);
+        if (itemsWithBabySeats.length > 0) {
+          const totalSeats = itemsWithBabySeats.reduce((sum: number, item: any) => sum + (item.baby_seats_count || 0), 0);
+          // Get the request info for context
+          const requestId = insertedItems[0]?.request_id;
+          let clientInfo = '';
+          if (requestId) {
+            const { data: reqData } = await serviceClient
+              .from('transfer_requests')
+              .select('client_name, request_number')
+              .eq('id', requestId)
+              .single();
+            if (reqData) {
+              clientInfo = ` - Cliente: ${reqData.client_name} (${reqData.request_number})`;
+            }
+          }
+          // Build seat details
+          const seatDetails = itemsWithBabySeats.map((item: any) => {
+            if (item.baby_seats) {
+              const seats = typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats;
+              const getGroup = (w: number) => w < 9 ? 'Grupo 0' : w < 18 ? 'Grupo 1' : w <= 36 ? 'Grupo 2' : 'Grupo 3';
+              return seats.map((s: any, i: number) => `  - Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg (${getGroup(s.weight)})`).join('\n');
+            }
+            return `  - ${item.baby_seats_count} sillita(s)`;
+          }).join('\n');
+
+          const { notifyOwner } = await import('./_core/notification');
+          notifyOwner({
+            title: `\u{1F476} ${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de beb\u00e9 necesaria${totalSeats > 1 ? 's' : ''}${clientInfo}`,
+            content: `Se ha creado un transfer que requiere ${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de beb\u00e9. Preparar material con antelaci\u00f3n.\n\nDetalle:\n${seatDetails}`,
+          }).catch((e: any) => console.error('[supabaseProxy] Baby seat notification error:', e));
+        }
+      } catch (hookErr) {
+        console.error('[supabaseProxy] Post-insert hook error (non-blocking):', hookErr);
+      }
+    }
+
     return res.json({ data, error: null, count: count ?? null });
   } catch (err: any) {
     if (err instanceof AuthError) {

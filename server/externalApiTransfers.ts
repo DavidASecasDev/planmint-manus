@@ -24,6 +24,7 @@ import {
 } from "./externalApiAuth";
 import { getServiceClient } from "./supabaseAdmin";
 import { onTransferCreated } from "./automationEngine";
+import { notifyOwner } from "./_core/notification";
 
 const router = Router();
 
@@ -303,6 +304,23 @@ router.post("/", async (req: Request, res: Response) => {
       changed_by_name: `API: ${auth.keyName}`,
       note: `Solicitud creada vía API externa (${auth.keyName})`,
     });
+
+    // Notify owner if baby seats are needed (non-blocking)
+    const itemsWithBabySeats = input.items.filter((item) => item.baby_seats_count && item.baby_seats_count > 0);
+    if (itemsWithBabySeats.length > 0) {
+      const totalSeats = itemsWithBabySeats.reduce((sum, item) => sum + (item.baby_seats_count || 0), 0);
+      const getGroup = (w: number) => w < 9 ? 'Grupo 0' : w < 18 ? 'Grupo 1' : w <= 36 ? 'Grupo 2' : 'Grupo 3';
+      const seatDetails = itemsWithBabySeats.map((item) => {
+        if (item.baby_seats) {
+          return item.baby_seats.map((s, i) => `  - Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg (${getGroup(s.weight)})`).join('\n');
+        }
+        return `  - ${item.baby_seats_count} sillita(s)`;
+      }).join('\n');
+      notifyOwner({
+        title: `\u{1F476} ${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de beb\u00e9 - ${input.client_name} (${requestNumber})`,
+        content: `Transfer creado v\u00eda API externa que requiere ${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de beb\u00e9.\n\nDetalle:\n${seatDetails}`,
+      }).catch((e) => console.error('[ExternalAPI] Baby seat notification error:', e));
+    }
 
     // Fire automation (non-blocking)
     onTransferCreated({
