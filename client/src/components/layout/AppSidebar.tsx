@@ -7,7 +7,7 @@
  * Labels: Montserrat 700, uppercase, tracking 0.1em
  */
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Settings, ChevronLeft, ChevronRight, ChevronDown, LogOut, Layers, ClipboardList, Tag, Bell, Columns, CalendarDays, MessageSquare, Zap, LayoutTemplate, BarChart3, Shield, CarFront, Timer, FileText, Car, BookOpen, Wrench, Hammer, AlertTriangle, Building2, FileSpreadsheet, Ship, Plus, ClipboardCheck, Route, Warehouse, Baby, ArrowLeftRight, CalendarClock, MapPin, PackageSearch, GanttChart, SprayCan, Package, Satellite, Activity, ParkingSquare, ClipboardPen } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth, OrganizationVertical } from '@/contexts/AuthContext';
@@ -42,6 +42,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiInvoke } from '@/lib/apiClient';
 import { supabaseQuery } from '@/lib/supabaseQuery';
 import { toast } from 'sonner';
+import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 
 import { PermissionKey } from '@/hooks/usePermissions';
 
@@ -256,6 +257,8 @@ export function AppSidebar() {
   });
 
   // Toast + sound when new pending transfer arrives
+  const { preferences: notifPrefs } = useNotificationPreferences();
+  const navigate = useNavigate();
   const prevPendingCountRef = useRef<number | null>(null);
   useEffect(() => {
     if (prevPendingCountRef.current === null) {
@@ -269,17 +272,25 @@ export function AppSidebar() {
         diff === 1
           ? 'Nueva solicitud de transfer pendiente'
           : `${diff} nuevas solicitudes de transfer pendientes`,
-        { duration: 5000 }
+        {
+          duration: 5000,
+          action: {
+            label: 'Ver solicitudes',
+            onClick: () => navigate('/transfers'),
+          },
+        }
       );
-      // Play notification sound
-      try {
-        const audio = new Audio('/notification.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      } catch {}
+      // Play notification sound (respects user preference)
+      if (notifPrefs?.sound_enabled !== false) {
+        try {
+          const audio = new Audio('/notification.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(() => {});
+        } catch {}
+      }
     }
     prevPendingCountRef.current = pendingTransfersCount;
-  }, [pendingTransfersCount]);
+  }, [pendingTransfersCount, notifPrefs?.sound_enabled, navigate]);
 
   // Check if current user has broker portal access
   const userId = profile?.id;
