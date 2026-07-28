@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Trash2, Ship, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createEmptyTransferItem } from '@/types/transfers';
-import type { TransferItemFormData, ClientType, VehicleType } from '@/types/transfers';
+import type { TransferItemFormData, ClientType, VehicleType, BabySeatDetail } from '@/types/transfers';
 import { LocationAutocomplete } from '@/components/broker/LocationAutocomplete';
 
 export default function BrokerNewRequest() {
@@ -85,6 +85,8 @@ export default function BrokerNewRequest() {
         pax_count: item.pax_count ? parseInt(item.pax_count) : null,
         flight_number: item.flight_number || null,
         notes: item.notes || null,
+        baby_seats_count: item.baby_seats_count ? parseInt(item.baby_seats_count) : null,
+        baby_seats: item.baby_seats.length > 0 ? item.baby_seats.filter(s => s.age || s.weight).map(s => ({ age: parseInt(s.age) || 0, weight: parseInt(s.weight) || 0 })) : null,
       });
       if (item.has_return) {
         finalItems.push({
@@ -253,7 +255,7 @@ export default function BrokerNewRequest() {
                 <Input type="date" value={item.transfer_date} onChange={e => updateItem(idx, { transfer_date: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Hora *</Label>
+                <Label>{clientType === 'charter' ? 'Hora del Charter *' : 'Hora de Pick up *'}</Label>
                 <Input type="time" value={item.transfer_time} onChange={e => updateItem(idx, { transfer_time: e.target.value })} />
               </div>
               <div className="space-y-2">
@@ -302,6 +304,71 @@ export default function BrokerNewRequest() {
                 <Label>Notas</Label>
                 <Input value={item.notes} onChange={e => updateItem(idx, { notes: e.target.value })} placeholder="Notas del servicio..." />
               </div>
+            </div>
+
+            {/* Baby seats */}
+            <div className="space-y-3 pt-3 border-t">
+              <div className="flex items-center gap-4">
+                <div className="space-y-1">
+                  <Label>Sillas de bebé</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="4"
+                    value={item.baby_seats_count}
+                    onChange={e => {
+                      const count = parseInt(e.target.value) || 0;
+                      const currentSeats = item.baby_seats || [];
+                      let newSeats: BabySeatDetail[] = [];
+                      if (count > 0) {
+                        newSeats = Array.from({ length: count }, (_, i) => currentSeats[i] || { age: '', weight: '' });
+                      }
+                      updateItem(idx, { baby_seats_count: e.target.value, baby_seats: newSeats });
+                    }}
+                    placeholder="0"
+                    className="w-20"
+                  />
+                </div>
+              </div>
+              {item.baby_seats.length > 0 && (
+                <div className="space-y-2 pl-4 border-l-2 border-amber-200">
+                  {item.baby_seats.map((seat, seatIdx) => (
+                    <div key={seatIdx} className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Edad silla {seatIdx + 1}</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="12"
+                          value={seat.age}
+                          onChange={e => {
+                            const newSeats = [...item.baby_seats];
+                            newSeats[seatIdx] = { ...newSeats[seatIdx], age: e.target.value };
+                            updateItem(idx, { baby_seats: newSeats });
+                          }}
+                          placeholder="Años"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Peso silla {seatIdx + 1} (kg)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="40"
+                          value={seat.weight}
+                          onChange={e => {
+                            const newSeats = [...item.baby_seats];
+                            newSeats[seatIdx] = { ...newSeats[seatIdx], weight: e.target.value };
+                            updateItem(idx, { baby_seats: newSeats });
+                          }}
+                          placeholder="kg"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground mt-1">Grupos: 0-9kg (Recién nacido) · 9-18kg (Infantes) · 18-36kg (Niño) · +36kg (Elevador)</p>
+                </div>
+              )}
             </div>
 
             {/* Return trip toggle */}

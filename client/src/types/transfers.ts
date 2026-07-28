@@ -75,6 +75,9 @@ export interface TransferItem {
   // Status & notes
   status: TransferItemStatus;
   notes: string | null;
+  // Baby seats
+  baby_seats_count: number | null;
+  baby_seats: Array<{ age: number; weight: number }> | null;
   created_at: string;
 }
 
@@ -90,6 +93,11 @@ export interface TransferRequestFormData {
   captain_name: string;
   captain_phone: string;
   notes: string;
+}
+
+export interface BabySeatDetail {
+  age: string;
+  weight: string;
 }
 
 export interface TransferItemFormData {
@@ -109,6 +117,9 @@ export interface TransferItemFormData {
   pax_count: string;
   flight_number: string;
   notes: string;
+  // Baby seats
+  baby_seats_count: string;
+  baby_seats: BabySeatDetail[];
   // Return trip
   has_return: boolean;
   return_date: string;
@@ -186,6 +197,8 @@ export function createEmptyTransferItem(): TransferItemFormData {
     pax_count: '',
     flight_number: '',
     notes: '',
+    baby_seats_count: '',
+    baby_seats: [],
     has_return: false,
     return_date: '',
     return_time: '',

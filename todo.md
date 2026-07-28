@@ -1421,3 +1421,14 @@
 - [x] Investigar y resolver errores de Postgres — RESUELTO: Error #1 "invalid input syntax for type uuid: Rental" viene del viejo plan-mint.com (no de nuestro código). Error #2 "column reservations.vehicle_id does not exist" corregido en coreEndpoints2.ts (cambiado a usar columna 'auto')
 - [x] Fix Rently sync: update confirmed_entrega/devolucion_datetime when Rently date moves forward (contract extension, date change)
 - [x] Fix sync: allow same-day earlier times in confirmed datetime (compare by date portion only, not timestamp)
+- [x] Transfer form: Change "Hora" label to "Hora del Charter" for Charter clients and "Hora de Pick up" for Villa clients
+- [x] Transfer form: Add baby seat fields (count, age per seat, weight per seat) to Charter and Villa transfer items
+- [x] Transfer form: Baby seats in internal new transfer form (TransferNew.tsx)
+- [x] Transfer form: Baby seats in broker new request form (BrokerNewRequest.tsx)
+- [x] Transfer form: Baby seats in broker edit request form (BrokerEditRequest.tsx)
+- [x] Transfer form: Baby seats in TransferDetail display
+- [x] Transfer form: Baby seats in BrokerRequestDetail display
+- [x] Transfer form: Baby seats in external API (externalApiTransfers.ts)
+- [x] Transfer form: Baby seats persisted in DB (baby_seats_count INT, baby_seats JSONB columns added to transfer_items)
+- [x] Transfer form: Baby seats in clone flow (useTransferRequests)
+- [x] Transfer form: Baby seats in broker list fetch query (useBrokerRequests)

@@ -39,6 +39,8 @@ interface TransferItemInput {
   vehicle_type?: string;
   flight_number?: string;
   notes?: string;
+  baby_seats_count?: number;
+  baby_seats?: Array<{ age: number; weight: number }>;
   direction?: "ida" | "vuelta";
   has_return?: boolean;
   return_pickup_location?: string;
@@ -264,6 +266,8 @@ router.post("/", async (req: Request, res: Response) => {
       vehicle_type: item.vehicle_type || "v_class",
       flight_number: item.flight_number || null,
       notes: item.notes || null,
+      baby_seats_count: item.baby_seats_count || null,
+      baby_seats: item.baby_seats ? JSON.stringify(item.baby_seats) : null,
       direction: item.direction || "ida",
       transfer_time: item.pickup_time ? `${item.pickup_time}:00` : null,
       has_return: item.has_return || false,

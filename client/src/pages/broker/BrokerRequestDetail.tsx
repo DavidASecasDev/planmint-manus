@@ -249,6 +249,19 @@ export default function BrokerRequestDetail() {
                 )}
               </div>
 
+              {/* Baby seats */}
+              {item.baby_seats_count && item.baby_seats_count > 0 && (
+                <div className="text-xs space-y-1">
+                  <p className="font-medium text-amber-700">{item.baby_seats_count} silla{item.baby_seats_count > 1 ? 's' : ''} de bebé</p>
+                  {item.baby_seats && (typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats).map((seat: { age: number; weight: number }, sIdx: number) => (
+                    <p key={sIdx} className="text-muted-foreground pl-2">
+                      Silla {sIdx + 1}: {seat.age} años, {seat.weight} kg
+                      {seat.weight <= 9 ? ' (Grupo 0)' : seat.weight <= 18 ? ' (Grupo 1)' : seat.weight <= 36 ? ' (Grupo 2)' : ' (Grupo 3)'}
+                    </p>
+                  ))}
+                </div>
+              )}
+
               {/* Driver info per item */}
               {item.driver_name && (
                 <div className="flex items-center gap-2 text-sm bg-green-50 p-2 rounded">

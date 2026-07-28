@@ -43,6 +43,8 @@ export interface CreateInternalRequestData {
     pax_count: number | null;
     flight_number?: string | null;
     notes?: string | null;
+    baby_seats_count?: number | null;
+    baby_seats?: Array<{ age: number; weight: number }> | null;
   }>;
 }
 
@@ -60,7 +62,7 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
         .from('transfer_requests')
         .select(`
           *,
-          items:transfer_items(id, transfer_date, transfer_time, status, pickup_location, dropoff_location, pax_count, vehicle_type, direction, driver_name, driver_phone, linked_item_id, flight_number, pickup_place_id, dropoff_place_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, position, notes)
+          items:transfer_items(id, transfer_date, transfer_time, status, pickup_location, dropoff_location, pax_count, vehicle_type, direction, driver_name, driver_phone, linked_item_id, flight_number, pickup_place_id, dropoff_place_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, position, notes, baby_seats_count, baby_seats)
         `)
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
@@ -379,6 +381,8 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
         pax_count: item.pax_count,
         flight_number: item.flight_number || null,
         notes: item.notes || null,
+        baby_seats_count: item.baby_seats_count || null,
+        baby_seats: item.baby_seats ? JSON.stringify(item.baby_seats) : null,
         status: 'pendiente',
       }));
 
@@ -450,6 +454,8 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           pax_count: item.pax_count,
           flight_number: item.flight_number,
           notes: item.notes,
+          baby_seats_count: item.baby_seats_count || null,
+          baby_seats: item.baby_seats || null,
           status: 'pendiente',
         }));
 
