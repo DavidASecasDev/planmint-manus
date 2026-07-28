@@ -305,20 +305,80 @@ router.post("/", async (req: Request, res: Response) => {
       note: `Solicitud creada vía API externa (${auth.keyName})`,
     });
 
-    // Notify owner if baby seats are needed (non-blocking)
+    // Notify owner if baby seats are needed (non-blocking) - consolidated with reservations
     const itemsWithBabySeats = input.items.filter((item) => item.baby_seats_count && item.baby_seats_count > 0);
     if (itemsWithBabySeats.length > 0) {
-      const totalSeats = itemsWithBabySeats.reduce((sum, item) => sum + (item.baby_seats_count || 0), 0);
+      const totalTransferSeats = itemsWithBabySeats.reduce((sum, item) => sum + (item.baby_seats_count || 0), 0);
       const getGroup = (w: number) => w < 9 ? 'Grupo 0' : w < 18 ? 'Grupo 1' : w <= 36 ? 'Grupo 2' : 'Grupo 3';
-      const seatDetails = itemsWithBabySeats.map((item) => {
+      const transferSeatDetails = itemsWithBabySeats.map((item) => {
         if (item.baby_seats) {
           return item.baby_seats.map((s, i) => `  - Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg (${getGroup(s.weight)})`).join('\n');
         }
         return `  - ${item.baby_seats_count} sillita(s)`;
       }).join('\n');
+
+      // Consolidated: check reservations + other transfers for the same day
+      const transferDate = input.items[0]?.transfer_date || '';
+      let reservationSeatsTotal = 0;
+      let reservationDetails = '';
+      let otherTransferSeats = 0;
+      if (transferDate) {
+        try {
+          const svcClient = getServiceClient();
+          const SEAT_KEYWORDS = ['silla', 'sillita', 'beb\u00e9', 'bebe', 'baby', 'child', 'booster', 'infant', 'infante', 'elevador', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3'];
+          const isBabySeatExtra = (name: string) => SEAT_KEYWORDS.some((kw) => name.toLowerCase().includes(kw));
+
+          const { data: reservations } = await svcClient
+            .from('reservations')
+            .select('id, cliente, extras_contratados')
+            .eq('organization_id', auth.organizationId)
+            .lte('desde', transferDate + 'T23:59:59')
+            .gte('hasta', transferDate + 'T00:00:00')
+            .not('estado', 'in', '("Cancelada","No Show")');
+          if (reservations && reservations.length > 0) {
+            const resWithSeats: string[] = [];
+            (reservations as any[]).forEach((r: any) => {
+              let extras: any[] = [];
+              try { extras = typeof r.extras_contratados === 'string' ? JSON.parse(r.extras_contratados) : (r.extras_contratados || []); } catch { extras = []; }
+              let resSeats = 0;
+              extras.forEach((e: any) => {
+                const name = e.nombre || e.name || '';
+                if (isBabySeatExtra(name)) { resSeats += e.cantidad ?? e.quantity ?? 1; }
+              });
+              if (resSeats > 0) {
+                reservationSeatsTotal += resSeats;
+                resWithSeats.push(`  - ${r.cliente || 'Reserva'}: ${resSeats} sillita(s)`);
+              }
+            });
+            if (resWithSeats.length > 0) reservationDetails = resWithSeats.join('\n');
+          }
+
+          const { data: otherItems } = await svcClient
+            .from('transfer_items')
+            .select('baby_seats_count')
+            .eq('organization_id', auth.organizationId)
+            .eq('transfer_date', transferDate)
+            .gt('baby_seats_count', 0)
+            .neq('request_id', request.id || '');
+          if (otherItems) {
+            otherTransferSeats = (otherItems as any[]).reduce((sum: number, it: any) => sum + (it.baby_seats_count || 0), 0);
+          }
+        } catch (e) { /* non-blocking */ }
+      }
+
+      const grandTotal = totalTransferSeats + reservationSeatsTotal + otherTransferSeats;
+      const dateLabel = transferDate ? ` para el ${transferDate}` : '';
+      let content = `Transfer creado v\u00eda API externa que requiere ${totalTransferSeats} sillita${totalTransferSeats > 1 ? 's' : ''} de beb\u00e9${dateLabel}.\n\n`;
+      content += `\u{1F4CB} RESUMEN DEL D\u00cdA${dateLabel}:\n`;
+      content += `  \u2022 Total sillitas necesarias: ${grandTotal}\n`;
+      content += `  \u2022 Transfers: ${totalTransferSeats + otherTransferSeats} (este: ${totalTransferSeats}${otherTransferSeats > 0 ? `, otros: ${otherTransferSeats}` : ''})\n`;
+      if (reservationSeatsTotal > 0) content += `  \u2022 Reservas: ${reservationSeatsTotal}\n`;
+      content += `\n\u{1F6D2} Detalle de este transfer:\n${transferSeatDetails}`;
+      if (reservationDetails) content += `\n\n\u{1F697} Sillitas en reservas del d\u00eda:\n${reservationDetails}`;
+
       notifyOwner({
-        title: `\u{1F476} ${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de beb\u00e9 - ${input.client_name} (${requestNumber})`,
-        content: `Transfer creado v\u00eda API externa que requiere ${totalSeats} sillita${totalSeats > 1 ? 's' : ''} de beb\u00e9.\n\nDetalle:\n${seatDetails}`,
+        title: `\u{1F476} ${grandTotal} sillita${grandTotal > 1 ? 's' : ''} total${grandTotal > 1 ? 'es' : ''} el d\u00eda${dateLabel} - ${input.client_name} (${requestNumber})`,
+        content,
       }).catch((e) => console.error('[ExternalAPI] Baby seat notification error:', e));
     }
 

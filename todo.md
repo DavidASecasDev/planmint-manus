@@ -1445,3 +1445,4 @@
 - [x] Broker portal: Icono de bebé en el calendario mensual del portal de brokers
 - [x] Transfers: Resumen de sillitas necesarias por día en cabecera del calendario (planificación de stock)
 - [x] Transfers: Notificación automática al equipo de operaciones cuando se crea un transfer con sillitas de bebé
+- [x] Transfers: Notificación consolidada de sillitas que incluya tanto transfers como reservas del mismo día
