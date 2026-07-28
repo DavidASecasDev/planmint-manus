@@ -76,11 +76,15 @@ function FitBounds({ points }: { points: [number, number][] }) {
 
 async function fetchDirections(params: { origin: string; destination: string; originPlaceId?: string; destinationPlaceId?: string }) {
   const url = new URL('/api/trpc/maps.directions', window.location.origin);
-  url.searchParams.set('input', JSON.stringify(params));
+  // tRPC with superjson expects input wrapped as {json: ...}
+  url.searchParams.set('input', JSON.stringify({ json: params }));
   const res = await fetch(url.toString(), { credentials: 'include' });
   if (!res.ok) throw new Error('Failed to fetch directions');
   const json = await res.json();
-  return json.result?.data;
+  // tRPC with superjson wraps response in {result: {data: {json: ...}}}
+  const data = json.result?.data;
+  if (data?.json) return data.json;
+  return data;
 }
 
 export function TransferRouteMap({ pickupLocation, dropoffLocation, pickupPlaceId, dropoffPlaceId }: TransferRouteMapProps) {

@@ -9,7 +9,7 @@ import { z } from "zod";
 export const appRouter = router({
   system: systemRouter,
   maps: router({
-    directions: protectedProcedure
+    directions: publicProcedure
       .input(z.object({
         origin: z.string(),
         destination: z.string(),

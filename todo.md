@@ -1446,3 +1446,4 @@
 - [x] Transfers: Resumen de sillitas necesarias por día en cabecera del calendario (planificación de stock)
 - [x] Transfers: Notificación automática al equipo de operaciones cuando se crea un transfer con sillitas de bebé
 - [x] Transfers: Notificación consolidada de sillitas que incluya tanto transfers como reservas del mismo día
+- [x] Bug: TransferDetail muestra "recalculando ruta" pero no aparece el tiempo de ruta — Fix: maps.directions cambiado a publicProcedure + input format corregido para superjson
