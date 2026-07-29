@@ -1452,3 +1452,4 @@
 - [x] PDF Transfer: Mejorar diseño profesional general (spacing, tipografía, layout)
 - [x] PDF Transfer: Corregir errores de traducción/acentos (INFORMACION→INFORMACIÓN, Telefono→Teléfono, Embarcacion→Embarcación, Vehiculo→Vehículo)
 - [x] Bug: Stats muestran 4 Aceptados pero filtro solo muestra 3 (conductor_asignado no se incluye en el filtro)
+- [x] Bug: Aceptar transfer no crea reserva en Programación (datetime inválido por :00 duplicado)

@@ -163,8 +163,13 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
         // Build the transfer datetime from date + time
         let transferDatetime: string | null = null;
         if (item.transfer_date) {
-          const timePart = item.transfer_time || '00:00';
-          transferDatetime = `${item.transfer_date}T${timePart}:00`;
+          let timePart = item.transfer_time || '00:00';
+          // Normalize time: if already has seconds (HH:MM:SS), use as-is; otherwise append :00
+          const timeSegments = timePart.split(':');
+          if (timeSegments.length === 2) {
+            timePart = `${timePart}:00`;
+          }
+          transferDatetime = `${item.transfer_date}T${timePart}`;
         }
 
         // Build direction label for notes
@@ -206,9 +211,13 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           imported_by: profile?.id || null,
         };
 
-        await supabaseQuery
+        const { error: resError } = await supabaseQuery
           .from('reservations')
           .insert(reservationData);
+
+        if (resError) {
+          console.error('[Transfer Accept] Failed to create reservation:', resError);
+        }
       }
     },
     onSuccess: () => {
