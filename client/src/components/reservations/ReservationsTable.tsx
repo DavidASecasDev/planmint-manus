@@ -660,7 +660,7 @@ export function ReservationsTable() {
         const newState: Record<string, { realMinutes: number; estimatedMinutes: number | null }> = {};
         const newArrivalUsers: Record<string, { startedBy: string | null; arrivedBy: string | null }> = {};
         for (const row of operationRows) {
-          const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devoluci\u00f3n' ? 'devolucion' : null;
+          const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Devoluci\u00f3n' ? 'devolucion' : row.tipoOperacion === 'Transfer' ? 'transfer' : null;
           if (!opType) continue;
           const key = `${row.reservationId}:${opType}`;
           const status = resp.data.statuses[key];
@@ -1158,7 +1158,7 @@ export function ReservationsTable() {
         // If the operation was 'En camino' and is being changed to any other status,
         // delete the en_camino_tracking record so it disappears from the Live Map
         if (oldStatus === 'En camino' && value !== 'En camino') {
-          const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : 'devolucion';
+          const opType = row.tipoOperacion === 'Entrega' ? 'entrega' : row.tipoOperacion === 'Transfer' ? 'transfer' : 'devolucion';
           // Delete the tracking record
           apiInvoke('en-camino-tracking', {
             body: {
@@ -1170,6 +1170,7 @@ export function ReservationsTable() {
         }
 
         // If a Transfer is marked as 'En camino', update the transfer_request status to en_curso
+        // AND create an en_camino_tracking record to register the timestamp
         if (row.tipoOperacion === 'Transfer' && value === 'En camino') {
           const transferRequestId = (row.reservation as any).transfer_request_id;
           if (transferRequestId) {
@@ -1185,6 +1186,19 @@ export function ReservationsTable() {
                 }
               });
           }
+          // Create en_camino_tracking record for timestamp tracking
+          const destAddress = row.direccion || row.lugar || '';
+          const assignedName = profile?.name || '';
+          const estimatedMin = row.travelMinutes || null;
+          apiInvoke('en-camino-tracking', {
+            body: {
+              reservation_id: row.reservationId,
+              operation_type: 'transfer',
+              destination_address: destAddress,
+              assigned_user_name: assignedName,
+              estimated_minutes: estimatedMin,
+            },
+          }).catch((err) => console.warn('[Transfer en-camino-tracking] Error:', err));
         }
         // If a Transfer is marked as 'Completada', also update the transfer_request status
         if (row.tipoOperacion === 'Transfer' && value === 'Completada') {
@@ -1208,6 +1222,15 @@ export function ReservationsTable() {
               .eq('id', row.reservationId)
               .then(() => { /* fire-and-forget */ });
           }
+          // Register arrival in en_camino_tracking to calculate real duration
+          apiInvoke('en-camino-tracking/llego', {
+            body: {
+              reservation_id: row.reservationId,
+              operation_type: 'transfer',
+              estimated_minutes: row.travelMinutes,
+              llego_user_name: profile?.name || '',
+            },
+          }).catch((err) => console.warn('[Transfer llego] Error:', err));
         }
       }
     }

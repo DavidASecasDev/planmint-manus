@@ -18,7 +18,7 @@ const getServiceClient = () =>
 
 interface EnCaminoRecord {
   reservation_id: string;
-  operation_type: "entrega" | "devolucion";
+  operation_type: "entrega" | "devolucion" | "transfer";
   destination_address?: string;
   assigned_user_name?: string;
   estimated_minutes?: number | null;
@@ -48,8 +48,8 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
       return res.status(400).json({ ok: false, error: "reservation_id and operation_type required" });
     }
 
-    if (!["entrega", "devolucion"].includes(operation_type)) {
-      return res.status(400).json({ ok: false, error: "operation_type must be 'entrega' or 'devolucion'" });
+    if (!["entrega", "devolucion", "transfer"].includes(operation_type)) {
+      return res.status(400).json({ ok: false, error: "operation_type must be 'entrega', 'devolucion' or 'transfer'" });
     }
 
     const sb = getServiceClient();
@@ -109,7 +109,7 @@ export async function handleEnCaminoTrack(req: Request, res: Response) {
     } catch { /* ignore */ }
 
     // Send push notification to the team
-    const opLabel = operation_type === 'entrega' ? 'Entrega' : 'Devolución';
+    const opLabel = operation_type === 'entrega' ? 'Entrega' : operation_type === 'transfer' ? 'Transfer' : 'Devolución';
     const destLabel = destination_address || 'destino no especificado';
     const userLabel = assigned_user_name || 'Sin asignar';
     const clienteLabel = clienteName ? ` (${clienteName})` : '';
