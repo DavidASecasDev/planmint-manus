@@ -455,6 +455,7 @@ export function ReservationsTable() {
 
 
   const [confirmLlego, setConfirmLlego] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
+  const [confirmCompleteTransfer, setConfirmCompleteTransfer] = useState<{ open: boolean; row: OperationRow | null }>({ open: false, row: null });
 
 
   // (arrival status loading moved below operationRows declaration)
@@ -2242,7 +2243,7 @@ export function ReservationsTable() {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            handleOperationFieldUpdate(row, 'estado', 'Completada');
+                                            setConfirmCompleteTransfer({ open: true, row });
                                           }}
                                           className="p-1 rounded-md text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors"
                                         >
@@ -2567,6 +2568,24 @@ export function ReservationsTable() {
           if (confirmLlego.row) {
             handleLlego(confirmLlego.row);
             setConfirmLlego({ open: false, row: null });
+          }
+        }}
+      />
+
+      {/* Confirm Complete Transfer Dialog */}
+      <ConfirmDialog
+        open={confirmCompleteTransfer.open}
+        onOpenChange={(open) => { if (!open) setConfirmCompleteTransfer({ open: false, row: null }); }}
+        title="Completar transfer"
+        description={confirmCompleteTransfer.row
+          ? `¿Confirmas que el transfer ${getOperationFieldValue(confirmCompleteTransfer.row, 'external_reservation_id') || ''} se ha completado? Se actualizará el estado tanto en Programación como en Solicitudes.`
+          : ''}
+        confirmLabel="Sí, completar"
+        cancelLabel="Cancelar"
+        onConfirm={() => {
+          if (confirmCompleteTransfer.row) {
+            handleOperationFieldUpdate(confirmCompleteTransfer.row, 'estado', 'Completada');
+            setConfirmCompleteTransfer({ open: false, row: null });
           }
         }}
       />

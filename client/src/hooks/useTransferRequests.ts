@@ -230,6 +230,13 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           transfer_item_id: item.id,
           transfer_request_id: requestId,
           imported_by: profile?.id || null,
+          extras_contratados: item.baby_seats_count && item.baby_seats_count > 0
+            ? JSON.stringify(Array.from({ length: item.baby_seats_count }, (_, i) => {
+                const seats = item.baby_seats ? (typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats) : [];
+                const seat = seats[i];
+                return { nombre: `Sillita bebé${seat ? ` (${seat.age} años, ${seat.weight} kg)` : ''}`, cantidad: 1 };
+              }))
+            : null,
         };
 
         const { error: resError } = await supabaseQuery

@@ -1460,3 +1460,5 @@
 - [x] Protección de duplicados: check antes de insertar reserva de transfer
 - [x] Indicador visual flecha (→) entre Lugar y Dirección para filas Transfer en Programación
 - [x] Completar transfer desde Programación: botón que actualice reserva + estado en Solicitudes
+- [x] Diálogo de confirmación antes de completar transfer desde Programación
+- [x] Icono de bebé (sillitas) en fila de transfer en Programación
