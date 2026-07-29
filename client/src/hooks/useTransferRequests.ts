@@ -184,8 +184,17 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
           item.pax_count ? `${item.pax_count} pax` : null,
         ].filter(Boolean).join(' | ');
 
-        // Map vehicle_type to modelo
-        const vehicleModel = item.vehicle_type === 'vito' ? 'Vito' : item.vehicle_type === 'v-class' ? 'V-Class' : item.vehicle_type || null;
+        // Map vehicle_type to human-readable modelo
+        const vehicleTypeMap: Record<string, string> = {
+          'mercedes_vito': 'Mercedes Vito',
+          'vito': 'Mercedes Vito',
+          'mercedes_v_class': 'Mercedes V-Class',
+          'v_class': 'Mercedes V-Class',
+          'v-class': 'Mercedes V-Class',
+          'iv_class': 'Mercedes V-Class',
+          'sprinter': 'Mercedes Sprinter',
+        };
+        const vehicleModel = item.vehicle_type ? (vehicleTypeMap[item.vehicle_type.toLowerCase()] || item.vehicle_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())) : null;
 
         const reservationData = {
           organization_id: orgId,

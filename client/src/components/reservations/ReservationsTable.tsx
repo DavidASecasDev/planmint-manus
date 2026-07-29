@@ -566,6 +566,7 @@ export function ReservationsTable() {
     sourceReservations.forEach(r => {
       // Si tiene tipo_actividad = Transfer, solo crear una fila
       if (r.tipo_actividad === 'Transfer') {
+        // For transfers: lugar = pickup, direccion = dropoff (shows origin → destination)
         rows.push({
           id: `${r.id}_transfer`,
           reservationId: r.id,
@@ -573,10 +574,10 @@ export function ReservationsTable() {
           tipoOperacion: 'Transfer',
           fechaHora: r.desde,
           confirmedDatetime: r.confirmed_entrega_datetime,
-          lugar: r.lugar_entrega || r.lugar_devolucion,
-          direccion: r.lugar_entrega_direccion || r.lugar_devolucion_direccion || null,
-          rentlyLugar: r.rently_lugar_entrega || r.rently_lugar_devolucion || null,
-          rentlyDireccion: r.rently_lugar_entrega_direccion || r.rently_lugar_devolucion_direccion || null,
+          lugar: r.lugar_entrega || null,
+          direccion: r.lugar_devolucion || null,
+          rentlyLugar: r.rently_lugar_entrega || null,
+          rentlyDireccion: r.rently_lugar_devolucion || null,
           isCompleted: r.transfer_completado,
           travelMinutes: null,
         });
@@ -1196,7 +1197,8 @@ export function ReservationsTable() {
     
     // Para lugar, es específico por operación
     if (fieldKey === 'lugar') {
-      const lugarField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega' : 'lugar_devolucion';
+      // For transfers: lugar = pickup (lugar_entrega)
+      const lugarField = row.tipoOperacion === 'Transfer' ? 'lugar_entrega' : (row.tipoOperacion === 'Entrega' ? 'lugar_entrega' : 'lugar_devolucion');
       const oldLugar = row.lugar;
       handleUpdate(row.reservationId, { [lugarField]: value });
       // Invalidate travel time cache for old and new lugar, then refresh capacity
@@ -1211,7 +1213,8 @@ export function ReservationsTable() {
     
     // Para direccion, es específico por operación
     if (fieldKey === 'direccion') {
-      const dirField = row.tipoOperacion === 'Entrega' ? 'lugar_entrega_direccion' : 'lugar_devolucion_direccion';
+      // For transfers: direccion = dropoff (lugar_devolucion_direccion)
+      const dirField = row.tipoOperacion === 'Transfer' ? 'lugar_devolucion_direccion' : (row.tipoOperacion === 'Entrega' ? 'lugar_entrega_direccion' : 'lugar_devolucion_direccion');
       const oldDireccion = row.direccion;
       handleUpdate(row.reservationId, { [dirField]: value });
       // Invalidate travel time cache for old and new address, then refresh capacity

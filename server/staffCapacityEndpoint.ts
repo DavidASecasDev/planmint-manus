@@ -455,8 +455,9 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       if (r.tipo_actividad === "Transfer") {
         const dt = r.confirmed_entrega_datetime || r.desde;
         if (dt && dt.substring(0, 10) === date) {
-          // Prioritize exact address (direccion) for Google Maps accuracy, fallback to lugar name
-          const location = r.lugar_entrega_direccion || r.lugar_entrega || r.lugar_entrega_ciudad || null;
+          // For transfers, use the dropoff (destination) location for travel time calculation
+          // This represents the actual trip distance from pickup to destination
+          const location = r.lugar_devolucion_direccion || r.lugar_devolucion || r.lugar_entrega_direccion || r.lugar_entrega || null;
           const atBase = isBaseLocation(location);
           operations.push({
             reservationId: r.id,
