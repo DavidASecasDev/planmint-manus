@@ -160,6 +160,18 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
       // 4. Auto-create reservation entries in Programación for each item
       const items = (requestData as any).items || [];
       for (const item of items) {
+        // Duplicate protection: skip if a reservation already exists for this transfer_item
+        const { data: existingRes } = await supabaseQuery
+          .from('reservations')
+          .select('id')
+          .eq('transfer_item_id', item.id)
+          .limit(1);
+
+        if (existingRes && existingRes.length > 0) {
+          console.log(`[Transfer Accept] Reservation already exists for item ${item.id}, skipping`);
+          continue;
+        }
+
         // Build the transfer datetime from date + time
         let transferDatetime: string | null = null;
         if (item.transfer_date) {
@@ -297,6 +309,35 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
             .update({ status: 'conductor_asignado', updated_at: new Date().toISOString() })
             .eq('id', (item as any).request_id);
         }
+      }
+
+      // Try to match driver_name to a profile and update the reservation's asignado_rental_id
+      try {
+        const { data: matchedProfile } = await supabaseQuery
+          .from('profiles')
+          .select('id, name')
+          .ilike('name', driverName.trim())
+          .limit(1)
+          .single();
+
+        if (matchedProfile) {
+          // Find the reservation linked to this transfer_item and assign the driver
+          const { data: reservation } = await supabaseQuery
+            .from('reservations')
+            .select('id')
+            .eq('transfer_item_id', itemId)
+            .limit(1)
+            .single();
+
+          if (reservation) {
+            await supabaseQuery
+              .from('reservations')
+              .update({ asignado_rental_id: (matchedProfile as any).id })
+              .eq('id', (reservation as any).id);
+          }
+        }
+      } catch {
+        // Non-critical: if name doesn't match any profile, skip silently
       }
     },
     onSuccess: () => {

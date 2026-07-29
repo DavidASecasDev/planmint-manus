@@ -1456,3 +1456,5 @@
 - [x] Fix Transfer en Programación: mostrar destino en columna Dirección (no solo pickup)
 - [x] Fix Transfer en Programación: calcular tiempo de trayecto pickup→destino
 - [x] Fix Transfer en Programación: formatear modelo vehículo (mercedes_vito → Mercedes Vito)
+- [x] Heredar conductor asignado del transfer en la reserva de Programación
+- [x] Protección de duplicados: check antes de insertar reserva de transfer
