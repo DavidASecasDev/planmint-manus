@@ -1462,3 +1462,4 @@
 - [x] Completar transfer desde Programación: botón que actualice reserva + estado en Solicitudes
 - [x] Diálogo de confirmación antes de completar transfer desde Programación
 - [x] Icono de bebé (sillitas) en fila de transfer en Programación
+- [x] Estado "En camino" para transfers como paso intermedio antes de completar

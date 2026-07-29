@@ -3,7 +3,7 @@ import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns';
 import { usePersistedFilters } from '@/hooks/usePersistedFilters';
 import { es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { ArrowUpDown, ArrowUp, ArrowDown, ArrowRight, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil, History, Sparkles, Droplets, CircleDashed, CheckCircle2 } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, ArrowRight, Search, X, Filter, CalendarIcon, Archive, ArchiveX, Eye, AlertTriangle, LayoutGrid, Baby, Navigation, MapPinCheck, MapPin, RotateCcw, PenLine, ExternalLink, Car, Pencil, History, Sparkles, Droplets, CircleDashed, CheckCircle2, PlayCircle } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { useNotificationTrigger } from '@/hooks/useNotificationTrigger';
@@ -1169,6 +1169,23 @@ export function ReservationsTable() {
           }).catch((err) => console.warn('[en-camino-tracking] Delete on status change error:', err));
         }
 
+        // If a Transfer is marked as 'En camino', update the transfer_request status to en_curso
+        if (row.tipoOperacion === 'Transfer' && value === 'En camino') {
+          const transferRequestId = (row.reservation as any).transfer_request_id;
+          if (transferRequestId) {
+            supabaseQuery
+              .from('transfer_requests')
+              .update({ status: 'en_curso', updated_at: new Date().toISOString() })
+              .eq('id', transferRequestId)
+              .then(({ error: trErr }) => {
+                if (trErr) {
+                  console.error('[Transfer En Camino] Error updating transfer_request:', trErr);
+                } else {
+                  toast.success('Transfer marcado como en camino');
+                }
+              });
+          }
+        }
         // If a Transfer is marked as 'Completada', also update the transfer_request status
         if (row.tipoOperacion === 'Transfer' && value === 'Completada') {
           const transferRequestId = (row.reservation as any).transfer_request_id;
@@ -2235,8 +2252,29 @@ export function ReservationsTable() {
                                                         if (!hasAddress || row.isCompleted) return null;
                             return (
                               <div className="flex items-center gap-0 justify-center">
-                                {/* Transfer: Completar servicio */}
-                                {row.tipoOperacion === 'Transfer' && !isCompletada && (
+                                {/* Transfer: En camino (step 1) */}
+                                {row.tipoOperacion === 'Transfer' && !isEnCamino && !isCompletada && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOperationFieldUpdate(row, 'estado', 'En camino');
+                                          }}
+                                          className="p-1 rounded-md text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950 transition-colors"
+                                        >
+                                          <PlayCircle className="h-3.5 w-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs">
+                                        Marcar en camino
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                {/* Transfer: Completar servicio (step 2 - only after En camino) */}
+                                {row.tipoOperacion === 'Transfer' && isEnCamino && !isCompletada && (
                                   <TooltipProvider delayDuration={200}>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
