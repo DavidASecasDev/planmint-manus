@@ -13,10 +13,10 @@
   "experiments": null,
   "git_remote": {
     "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663452253312/ixFK4yeJEEAkh8kCZkpztM",
-    "access_key_id": "ASIAZV3A2ECZHVFLCO6U",
-    "secret_access_key": "4zo8earAsqGJ9Ue/iGbavHPKTynpkucTWlP5fR7P",
-    "session_token": "IQoJb3JpZ2luX2VjEJr//////////wEaCXVzLWVhc3QtMSJIMEYCIQDESgW8yzkVH93JML+yrw4vSwIZ0ZJcgywYghmPNxFxqAIhAJYpdHONCx91A3VTpO9k3NCcSq/B24WbF5A7RGZzMV1HKvYDCGMQBBoMNjY1Mzg2MDk4ODY2Igyn2HB+NqMCcdXhmwYq0wOhFXzPhXn/NPj7wtpZ7Zx0Ak8g8vKvDnFgPq63ybLZMjVGKGy50IdzvRFHfxmTGu9UcO18BXg/CJp6/BZw1xBZBVJNe5c1GnTWysPfkv3eozzVtqkDxdeF667WvSfUgwPv+ex8ncN7jA2uQLMYKjTJStlldM2bAgCcnTC7hkNw08M+x3hhgxaSU6S5KIoHRifX6S5Z4sUJ0LxNdoy9WHtEFtRSvax3R6OeYVyW+iy9rKYv8IrnRsxJiUSAoalkODSB3PWrnyN8kThzT89IttRfmT5bnHBcdNm8ritAue5nswKJxH1fuAy7dN1BXGjfMYjZjloiMQ8vWYIKoAptqcHxuT+4emGvbw+1EMS4SR9pco2mD0REilwLekuCGUIuoLJ7m5foi1OHux1SknA+veKLEuje6J//hFvoAAhOy7OntluYZj3g2Yg2VJruW7ZwQpEmJ9NSOm1zt9L1+TxUkGgqBViGqaifC0erAe9N8l2NAqHtTRqbJ2qk4b3IFpQ9h2ihND7dBQXXksyhPeZ07X689brqZtLJ10CYwaNYsLatmV0C4gsCYEC2z2WF7gAO0s72awDgdTCkkb+O4JHtye9JG44/15mFRjfZn38K/lIu5NbgfTD76qHTBjqcAZR4z30lq3kiPuTdleoys4dID2st/4m5AouMWItx8DndHL+0rTtGgHg0DxwiNLxMFhaloM+wJFy/vwp9r5kKzRV7zi98M6m5UwaP1VcvqwQyC4hcKdyNKbF1kcjrx1O/+dXGxXmKN+/h0+49TyWtHg4+yxzxdsoX0GInvEtHG9orBTKu6W6XkuK5bNP3kgF2jLOukUBrkSg2Wm3H6w==",
-    "expiration": "2026-07-28T21:25:15.000Z",
+    "access_key_id": "ASIAZV3A2ECZF3KAKCDG",
+    "secret_access_key": "V1gIyRqK4nBjpTT+ZBX5onNauM6krAIxJbSH8SnB",
+    "session_token": "IQoJb3JpZ2luX2VjELH//////////wEaCXVzLWVhc3QtMSJHMEUCIAsLemjytfduxcjYb4/yTNuKFffrEd8bT3mgJOOd1Z/TAiEA/NLqRAMiCahOT2yuBIMiyYFFkDX1xO9L8dUwGvYhxfAq9gMIehAEGgw2NjUzODYwOTg4NjYiDPAizXe+rTsaeuc/yirTA0AmXdmqKeH/d4vl5Q4+rUPUkCgoxYK/7xe5y5+iU7qtYuPzqSjeBrN0oYabDi+9IIEw1msDrzRaBMt4zK2HXcgUdQJ1LzukDOfEMGIx1agM3QqLVB4KdqK/Q4sgRiFK20VVStaytLjwXw1uiUwUNc/NSBiFUD+efsIrnOay+CPV8fgtHHVIJoNRaMacXM/2xbgBoRc/uRQlGHXrm/2lsskKfyeeDPSRa94Hhmxi2YLFb//iCQAeDfWQiJZZnJ6G6bcdyvqkBQRbdXX9CKkbElma60QWz8xni5Z405ojUQg/N4q901hP34UVEqjaPs6Qs3+Pd/OBK+Ob4zaxa/LKBWM4iXjTg4J8Rgh3GEgwSSWOvRMmqvMyTooBfr2aHMOx543YbiQ5bqTx/qxJhVxi+59fM3Y4BFXX6z6XiceWmz7Ym1C3fa72Pv5jDK1tGVTJ4iYe7xYTF5WG3rm0cVYABct+1BHRW6TBiKx1SOflLm25lsmn2qRE1JksFrgmz2uyvyKr2kEUZd76FZ1QD3KJfKf8gJj2x3oC33wiimx49w3uxrnqeRK01jyoFKff5Qr3jgVZmi68BOb2MTpEBJ2wCFD/5sR4Gn5D8ZDOefRd7c/xRi/9MMT5ptMGOp0BPNABUTAy1bv4NTA9bvhqaEZh3gbbXkCBo4wt8SOlkSQE4ffxOlqcJpwWKemY9r0BsXsLDrAuGlNe2DqBFqB22KQRe0tJbfXFHFORbLCROYFCkDQIu/SndINQ1BtlKLhPlLKBsXP30mGVBkObAKHm6zLjkSrdL5VYJBiGztzoObi1Pqq3VRkLz4Mo3veFTfmNVdtcFdrSPsgfvN9JiA==",
+    "expiration": "2026-07-29T20:41:40.000Z",
     "backend": "GIT_BACKEND_S3"
   },
   "name": "planmint-preview",

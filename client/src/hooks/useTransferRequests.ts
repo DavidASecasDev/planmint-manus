@@ -69,7 +69,12 @@ export function useTransferRequests(filters?: Partial<TransferFilters>) {
 
       if (filters) {
         if (filters.status && filters.status !== 'all') {
-          query = query.eq('status', filters.status);
+          // "aceptado" filter should include both 'aceptado' and 'conductor_asignado'
+          if (filters.status === 'aceptado') {
+            query = query.in('status', ['aceptado', 'conductor_asignado']);
+          } else {
+            query = query.eq('status', filters.status);
+          }
         }
         if (filters.broker) {
           query = query.ilike('broker_name', `%${filters.broker}%`);

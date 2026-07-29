@@ -1451,3 +1451,4 @@
 - [x] PDF Transfer: Añadir mapa estático de la ruta (Google Static Maps API)
 - [x] PDF Transfer: Mejorar diseño profesional general (spacing, tipografía, layout)
 - [x] PDF Transfer: Corregir errores de traducción/acentos (INFORMACION→INFORMACIÓN, Telefono→Teléfono, Embarcacion→Embarcación, Vehiculo→Vehículo)
+- [x] Bug: Stats muestran 4 Aceptados pero filtro solo muestra 3 (conductor_asignado no se incluye en el filtro)
