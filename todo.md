@@ -1463,4 +1463,5 @@
 - [x] Diálogo de confirmación antes de completar transfer desde Programación
 - [x] Icono de bebé (sillitas) en fila de transfer en Programación
 - [x] Estado "En camino" para transfers como paso intermedio antes de completar
-- [ ] Registrar timestamp de En camino en reserva de transfer para calcular duración real
+- [x] Registrar timestamp de En camino en reserva de transfer para calcular duración real
+- [x] Columna duración real vs estimada para transfers completados

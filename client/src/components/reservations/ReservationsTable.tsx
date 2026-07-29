@@ -1968,7 +1968,7 @@ export function ReservationsTable() {
                             const arrived = llegoState[row.id];
                             const destination = row.direccion || row.lugar;
 
-                            // Already arrived — show real travel time with comparison
+                            // Already arrived — show real travel time with comparison inline
                             if (arrived) {
                               const diff = arrived.estimatedMinutes != null ? arrived.realMinutes - arrived.estimatedMinutes : null;
                               const diffColor = diff == null ? '' : diff <= 0 ? 'text-emerald-600' : diff <= 5 ? 'text-amber-600' : 'text-red-600';
@@ -1979,6 +1979,9 @@ export function ReservationsTable() {
                                       <span className="text-xs px-1 font-medium tabular-nums flex items-center gap-0.5">
                                         <MapPinCheck className="h-3 w-3 text-emerald-500" />
                                         <span className={diffColor}>{arrived.realMinutes} min</span>
+                                        {arrived.estimatedMinutes != null && (
+                                          <span className="text-muted-foreground font-normal">/ {arrived.estimatedMinutes} est.</span>
+                                        )}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
