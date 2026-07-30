@@ -31,7 +31,7 @@ import { useStaffCapacity, type CapacityOperation } from '@/hooks/useStaffCapaci
 import { ReservationDetailSheet } from './ReservationDetailSheet';
 import { useReservations } from '@/hooks/useReservations';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions, useOrganizationMembers } from '@/hooks/usePermissions';
 import { useIntegrationFlags } from '@/hooks/useIntegrationFlags';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -145,6 +145,7 @@ function DebouncedColumnInput({ value, onChange, placeholder, className }: {
 export function ReservationsTable() {
   const { profile, session } = useAuth();
   const { hasPermission } = usePermissions();
+  const { members: orgMembers } = useOrganizationMembers();
   const { triggerNotification } = useNotificationTrigger();
   const { reservationsArchiveDays } = useIntegrationFlags();
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
@@ -1367,6 +1368,40 @@ export function ReservationsTable() {
         entityId: row.reservationId,
         targetUserId: userId,
       });
+    }
+
+    // Bidirectional sync: if Transfer rental assignee changes, update driver_name in transfer_item
+    if (row.tipoOperacion === 'Transfer' && assigneeType === 'rental') {
+      const transferItemId = (row.reservation as any).transfer_item_id;
+      if (transferItemId) {
+        if (userId) {
+          // Look up the member name from orgMembers
+          const member = orgMembers.find(m => m.user_id === userId);
+          const driverName = member?.name || member?.profile?.name || null;
+          if (driverName) {
+            supabaseQuery
+              .from('transfer_items')
+              .update({ driver_name: driverName })
+              .eq('id', transferItemId)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('[Transfer Sync] Error updating driver_name in transfer_item:', error);
+                }
+              });
+          }
+        } else {
+          // Assignee cleared — clear driver_name in transfer_item
+          supabaseQuery
+            .from('transfer_items')
+            .update({ driver_name: null })
+            .eq('id', transferItemId)
+            .then(({ error }) => {
+              if (error) {
+                console.error('[Transfer Sync] Error clearing driver_name in transfer_item:', error);
+              }
+            });
+        }
+      }
     }
   };
 

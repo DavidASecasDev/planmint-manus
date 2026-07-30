@@ -1466,3 +1466,4 @@
 - [x] Registrar timestamp de En camino en reserva de transfer para calcular duración real
 - [x] Columna duración real vs estimada para transfers completados
 - [x] Selector de conductor desde perfiles: dropdown con miembros activos en vez de campo de texto libre
+- [x] Sincronización bidireccional conductor: si se cambia conductor en reserva de Programación, actualizar driver_name en transfer_item vinculado
