@@ -1465,3 +1465,4 @@
 - [x] Estado "En camino" para transfers como paso intermedio antes de completar
 - [x] Registrar timestamp de En camino en reserva de transfer para calcular duración real
 - [x] Columna duración real vs estimada para transfers completados
+- [x] Selector de conductor desde perfiles: dropdown con miembros activos en vez de campo de texto libre

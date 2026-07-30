@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Check, X, UserPlus, MapPin, Clock, Phone, Ship, Building2, Plane, Car, ExternalLink, FileDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganizationMembers } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TransferRouteMap } from '@/components/transfers/TransferRouteMap';
@@ -28,6 +30,12 @@ export default function TransferDetail() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showDriverForm, setShowDriverForm] = useState(false);
+  const { members } = useOrganizationMembers();
+
+  // Filter to active members with names for the driver dropdown
+  const driverMembers = useMemo(() => {
+    return members.filter(m => m.status === 'active' && m.name);
+  }, [members]);
 
   const { session } = useAuth();
   const request = requests.find(r => r.id === id);
@@ -196,13 +204,23 @@ export default function TransferDetail() {
           <CardContent className="p-4 space-y-3">
             <p className="font-medium text-blue-800">Asignar conductor</p>
             <div className="grid grid-cols-2 gap-3">
-              <Input
-                placeholder="Nombre del conductor"
+              <Select
                 value={driverName}
-                onChange={e => setDriverName(e.target.value)}
-              />
+                onValueChange={(val) => setDriverName(val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar conductor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {driverMembers.map(m => (
+                    <SelectItem key={m.id} value={m.name!}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
-                placeholder="Teléfono del conductor"
+                placeholder="Teléfono del conductor (opcional)"
                 value={driverPhone}
                 onChange={e => setDriverPhone(e.target.value)}
               />
