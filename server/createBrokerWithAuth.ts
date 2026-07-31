@@ -97,6 +97,18 @@ export async function handleCreateBrokerWithAuth(req: Request, res: Response) {
       return res.status(500).json({ error: "No se pudo crear la cuenta de autenticación" });
     }
 
+    // --- Ensure the profiles record has organization_id ---
+    // The profile is auto-created by a Supabase trigger on auth.users insert,
+    // but without organization_id. We need to set it so the supabaseQuery proxy works.
+    const { error: profileOrgError } = await sb
+      .from("profiles")
+      .update({ organization_id: organizationId, name: trimmedName })
+      .eq("id", authUserId);
+
+    if (profileOrgError) {
+      console.warn("[create-broker-with-auth] Could not update profile org:", profileOrgError.message);
+    }
+
     // --- Create transfer_brokers record ---
     const { data: brokerRecord, error: brokerError } = await sb
       .from("transfer_brokers")

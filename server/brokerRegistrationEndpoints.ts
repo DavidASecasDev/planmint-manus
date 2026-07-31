@@ -108,6 +108,18 @@ export async function handleApproveBrokerRegistration(req: Request, res: Respons
       }
     }
 
+    // 3b. Ensure the profiles record has organization_id
+    if (request.user_id) {
+      const { error: profileOrgError } = await sb
+        .from("profiles")
+        .update({ organization_id: organizationId, name: brokerName })
+        .eq("id", request.user_id);
+
+      if (profileOrgError) {
+        console.warn("[approve-broker-registration] Could not update profile org:", profileOrgError.message);
+      }
+    }
+
     // 4. Get organization info for the broker profile
     const { data: org } = await sb
       .from("organizations")
