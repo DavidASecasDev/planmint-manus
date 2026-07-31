@@ -1468,3 +1468,5 @@
 - [x] Selector de conductor desde perfiles: dropdown con miembros activos en vez de campo de texto libre
 - [x] Sincronización bidireccional conductor: si se cambia conductor en reserva de Programación, actualizar driver_name en transfer_item vinculado
 - [x] Fix: broker profiles missing organization_id causing 'User has no organization' error on transfer request submission
+- [x] Validación en login del broker: mostrar mensaje claro si perfil no tiene organization_id
+- [x] Panel de diagnóstico de brokers en admin: indicador de perfiles incompletos

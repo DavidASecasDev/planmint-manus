@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TransferBroker, useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { usePermissions } from '@/hooks/usePermissions';
-import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2, UserMinus, RefreshCw, Copy, Check, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2, UserMinus, RefreshCw, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { apiInvoke } from '@/lib/apiClient';
 import {
   Dialog,
@@ -50,9 +50,10 @@ interface BrokerTableProps {
   brokers: TransferBroker[];
   isLoading: boolean;
   onEdit: (broker: TransferBroker) => void;
+  profileHealth?: Record<string, { has_profile: boolean; has_org: boolean }>;
 }
 
-export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
+export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: BrokerTableProps) {
   const { hasPermission } = usePermissions();
   const { toggleActive, deleteBroker } = useTransferBrokers();
   const queryClient = useQueryClient();
@@ -226,10 +227,17 @@ export function BrokerTable({ brokers, isLoading, onEdit }: BrokerTableProps) {
                 </TableCell>
                 <TableCell>
                 {broker.user_id ? (
-                    <Badge variant="secondary">
-                      <KeyRound className="h-3 w-3 mr-1" />
-                      Configurado
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="secondary">
+                        <KeyRound className="h-3 w-3 mr-1" />
+                        Configurado
+                      </Badge>
+                      {profileHealth[broker.id] && !profileHealth[broker.id].has_org && (
+                        <span title="Perfil incompleto: falta vinculación a organización. El broker no podrá enviar solicitudes.">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <Button
                       variant="outline"

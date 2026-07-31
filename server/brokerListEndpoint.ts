@@ -39,10 +39,33 @@ export async function handleGetTransferBrokers(req: Request, res: Response) {
     // Also return active-only subset for convenience
     const activeBrokers = (allBrokers || []).filter((b: any) => b.is_active);
 
+    // Check profile health for brokers with portal access (user_id)
+    const brokersWithUserId = (allBrokers || []).filter((b: any) => b.user_id);
+    const userIds = brokersWithUserId.map((b: any) => b.user_id);
+    let profileHealthMap: Record<string, { has_profile: boolean; has_org: boolean }> = {};
+
+    if (userIds.length > 0) {
+      const { data: profiles } = await serviceClient
+        .from("profiles")
+        .select("id, organization_id")
+        .in("id", userIds);
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+      for (const broker of brokersWithUserId) {
+        const profile = profileMap.get(broker.user_id);
+        profileHealthMap[broker.id] = {
+          has_profile: !!profile,
+          has_org: !!profile?.organization_id,
+        };
+      }
+    }
+
     return res.json({
       data: {
         brokers: activeBrokers,
         allBrokers: allBrokers || [],
+        profileHealth: profileHealthMap,
       },
       error: null,
     });

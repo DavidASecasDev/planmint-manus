@@ -133,7 +133,8 @@ export function useBrokerRequests(filters?: BrokerFilters) {
   // Create request mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateBrokerRequestData) => {
-      if (!broker?.organization_id || !broker?.id) throw new Error('No broker session');
+      if (!broker?.id) throw new Error('Sesión de broker no válida. Cierra sesión y vuelve a iniciar.');
+      if (!broker?.organization_id) throw new Error('Tu perfil no está vinculado a una organización. Contacta con tu administrador.');
 
       // Generate request number
       const { data: countData } = await supabaseQuery
@@ -241,7 +242,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
   // Update request mutation (only when status is pendiente)
   const updateMutation = useMutation({
     mutationFn: async (data: UpdateBrokerRequestData) => {
-      if (!broker?.organization_id) throw new Error('No broker session');
+      if (!broker?.organization_id) throw new Error('Tu perfil no está vinculado a una organización. Contacta con tu administrador.');
 
       // Update parent request
       const { error: reqError } = await supabaseQuery

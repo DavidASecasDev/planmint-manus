@@ -17,7 +17,7 @@ import { Users, UserCheck, KeyRound, Plus, Search, ShieldAlert, Clock, Link2, Us
 
 export default function BrokerManagement() {
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
-  const { allBrokers, isLoadingAll } = useTransferBrokers();
+  const { allBrokers, isLoadingAll, profileHealth } = useTransferBrokers();
   const { 
     pendingRequests, 
     pendingCount, 
@@ -61,6 +61,7 @@ export default function BrokerManagement() {
   const totalBrokers = allBrokers.length;
   const activeBrokers = allBrokers.filter(b => b.is_active).length;
   const brokersWithPortal = allBrokers.filter(b => b.user_id).length;
+  const incompleteProfiles = Object.values(profileHealth).filter(h => !h.has_org).length;
 
   const filteredBrokers = allBrokers.filter(broker => {
     const query = searchQuery.toLowerCase();
@@ -107,7 +108,7 @@ export default function BrokerManagement() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Brokers</CardTitle>
@@ -156,6 +157,19 @@ export default function BrokerManagement() {
               </p>
             </CardContent>
           </Card>
+
+          <Card className={incompleteProfiles > 0 ? 'border-red-200 bg-red-50/50' : ''}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Diagnóstico</CardTitle>
+              <ShieldAlert className={`h-4 w-4 ${incompleteProfiles > 0 ? 'text-red-500' : 'text-muted-foreground'}`} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{incompleteProfiles}</div>
+              <p className="text-xs text-muted-foreground">
+                {incompleteProfiles > 0 ? 'Perfiles incompletos' : 'Todo correcto'}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
@@ -197,6 +211,7 @@ export default function BrokerManagement() {
                   brokers={filteredBrokers}
                   isLoading={isLoadingAll}
                   onEdit={handleEdit}
+                  profileHealth={profileHealth}
                 />
               </CardContent>
             </Card>

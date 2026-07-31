@@ -199,6 +199,12 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
         setLoading(false);
         return { error: 'Tu cuenta de broker está desactivada' };
       }
+
+      // Check if the profile has organization_id (required for API calls)
+      if (!profile.organization_id) {
+        setLoading(false);
+        return { error: 'Tu perfil no está vinculado a ninguna organización. Contacta con tu administrador para que lo corrija.' };
+      }
       
       setBroker(profile);
     }
