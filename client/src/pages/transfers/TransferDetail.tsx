@@ -405,6 +405,18 @@ export default function TransferDetail() {
                 </div>
               )}
 
+              {/* Luggage & Vans */}
+              {((item as any).luggage_count > 0 || (item as any).vans_needed > 1) && (
+                <div className="text-xs space-y-1">
+                  {(item as any).luggage_count > 0 && (
+                    <p className="font-medium text-blue-700">{(item as any).luggage_count} maleta{(item as any).luggage_count > 1 ? 's' : ''}</p>
+                  )}
+                  {(item as any).vans_needed > 1 && (
+                    <p className="font-medium text-indigo-700">{(item as any).vans_needed} furgonetas necesarias</p>
+                  )}
+                </div>
+              )}
+
               {/* Route map */}
               {item.pickup_location && item.dropoff_location && (
                 <TransferRouteMap

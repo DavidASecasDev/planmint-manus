@@ -87,6 +87,8 @@ export default function BrokerNewRequest() {
         notes: item.notes || null,
         baby_seats_count: item.baby_seats_count ? parseInt(item.baby_seats_count) : null,
         baby_seats: item.baby_seats.length > 0 ? item.baby_seats.filter(s => s.age || s.weight).map(s => ({ age: parseInt(s.age) || 0, weight: parseInt(s.weight) || 0 })) : null,
+        luggage_count: item.luggage_count ? parseInt(item.luggage_count) : null,
+        vans_needed: item.vans_needed ? parseInt(item.vans_needed) : 1,
       });
       if (item.has_return) {
         finalItems.push({
@@ -105,6 +107,8 @@ export default function BrokerNewRequest() {
           pax_count: item.pax_count ? parseInt(item.pax_count) : null,
           flight_number: null,
           notes: null,
+          luggage_count: item.luggage_count ? parseInt(item.luggage_count) : null,
+          vans_needed: item.vans_needed ? parseInt(item.vans_needed) : 1,
         });
       }
     }
@@ -376,6 +380,38 @@ export default function BrokerNewRequest() {
                   <p className="text-xs text-muted-foreground mt-1">Grupos: 0-9kg (Recién nacido) · 9-18kg (Infantes) · 18-36kg (Niño) · +36kg (Elevador)</p>
                 </div>
               )}
+            </div>
+
+            {/* Luggage & Vans */}
+            <div className="space-y-3 pt-3 border-t">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Maletas</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={item.luggage_count}
+                    onChange={e => updateItem(idx, { luggage_count: e.target.value })}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground">Número total de maletas</p>
+                </div>
+                <div className="space-y-1">
+                  <Label>Furgonetas necesarias</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={item.vans_needed}
+                    onChange={e => updateItem(idx, { vans_needed: e.target.value })}
+                  >
+                    <option value="1">1 furgoneta</option>
+                    <option value="2">2 furgonetas</option>
+                    <option value="3">3 furgonetas</option>
+                    <option value="4">4 furgonetas</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">Según volumen de equipaje y pasajeros</p>
+                </div>
+              </div>
             </div>
 
             {/* Return trip toggle */}

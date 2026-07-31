@@ -66,6 +66,8 @@ export default function BrokerEditRequest() {
           notes: item.notes || null,
           baby_seats_count: item.baby_seats_count || null,
           baby_seats: item.baby_seats ? (typeof item.baby_seats === 'string' ? JSON.parse(item.baby_seats) : item.baby_seats) : null,
+          luggage_count: (item as any).luggage_count || null,
+          vans_needed: (item as any).vans_needed || 1,
         })));
       }
       setInitialized(true);
@@ -438,6 +440,38 @@ export default function BrokerEditRequest() {
                   <p className="text-xs text-muted-foreground mt-1">Grupos: 0-9kg (Recién nacido) · 9-18kg (Infantes) · 18-36kg (Niño) · +36kg (Elevador)</p>
                 </div>
               )}
+            </div>
+
+            {/* Luggage & Vans */}
+            <div className="space-y-3 pt-3 border-t">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Maletas</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={item.luggage_count || ''}
+                    onChange={e => updateItem(idx, { luggage_count: e.target.value ? parseInt(e.target.value) : null })}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground">Número total de maletas</p>
+                </div>
+                <div className="space-y-1">
+                  <Label>Furgonetas necesarias</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={item.vans_needed || 1}
+                    onChange={e => updateItem(idx, { vans_needed: parseInt(e.target.value) })}
+                  >
+                    <option value="1">1 furgoneta</option>
+                    <option value="2">2 furgonetas</option>
+                    <option value="3">3 furgonetas</option>
+                    <option value="4">4 furgonetas</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">Según volumen de equipaje y pasajeros</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

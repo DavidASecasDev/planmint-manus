@@ -31,6 +31,8 @@ interface CalendarEvent {
   dropoffLocation?: string;
   driverName?: string;
   babySeatsCount: number;
+  luggageCount: number;
+  vansNeeded: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -73,6 +75,8 @@ export function BrokerCalendar({ requests }: BrokerCalendarProps) {
           dropoffLocation: item.dropoff_location || undefined,
           driverName: item.driver_name || undefined,
           babySeatsCount: (item as any).baby_seats_count || 0,
+          luggageCount: (item as any).luggage_count || 0,
+          vansNeeded: (item as any).vans_needed || 1,
         });
       }
     }

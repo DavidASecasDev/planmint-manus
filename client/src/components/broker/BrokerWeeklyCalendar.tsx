@@ -34,6 +34,8 @@ interface WeeklyEvent {
   paxCount: number | null;
   flightNumber: string | null;
   babySeatsCount: number;
+  luggageCount: number;
+  vansNeeded: number;
 }
 
 // Hours to display (6:00 to 23:00)
@@ -96,6 +98,8 @@ export function BrokerWeeklyCalendar({ requests }: BrokerWeeklyCalendarProps) {
           paxCount: item.pax_count,
           flightNumber: item.flight_number,
           babySeatsCount: (item as any).baby_seats_count || 0,
+          luggageCount: (item as any).luggage_count || 0,
+          vansNeeded: (item as any).vans_needed || 1,
         });
       }
     }

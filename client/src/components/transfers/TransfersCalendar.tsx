@@ -29,6 +29,8 @@ interface CalendarEvent {
   dropoffLocation?: string;
   driverName?: string;
   babySeatsCount: number;
+  luggageCount: number;
+  vansNeeded: number;
 }
 
 export function TransfersCalendar({ requests }: TransfersCalendarProps) {
@@ -62,6 +64,8 @@ export function TransfersCalendar({ requests }: TransfersCalendarProps) {
           dropoffLocation: item.dropoff_location || undefined,
           driverName: item.driver_name || undefined,
           babySeatsCount: item.baby_seats_count || 0,
+          luggageCount: (item as any).luggage_count || 0,
+          vansNeeded: (item as any).vans_needed || 1,
         });
       }
     }
@@ -95,6 +99,8 @@ export function TransfersCalendar({ requests }: TransfersCalendarProps) {
           dropoffLocation: item.dropoff_location || undefined,
           driverName: item.driver_name || undefined,
           babySeatsCount: item.baby_seats_count || 0,
+          luggageCount: (item as any).luggage_count || 0,
+          vansNeeded: (item as any).vans_needed || 1,
         });
       }
     }

@@ -38,6 +38,8 @@ interface DailyTransferEvent {
   paxCount: number | null;
   flightNumber: string | null;
   babySeatsCount: number;
+  luggageCount: number;
+  vansNeeded: number;
 }
 
 type TimeSlot = 'morning' | 'midday' | 'afternoon' | 'night';
@@ -116,6 +118,8 @@ export function TransfersDailySummary({ requests }: TransfersDailySummaryProps) 
           paxCount: item.pax_count,
           flightNumber: item.flight_number,
           babySeatsCount: item.baby_seats_count || 0,
+          luggageCount: (item as any).luggage_count || 0,
+          vansNeeded: (item as any).vans_needed || 1,
         });
       }
     }
