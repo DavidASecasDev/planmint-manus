@@ -62,6 +62,11 @@ export function BrokerAuthProvider({ children }: { children: React.ReactNode }) 
       // so that broker.id matches transfer_requests.broker_id for ownership checks
       const raw = data as any;
       if (raw && typeof raw === 'object' && 'id' in raw) {
+        // If broker_id is null, the profile is incomplete and cannot create requests
+        if (!raw.broker_id) {
+          console.error('[BrokerAuth] Profile missing broker_id - cannot create requests. Contact admin.');
+          // Still return the profile but with a flag so UI can show error
+        }
         const profile: BrokerProfile = {
           // CRITICAL: id = broker_id (FK to transfer_brokers), NOT broker_profiles.id
           id: raw.broker_id || raw.id,

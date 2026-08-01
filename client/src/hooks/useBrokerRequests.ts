@@ -137,6 +137,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     mutationFn: async (data: CreateBrokerRequestData) => {
       if (!broker?.id) throw new Error('Sesión de broker no válida. Cierra sesión y vuelve a iniciar.');
       if (!broker?.organization_id) throw new Error('Tu perfil no está vinculado a una organización. Contacta con tu administrador.');
+      if (!broker?.broker_id) throw new Error('Tu perfil de broker no está correctamente configurado. Contacta con tu administrador para que vincule tu cuenta.');
 
       // Generate request number
       const { data: countData } = await supabaseQuery
