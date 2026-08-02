@@ -133,11 +133,13 @@ export function LocationAutocomplete({
         setSelectedIndex(-1);
         requestAnimationFrame(updateDropdownPosition);
       } else {
+        if (error) console.warn('[LocationAutocomplete] API error:', error);
+        else if (data && !data.ok) console.warn('[LocationAutocomplete] API returned not ok:', data);
         setPredictions([]);
         setShowDropdown(false);
       }
     } catch (err) {
-      // Silently fail — user can still type manually
+      console.error('[LocationAutocomplete] Error fetching predictions:', err);
       setPredictions([]);
       setShowDropdown(false);
     } finally {

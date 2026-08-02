@@ -1474,5 +1474,5 @@
 - [x] Añadir campo vans_needed (número de furgonetas) a transfer_items
 - [x] Actualizar formulario del broker para incluir maletas y furgonetas
 - [x] Mostrar maletas y furgonetas en el detalle de solicitud (admin)
-- [ ] Unificar formulario TransferNew interno con el diseño del portal broker
+- [x] Unificar formulario TransferNew interno con el diseño del portal broker
 - [x] Revisar y corregir flujo de solicitud de transfer del broker (FK error)
