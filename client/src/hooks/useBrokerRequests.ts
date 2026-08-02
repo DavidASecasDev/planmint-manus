@@ -140,13 +140,12 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       if (!broker?.broker_id) throw new Error('Tu perfil de broker no está correctamente configurado. Contacta con tu administrador para que vincule tu cuenta.');
 
       // Generate request number
-      const { data: countData } = await supabaseQuery
+      const { count } = await supabaseQuery
         .from('transfer_requests')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', broker.organization_id);
 
-      const count = (countData as any)?.length || 0;
-      const requestNumber = `TRF-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+      const requestNumber = `TRF-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
 
       // Create parent request
       const { data: newRequest, error: reqError } = await supabaseQuery

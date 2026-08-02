@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Ship, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createEmptyTransferItem, getBabySeatGroup } from '@/types/transfers';
 import type { TransferItemFormData, ClientType, VehicleType, BabySeatDetail } from '@/types/transfers';
@@ -51,6 +51,14 @@ export default function TransferNew() {
   const handleSubmit = async () => {
     if (!clientName.trim()) {
       toast.error('El nombre del cliente es obligatorio');
+      return;
+    }
+    if (items.some(item => !item.transfer_date || !item.transfer_time)) {
+      toast.error('Cada servicio debe tener fecha y hora');
+      return;
+    }
+    if (items.some(item => !item.pickup_location || !item.dropoff_location)) {
+      toast.error('Cada servicio debe tener recogida y destino');
       return;
     }
     if (clientType === 'charter' && captainPhone) {
@@ -133,45 +141,66 @@ export default function TransferNew() {
 
   return (
     <AppLayout title="Nueva Solicitud">
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto p-4 md:p-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/transfers')}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="text-xl font-bold">Nueva solicitud de transfer</h1>
+        <div>
+          <h1 className="text-xl font-bold">Nueva solicitud de transfer</h1>
+          <p className="text-sm text-muted-foreground">Completa los datos y envía la solicitud a Azul Cars para su confirmación</p>
+        </div>
       </div>
+
+      {/* Client type selector - visual buttons like broker portal */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tipo de cliente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              className={`p-4 rounded-lg border-2 text-center transition-all ${
+                clientType === 'villa'
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                  : 'border-muted hover:border-muted-foreground/30'
+              }`}
+              onClick={() => setClientType('villa')}
+            >
+              <Building2 className="w-8 h-8 mx-auto mb-2" />
+              <span className="font-medium">Villa</span>
+            </button>
+            <button
+              type="button"
+              className={`p-4 rounded-lg border-2 text-center transition-all ${
+                clientType === 'charter'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-muted hover:border-muted-foreground/30'
+              }`}
+              onClick={() => setClientType('charter')}
+            >
+              <Ship className="w-8 h-8 mx-auto mb-2" />
+              <span className="font-medium">Charter</span>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Client info */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Información del cliente</CardTitle>
+          <CardTitle className="text-base">Datos del cliente</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Broker / Origen</Label>
-              <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Nombre del broker" />
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de cliente</Label>
-              <Select value={clientType} onValueChange={v => setClientType(v as ClientType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="villa">Villa</SelectItem>
-                  <SelectItem value="charter">Charter</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nombre del cliente *</Label>
               <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Nombre completo" />
             </div>
             <div className="space-y-2">
-              <Label>Teléfono</Label>
+              <Label>Teléfono de contacto *</Label>
               <Input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+34 600 000 000" />
             </div>
           </div>
@@ -190,7 +219,7 @@ export default function TransferNew() {
 
           {clientType === 'charter' && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nombre del barco</Label>
                   <Input value={boatName} onChange={e => setBoatName(e.target.value)} placeholder="Ej: Lady Blue" />
@@ -200,7 +229,7 @@ export default function TransferNew() {
                   <Input value={berthNumber} onChange={e => setBerthNumber(e.target.value)} placeholder="Ej: A-42" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nombre del capitán</Label>
                   <Input value={captainName} onChange={e => setCaptainName(e.target.value)} placeholder="Ej: John Smith" />
@@ -213,6 +242,13 @@ export default function TransferNew() {
               </div>
             </>
           )}
+
+          {/* Broker / Origen field (internal only) */}
+          <div className="space-y-2 pt-2 border-t">
+            <Label>Broker / Origen</Label>
+            <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Nombre del broker" />
+            <p className="text-xs text-muted-foreground">Indica quién origina esta solicitud (por defecto: Azul Cars)</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -230,13 +266,13 @@ export default function TransferNew() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Fecha</Label>
+                <Label>Fecha *</Label>
                 <Input type="date" value={item.transfer_date} onChange={e => updateItem(idx, { transfer_date: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>{clientType === 'charter' ? 'Hora del Charter' : 'Hora de Pick up'}</Label>
+                <Label>{clientType === 'charter' ? 'Hora del Charter *' : 'Hora de Pick up *'}</Label>
                 <Input type="time" value={item.transfer_time} onChange={e => updateItem(idx, { transfer_time: e.target.value })} />
               </div>
               <div className="space-y-2">
@@ -251,9 +287,9 @@ export default function TransferNew() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Punto de recogida</Label>
+                <Label>Punto de recogida *</Label>
                 <LocationAutocomplete
                   value={item.pickup_location}
                   onChange={(val) => updateItem(idx, { pickup_location: val })}
@@ -262,7 +298,7 @@ export default function TransferNew() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Destino</Label>
+                <Label>Destino *</Label>
                 <LocationAutocomplete
                   value={item.dropoff_location}
                   onChange={(val) => updateItem(idx, { dropoff_location: val })}
@@ -272,9 +308,9 @@ export default function TransferNew() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Pasajeros</Label>
+                <Label>Nº pasajeros</Label>
                 <Input type="number" min="1" max="8" value={item.pax_count} onChange={e => updateItem(idx, { pax_count: e.target.value })} placeholder="Nº" />
               </div>
               <div className="space-y-2">
@@ -282,13 +318,13 @@ export default function TransferNew() {
                 <Input value={item.flight_number} onChange={e => updateItem(idx, { flight_number: e.target.value })} placeholder="IB3456" />
               </div>
               <div className="space-y-2">
-                <Label>Notas servicio</Label>
-                <Input value={item.notes} onChange={e => updateItem(idx, { notes: e.target.value })} placeholder="Notas..." />
+                <Label>Notas</Label>
+                <Input value={item.notes} onChange={e => updateItem(idx, { notes: e.target.value })} placeholder="Notas del servicio..." />
               </div>
             </div>
 
             {/* Baby seats */}
-            <div className="space-y-3 pt-2 border-t">
+            <div className="space-y-3 pt-3 border-t">
               <div className="flex items-center gap-4">
                 <div className="space-y-1">
                   <Label>Sillas de bebé</Label>
@@ -328,7 +364,7 @@ export default function TransferNew() {
                               newSeats[seatIdx] = { ...newSeats[seatIdx], age: e.target.value };
                               updateItem(idx, { baby_seats: newSeats });
                             }}
-                            placeholder="A\u00f1os"
+                            placeholder="Años"
                           />
                         </div>
                         <div className="space-y-1">
@@ -349,7 +385,7 @@ export default function TransferNew() {
                       </div>
                       {seat.weight && parseInt(seat.weight) > 0 && (
                         <p className="text-xs font-medium text-pink-600 pl-1">
-                          \u2192 {getBabySeatGroup(parseInt(seat.weight)).label}
+                          → {getBabySeatGroup(parseInt(seat.weight)).label}
                         </p>
                       )}
                     </div>
@@ -392,15 +428,15 @@ export default function TransferNew() {
             </div>
 
             {/* Return trip toggle */}
-            <div className="flex items-center gap-3 pt-2 border-t">
+            <div className="flex items-center gap-3 pt-3 border-t">
               <Switch checked={item.has_return} onCheckedChange={v => updateItem(idx, { has_return: v })} />
-              <Label className="cursor-pointer">Crear servicio de vuelta</Label>
+              <Label className="cursor-pointer">Crear servicio de vuelta vinculado</Label>
             </div>
 
             {item.has_return && (
-              <div className="space-y-4 pl-4 border-l-2 border-purple-200">
-                <p className="text-sm font-medium text-purple-700">Vuelta</p>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 pl-4 border-l-2 border-purple-200 bg-purple-50/30 p-4 rounded-r-lg">
+                <p className="text-sm font-medium text-purple-700">Vuelta (servicio vinculado)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Fecha vuelta</Label>
                     <Input type="date" value={item.return_date} onChange={e => updateItem(idx, { return_date: e.target.value })} />
@@ -410,7 +446,7 @@ export default function TransferNew() {
                     <Input type="time" value={item.return_time} onChange={e => updateItem(idx, { return_time: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Recogida vuelta</Label>
                     <LocationAutocomplete
@@ -449,7 +485,7 @@ export default function TransferNew() {
       </Card>
 
       {/* Submit */}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-3 pb-8">
         <Button variant="outline" onClick={() => navigate('/transfers')}>Cancelar</Button>
         <Button onClick={handleSubmit} disabled={isCreating}>
           {isCreating ? 'Creando...' : 'Crear solicitud'}

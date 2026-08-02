@@ -1470,7 +1470,9 @@
 - [x] Fix: broker profiles missing organization_id causing 'User has no organization' error on transfer request submission
 - [x] Validación en login del broker: mostrar mensaje claro si perfil no tiene organization_id
 - [x] Panel de diagnóstico de brokers en admin: indicador de perfiles incompletos
-- [ ] Añadir campo luggage_count (número de maletas) a transfer_items
-- [ ] Añadir campo vans_needed (número de furgonetas) a transfer_items
-- [ ] Actualizar formulario del broker para incluir maletas y furgonetas
-- [ ] Mostrar maletas y furgonetas en el detalle de solicitud (admin)
+- [x] Añadir campo luggage_count (número de maletas) a transfer_items
+- [x] Añadir campo vans_needed (número de furgonetas) a transfer_items
+- [x] Actualizar formulario del broker para incluir maletas y furgonetas
+- [x] Mostrar maletas y furgonetas en el detalle de solicitud (admin)
+- [ ] Unificar formulario TransferNew interno con el diseño del portal broker
+- [x] Revisar y corregir flujo de solicitud de transfer del broker (FK error)
