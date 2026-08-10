@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTransferRequests, type CreateInternalRequestData } from '@/hooks/useTransferRequests';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { LocationAutocomplete } from '@/components/broker/LocationAutocomplete';
 
 export default function TransferNew() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { createRequest, isCreating } = useTransferRequests({});
 
   // Request-level fields
@@ -33,7 +34,14 @@ export default function TransferNew() {
   const [notes, setNotes] = useState('');
 
   // Items
-  const [items, setItems] = useState<TransferItemFormData[]>([createEmptyTransferItem()]);
+  const [items, setItems] = useState<TransferItemFormData[]>(() => {
+    const item = createEmptyTransferItem();
+    const prefillDate = searchParams.get('date');
+    const prefillTime = searchParams.get('time');
+    if (prefillDate) item.transfer_date = prefillDate;
+    if (prefillTime) item.transfer_time = prefillTime;
+    return [item];
+  });
 
   const updateItem = (idx: number, updates: Partial<TransferItemFormData>) => {
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, ...updates } : item));
