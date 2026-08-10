@@ -9,11 +9,14 @@ import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge'
 import { ChevronLeft, ChevronRight, MapPin, Car, User, ArrowRight, Baby, Plus } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabaseQuery } from '@/lib/supabaseQuery';
+import { toast } from 'sonner';
 import { VEHICLE_TYPE_META, DIRECTION_META, TRANSFER_REQUEST_STATUS_META } from '@/types/transfers';
 import type { TransferRequest, TransferRequestStatus, TransferDirection, VehicleType } from '@/types/transfers';
 
 interface TransfersWeeklyCalendarProps {
   requests: TransferRequest[];
+  onItemUpdated?: () => void;
 }
 
 interface WeeklyEvent {
@@ -40,13 +43,65 @@ interface WeeklyEvent {
 // Hours to display (6:00 to 23:00)
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6);
 
-export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarProps) {
+export function TransfersWeeklyCalendar({ requests, onItemUpdated }: TransfersWeeklyCalendarProps) {
   const navigate = useNavigate();
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [vehicleFilter, setVehicleFilter] = useState<string>('all');
+  const [draggedEvent, setDraggedEvent] = useState<WeeklyEvent | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ dateKey: string; hour: number } | null>(null);
+
+  const handleDragStart = (evt: WeeklyEvent, e: React.DragEvent) => {
+    setDraggedEvent(evt);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', evt.itemId);
+  };
+
+  const handleDragOver = (dateKey: string, hour: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget({ dateKey, hour });
+  };
+
+  const handleDragLeave = () => {
+    setDropTarget(null);
+  };
+
+  const handleDrop = async (dateKey: string, hour: number, e: React.DragEvent) => {
+    e.preventDefault();
+    setDropTarget(null);
+    if (!draggedEvent) return;
+
+    const newTime = String(hour).padStart(2, '0') + ':00:00';
+    const newDate = dateKey;
+
+    // Don't update if same cell
+    if (newDate === format(new Date(draggedEvent.time ? `${dateKey}T${draggedEvent.time}` : dateKey), 'yyyy-MM-dd') && hour === draggedEvent.hour) {
+      setDraggedEvent(null);
+      return;
+    }
+
+    try {
+      const { error } = await supabaseQuery
+        .from('transfer_items')
+        .update({ transfer_date: newDate, transfer_time: newTime })
+        .eq('id', draggedEvent.itemId);
+
+      if (error) throw new Error(error.message);
+      toast.success(`Transfer movido a ${newDate} ${String(hour).padStart(2, '0')}:00`);
+      onItemUpdated?.();
+    } catch (err: any) {
+      toast.error(`Error al mover: ${err.message}`);
+    }
+    setDraggedEvent(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedEvent(null);
+    setDropTarget(null);
+  };
 
   // Generate 7 days of the week
   const weekDays = useMemo(() => {
@@ -288,6 +343,8 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
                             isCurrentDay ? 'bg-blue-50/30 dark:bg-blue-950/10' : ''
                           } ${
                             cellEvents.length === 0 ? 'hover:bg-muted/40 cursor-pointer' : ''
+                          } ${
+                            dropTarget?.dateKey === dateKey && dropTarget?.hour === hour ? 'bg-blue-100/60 ring-2 ring-blue-400/50 ring-inset' : ''
                           }`}
                           onClick={() => {
                             if (cellEvents.length === 0) {
@@ -296,6 +353,9 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
                               navigate(`/transfers/new?date=${dateStr}&time=${timeStr}`);
                             }
                           }}
+                          onDragOver={(e) => handleDragOver(dateKey, hour, e)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(dateKey, hour, e)}
                         >
                           {cellEvents.length === 0 && (
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity">
@@ -306,7 +366,12 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
                           <Tooltip key={`${evt.itemId}-${evtIdx}`}>
                             <TooltipTrigger asChild>
                             <div
-                              className={`p-1.5 rounded border cursor-pointer hover:shadow-sm transition-shadow mb-0.5 ${getStatusBg(evt.status)}`}
+                              draggable
+                              onDragStart={(e) => handleDragStart(evt, e)}
+                              onDragEnd={handleDragEnd}
+                              className={`p-1.5 rounded border cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow mb-0.5 ${getStatusBg(evt.status)} ${
+                                draggedEvent?.itemId === evt.itemId ? 'opacity-50' : ''
+                              }`}
                               onClick={(e) => { e.stopPropagation(); navigate(`/transfers/requests/${evt.requestId}`); }}
                             >
                               {/* Time + client */}

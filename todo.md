@@ -1480,3 +1480,4 @@
 - [x] Indicador de progreso: mostrar pasos durante el envío de solicitud del broker
 - [x] Click para crear: click en celda vacía del calendario redirige a nueva solicitud con fecha/hora pre-rellenada
 - [x] Tooltip con detalle: hover sobre evento muestra cliente, destino y conductor
+- [x] Drag & drop para reasignar hora/fecha de transfers en el calendario semanal

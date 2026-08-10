@@ -76,7 +76,7 @@ export default function Transfers() {
     localStorage.setItem('transfers_view_mode', mode);
   };
 
-  const { requests, isLoading, cloneRequest, deleteRequest } = useTransferRequests(filters);
+  const { requests, isLoading, cloneRequest, deleteRequest, refetch } = useTransferRequests(filters);
 
   const stats = useMemo(() => {
     const total = requests.length;
@@ -233,7 +233,7 @@ export default function Transfers() {
 
       {/* Weekly view */}
       {viewMode === 'weekly' && (
-        <TransfersWeeklyCalendar requests={requests} />
+        <TransfersWeeklyCalendar requests={requests} onItemUpdated={refetch} />
       )}
 
       {/* Daily summary view */}
