@@ -10,13 +10,15 @@
     "DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}",
     "DRIZZLE_DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}"
   },
-  "experiments": null,
+  "experiments": [
+    "no_db_push"
+  ],
   "git_remote": {
     "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663452253312/ixFK4yeJEEAkh8kCZkpztM",
-    "access_key_id": "ASIAZV3A2ECZERP76RAX",
-    "secret_access_key": "eEhygTEmhr8pANzZo+NOob2IPVadqCI8rSjL7IFi",
-    "session_token": "IQoJb3JpZ2luX2VjEBQaCXVzLWVhc3QtMSJHMEUCIQC/ER77zf6qMop9RQgpdkVIo/ymDslPDvp57q3bb6W1FAIgWyJHDjGqLbX3ZCDeaTT9datE9Jhz1a8biVFnsf9O0rwq/wMI3f//////////ARAEGgw2NjUzODYwOTg4NjYiDPAjChQ8WsRjjUn6hSrTA1GITjH44VP76m7kiOs9UB2D/82Kn8Z7eF7TIxThndZH2qwX8ccd/u542QW4AWEjYCRWUD00Pr++x8HjLj65iQM2OIkz56cike295CVlUX6C3IHRQ846OsRBrDySO/Lx2s0dcEsxI3XnKeeNdmUNnXccAV3Sbhx9KqOVKQEmaRhM6nN+5onHrAUdOyCMQnLmDnMmr6EcTpHTNQy49KNdvAdcep53OoFAtVYZRy9rGJhojY6x165G9kZRgk7jj/V3/w273HjGZAGW+QiVZW/wwpnhn12SsZLrdisl9EMxHVsXHpAsRbHCeNStVH9lFTyLaP32qSGrvv722fEXNef/PltSWkhg9RqkfFfzIb6OcOMKml8zQ11xSNv3pLUVTxvgn3J5q4g6T6Y7ltrgAx/Fy3jUHQnl8lTvLvWlXNoTATeCRnA/mOULTYn5AQtXz5d+i+Mf0FxjgkTiFndvTlXnRHGeR6QOPVYTFWsvmB4tiSboJ5MiyRcU0i8IESaYYd/7jnOy7acsgWR868JMPUZYfk5ARL9TrFxeC4XuP+v2lhnsIN8vd8pQTDH5Gyh1uwFnI40waqn+zXKQyCacuno43aFn3YdDBwHSzp2I0rlgWUZ55KN/MPTevNMGOp0B8Gmfu7+3a1I9AoIm3fwD5nGF8pihr71pJeLxMbrXLMCl4PbXVGukxBjY2710iANIEY++0lvtCTP6OGo9vRvN62pRXYYfGTZuyDRMRaoQGgP33PMOix5Dy2zyob+v645Y6w5y9MzbWmvWL7Lq1tjqybvUgvUWiaYuSAHgpDIYig1gTu1CUId7x8nKOvaRSv7gS5wbARh3CZmLlif0IA==",
-    "expiration": "2026-08-02T23:52:20.000Z",
+    "access_key_id": "ASIAZV3A2ECZDATFNVL6",
+    "secret_access_key": "H5jG9wX+RQnHlkwTyJ9sIna70AH28AP0Dw5b2Pu2",
+    "session_token": "IQoJb3JpZ2luX2VjENP//////////wEaCXVzLWVhc3QtMSJGMEQCIB1CI8icai6T5sMpV0KG7NGKoUQl8l28hG1zz9uxUsfEAiADywa2j5EH71G/Ky2SxwGb6kLN+3R7apFdSV2grroCUCr/Awic//////////8BEAQaDDY2NTM4NjA5ODg2NiIMl9z1VR64Y74Rtw2sKtMDFAMKS9lqXfUNkHcv5FdJLu3TNTNDjoAGsPaGgUi6qnYfD+n8BYrwnQHPRdFLk4luo4JaC4V1UwwUjaSK/clcQkjQDy5uBRsnvMbwlYipZLVr11rfNPzjfgx+z1YKRL9sBNfg9sFP+ES8euIO540osLDwRyODBcxOrNxLjW6uf7gmvzpMoGiKl2WFIXy1zhtO2NODYuLaHyI5p9zZu3C/5c2zgblCfS9GPmxR2mDu5GJS4I32XjTZ6m5iBw22fSc86MdbcRkfSywlTN0S9raoIpaeG9e0lL9WpJIYOvDwFgnt9Y1QqnfA5SfBDH8fwy2k5NgfqrxiXpyKteImcdIZSI1jyCbIEo6FZ6l8CeUTGW2AIrDmj4zQ2rxvFHAs5HkMX0H4SuDlRlKbjwMCqy6FJNDfWqauTUBoHM38zcZw5LXavrsW6BMgfYFoYkVQgYn9FTerxjqxxHmViH3fH9AEXU42x0+B01tfyLjKhD9Blk9VtX/azFyFjC60fwayN8PPuP0qdeRdCWMI+a/TT9sjmwhwJtNhtSdZ4hIEJTaScmDsMagEesvR5i2Zh9rTl4i6/sLyHV6DDwbIt5yBab71AZDYE3lxvoUA5WiVzZdaZRAy264wsdvm0wY6ngG5ZPGSNFgdIlF2ZtND+TggOCMXghZ46FG+p8lwsRqNDrcvfFspPF9GICQWQpuTSgXn6H5eICNeVFq8jm5qX0nheHK6X8D0mLYhtL+Bak1+SujbzNs5RMFHGQimOIOeC6EjwmbRqqa4ES9AnXnChyVOsXhWINNrHoCxygeEmeCQ04jpLLNmg7TGFs6AOwxVaI93bfb9xDIMCk8Ii52MVw==",
+    "expiration": "2026-08-10T22:53:37.000Z",
     "backend": "GIT_BACKEND_S3"
   },
   "name": "planmint-preview",

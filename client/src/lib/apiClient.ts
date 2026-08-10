@@ -91,12 +91,25 @@ export async function apiInvoke<T = unknown>(
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
-      return fetch(`/api/${endpoint}`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await fetch(`/api/${endpoint}`, {
         method: "POST",
         headers,
         body: options?.body ? JSON.stringify(options.body) : undefined,
         credentials: "include",
-      });
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          throw new Error('La solicitud tardó demasiado. Por favor, inténtalo de nuevo.');
+        }
+        throw err;
+      }
     };
 
     let response = await makeRequest(accessToken);

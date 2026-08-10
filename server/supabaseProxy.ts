@@ -321,9 +321,14 @@ export async function handleSupabaseQuery(req: Request, res: Response) {
     }
 
     // Post-insert hook: notify owner when transfer items with baby seats are created
+    // Run asynchronously so it doesn't block the response
     if (desc.operation === 'insert' && desc.table === 'transfer_items' && !error) {
-      try {
-        const insertedItems = Array.isArray(desc.data) ? desc.data : [desc.data];
+      const hookData = desc.data;
+      const hookOrgId = organizationId;
+      // Fire and forget - don't await
+      void (async () => {
+        try {
+        const insertedItems = Array.isArray(hookData) ? hookData : [hookData];
         const itemsWithBabySeats = insertedItems.filter((item: any) => item.baby_seats_count && item.baby_seats_count > 0);
         if (itemsWithBabySeats.length > 0) {
           const totalTransferSeats = itemsWithBabySeats.reduce((sum: number, item: any) => sum + (item.baby_seats_count || 0), 0);
@@ -434,8 +439,8 @@ export async function handleSupabaseQuery(req: Request, res: Response) {
       } catch (hookErr) {
         console.error('[supabaseProxy] Post-insert hook error (non-blocking):', hookErr);
       }
+      })();
     }
-
     return res.json({ data, error: null, count: count ?? null });
   } catch (err: any) {
     if (err instanceof AuthError) {
