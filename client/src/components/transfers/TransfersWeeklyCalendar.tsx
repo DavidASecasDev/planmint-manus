@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { TransferStatusBadge } from '@/components/transfers/TransferStatusBadge';
 import { ChevronLeft, ChevronRight, MapPin, Car, User, ArrowRight, Baby, Plus } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from 'date-fns';
@@ -52,8 +53,12 @@ export function TransfersWeeklyCalendar({ requests, onItemUpdated }: TransfersWe
   const [vehicleFilter, setVehicleFilter] = useState<string>('all');
   const [draggedEvent, setDraggedEvent] = useState<WeeklyEvent | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dateKey: string; hour: number } | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{ evt: WeeklyEvent; dateKey: string; hour: number } | null>(null);
+
+  const canDrag = (status: string) => ['pendiente', 'aceptado', 'conductor_asignado'].includes(status);
 
   const handleDragStart = (evt: WeeklyEvent, e: React.DragEvent) => {
+    if (!canDrag(evt.status)) { e.preventDefault(); return; }
     setDraggedEvent(evt);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', evt.itemId);
@@ -74,28 +79,33 @@ export function TransfersWeeklyCalendar({ requests, onItemUpdated }: TransfersWe
     setDropTarget(null);
     if (!draggedEvent) return;
 
-    const newTime = String(hour).padStart(2, '0') + ':00:00';
-    const newDate = dateKey;
-
     // Don't update if same cell
-    if (newDate === format(new Date(draggedEvent.time ? `${dateKey}T${draggedEvent.time}` : dateKey), 'yyyy-MM-dd') && hour === draggedEvent.hour) {
+    if (hour === draggedEvent.hour) {
       setDraggedEvent(null);
       return;
     }
 
+    // Show confirmation dialog instead of directly updating
+    setPendingDrop({ evt: draggedEvent, dateKey, hour });
+    setDraggedEvent(null);
+  };
+
+  const confirmDrop = async () => {
+    if (!pendingDrop) return;
+    const { evt, dateKey, hour } = pendingDrop;
+    const newTime = String(hour).padStart(2, '0') + ':00:00';
     try {
       const { error } = await supabaseQuery
         .from('transfer_items')
-        .update({ transfer_date: newDate, transfer_time: newTime })
-        .eq('id', draggedEvent.itemId);
-
+        .update({ transfer_date: dateKey, transfer_time: newTime })
+        .eq('id', evt.itemId);
       if (error) throw new Error(error.message);
-      toast.success(`Transfer movido a ${newDate} ${String(hour).padStart(2, '0')}:00`);
+      toast.success(`Transfer movido a ${format(new Date(dateKey), 'EEE dd/MM', { locale: es })} ${String(hour).padStart(2, '0')}:00`);
       onItemUpdated?.();
     } catch (err: any) {
       toast.error(`Error al mover: ${err.message}`);
     }
-    setDraggedEvent(null);
+    setPendingDrop(null);
   };
 
   const handleDragEnd = () => {
@@ -366,10 +376,10 @@ export function TransfersWeeklyCalendar({ requests, onItemUpdated }: TransfersWe
                           <Tooltip key={`${evt.itemId}-${evtIdx}`}>
                             <TooltipTrigger asChild>
                             <div
-                              draggable
+                              draggable={canDrag(evt.status)}
                               onDragStart={(e) => handleDragStart(evt, e)}
                               onDragEnd={handleDragEnd}
-                              className={`p-1.5 rounded border cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow mb-0.5 ${getStatusBg(evt.status)} ${
+                              className={`p-1.5 rounded border hover:shadow-sm transition-shadow mb-0.5 ${getStatusBg(evt.status)} ${canDrag(evt.status) ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${
                                 draggedEvent?.itemId === evt.itemId ? 'opacity-50' : ''
                               }`}
                               onClick={(e) => { e.stopPropagation(); navigate(`/transfers/requests/${evt.requestId}`); }}
@@ -492,6 +502,30 @@ export function TransfersWeeklyCalendar({ requests, onItemUpdated }: TransfersWe
           <span className="text-yellow-600 font-medium">⚠</span> Sin conductor
         </span>
       </div>
+
+      {/* Confirmation dialog for drag & drop */}
+      <AlertDialog open={!!pendingDrop} onOpenChange={(open) => { if (!open) setPendingDrop(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Mover transfer?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                {pendingDrop && (
+                  <span>
+                    Mover <strong>{pendingDrop.evt.clientName}</strong> ({pendingDrop.evt.requestNumber}) de{' '}
+                    <strong>{pendingDrop.evt.time}</strong> a{' '}
+                    <strong>{format(new Date(pendingDrop.dateKey), 'EEEE dd/MM', { locale: es })} {String(pendingDrop.hour).padStart(2, '0')}:00</strong>
+                  </span>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDrop}>Mover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
