@@ -1476,3 +1476,5 @@
 - [x] Mostrar maletas y furgonetas en el detalle de solicitud (admin)
 - [x] Unificar formulario TransferNew interno con el diseño del portal broker
 - [x] Revisar y corregir flujo de solicitud de transfer del broker (FK error)
+- [x] Reintentos automáticos: botón Reintentar si la solicitud falla por timeout
+- [x] Indicador de progreso: mostrar pasos durante el envío de solicitud del broker

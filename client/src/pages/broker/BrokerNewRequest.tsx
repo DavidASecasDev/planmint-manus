@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, Ship, Building2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Ship, Building2, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { createEmptyTransferItem, getBabySeatGroup } from '@/types/transfers';
 import type { TransferItemFormData, ClientType, VehicleType, BabySeatDetail } from '@/types/transfers';
@@ -17,7 +17,7 @@ import { LocationAutocomplete } from '@/components/broker/LocationAutocomplete';
 
 export default function BrokerNewRequest() {
   const navigate = useNavigate();
-  const { createRequest, isCreating } = useBrokerRequests();
+  const { createRequest, isCreating, createStep, createError, resetCreateError } = useBrokerRequests();
   const { broker } = useBrokerAuth();
 
   const [clientType, setClientType] = useState<ClientType>('villa');
@@ -46,6 +46,8 @@ export default function BrokerNewRequest() {
   };
 
   const handleSubmit = async () => {
+    // Reset any previous error before retrying
+    resetCreateError();
     if (!clientName.trim()) {
       toast.error('El nombre del cliente es obligatorio');
       return;
@@ -130,7 +132,7 @@ export default function BrokerNewRequest() {
       toast.success('Solicitud enviada correctamente');
       navigate('/broker');
     } catch (e) {
-      // Error handled by hook
+      // Error handled by hook - form stays intact for retry
     }
   };
 
@@ -477,11 +479,36 @@ export default function BrokerNewRequest() {
       </div>
 
       {/* Submit */}
-      <div className="flex justify-end gap-3 pb-8">
+      <div className="flex flex-col items-end gap-3 pb-8">
+        {/* Progress indicator */}
+        {isCreating && createStep && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse w-full justify-end">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{createStep}</span>
+          </div>
+        )}
+        {/* Error with retry */}
+        {createError && !isCreating && (
+          <div className="flex items-center gap-2 text-sm text-destructive w-full justify-end">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{createError.message}</span>
+          </div>
+        )}
+        <div className="flex gap-3">
         <Button variant="outline" onClick={() => navigate('/broker')}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={isCreating}>
-          {isCreating ? 'Enviando...' : 'Enviar solicitud'}
-        </Button>
+        {createError && !isCreating ? (
+          <Button onClick={handleSubmit} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Reintentar
+          </Button>
+        ) : (
+          <Button onClick={handleSubmit} disabled={isCreating}>
+            {isCreating ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" />Enviando...</>
+            ) : 'Enviar solicitud'}
+          </Button>
+        )}
+        </div>
       </div>
     </div>
   );

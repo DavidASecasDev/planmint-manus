@@ -132,6 +132,8 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       });
   }, [broker?.organization_id]);
 
+  const [createStep, setCreateStep] = useState<string | null>(null);
+
   // Create request mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateBrokerRequestData) => {
@@ -139,6 +141,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       if (!broker?.organization_id) throw new Error('Tu perfil no está vinculado a una organización. Contacta con tu administrador.');
       if (!broker?.broker_id) throw new Error('Tu perfil de broker no está correctamente configurado. Contacta con tu administrador para que vincule tu cuenta.');
 
+      setCreateStep('Generando número...');
       // Generate request number
       const { count } = await supabaseQuery
         .from('transfer_requests')
@@ -147,6 +150,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
 
       const requestNumber = `TRF-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
 
+      setCreateStep('Creando solicitud...');
       // Create parent request
       const { data: newRequest, error: reqError } = await supabaseQuery
         .from('transfer_requests')
@@ -174,6 +178,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         throw new Error(reqError?.message || 'Error creating request');
       }
 
+      setCreateStep('Añadiendo servicios...');
       // Create items
       const itemsToInsert = data.items.map((item, idx) => ({
         request_id: newRequest.id,
@@ -210,6 +215,7 @@ export function useBrokerRequests(filters?: BrokerFilters) {
         throw new Error(itemsError.message);
       }
 
+      setCreateStep('Vinculando servicios...');
       // Link return items to their outbound counterparts
       if (insertedItems && insertedItems.length > 1) {
         const outboundItems = insertedItems.filter((i: any) => i.direction === 'ida');
@@ -235,10 +241,12 @@ export function useBrokerRequests(filters?: BrokerFilters) {
       return newRequest;
     },
     onSuccess: () => {
+      setCreateStep(null);
       queryClient.invalidateQueries({ queryKey: ['broker-requests'] });
       toast.success('Solicitud creada correctamente');
     },
     onError: (error: Error) => {
+      setCreateStep(null);
       toast.error(`Error al crear solicitud: ${error.message}`);
     },
   });
@@ -373,6 +381,9 @@ export function useBrokerRequests(filters?: BrokerFilters) {
     refetch,
     createRequest: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    createStep,
+    createError: createMutation.error,
+    resetCreateError: createMutation.reset,
     updateRequest: updateMutation.mutateAsync,
     isUpdating: updateMutation.isPending,
     cancelRequest: cancelMutation.mutateAsync,
