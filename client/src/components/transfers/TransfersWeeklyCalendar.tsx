@@ -214,8 +214,10 @@ export function TransfersWeeklyCalendar({ requests }: TransfersWeeklyCalendarPro
         <CardContent className="p-0 overflow-x-auto">
           <div className="min-w-[900px]">
             {/* Day headers */}
-            <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b bg-muted/30 sticky top-0 z-10">
-              <div className="p-2 border-r" /> {/* Time column header */}
+            <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b bg-muted/30 sticky top-0 z-10 pr-[10px]">
+              <div className="p-2 border-r flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground">Hora</span>
+              </div>
               {weekDays.map((day, idx) => {
                 const dateKey = format(day, 'yyyy-MM-dd');
                 const isCurrentDay = isSameDay(day, today);
