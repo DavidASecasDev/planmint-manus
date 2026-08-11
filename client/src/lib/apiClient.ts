@@ -74,7 +74,7 @@ function redirectToLogin() {
  */
 export async function apiInvoke<T = unknown>(
   endpoint: string,
-  options?: { body?: Record<string, unknown> }
+  options?: { body?: Record<string, unknown>; timeoutMs?: number }
 ): Promise<ApiResponse<T>> {
   try {
     // Wait for the initial session to be fully validated/refreshed
@@ -92,7 +92,7 @@ export async function apiInvoke<T = unknown>(
         headers["Authorization"] = `Bearer ${token}`;
       }
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), options?.timeoutMs || 30000);
       try {
         const response = await fetch(`/api/${endpoint}`, {
         method: "POST",

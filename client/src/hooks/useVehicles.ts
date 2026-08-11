@@ -261,6 +261,7 @@ export function useVehicles() {
       
       const { data, error } = await apiInvoke<{ vehicles_created: number; vehicles_updated: number; vehicles_released: number }>('sync-rently', {
         body: { action: 'sync_vehicles' },
+        timeoutMs: 60000,
       });
 
       if (error) throw new Error(error.message);

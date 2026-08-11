@@ -125,6 +125,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await apiInvoke('sync-rently', {
         body: { action: 'sync_vehicles' },
+        timeoutMs: 60000,
       });
       if (error) {
         console.warn('[AutoSync] Vehicle sync failed:', error.message);
@@ -202,6 +203,7 @@ export function RentlySyncProvider({ children }: { children: ReactNode }) {
 
         const { data, error } = await apiInvoke('sync-rently', {
           body: { continue_sync: !isFirstCall, reset: isFirstCall && reset },
+          timeoutMs: 120000,
         });
         isFirstCall = false;
 

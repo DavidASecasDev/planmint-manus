@@ -82,6 +82,7 @@ export function SyncRentlyDialog({ open, onOpenChange, onSyncComplete }: SyncRen
       try {
         const { data: vehicleData, error: vehicleError } = await apiInvoke<{ vehicles_created: number; vehicles_updated: number }>('sync-rently', {
           body: { action: 'sync_vehicles' },
+          timeoutMs: 60000,
         });
         if (!vehicleError) {
           const vResult = vehicleData as { vehicles_created: number; vehicles_updated: number } | null;
