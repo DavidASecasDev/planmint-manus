@@ -1483,3 +1483,4 @@
 - [x] Drag & drop para reasignar hora/fecha de transfers en el calendario semanal
 - [x] Confirmación antes de mover transfer en calendario (diálogo con origen/destino)
 - [x] Restricción: solo arrastrar transfers pendientes/aceptados (no completados/en curso)
+- [x] Búsqueda por número de reserva en panel de Archivadas

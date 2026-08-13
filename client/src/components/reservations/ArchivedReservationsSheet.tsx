@@ -1,4 +1,6 @@
 import { Archive, RotateCcw, Calendar, Car, User } from 'lucide-react';
+import { useState } from 'react';
+import { Search } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -7,6 +9,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import type { Reservation } from '@/types/reservations';
@@ -28,6 +31,8 @@ export function ArchivedReservationsSheet({
   isRestoring,
   archiveDays = 10,
 }: ArchivedReservationsSheetProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Extract date components directly from ISO string to avoid timezone conversion
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -56,6 +61,18 @@ export function ArchivedReservationsSheet({
     return parts.join(' ') || 'Sin nombre';
   };
 
+  // Filter reservations by search query (reservation number, client name, vehicle)
+  const filteredReservations = searchQuery.trim()
+    ? reservations.filter((r) => {
+        const q = searchQuery.toLowerCase();
+        const resId = (r.external_reservation_id || '').toLowerCase();
+        const client = getClientName(r).toLowerCase();
+        const vehicle = (r.auto || '').toLowerCase();
+        const model = (r.modelo || '').toLowerCase();
+        return resId.includes(q) || client.includes(q) || vehicle.includes(q) || model.includes(q);
+      })
+    : reservations;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-lg">
@@ -70,16 +87,29 @@ export function ArchivedReservationsSheet({
           </SheetDescription>
         </SheetHeader>
 
+        {/* Search input */}
+        {reservations.length > 0 && (
+          <div className="mt-4 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nº reserva, cliente o matrícula..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        )}
+
         <ScrollArea className="mt-6 h-[calc(100vh-200px)]">
-          {reservations.length === 0 ? (
+          {filteredReservations.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Archive className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium">No hay reservas archivadas</p>
-              <p className="text-sm">Las reservas antiguas aparecerán aquí</p>
+              <p className="font-medium">{searchQuery ? 'Sin resultados' : 'No hay reservas archivadas'}</p>
+              <p className="text-sm">{searchQuery ? `No se encontró "${searchQuery}"` : 'Las reservas antiguas aparecerán aquí'}</p>
             </div>
           ) : (
             <div className="space-y-3 pr-4">
-              {reservations.map((reservation) => (
+              {filteredReservations.map((reservation) => (
                 <div
                   key={reservation.id}
                   className="p-3 rounded-lg border bg-card"
@@ -140,7 +170,10 @@ export function ArchivedReservationsSheet({
 
         {reservations.length > 0 && (
           <div className="mt-4 pt-4 border-t text-xs text-muted-foreground text-center">
-            {reservations.length} reserva{reservations.length !== 1 ? 's' : ''} archivada{reservations.length !== 1 ? 's' : ''}
+            {searchQuery
+              ? `${filteredReservations.length} de ${reservations.length} reservas`
+              : `${reservations.length} reserva${reservations.length !== 1 ? 's' : ''} archivada${reservations.length !== 1 ? 's' : ''}`
+            }
           </div>
         )}
       </SheetContent>
