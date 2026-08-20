@@ -1050,18 +1050,20 @@ export async function handleSyncRently(req: Request, res: Response) {
       const externalIds = enrichedReservations.map((r) => r.external_reservation_id as string);
       const { data: existingReservations } = await serviceClient
         .from("reservations")
-        .select("id, external_reservation_id, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime")
+        .select("id, external_reservation_id, estado, confirmed_entrega_datetime, confirmed_devolucion_datetime, desde, hasta")
         .eq("organization_id", organizationId)
         .in("external_reservation_id", externalIds);
 
-      const existingMap = new Map<string, { id: string; estado: string; confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null }>();
+      const existingMap = new Map<string, { id: string; estado: string; confirmed_entrega_datetime: string | null; confirmed_devolucion_datetime: string | null; desde: string | null; hasta: string | null }>();
       if (existingReservations) {
         existingReservations.forEach((r) => {
           existingMap.set(r.external_reservation_id, {
             id: r.id,
             estado: r.estado || "",
             confirmed_entrega_datetime: r.confirmed_entrega_datetime || null,
+            desde: r.desde || null,
             confirmed_devolucion_datetime: r.confirmed_devolucion_datetime || null,
+            hasta: r.hasta || null,
           });
         });
       }
@@ -1147,12 +1149,11 @@ export async function handleSyncRently(req: Request, res: Response) {
         delete updateData.external_reservation_id;
 
         // ─── SMART CONFIRMED DATETIME UPDATE ─────────────────────────────
-        // When Rently moves a date to a DIFFERENT (later) DAY (e.g. contract
-        // extension, date change), also update the confirmed datetime so the
-        // Programación view shows it on the correct day.
-        // If the Rently date is on the SAME day as the current confirmed datetime,
-        // do NOT overwrite — the user may have manually adjusted the time within
-        // the same day (e.g. client wants to pick up at 15:30 instead of 16:00).
+        // RULE: If the user has manually edited the confirmed datetime (i.e. it
+        // differs from the current desde/hasta), NEVER overwrite it — the user
+        // intentionally moved the operation to a different time/day.
+        // Only update confirmed datetime if it currently matches desde/hasta
+        // (meaning the user hasn't touched it) AND Rently changed the date.
         const existingForConfirmed = existingMap.get(update.fullData.external_reservation_id as string);
         const newDesde = updateData.desde as string | null;
         const newHasta = updateData.hasta as string | null;
@@ -1162,29 +1163,35 @@ export async function handleSyncRently(req: Request, res: Response) {
         // Helper: extract date portion (YYYY-MM-DD) from an ISO datetime string
         const getDatePortion = (dt: string): string => dt.substring(0, 10);
 
+        // For entrega: check if user manually edited the confirmed datetime
+        // by comparing it to the CURRENT desde (before this sync update)
+        const currentDesde = existingForConfirmed?.desde || null;
+        const currentHasta = existingForConfirmed?.hasta || null;
+
         if (newDesde && currentConfirmedEntrega) {
-          const newDesdeDate = getDatePortion(newDesde);
-          const currentConfirmedEntregaDate = getDatePortion(currentConfirmedEntrega);
-          if (newDesdeDate > currentConfirmedEntregaDate) {
-            // Rently moved to a later DAY → update confirmed to match
-            updateData.confirmed_entrega_datetime = newDesde;
-          } else {
-            // Same day or earlier day → preserve user's manual time adjustment
+          // Was the confirmed datetime manually edited by the user?
+          // If confirmed !== current desde, the user changed it → protect it
+          const userEditedEntrega = currentDesde && currentConfirmedEntrega !== currentDesde;
+          if (userEditedEntrega) {
+            // User manually edited → NEVER overwrite
             delete updateData.confirmed_entrega_datetime;
+          } else {
+            // User hasn't touched it (confirmed === desde) → safe to update with new Rently date
+            updateData.confirmed_entrega_datetime = newDesde;
           }
         } else {
           delete updateData.confirmed_entrega_datetime;
         }
 
         if (newHasta && currentConfirmedDevolucion) {
-          const newHastaDate = getDatePortion(newHasta);
-          const currentConfirmedDevolucionDate = getDatePortion(currentConfirmedDevolucion);
-          if (newHastaDate > currentConfirmedDevolucionDate) {
-            // Rently moved to a later DAY → update confirmed to match
-            updateData.confirmed_devolucion_datetime = newHasta;
-          } else {
-            // Same day or earlier day → preserve user's manual time adjustment
+          // Was the confirmed datetime manually edited by the user?
+          const userEditedDevolucion = currentHasta && currentConfirmedDevolucion !== currentHasta;
+          if (userEditedDevolucion) {
+            // User manually edited → NEVER overwrite
             delete updateData.confirmed_devolucion_datetime;
+          } else {
+            // User hasn't touched it (confirmed === hasta) → safe to update with new Rently date
+            updateData.confirmed_devolucion_datetime = newHasta;
           }
         } else {
           delete updateData.confirmed_devolucion_datetime;

@@ -1484,3 +1484,4 @@
 - [x] Confirmación antes de mover transfer en calendario (diálogo con origen/destino)
 - [x] Restricción: solo arrastrar transfers pendientes/aceptados (no completados/en curso)
 - [x] Búsqueda por número de reserva en panel de Archivadas
+- [x] Fix: Rently sync no debe sobreescribir confirmed_datetime si el usuario lo editó manualmente
