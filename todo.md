@@ -1485,3 +1485,4 @@
 - [x] Restricción: solo arrastrar transfers pendientes/aceptados (no completados/en curso)
 - [x] Búsqueda por número de reserva en panel de Archivadas
 - [x] Fix: Rently sync no debe sobreescribir confirmed_datetime si el usuario lo editó manualmente
+- [x] Fix staff-capacity endpoint to exclude operations with estado_entrega/estado_devolucion = 'Cancelada'
