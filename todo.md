@@ -1486,3 +1486,4 @@
 - [x] Búsqueda por número de reserva en panel de Archivadas
 - [x] Fix: Rently sync no debe sobreescribir confirmed_datetime si el usuario lo editó manualmente
 - [x] Fix staff-capacity endpoint to exclude operations with estado_entrega/estado_devolucion = 'Cancelada'
+- [x] Crear manual técnico integral en PDF para Lovable: esquema completo de Supabase, relación tabla-endpoint-hook-componente, funciones de todos los módulos, autenticación/RLS, caché, Realtime, sincronizaciones, timeouts, Service Worker, navegación y correcciones históricas críticas
