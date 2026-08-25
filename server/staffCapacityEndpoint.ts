@@ -430,6 +430,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       .select(
         `id, desde, hasta, tipo_actividad, estado,
          confirmed_entrega_datetime, confirmed_devolucion_datetime,
+         estado_entrega, estado_devolucion,
          lugar_entrega, lugar_devolucion,
          lugar_entrega_direccion, lugar_entrega_ciudad,
          lugar_devolucion_direccion, lugar_devolucion_ciudad,
@@ -454,7 +455,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       // Entrega / Transfer
       if (r.tipo_actividad === "Transfer") {
         const dt = r.confirmed_entrega_datetime || r.desde;
-        if (dt && dt.substring(0, 10) === date) {
+        if (dt && dt.substring(0, 10) === date && r.estado_entrega !== "Cancelada") {
           // For transfers, use the dropoff (destination) location for travel time calculation
           // This represents the actual trip distance from pickup to destination
           const location = r.lugar_devolucion_direccion || r.lugar_devolucion || r.lugar_entrega_direccion || r.lugar_entrega || null;
@@ -477,7 +478,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
       } else {
         // Entrega
         const entregaDt = r.confirmed_entrega_datetime || r.desde;
-        if (entregaDt && entregaDt.substring(0, 10) === date) {
+        if (entregaDt && entregaDt.substring(0, 10) === date && r.estado_entrega !== "Cancelada") {
           // Prioritize exact address (direccion) for Google Maps accuracy, fallback to lugar name
           const location = r.lugar_entrega_direccion || r.lugar_entrega || r.lugar_entrega_ciudad || null;
           const atBase = isBaseLocation(location);
@@ -499,7 +500,7 @@ export async function handleGetStaffCapacity(req: Request, res: Response) {
 
         // Devolución
         const devolDt = r.confirmed_devolucion_datetime || r.hasta;
-        if (devolDt && devolDt.substring(0, 10) === date) {
+        if (devolDt && devolDt.substring(0, 10) === date && r.estado_devolucion !== "Cancelada") {
           // Prioritize exact address (direccion) for Google Maps accuracy, fallback to lugar name
           const location = r.lugar_devolucion_direccion || r.lugar_devolucion || r.lugar_devolucion_ciudad || null;
           const atBase = isBaseLocation(location);
