@@ -1485,3 +1485,9 @@
 - [x] Restricción: solo arrastrar transfers pendientes/aceptados (no completados/en curso)
 - [x] Búsqueda por número de reserva en panel de Archivadas
 - [x] Fix: Rently sync no debe sobreescribir confirmed_datetime si el usuario lo editó manualmente
+- [x] Fix staff-capacity endpoint to exclude operations with estado_entrega/estado_devolucion = 'Cancelada'
+- [x] Crear manual técnico integral en PDF para Lovable: esquema completo de Supabase, relación tabla-endpoint-hook-componente, funciones de todos los módulos, autenticación/RLS, caché, Realtime, sincronizaciones, timeouts, Service Worker, navegación y correcciones históricas críticas
+- [x] Analizar el Excel corregido de horarios de septiembre de 2026
+- [x] Actualizar staff_schedules exactamente según el Excel de septiembre
+- [x] Actualizar schedule_member_order por equipo y semana para respetar el orden escalonado
+- [x] Verificar automáticamente todos los turnos, libres y posiciones contra el Excel
