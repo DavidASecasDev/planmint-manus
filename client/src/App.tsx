@@ -110,6 +110,7 @@ const Reservations = lazy(() => import("./pages/Reservations"));
 const ReservationDetail = lazy(() => import("./pages/ReservationDetail"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
 const AuditHistory = lazy(() => import("./pages/AuditHistory"));
+const SesHospedajes = lazy(() => import("./pages/ses/SesHospedajes"));
 
 // Garatech Module
 const GaratechDashboard = lazy(() => import("./pages/garatech/Dashboard"));
@@ -311,6 +312,14 @@ function QueryRecovery() {
                   </ModuleRoute>
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/ses-hospedajes"
+              element={
+                <ProtectedRoute>
+                  <SesHospedajes />
+                </ProtectedRoute>
+              }
             />
             <Route 
               path="/reservations/:id" 

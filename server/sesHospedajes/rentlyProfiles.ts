@@ -1,0 +1,186 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+export interface RentlyCustomerForSes {
+  Id?: number;
+  Firstname?: string;
+  Lastname?: string;
+  EmailAddress?: string;
+  CellPhone?: string;
+  DocumentTypeId?: number;
+  DocumentId?: string;
+  DocumentIdExpiration?: string;
+  DocumentIdIssuanceCountry?: unknown;
+  Address?: string;
+  AddressNumber?: string;
+  AddressDepartment?: string;
+  City?: string;
+  State?: string;
+  Country?: unknown;
+  ZipCode?: string;
+  BirthDate?: string;
+  DriverLicenceNumber?: string;
+  DriverLicenceCountry?: unknown;
+  DriverLicenseExpiration?: string;
+  DriverLicenseCategory?: string;
+}
+
+const COUNTRY_ALIASES: Record<string, string> = {
+  ES: 'ESP', ESP: 'ESP', SPAIN: 'ESP', ESPANA: 'ESP', ESPAÑA: 'ESP',
+  GB: 'GBR', GBR: 'GBR', UK: 'GBR', 'UNITED KINGDOM': 'GBR', 'REINO UNIDO': 'GBR',
+  DE: 'DEU', DEU: 'DEU', GERMANY: 'DEU', ALEMANIA: 'DEU',
+  FR: 'FRA', FRA: 'FRA', FRANCE: 'FRA', FRANCIA: 'FRA',
+  IT: 'ITA', ITA: 'ITA', ITALY: 'ITA', ITALIA: 'ITA',
+  PT: 'PRT', PRT: 'PRT', PORTUGAL: 'PRT',
+  NL: 'NLD', NLD: 'NLD', NETHERLANDS: 'NLD', 'PAISES BAJOS': 'NLD', 'PAÍSES BAJOS': 'NLD',
+  BE: 'BEL', BEL: 'BEL', BELGIUM: 'BEL', BELGICA: 'BEL', BÉLGICA: 'BEL',
+  CH: 'CHE', CHE: 'CHE', SWITZERLAND: 'CHE', SUIZA: 'CHE',
+  AT: 'AUT', AUT: 'AUT', AUSTRIA: 'AUT',
+  IE: 'IRL', IRL: 'IRL', IRELAND: 'IRL', IRLANDA: 'IRL',
+  US: 'USA', USA: 'USA', 'UNITED STATES': 'USA', 'ESTADOS UNIDOS': 'USA',
+  AR: 'ARG', ARG: 'ARG', ARGENTINA: 'ARG',
+};
+
+function normalizedKey(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+}
+
+function extractText(value: unknown): string | null {
+  if (typeof value === 'string') return value.trim() || null;
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    for (const key of ['Code', 'IsoCode', 'ISOCode', 'Alpha3', 'Name', 'Description']) {
+      if (typeof record[key] === 'string' && record[key]!.trim()) return record[key]!.trim();
+    }
+  }
+  return null;
+}
+
+export function toIsoAlpha3(value: unknown): string | null {
+  const text = extractText(value);
+  if (!text) return null;
+  const key = normalizedKey(text);
+  if (COUNTRY_ALIASES[key]) return COUNTRY_ALIASES[key];
+  return /^[A-Z]{3}$/.test(key) ? key : null;
+}
+
+export function toDateOnly(value?: string): string | null {
+  if (!value) return null;
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+
+export function normalizeDocumentNumber(value?: string): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, '');
+  return normalized || null;
+}
+
+export function mapRentlyDocumentType(value?: number): 'NIF' | 'NIE' | 'PAS' | 'OTRO' {
+  if (value === 1) return 'NIF';
+  if (value === 3) return 'PAS';
+  return 'OTRO';
+}
+
+export function mapRentlyCustomerToSesProfile(
+  customer: RentlyCustomerForSes,
+  organizationId: string,
+  userId: string,
+) {
+  const documentNumber = normalizeDocumentNumber(customer.DocumentId);
+  const firstName = customer.Firstname?.trim() || '';
+  const firstSurname = customer.Lastname?.trim() || '';
+  if (!documentNumber || !firstName || !firstSurname) return null;
+
+  return {
+    organization_id: organizationId,
+    rently_customer_id: customer.Id ?? null,
+    document_type: mapRentlyDocumentType(customer.DocumentTypeId),
+    document_number: documentNumber,
+    first_name: firstName,
+    first_surname: firstSurname,
+    birth_date: toDateOnly(customer.BirthDate),
+    address_line: customer.Address?.trim() || null,
+    address_number: customer.AddressNumber?.trim() || null,
+    address_complement: customer.AddressDepartment?.trim() || null,
+    municipality_name: customer.City?.trim() || null,
+    postal_code: customer.ZipCode?.trim() || null,
+    country_code: toIsoAlpha3(customer.Country),
+    phone: customer.CellPhone?.trim() || null,
+    email: customer.EmailAddress?.trim() || null,
+    licence_type: customer.DriverLicenseCategory?.trim().toUpperCase() || null,
+    licence_valid_until: toDateOnly(customer.DriverLicenseExpiration),
+    licence_number: normalizeDocumentNumber(customer.DriverLicenceNumber),
+    licence_country_code: toIsoAlpha3(customer.DriverLicenceCountry),
+    last_rently_sync_at: new Date().toISOString(),
+    updated_by: userId,
+  };
+}
+
+const PROTECTED_PROFILE_FIELDS = [
+  'document_type', 'document_number', 'first_name', 'first_surname', 'second_surname',
+  'birth_date', 'nationality_code', 'sex', 'address_line', 'address_number',
+  'address_complement', 'municipality_code', 'municipality_name', 'postal_code',
+  'country_code', 'phone', 'phone_secondary', 'email', 'licence_type',
+  'licence_valid_until', 'licence_number', 'licence_support', 'licence_country_code',
+] as const;
+
+export async function syncSesPersonProfiles(
+  serviceClient: SupabaseClient,
+  organizationId: string,
+  userId: string,
+  customers: RentlyCustomerForSes[],
+): Promise<{ synced: number; skipped: number }> {
+  const mapped = customers
+    .map((customer) => mapRentlyCustomerToSesProfile(customer, organizationId, userId))
+    .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile));
+
+  if (mapped.length === 0) return { synced: 0, skipped: customers.length };
+
+  const unique = new Map(mapped.map((profile) => [
+    `${profile.document_type}:${profile.document_number}`,
+    profile,
+  ]));
+  const documentNumbers = Array.from(new Set(
+    Array.from(unique.values()).map((profile) => profile.document_number),
+  ));
+  const { data: existing, error: existingError } = await serviceClient
+    .from('ses_person_profiles')
+    .select('*')
+    .eq('organization_id', organizationId)
+    .in('document_number', documentNumbers);
+  if (existingError) throw existingError;
+
+  const existingMap = new Map((existing ?? []).map((profile) => [
+    `${profile.document_type}:${profile.document_number}`,
+    profile as Record<string, unknown>,
+  ]));
+
+  const rows = Array.from(unique.entries()).map(([key, incoming]) => {
+    const current = existingMap.get(key);
+    if (!current) return { ...incoming, created_by: userId, manual_fields: [] };
+
+    const manualFields = new Set(Array.isArray(current.manual_fields) ? current.manual_fields as string[] : []);
+    const merged: Record<string, unknown> = { ...current, ...incoming, manual_fields: Array.from(manualFields) };
+    for (const field of PROTECTED_PROFILE_FIELDS) {
+      const currentValue = current[field];
+      const incomingValue = incoming[field as keyof typeof incoming];
+      if (manualFields.has(field) || incomingValue === null || incomingValue === undefined || incomingValue === '') {
+        merged[field] = currentValue ?? incomingValue ?? null;
+      }
+    }
+    return merged;
+  });
+
+  const { error } = await serviceClient
+    .from('ses_person_profiles')
+    .upsert(rows, { onConflict: 'organization_id,document_type,document_number' });
+  if (error) throw error;
+
+  return { synced: rows.length, skipped: customers.length - rows.length };
+}

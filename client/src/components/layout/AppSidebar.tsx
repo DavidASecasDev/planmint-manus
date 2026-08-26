@@ -53,6 +53,7 @@ const VERTICAL_HIDDEN_PATHS: Record<OrganizationVertical, string[]> = {
   rent_a_car: [], // rent-a-car sees everything
   accommodation: [
     '/reservations', // Programación
+    '/ses-hospedajes', // Comunicación de alquiler de vehículos
     '/vehicles',     // Estado Coches
     '/movements',    // Movimientos
     '/live-map',     // Mapa En Camino
@@ -62,6 +63,7 @@ const VERTICAL_HIDDEN_PATHS: Record<OrganizationVertical, string[]> = {
   ],
   transfers: [
     '/vehicles',     // Estado Coches
+    '/ses-hospedajes', // Comunicación de alquiler de vehículos
     '/fleet',        // Flota (collapsible)
     '/garatech',     // Garatech (collapsible)
   ],
@@ -156,6 +158,7 @@ const MENU_PERMISSION_MAP: Partial<Record<string, PermissionKey>> = {
   '/vehicles': 'vehicles.view',
   '/reports': 'reports.view',
   '/reservations': 'reservations.view',
+  '/ses-hospedajes': 'ses_hospedajes.view',
   '/reminders': 'tasks.view',
   '/movements': 'movements.view',
   '/tasks/daily': 'daily_tasks.view',
@@ -172,6 +175,7 @@ const menuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Tiempo', url: '/time-tracking', icon: Timer },
   { title: 'Programación', url: '/reservations', icon: CarFront },
+  { title: 'SES.HOSPEDAJES', url: '/ses-hospedajes', icon: FileSpreadsheet },
   { title: 'Timeline', url: '/timeline', icon: GanttChart },
   { title: 'Mapa En Camino', url: '/live-map', icon: MapPin },
   { title: 'Estado Coches', url: '/vehicles', icon: Car },

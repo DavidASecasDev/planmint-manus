@@ -62,6 +62,8 @@ export interface RolePermissions {
   schedules: { view: boolean; assign: boolean; manage_templates: boolean; view_directiva: boolean; manage_notes: boolean; manage: boolean };
   // Lost & Found (Objetos Perdidos)
   lost_found: { view: boolean; create: boolean; update: boolean; manage: boolean };
+  // SES.HOSPEDAJES
+  ses_hospedajes: { view: boolean; edit: boolean; export: boolean; manage_settings: boolean };
 }
 
 export interface UserRoleAssignment {
@@ -380,6 +382,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
   fleet: { view: true, manage: false, import: false, gps: false },
   schedules: { view: true, assign: false, manage_templates: false, view_directiva: false, manage_notes: false, manage: false },
   lost_found: { view: true, create: true, update: false, manage: false },
+  ses_hospedajes: { view: false, edit: false, export: false, manage_settings: false },
 };
 
 export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
@@ -453,6 +456,12 @@ export const PERMISSION_LABELS: Record<string, Record<string, string>> = {
     view: 'Ver reservas',
     create: 'Crear reservas',
     manage: 'Gestionar reservas',
+  },
+  ses_hospedajes: {
+    view: 'Ver SES.HOSPEDAJES',
+    edit: 'Completar y corregir comunicaciones',
+    export: 'Generar y descargar XML',
+    manage_settings: 'Configurar SES.HOSPEDAJES',
   },
   garatech: {
     view: 'Ver módulo Garatech',

@@ -64,6 +64,8 @@ export const ALL_PERMISSION_KEYS = [
   "preparation.view", "preparation.start", "preparation.complete_tasks", "preparation.view_progress", "preparation.manage",
   // Lost & Found (Objetos Perdidos)
   "lost_found.view", "lost_found.create", "lost_found.update", "lost_found.manage",
+  // SES.HOSPEDAJES
+  "ses_hospedajes.view", "ses_hospedajes.edit", "ses_hospedajes.export", "ses_hospedajes.manage_settings",
   // Rently (Bidirectional Sync)
   "rently.booking_confirm", "rently.booking_cancel", "rently.booking_uncancel", "rently.booking_update", "rently.booking_create",
   "rently.operations_delivery", "rently.operations_return", "rently.customer_manage", "rently.cars_relocate", "rently.manage",
@@ -124,6 +126,7 @@ export const ROLE_DEFAULTS: Record<string, PermissionKey[]> = {
     "schedules.assign", "schedules.manage_templates", "schedules.view_directiva", "schedules.manage_notes", "schedules.manage",
     "preparation.start", "preparation.complete_tasks", "preparation.view_progress", "preparation.manage",
     "lost_found.create", "lost_found.update", "lost_found.manage",
+    "ses_hospedajes.view", "ses_hospedajes.edit", "ses_hospedajes.export", "ses_hospedajes.manage_settings",
     // Rently
     "rently.booking_confirm", "rently.booking_cancel", "rently.booking_uncancel", "rently.booking_update", "rently.booking_create",
     "rently.operations_delivery", "rently.operations_return", "rently.customer_manage", "rently.cars_relocate", "rently.manage",

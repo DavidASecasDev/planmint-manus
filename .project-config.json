@@ -7,31 +7,33 @@
   ],
   "dev_command": "pnpm run dev",
   "env_vars": {
-    "DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}",
-    "DRIZZLE_DATABASE_URL": "mysql://2vFDbXk9HMeSZNN.root:s6O6GeiG40GULa45JGBN@gateway04.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}"
+    "DATABASE_URL": "mysql://45sFzxhzeXPmcrF.c937947f468f:nuB5LnxyI34933zQfrqF@gateway05.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}",
+    "DRIZZLE_DATABASE_URL": "mysql://45sFzxhzeXPmcrF.c937947f468f:nuB5LnxyI34933zQfrqF@gateway05.us-east-1.prod.aws.tidbcloud.com:4000/ixFK4yeJEEAkh8kCZkpztM?ssl={\"rejectUnauthorized\":true}",
+    "MANUS_WEBDEV_PROJECT_ID": "ixFK4yeJEEAkh8kCZkpztM"
   },
   "experiments": [
     "no_db_push"
   ],
   "git_remote": {
     "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663452253312/ixFK4yeJEEAkh8kCZkpztM",
-    "access_key_id": "ASIAZV3A2ECZGVC7JC4I",
-    "secret_access_key": "S5qomr+k7aNmPw+ips7JY3kyttum9wj6HhQ/A1Z4",
-    "session_token": "IQoJb3JpZ2luX2VjEDsaCXVzLWVhc3QtMSJHMEUCIAplJpo818F4oLHXN+JhY9L1TtRow1Q0BWbLL7TbiftoAiEAw1FeKvFVsBStjDvXzbqjAYTfi6edzIJfZf87VmxDdpgq9gMIAxAEGgw2NjUzODYwOTg4NjYiDO97RLcBx36Ft5OiPirTA0m15ZI9leGDSWv5SOFHMeKLvUM8p0gcHGY2cZfXPkjgJBnKbi1fyC5F9SVBHx9E6gQw3nfblnUey8f3V+DMDbfmW3AvpOXwanb7/ThUqXbTBWaI+sdDSyBWvGHnAbgbguj/FSJsJvlHgtTV8wRsmukltMgrl3LB28UvPg7qQDRdkXF+DQuP1jHZfP1LP5m2jYvXId/hR5WDe6/miBeYw8x9khpOuW+3wgmicqIQTSH2r169MoTYPfpKOfxXFIw173+jrri7ESwEPqeWNBVFEyRtx4xxZZfOTAeGs5IAxfkGfVuhOVlCuWZ5c/K1qt/c5a64nu0Si4PQVmP7+K9Jgz2KtQ+ofZ5rthoWV0VTkjDHZQsCk6E+lCKE8AwgAfDIAZ8/ykwVp6St4gRc3Lm0NvRN+hhL5VRNLMpUtEDQ8TDtIqSed23tVq1cS7k69TTbLx9ytmdveAN4iNvD+wDg7aiIDEUpB+Nrk8oAuWZiFLV4BVIsTFcRqkJJiLnOPsCAMrO/7KJ9vPeITq2nsg6W65ZqOYHtVqVPIcic9NrLETqu8ADmPLag6RglTtR2XKcNbfr6QIQVw0jaQ08H7pO4OE8FU24B3Yz6Lr8EMmnthx4WDh6kMOPUtdQGOp0BKvfAo/l1LKuLjeYYiTT0bs2KTQNO9MlB34W6IZBHKIVL4PaVOMBejLPAqoq3Zsh7pwc5fLRk6ylhL9Rx2sy/9Q9VLnRjfhNj07psTXSf+RdDdmoo/IzY5kYbRi3WSMntAvmx6xV7V2Id3B+USJ3mjw3i7mn8HvgXiqmQgvKPRudCPU8trekJOtGxpERkP4riw5yEQE10/ywB94N/5g==",
-    "expiration": "2026-08-25T22:11:47.000Z",
+    "access_key_id": "ASIAZV3A2ECZCWBEWXMO",
+    "secret_access_key": "4M8ZWKDymSeOT/e7TNC6sks6DKvYamzk+DXHP9VO",
+    "session_token": "IQoJb3JpZ2luX2VjEFUaCXVzLWVhc3QtMSJHMEUCIQClUuV7KoLnt6zD/6jyD2YjW8I/j24p8X8l2dbRrvgj0wIgXBRi31yjGK4kku6GvdQvgVVu5uarUWchOnnfFLiJtCgq9gMIHhAEGgw2NjUzODYwOTg4NjYiDB6EJYDc02R2hejRGSrTA3g4WSGMbyB2Qj41pGoxQkYVpaZdnkyHFWYMG9A49DBm/whXhsEac92fhI+4qB1aLnG2t79qN2xZexjnBPQRcjxpDszAZWpzVWwkwyIkYwPQ6cATmJiRGcfUrjgZSBQbu0PdwnKZMRP2vV6+0LN2RdJpWoVdduc440flPScHpNiMbQ3LBlN476wnhytBiNWA/J6kJBOgoHeITx1Tjdujm1A5Ek2JR4UNZ5GJJJjgRt1cXqPprHHKlGbUvJANT7Ownq62T+IY8Ar3cpKE0EvQcoZ8VZmEWo6mrQ7tK3YWOeFyWaKFHSG/VnCfUoUv6iFea8EB8V0KYOBlnXjHokHdNFqxie9EHDLuaxzGIn7l9vZBIOZJm/rKnLRK8GLPAr8caGqVYTsdVttpJsjcxGy2ws1JSVPk9IA+IU8QG6RBCOZ0i0YJ4mEA9uoKdsPG3fdcEZ4SPAqRP739qgjAsj+9MVZG1dbP2wkxZS1R4c/cbrc5EOW12ExjS25Zn2mA6UP2HU7ake30Suvc64itnxNRoJuZfDmWOCDrBWG+H9wHL1HW8f09vpEOrlkohEfBbsAvzkGuNKSG/ory1BO0VTwjldSv4/CmSOCJ8lxoB4BRBG/7xFSDMMjIu9QGOp0BI22UZuV5UKrDqA9elBcIel8eBphchQ1K84zE1+cu5jj4mtSVeZHRGf4b/QfbF3rULPwHJ4eGIm9KAl2ujjt3ugNX7xy4zzjXptknx09iVGY2+soooinm1mV1b0YVOMnefQVCqyx5BO2FK1mJqNu2uK7dCTT/Vu8unDUSnQht/8T1bPSA209p1vKchGuzujeq3dxBBVeDgCE/0pbcNA==",
+    "expiration": "2026-08-27T01:04:08.000Z",
     "backend": "GIT_BACKEND_S3"
   },
   "name": "planmint-preview",
   "path": "/home/ubuntu/planmint-preview",
   "port": 3000,
   "secrets": {
-    "BUILT_IN_FORGE_API_KEY": "cMX7oCWF757mc7g8onfGBC",
+    "BUILT_IN_FORGE_API_KEY": "BE5jsU3YM9pJhrXG2Tc4HL",
     "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
     "JWT_SECRET": "DN7JjhYgGFJVKPqy77x8yB",
     "OAUTH_SERVER_URL": "https://api.manus.im",
     "OWNER_NAME": "David Marente",
     "OWNER_OPEN_ID": "S4wbHyuvESzpqXtpG2KDJj",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YXl6d2R1ZHNzeWVneGppeXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDkzNDYsImV4cCI6MjA4OTQyNTM0Nn0.GstFrSuWtj9923mHfLVfNkcH0M9MrwpPH0SW3om-WK0",
+    "SUPABASE_DB_PASSWORD": "TrabajitoPoderoso15.",
     "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YXl6d2R1ZHNzeWVneGppeXJrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzg0OTM0NiwiZXhwIjoyMDg5NDI1MzQ2fQ.LHopfIBDuLDqdRKZffLKp042hK6atJ34OOe938xnuFw",
     "SUPABASE_URL": "https://exayzwdudssyegxjiyrk.supabase.co",
     "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
@@ -39,7 +41,7 @@
     "VITE_APP_ID": "ixFK4yeJEEAkh8kCZkpztM",
     "VITE_APP_LOGO": "https://files.manuscdn.com/user_upload_by_module/web_dev_logo/310519663452253312/ZaPYFDBuKZpVdVaL.png",
     "VITE_APP_TITLE": "PlanMint",
-    "VITE_FRONTEND_FORGE_API_KEY": "FT6v5oAMZrjLRNRuCWuNjt",
+    "VITE_FRONTEND_FORGE_API_KEY": "ext4ENUPompFgXde4fmh7c",
     "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
     "VITE_OAUTH_PORTAL_URL": "https://manus.im",
     "XEXUN_API_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJNYXJjdm9uRWliZXJnIiwiYXVkIjoiNjA1NiIsImxldmVsQ29kZSI6IjAwMDAwMDAxMDAwMDAyNTYwMDAwMDA5NyIsInNlc3Npb25Db2RlIjoiMWYxNWM5MDYtMTZiNi00YzFiLTgxYjMtNGRiNTcxNjkzMjgxIiwicm9sZUlkIjoiMzMyMyIsInN1cGVyUGFzc3dvcmRTdGF0dXMiOiJmYWxzZSIsImlzcyI6InhleHVuIiwiZGVwdElkIjo5MzU1LCJleHAiOjE4MTQzNTE2MTksImlhdCI6MTc4MjgxNTYxOX0.fKK23iJUwyCkkvMqdDNZzvQQ5cZRxkCfIQTDM_P4Rbs",

@@ -143,6 +143,19 @@ import {
   handleAssignReinforcement,
 } from "../reinforcementEndpoint";
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
+import {
+  handleSesCreatePerson,
+  handleSesGetSettings,
+  handleSesExportXml,
+  handleSesListDrafts,
+  handleSesPrepare,
+  handleSesRevalidate,
+  handleSesSearchMunicipalities,
+  handleSesUpdateDraft,
+  handleSesUpdateLocation,
+  handleSesUpdatePerson,
+  handleSesUpdateSettings,
+} from "../sesHospedajes/sesEndpoints";
 import { handleGeocode } from "../geocodeEndpoint";
 import { handleGeocodeCacheLookup, handleGeocodeCacheSave, handleGeocodeCacheManualSet } from "../geocodeCacheEndpoint";
 import { handleEnCaminoTrack, handleEnCaminoList, handleEnCaminoDelete, handleEnCaminoLlego, handleEnCaminoStatus, handleEnCaminoSummary, handleEnCaminoHistory, handleEnCaminoLocation, handleEnCaminoLocationStop, handleEnCaminoLocationHistory, handleEnCaminoStats, handlePublicTrack, handleGetShareToken, handlePublicTrackEta } from "../enCaminoTrackingEndpoint";
@@ -544,6 +557,19 @@ async function startServer() {
   app.post("/api/parking/history", handleGetParkingHistory);
   app.post("/api/parking/overview", handleGetParkingOverview);
   app.post("/api/parking/seed-layout", handleSeedParkingLayout);
+
+  // SES.HOSPEDAJES — preparación y revisión; nunca realiza envíos automáticos.
+  app.post("/api/ses/prepare", handleSesPrepare);
+  app.post("/api/ses/drafts", handleSesListDrafts);
+  app.post("/api/ses/person/create", handleSesCreatePerson);
+  app.post("/api/ses/person/update", handleSesUpdatePerson);
+  app.post("/api/ses/draft/update", handleSesUpdateDraft);
+  app.post("/api/ses/location/update", handleSesUpdateLocation);
+  app.post("/api/ses/municipalities", handleSesSearchMunicipalities);
+  app.post("/api/ses/revalidate", handleSesRevalidate);
+  app.post('/api/ses/settings', handleSesGetSettings);
+  app.post('/api/ses/xml/export', handleSesExportXml);
+  app.post("/api/ses/settings/update", handleSesUpdateSettings);
 
   // ─── External API (B2B) ──────────────────────────────────────────────────
   app.use("/api/external/v1/transfers", externalApiTransfersRouter);

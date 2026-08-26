@@ -14,6 +14,7 @@ import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 import { notifyOwner } from "./_core/notification";
 import { releaseParkingSpotByVehicle } from "./parkingEndpoints";
+import { syncSesPersonProfiles } from "./sesHospedajes/rentlyProfiles";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -82,31 +83,44 @@ interface RentlyBookingDetail extends RentlyBooking {
     Id?: number;
     Plate?: string;
     Kms?: number;
+    CurrentKms?: number;
     FuelLevel?: number;
     Color?: string;
     Year?: number;
     ChassisId?: string;
+    ChassisIdentification?: string;
     FuelType?: { Name?: string };
-    Model?: { Name?: string; Category?: { Name?: string } };
+    Model?: { Name?: string; Brand?: { Name?: string }; Category?: { Name?: string } };
   };
-  DeliveryPlace?: { Name?: string; Address?: string; City?: string };
-  ReturnPlace?: { Name?: string; Address?: string; City?: string };
+  DeliveryPlace?: { Id?: number; Name?: string; Address?: string; City?: string; Country?: unknown; Latitude?: number; Longitude?: number };
+  ReturnPlace?: { Id?: number; Name?: string; Address?: string; City?: string; Country?: unknown; Latitude?: number; Longitude?: number };
+  DeliveryInfo?: { Date?: string; Kms?: number };
+  DropoffInfo?: { Date?: string; Kms?: number };
   Customer?: {
+    Id?: number;
     Firstname?: string;
     Lastname?: string;
     EmailAddress?: string;
     CellPhone?: string;
     DocumentTypeId?: number;
     DocumentId?: string;
+    DocumentIdExpiration?: string;
+    DocumentIdIssuanceCountry?: unknown;
     Address?: string;
+    AddressNumber?: string;
+    AddressDepartment?: string;
     City?: string;
     State?: string;
-    Country?: string;
+    Country?: unknown;
+    ZipCode?: string;
     Age?: number;
     BirthDate?: string;
+    DriverLicenceNumber?: string;
+    DriverLicenceCountry?: unknown;
     DriverLicenseNumber?: string;
-    DriverLicenseCountry?: string;
+    DriverLicenseCountry?: unknown;
     DriverLicenseExpiration?: string;
+    DriverLicenseCategory?: string;
     Notes?: string;
   };
   PriceItems?: Array<{
@@ -423,6 +437,7 @@ export function mapBookingToReservation(
     organization_id: organizationId,
     imported_by: userId,
     external_reservation_id: String(booking.Id),
+    rently_creation_date: booking.CreationDate || null,
     estado: STATUS_MAP[booking.CurrentStatus] || `Status ${booking.CurrentStatus}`,
     rently_status_code: booking.CurrentStatus,
     cliente_nombre: customer.Firstname || null,
@@ -473,11 +488,11 @@ export function enrichReservationWithDetail(
     pagado_por_cliente: detail.PayedByCustomer ?? null,
     moneda: detail.Currency || null,
     comision_ventas: detail.SalesCommision ?? null,
-    vehiculo_kms: car.Kms ?? null,
+    vehiculo_kms: car.CurrentKms ?? car.Kms ?? null,
     vehiculo_combustible: car.FuelLevel ?? null,
     vehiculo_color: car.Color || null,
     vehiculo_anio: car.Year ?? null,
-    vehiculo_chasis: car.ChassisId || null,
+    vehiculo_chasis: car.ChassisIdentification || car.ChassisId || null,
     vehiculo_tipo_combustible: car.FuelType?.Name || null,
     tarifa_diaria: detail.DailyRate ?? null,
     tarifa_hora: detail.HourlyRate ?? null,
@@ -504,8 +519,10 @@ export function enrichReservationWithDetail(
     cliente_pais: customer.Country || null,
     cliente_edad: customer.Age ?? null,
     cliente_fecha_nacimiento: customer.BirthDate || null,
-    cliente_carnet_numero: customer.DriverLicenseNumber || null,
-    cliente_carnet_pais: customer.DriverLicenseCountry || null,
+    cliente_carnet_numero: customer.DriverLicenceNumber || customer.DriverLicenseNumber || null,
+    cliente_carnet_pais: typeof customer.DriverLicenceCountry === 'string'
+      ? customer.DriverLicenceCountry
+      : (typeof customer.DriverLicenseCountry === 'string' ? customer.DriverLicenseCountry : null),
     cliente_carnet_expiracion: customer.DriverLicenseExpiration || null,
     cliente_notas: customer.Notes || null,
     extras_contratados:
@@ -1030,6 +1047,16 @@ export async function handleSyncRently(req: Request, res: Response) {
         detailsMap = await fetchDetailsInParallel(host, rentlyToken, bookingIdsToEnrich, DETAIL_CONCURRENCY);
         totalDetailsFetched += detailsMap.size;
         console.log(`[sync-rently] Page ${currentPage}: enriched ${detailsMap.size}/${bookingIdsToEnrich.length} bookings in parallel`);
+
+        try {
+          const customers = Array.from(detailsMap.values())
+            .map(({ detail }) => detail.Customer)
+            .filter((customer): customer is NonNullable<RentlyBookingDetail['Customer']> => Boolean(customer));
+          const sesProfiles = await syncSesPersonProfiles(serviceClient, organizationId, userId, customers);
+          console.log(`[sync-rently] SES profiles: ${sesProfiles.synced} synced, ${sesProfiles.skipped} skipped`);
+        } catch (sesError) {
+          console.error('[sync-rently] SES profile enrichment failed (non-blocking):', sesError);
+        }
       } else if (bookingIdsToEnrich.length > 0) {
         console.log(`[sync-rently] Page ${currentPage}: skipping ${bookingIdsToEnrich.length} detail fetches (only ${Math.round(timeRemaining / 1000)}s remaining)`);
       }

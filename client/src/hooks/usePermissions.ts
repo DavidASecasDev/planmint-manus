@@ -61,6 +61,11 @@ export type PermissionKey =
   | 'reservations.create'
   | 'reservations.manage'
   | 'reservations.view_checkin_audit'
+  // SES.HOSPEDAJES
+  | 'ses_hospedajes.view'
+  | 'ses_hospedajes.edit'
+  | 'ses_hospedajes.export'
+  | 'ses_hospedajes.configure'
   // Garatech
   | 'garatech.view'
   | 'garatech.create'

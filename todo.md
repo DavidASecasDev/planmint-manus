@@ -1499,3 +1499,13 @@
 - [x] Inventariar endpoints reales de Rently relacionados con cliente, conductor y pagos
 - [x] Medir disponibilidad real de los campos personales y de permiso exigidos por SES.HOSPEDAJES
 - [x] Determinar si municipio INE y método de pago pueden automatizarse o requieren captura manual
+- [x] Diseñar modelo de datos, seguridad y estados del módulo SES.HOSPEDAJES
+- [x] Crear tablas, índices, catálogos y permisos para perfiles, comunicaciones y lotes SES
+- [x] Enriquecer reservas desde Rently con nacimiento, domicilio y permiso disponibles
+- [x] Implementar derivación y validación de municipio INE para direcciones españolas
+- [x] Crear endpoints de preparación, edición masiva, reutilización y validación
+- [x] Construir bandeja SES.HOSPEDAJES con filtros de incompletos y edición rápida
+- [x] Implementar captura manual mínima de nacionalidad, sexo, categoría de permiso y pago
+- [x] Crear generador XML compatible con la plantilla oficial aportada
+- [x] Añadir validación, prevención de duplicados, auditoría y tests
+- [x] Verificar el flujo completo sin realizar ningún envío al Gobierno
