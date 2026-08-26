@@ -61,7 +61,7 @@ interface RentlyBooking {
   FeeNoShow?: boolean;
 }
 
-interface RentlyBookingDetail extends RentlyBooking {
+export interface RentlyBookingDetail extends RentlyBooking {
   Balance?: number;
   TotalPayed?: number;
   PrepaidAmount?: number;

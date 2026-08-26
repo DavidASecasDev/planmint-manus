@@ -15,14 +15,12 @@
 import type { Request, Response } from "express";
 import { getServiceClient } from "./supabaseAdmin";
 import {
-  getRentlyToken,
-  fetchBookingDetail,
-  fetchBookingDrivers,
-  enrichReservationWithDetail,
-} from "./syncRently";
+  enrichReservationsFromRentlyForSes,
+  shouldRetryRentlySesEnrichment,
+  type ReservationForSesEnrichment,
+} from "./sesHospedajes/rentlyEnrichment";
 
 const MAX_ENRICHMENTS_PER_RUN = 50; // Stay well within 2-min handler timeout
-const DETAIL_CONCURRENCY = 5;
 
 // ─── Main scheduled handler ─────────────────────────────────────────────────
 
@@ -81,135 +79,49 @@ export async function handleScheduledRentlyEnrich(req: Request, res: Response) {
       let orgFailed = 0;
 
       try {
-        // Find reservations that have never been enriched and are active/upcoming
+        // Find active/upcoming reservations and re-enrich missing SES fields at most once daily.
         // Include reservations from the last 14 days AND all future reservations
         // This ensures we don't miss reservations that were synced from the list
         // but never had their detail fetched (e.g., due to timeout)
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - 14);
 
-        const { data: unenriched, error: queryError } = await serviceClient
+        const { data: reservations, error: queryError } = await serviceClient
           .from("reservations")
-          .select("id, external_reservation_id")
+          .select(`
+            id,external_reservation_id,auto,imported_by,rently_detail_synced_at,
+            vehiculo_chasis,vehiculo_kms,cliente_fecha_nacimiento,cliente_direccion,
+            cliente_pais,cliente_carnet_numero,cliente_carnet_expiracion
+          `)
           .eq("organization_id", orgId)
-          .is("rently_detail_synced_at", null)
           .is("archived_at", null)
           .not("external_reservation_id", "is", null)
           .neq("estado", "Cancelada")
           .gte("desde", cutoffDate.toISOString())
           .order("desde", { ascending: true })
-          .limit(MAX_ENRICHMENTS_PER_RUN);
+          .limit(250);
 
-        if (queryError || !unenriched || unenriched.length === 0) {
+        const candidates = ((reservations ?? []) as ReservationForSesEnrichment[])
+          .filter((reservation) => shouldRetryRentlySesEnrichment(reservation))
+          .slice(0, MAX_ENRICHMENTS_PER_RUN);
+
+        if (queryError || candidates.length === 0) {
           orgResults.push({ orgId, found: 0, enriched: 0, failed: queryError ? 1 : 0 });
           continue;
         }
 
         console.log(
-          `[scheduled-rently-enrich] Org ${orgId}: found ${unenriched.length} unenriched reservations`
+          `[scheduled-rently-enrich] Org ${orgId}: found ${candidates.length} incomplete reservations eligible for retry`
         );
-
-        // Get Rently token
-        const token = await getRentlyToken(host, clientId, clientSecret);
-
-        // Fetch details in parallel with controlled concurrency
-        for (let i = 0; i < unenriched.length; i += DETAIL_CONCURRENCY) {
-          const chunk = unenriched.slice(i, i + DETAIL_CONCURRENCY);
-
-          const promises = chunk.map(async (reservation) => {
-            const bookingId = parseInt(reservation.external_reservation_id!);
-            if (isNaN(bookingId)) return { id: reservation.id, success: false };
-
-            try {
-              const detail = await fetchBookingDetail(host, token, bookingId);
-              if (!detail) return { id: reservation.id, success: false };
-
-              const drivers = await fetchBookingDrivers(host, token, bookingId);
-
-              // Build enrichment data using the same function as the main sync
-              const enriched = enrichReservationWithDetail(
-                { external_reservation_id: reservation.external_reservation_id },
-                detail,
-                drivers
-              );
-
-              // Only update fields that exist in the reservations table
-              const updateFields: Record<string, unknown> = {};
-              const detailKeys = [
-                "extras_contratados",
-                "desglose_precios",
-                "conductores_adicionales",
-                "cliente_direccion",
-                "cliente_ciudad",
-                "cliente_estado_provincia",
-                "cliente_pais",
-                "cliente_fecha_nacimiento",
-                "cliente_carnet_numero",
-                "cliente_carnet_pais",
-                "cliente_carnet_expiracion",
-                "cliente_notas",
-                "vehiculo_kms",
-                "vehiculo_combustible",
-                "vehiculo_color",
-                "vehiculo_anio",
-                "vehiculo_chasis",
-                "vehiculo_tipo_combustible",
-                "balance",
-                "total_pagado_rently",
-                "prepago",
-                "pagado_por_agencia",
-                "pagado_por_cliente",
-                "moneda",
-                "comision_ventas",
-                "tarifa_diaria",
-                "tarifa_hora",
-                "tarifa_dia_extra",
-                "tarifa_hora_extra",
-                "km_ilimitados",
-                "km_max_permitidos",
-                "km_max_por_dia",
-                "rently_detail_synced_at",
-              ];
-
-              for (const key of detailKeys) {
-                if (key in enriched && enriched[key] !== undefined) {
-                  updateFields[key] = enriched[key];
-                }
-              }
-
-              if (Object.keys(updateFields).length === 0) {
-                // At minimum, mark as synced so we don't retry forever
-                updateFields.rently_detail_synced_at = new Date().toISOString();
-              }
-
-              const { error: updateError } = await serviceClient
-                .from("reservations")
-                .update(updateFields)
-                .eq("id", reservation.id);
-
-              return { id: reservation.id, success: !updateError };
-            } catch (err: any) {
-              console.warn(
-                `[scheduled-rently-enrich] Failed to enrich reservation ${reservation.id} (booking ${bookingId}):`,
-                err?.message
-              );
-              return { id: reservation.id, success: false };
-            }
-          });
-
-          const results = await Promise.allSettled(promises);
-          for (const result of results) {
-            if (result.status === "fulfilled") {
-              if (result.value.success) {
-                orgEnriched++;
-              } else {
-                orgFailed++;
-              }
-            } else {
-              orgFailed++;
-            }
-          }
-        }
+        const result = await enrichReservationsFromRentlyForSes({
+          serviceClient,
+          organizationId: orgId,
+          reservations: candidates,
+          credentials: { host, clientId, clientSecret },
+          maxReservations: MAX_ENRICHMENTS_PER_RUN,
+        });
+        orgEnriched = result.enriched;
+        orgFailed = result.failed;
       } catch (err: any) {
         orgFailed++;
         console.error(

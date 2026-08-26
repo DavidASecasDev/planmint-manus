@@ -1522,3 +1522,6 @@
 - [x] Evitar que SES aplique automáticamente el código del establecimiento antiguo a la nueva sede sin confirmación oficial
 - [x] Invalidar la caché de trayectos calculada desde la dirección base anterior
 - [x] Corregir el aviso SES para no exigir código de establecimiento cuando Son Malferit se comunica con dirección estructurada
+- [x] Auditar si Rently contiene el bastidor y otros datos pendientes de la reserva 4829
+- [x] Enriquecer automáticamente SES con detalle de reserva, cliente y vehículo de Rently sin sobrescribir datos manuales
+- [x] Repreparar la reserva 4829 y confirmar qué campos quedan realmente pendientes

@@ -14,6 +14,11 @@ import {
 import { validateSesDraft, type SesDraftValidationInput } from './validation';
 import { generateSesXml, type SesXmlDraft } from './xml';
 import { normalizeSesVehicleBrand, normalizeSesVehicleColor } from './codes';
+import {
+  enrichReservationsFromRentlyForSes,
+  extractRentlyContractVehicleData,
+  type ReservationForSesEnrichment,
+} from './rentlyEnrichment';
 
 const PrepareSchema = z.object({
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -453,7 +458,8 @@ export async function handleSesPrepare(req: Request, res: Response) {
       cliente_carnet_numero,cliente_carnet_pais,cliente_carnet_expiracion,
       lugar_entrega,lugar_entrega_direccion,lugar_entrega_ciudad,
       lugar_devolucion,lugar_devolucion_direccion,lugar_devolucion_ciudad,
-      modelo,auto,categoria,vehiculo_color,vehiculo_chasis,vehiculo_kms
+      modelo,auto,categoria,vehiculo_color,vehiculo_chasis,vehiculo_kms,
+      rently_detail_synced_at,imported_by
     `).eq('organization_id', ctx.organizationId)
       .gte('desde', `${input.dateFrom}T00:00:00`)
       .lte('desde', `${input.dateTo}T23:59:59`)
@@ -462,6 +468,20 @@ export async function handleSesPrepare(req: Request, res: Response) {
     if (input.reservationIds?.length) query = query.in('id', input.reservationIds);
     const { data: reservations, error } = await query;
     if (error) throw error;
+
+    let detailsByReservationId = new Map<string, import('../syncRently').RentlyBookingDetail>();
+    try {
+      const enrichment = await enrichReservationsFromRentlyForSes({
+        serviceClient: ctx.serviceClient,
+        organizationId: ctx.organizationId,
+        reservations: (reservations ?? []) as ReservationForSesEnrichment[],
+        actorUserId: ctx.userId,
+        maxReservations: 50,
+      });
+      detailsByReservationId = enrichment.detailsByReservationId;
+    } catch (enrichmentError) {
+      console.warn('[ses-hospedajes] Rently detail enrichment failed (non-blocking):', enrichmentError);
+    }
 
     const plates = Array.from(new Set((reservations ?? []).map((row) => row.auto).filter(Boolean)));
     const { data: fleetVehicles } = plates.length
@@ -493,6 +513,8 @@ export async function handleSesPrepare(req: Request, res: Response) {
       const pickupLocation = await ensureLocation(ctx, reservation.lugar_entrega, reservation.lugar_entrega_direccion, reservation.lugar_entrega_ciudad, settings?.establishment_code);
       const returnLocation = await ensureLocation(ctx, reservation.lugar_devolucion, reservation.lugar_devolucion_direccion, reservation.lugar_devolucion_ciudad, settings?.establishment_code);
       const fleet = fleetMap.get(reservation.auto) as Record<string, any> | undefined;
+      const detail = detailsByReservationId.get(reservation.id);
+      const contractVehicle = detail ? extractRentlyContractVehicleData(detail) : null;
 
       const automatic = {
         organization_id: ctx.organizationId,
@@ -512,10 +534,10 @@ export async function handleSesPrepare(req: Request, res: Response) {
         vehicle_brand: normalizeSesVehicleBrand(fleet?.marca),
         vehicle_model: fleet?.modelo ?? reservation.modelo ?? null,
         vehicle_plate: fleet?.matricula ?? reservation.auto ?? null,
-        vehicle_vin: fleet?.numero_bastidor ?? reservation.vehiculo_chasis ?? null,
+        vehicle_vin: fleet?.numero_bastidor ?? contractVehicle?.vehicleVin ?? reservation.vehiculo_chasis ?? null,
         vehicle_color: normalizeSesVehicleColor(fleet?.color ?? reservation.vehiculo_color),
-        km_pickup: fleet?.km_recogida ?? null,
-        km_return: fleet?.km_devolucion ?? null,
+        km_pickup: fleet?.km_recogida ?? contractVehicle?.pickupKm ?? reservation.vehiculo_kms ?? null,
+        km_return: fleet?.km_devolucion ?? contractVehicle?.returnKm ?? null,
         last_prepared_at: new Date().toISOString(),
         updated_by: ctx.userId,
       };
