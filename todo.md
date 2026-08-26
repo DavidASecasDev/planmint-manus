@@ -1521,3 +1521,4 @@
 - [x] Sustituir la sede operativa de Son Oms por Carrer Son Malferit, 18, 07007 Palma en toda la lógica activa
 - [x] Evitar que SES aplique automáticamente el código del establecimiento antiguo a la nueva sede sin confirmación oficial
 - [x] Invalidar la caché de trayectos calculada desde la dirección base anterior
+- [x] Corregir el aviso SES para no exigir código de establecimiento cuando Son Malferit se comunica con dirección estructurada

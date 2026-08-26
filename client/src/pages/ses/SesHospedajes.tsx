@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
-  AlertCircle, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Loader2,
+  AlertCircle, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
   RefreshCw, Search, Settings2, ShieldAlert, SlidersHorizontal, UsersRound,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSesHospedajes } from '@/hooks/useSesHospedajes';
+import { getSesSettingsNotice } from '@/lib/sesSettingsNotice';
 import type { SesContractDraft, SesSettings } from '@/types/sesHospedajes';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -86,7 +87,11 @@ function SettingsDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="space-y-2"><Label>Código de arrendador</Label><Input maxLength={10} value={form.lessor_code} onChange={(e) => setForm({ ...form, lessor_code: e.target.value.toUpperCase() })} placeholder="10 caracteres" /></div>
-          <div className="space-y-2"><Label>Código de establecimiento principal</Label><Input maxLength={10} value={form.establishment_code} onChange={(e) => setForm({ ...form, establishment_code: e.target.value.toUpperCase() })} placeholder="10 caracteres" /></div>
+          <div className="space-y-2">
+            <Label>Código de establecimiento (opcional si se usa dirección)</Label>
+            <Input maxLength={10} value={form.establishment_code} onChange={(e) => setForm({ ...form, establishment_code: e.target.value.toUpperCase() })} placeholder="Solo si SES asigna uno a esta sede" />
+            <p className="text-xs text-slate-500">Son Malferit se comunica actualmente mediante su dirección estructurada completa.</p>
+          </div>
           <div className="space-y-2">
             <Label>Tipo de pago predeterminado</Label>
             <Select value={form.default_payment_type || undefined} onValueChange={(value) => setForm({ ...form, default_payment_type: value })}>
@@ -151,6 +156,7 @@ export default function SesHospedajes() {
   const selectedSaving = ses.updateDraft.isPending || ses.updatePerson.isPending || ses.createPerson.isPending || ses.updateLocation.isPending;
   const readyDrafts = ses.drafts.filter((draft) => draft.status === 'ready');
   const selectedReadyIds = Array.from(selectedIds).filter((id) => readyDrafts.some((draft) => draft.id === id));
+  const settingsNotice = getSesSettingsNotice(ses.settings);
 
   const missingFieldCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -206,11 +212,11 @@ export default function SesHospedajes() {
           </div>
         </div>
 
-        {!ses.settings?.lessor_code || !ses.settings?.establishment_code ? (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-950">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Faltan códigos oficiales</AlertTitle>
-            <AlertDescription>Configura el código de arrendador y el establecimiento antes de exportar. La revisión de contratos ya puede comenzar.</AlertDescription>
+        {settingsNotice ? (
+          <Alert className={settingsNotice.kind === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-blue-200 bg-blue-50 text-blue-950'}>
+            {settingsNotice.kind === 'warning' ? <AlertCircle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+            <AlertTitle>{settingsNotice.title}</AlertTitle>
+            <AlertDescription>{settingsNotice.description}</AlertDescription>
           </Alert>
         ) : null}
 
