@@ -127,6 +127,39 @@ const ExportXmlSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(500),
 });
 
+const OfficialLotCodeSchema = z.string().trim().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  'El código oficial del lote no tiene un formato válido',
+);
+
+const MarkBatchUploadedSchema = z.object({
+  batchId: z.string().uuid(),
+  officialLotCode: OfficialLotCodeSchema,
+  notes: z.string().trim().max(1000).nullable().optional(),
+}).strict();
+
+const BatchErrorSchema = z.object({
+  draftId: z.string().uuid(),
+  code: z.string().trim().max(100).nullable().optional(),
+  message: z.string().trim().min(1).max(2000),
+}).strict();
+
+const RecordBatchResultSchema = z.object({
+  batchId: z.string().uuid(),
+  acceptedDraftIds: z.array(z.string().uuid()).max(500),
+  errors: z.array(BatchErrorSchema).max(500),
+  notes: z.string().trim().max(1000).nullable().optional(),
+}).strict();
+
+export function deriveSesBatchOutcome(itemCount: number, acceptedCount: number, errorCount: number) {
+  if (itemCount <= 0 || acceptedCount < 0 || errorCount < 0 || acceptedCount + errorCount !== itemCount) {
+    throw new Error('El resultado debe cubrir todos los contratos del lote');
+  }
+  if (errorCount === 0) return 'accepted' as const;
+  if (acceptedCount === 0) return 'error' as const;
+  return 'partially_accepted' as const;
+}
+
 type AuthContext = { serviceClient: SupabaseClient; userId: string; organizationId: string };
 
 function normalizeSearch(value: string): string {
@@ -380,13 +413,21 @@ async function validateAndPersistDraft(ctx: AuthContext, draftId: string) {
   return { draft: updated, issues };
 }
 
-async function audit(ctx: AuthContext, entityType: string, entityId: string, action: string, changedFields: string[]) {
+async function audit(
+  ctx: AuthContext,
+  entityType: string,
+  entityId: string,
+  action: string,
+  changedFields: string[],
+  metadata: Record<string, unknown> = {},
+) {
   await ctx.serviceClient.from('ses_audit_events').insert({
     organization_id: ctx.organizationId,
     entity_type: entityType,
     entity_id: entityId,
     action,
     changed_fields: changedFields,
+    metadata,
     performed_by: ctx.userId,
   });
 }
@@ -706,6 +747,144 @@ export async function handleSesUpdateSettings(req: Request, res: Response) {
     return res.json({ data, error: null });
   } catch (error) {
     return sendError(res, error, 'update-settings');
+  }
+}
+
+export async function handleSesListBatches(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.view');
+    const { data, error } = await ctx.serviceClient.from('ses_batches').select(`
+      id,status,schema_version,file_name,xml_hash,item_count,accepted_count,error_count,
+      generated_at,downloaded_at,uploaded_at,result_recorded_at,notes,
+      items:ses_batch_items(
+        id,draft_id,item_order,draft_version,result_status,result_code,result_message,
+        draft:ses_contract_drafts!ses_batch_items_draft_id_fkey(id,reference,status)
+      )
+    `).eq('organization_id', ctx.organizationId).order('generated_at', { ascending: false }).limit(50);
+    if (error) throw error;
+    return res.json({ data: data ?? [], error: null });
+  } catch (error) {
+    return sendError(res, error, 'list-batches');
+  }
+}
+
+export async function handleSesMarkBatchUploaded(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.export');
+    const input = MarkBatchUploadedSchema.parse(req.body);
+    const { data: batch, error: batchError } = await ctx.serviceClient.from('ses_batches')
+      .select('id,status,notes')
+      .eq('id', input.batchId)
+      .eq('organization_id', ctx.organizationId)
+      .single();
+    if (batchError) throw batchError;
+    if (!['downloaded', 'uploaded_pending_result'].includes(batch.status)) {
+      const conflict = new Error('Solo se puede registrar la subida de un lote descargado o pendiente') as Error & { status?: number };
+      conflict.status = 409;
+      throw conflict;
+    }
+
+    const lotNote = `Código oficial de lote: ${input.officialLotCode}`;
+    const notes = [lotNote, input.notes].filter(Boolean).join('\n');
+    const now = new Date().toISOString();
+    const { data: updated, error } = await ctx.serviceClient.from('ses_batches').update({
+      status: 'uploaded_pending_result',
+      uploaded_at: now,
+      notes,
+    }).eq('id', input.batchId).eq('organization_id', ctx.organizationId).select('*').single();
+    if (error) throw error;
+
+    const { data: items, error: itemsError } = await ctx.serviceClient.from('ses_batch_items')
+      .select('draft_id').eq('batch_id', input.batchId);
+    if (itemsError) throw itemsError;
+    const draftIds = (items ?? []).map((item) => item.draft_id);
+    if (draftIds.length) {
+      const { error: draftsError } = await ctx.serviceClient.from('ses_contract_drafts').update({
+        status: 'uploaded_pending_result',
+        updated_by: ctx.userId,
+      }).eq('organization_id', ctx.organizationId).in('id', draftIds);
+      if (draftsError) throw draftsError;
+    }
+
+    await audit(ctx, 'batch', input.batchId, 'manual_upload_receipt_recorded', ['status', 'uploaded_at', 'notes'], {
+      official_lot_code: input.officialLotCode,
+    });
+    return res.json({ data: updated, error: null });
+  } catch (error) {
+    return sendError(res, error, 'mark-batch-uploaded');
+  }
+}
+
+export async function handleSesRecordBatchResult(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.export');
+    const input = RecordBatchResultSchema.parse(req.body);
+    const { data: batch, error: batchError } = await ctx.serviceClient.from('ses_batches')
+      .select('id,status,item_count,notes,items:ses_batch_items(id,draft_id)')
+      .eq('id', input.batchId)
+      .eq('organization_id', ctx.organizationId)
+      .single();
+    if (batchError) throw batchError;
+    if (!['uploaded_pending_result', 'partially_accepted', 'accepted', 'error'].includes(batch.status)) {
+      const conflict = new Error('Registra primero el acuse de subida del lote') as Error & { status?: number };
+      conflict.status = 409;
+      throw conflict;
+    }
+
+    const batchDraftIds = new Set((batch.items ?? []).map((item: { draft_id: string }) => item.draft_id));
+    const acceptedIds = Array.from(new Set(input.acceptedDraftIds));
+    const errorIds = input.errors.map((item) => item.draftId);
+    const submittedIds = [...acceptedIds, ...errorIds];
+    const uniqueSubmittedIds = new Set(submittedIds);
+    const coversBatch = uniqueSubmittedIds.size === batchDraftIds.size
+      && submittedIds.length === uniqueSubmittedIds.size
+      && Array.from(uniqueSubmittedIds).every((id) => batchDraftIds.has(id));
+    if (!coversBatch) {
+      const invalid = new Error('El resultado debe incluir una sola vez todos los contratos del lote') as Error & { status?: number };
+      invalid.status = 422;
+      throw invalid;
+    }
+
+    const outcome = deriveSesBatchOutcome(batch.item_count, acceptedIds.length, input.errors.length);
+    const now = new Date().toISOString();
+    if (acceptedIds.length) {
+      const { error } = await ctx.serviceClient.from('ses_batch_items').update({
+        result_status: 'accepted', result_code: null, result_message: null,
+      }).eq('batch_id', input.batchId).in('draft_id', acceptedIds);
+      if (error) throw error;
+      const { error: draftError } = await ctx.serviceClient.from('ses_contract_drafts').update({
+        status: 'accepted', accepted_at: now, updated_by: ctx.userId,
+      }).eq('organization_id', ctx.organizationId).in('id', acceptedIds);
+      if (draftError) throw draftError;
+    }
+    for (const item of input.errors) {
+      const { error } = await ctx.serviceClient.from('ses_batch_items').update({
+        result_status: 'error',
+        result_code: item.code || null,
+        result_message: item.message,
+      }).eq('batch_id', input.batchId).eq('draft_id', item.draftId);
+      if (error) throw error;
+      const { error: draftError } = await ctx.serviceClient.from('ses_contract_drafts').update({
+        status: 'needs_revision', accepted_at: null, updated_by: ctx.userId,
+      }).eq('organization_id', ctx.organizationId).eq('id', item.draftId);
+      if (draftError) throw draftError;
+    }
+
+    const notes = input.notes ? [batch.notes, input.notes].filter(Boolean).join('\n') : batch.notes;
+    const { data: updated, error } = await ctx.serviceClient.from('ses_batches').update({
+      status: outcome,
+      accepted_count: acceptedIds.length,
+      error_count: input.errors.length,
+      result_recorded_at: now,
+      notes,
+    }).eq('id', input.batchId).eq('organization_id', ctx.organizationId).select('*').single();
+    if (error) throw error;
+    await audit(ctx, 'batch', input.batchId, 'portal_result_reconciled', [
+      'status', 'accepted_count', 'error_count', 'result_recorded_at',
+    ], { accepted_count: acceptedIds.length, error_count: input.errors.length });
+    return res.json({ data: updated, error: null });
+  } catch (error) {
+    return sendError(res, error, 'record-batch-result');
   }
 }
 

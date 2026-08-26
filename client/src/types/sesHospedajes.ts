@@ -1,6 +1,6 @@
-export type SesDraftStatus =
+export type SesDraftStatus = 'pending_sync'
   | 'incomplete' | 'ready' | 'batched' | 'uploaded_pending_result'
-  | 'accepted' | 'rejected' | 'cancelled';
+  | 'accepted' | 'error' | 'needs_revision';
 
 export interface SesValidationIssue {
   path: string;
@@ -97,6 +97,38 @@ export interface SesContractDraft {
   secondary_driver: SesPersonProfile | null;
   pickup_location: SesLocation | null;
   return_location: SesLocation | null;
+}
+
+export type SesBatchStatus =
+  | 'generated' | 'downloaded' | 'uploaded_pending_result'
+  | 'partially_accepted' | 'accepted' | 'error';
+
+export interface SesBatchItem {
+  id: string;
+  draft_id: string;
+  item_order: number;
+  draft_version: number;
+  result_status: 'pending' | 'accepted' | 'error';
+  result_code: string | null;
+  result_message: string | null;
+  draft: { id: string; reference: string; status: SesDraftStatus } | null;
+}
+
+export interface SesBatch {
+  id: string;
+  status: SesBatchStatus;
+  schema_version: string;
+  file_name: string;
+  xml_hash: string;
+  item_count: number;
+  accepted_count: number;
+  error_count: number;
+  generated_at: string;
+  downloaded_at: string | null;
+  uploaded_at: string | null;
+  result_recorded_at: string | null;
+  notes: string | null;
+  items: SesBatchItem[];
 }
 
 export interface SesSettings {

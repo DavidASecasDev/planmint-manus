@@ -1513,6 +1513,8 @@
 - [x] Preparar un periodo piloto y completar los datos pendientes de 1 a 3 contratos
 - [x] Generar y validar el primer XML piloto listo para SES.HOSPEDAJES
 - [ ] Registrar el resultado de la primera subida manual al portal oficial
-- [ ] Implementar conciliación de contratos aceptados y errores devueltos por SES.HOSPEDAJES
+- [x] Implementar conciliación de contratos aceptados y errores devueltos por SES.HOSPEDAJES
 - [x] Evitar que el sync resumido de Rently borre campos detallados de cliente, permiso o vehículo usados por SES
 - [x] Revalidar la reserva piloto 4942 y confirmar que conserva titular y conductor tras reprepararla
+- [x] Registrar el acuse de envío del lote oficial 3d0ccc9e-a184-11f1-80b7-005056957a69 como pendiente de resultado
+- [x] Añadir flujo manual para conciliar lotes SES aceptados, rechazados y sus errores

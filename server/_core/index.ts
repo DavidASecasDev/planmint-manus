@@ -147,8 +147,11 @@ import {
   handleSesCreatePerson,
   handleSesGetSettings,
   handleSesExportXml,
+  handleSesListBatches,
   handleSesListDrafts,
+  handleSesMarkBatchUploaded,
   handleSesPrepare,
+  handleSesRecordBatchResult,
   handleSesRevalidate,
   handleSesSearchMunicipalities,
   handleSesUpdateDraft,
@@ -569,6 +572,9 @@ async function startServer() {
   app.post("/api/ses/revalidate", handleSesRevalidate);
   app.post('/api/ses/settings', handleSesGetSettings);
   app.post('/api/ses/xml/export', handleSesExportXml);
+  app.post('/api/ses/batches', handleSesListBatches);
+  app.post('/api/ses/batches/uploaded', handleSesMarkBatchUploaded);
+  app.post('/api/ses/batches/result', handleSesRecordBatchResult);
   app.post("/api/ses/settings/update", handleSesUpdateSettings);
 
   // ─── External API (B2B) ──────────────────────────────────────────────────

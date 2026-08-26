@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
+import { SesBatchPanel } from '@/components/ses/SesBatchPanel';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,9 +24,10 @@ import { useSesHospedajes } from '@/hooks/useSesHospedajes';
 import type { SesContractDraft, SesSettings } from '@/types/sesHospedajes';
 
 const STATUS_LABELS: Record<string, string> = {
+  pending_sync: 'Pendiente de sincronizar',
   incomplete: 'Incompleto', ready: 'Listo', batched: 'En lote',
   uploaded_pending_result: 'Subido · pendiente', accepted: 'Aceptado',
-  rejected: 'Rechazado', cancelled: 'Cancelado',
+  error: 'Error', needs_revision: 'Requiere revisión',
 };
 
 const PAYMENT_TYPES = [
@@ -45,7 +47,8 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'ready') return <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Listo</Badge>;
   if (status === 'incomplete') return <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">Incompleto</Badge>;
   if (status === 'accepted') return <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">Aceptado</Badge>;
-  if (status === 'rejected') return <Badge variant="destructive">Rechazado</Badge>;
+  if (status === 'error') return <Badge variant="destructive">Error</Badge>;
+  if (status === 'needs_revision') return <Badge className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">Requiere revisión</Badge>;
   return <Badge variant="secondary">{STATUS_LABELS[status] || status}</Badge>;
 }
 
@@ -231,6 +234,16 @@ export default function SesHospedajes() {
           </CardContent>
         </Card>
 
+        <SesBatchPanel
+          batches={ses.batches}
+          loading={ses.batchesLoading}
+          canManage={canExport}
+          savingUpload={ses.markBatchUploaded.isPending}
+          savingResult={ses.recordBatchResult.isPending}
+          onMarkUploaded={(input) => ses.markBatchUploaded.mutateAsync(input)}
+          onRecordResult={(input) => ses.recordBatchResult.mutateAsync(input)}
+        />
+
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-center">
           <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Buscar por reserva o matrícula..." className="pl-9" /></div>
           <div className="flex flex-wrap items-center gap-2">
@@ -239,7 +252,7 @@ export default function SesHospedajes() {
             <Input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} className="w-40" />
             <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
               <SelectTrigger className="w-44"><SlidersHorizontal className="mr-2 h-4 w-4" /><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value="incomplete">Incompletos</SelectItem><SelectItem value="ready">Listos</SelectItem><SelectItem value="batched">En lote</SelectItem><SelectItem value="accepted">Aceptados</SelectItem><SelectItem value="rejected">Rechazados</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value="incomplete">Incompletos</SelectItem><SelectItem value="ready">Listos</SelectItem><SelectItem value="batched">En lote</SelectItem><SelectItem value="uploaded_pending_result">Subidos · pendientes</SelectItem><SelectItem value="accepted">Aceptados</SelectItem><SelectItem value="needs_revision">Requieren revisión</SelectItem><SelectItem value="error">Con error</SelectItem></SelectContent>
             </Select>
           </div>
         </div>

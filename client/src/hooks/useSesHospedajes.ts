@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiInvoke } from '@/lib/apiClient';
 import type {
+  SesBatch,
   SesContractDraft,
   SesMunicipality,
   SesPersonProfile,
@@ -43,7 +44,14 @@ export function useSesHospedajes(filters: SesDraftFilters) {
     staleTime: 5 * 60_000,
   });
 
+  const batchesQuery = useQuery({
+    queryKey: ['ses-batches'],
+    queryFn: async () => unwrap(await apiInvoke<ServerEnvelope<SesBatch[]>>('ses/batches')),
+    staleTime: 30_000,
+  });
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['ses-drafts'] });
+  const invalidateBatches = () => queryClient.invalidateQueries({ queryKey: ['ses-batches'] });
 
   const prepareMutation = useMutation({
     mutationFn: async (input: { dateFrom: string; dateTo: string; reservationIds?: string[] }) =>
@@ -118,7 +126,34 @@ export function useSesHospedajes(filters: SesDraftFilters) {
       anchor.remove();
       URL.revokeObjectURL(url);
       invalidate();
+      invalidateBatches();
       toast.success(`XML generado con ${result.itemCount} contrato(s)`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const markBatchUploadedMutation = useMutation({
+    mutationFn: async (input: { batchId: string; officialLotCode: string; notes?: string | null }) =>
+      unwrap(await apiInvoke<ServerEnvelope<SesBatch>>('ses/batches/uploaded', { body: input })),
+    onSuccess: () => {
+      invalidate();
+      invalidateBatches();
+      toast.success('Acuse de subida registrado');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const recordBatchResultMutation = useMutation({
+    mutationFn: async (input: {
+      batchId: string;
+      acceptedDraftIds: string[];
+      errors: Array<{ draftId: string; code?: string | null; message: string }>;
+      notes?: string | null;
+    }) => unwrap(await apiInvoke<ServerEnvelope<SesBatch>>('ses/batches/result', { body: input })),
+    onSuccess: () => {
+      invalidate();
+      invalidateBatches();
+      toast.success('Resultado del lote conciliado');
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -136,6 +171,8 @@ export function useSesHospedajes(filters: SesDraftFilters) {
     refetch: draftsQuery.refetch,
     settings: settingsQuery.data ?? null,
     settingsLoading: settingsQuery.isLoading,
+    batches: batchesQuery.data ?? [],
+    batchesLoading: batchesQuery.isLoading,
     prepare: prepareMutation,
     updatePerson: updatePersonMutation,
     createPerson: createPersonMutation,
@@ -143,6 +180,8 @@ export function useSesHospedajes(filters: SesDraftFilters) {
     updateLocation: updateLocationMutation,
     updateSettings: updateSettingsMutation,
     exportXml: exportXmlMutation,
+    markBatchUploaded: markBatchUploadedMutation,
+    recordBatchResult: recordBatchResultMutation,
     searchMunicipalities,
   };
 }
