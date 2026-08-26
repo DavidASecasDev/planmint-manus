@@ -1491,3 +1491,7 @@
 - [x] Actualizar staff_schedules exactamente según el Excel de septiembre
 - [x] Actualizar schedule_member_order por equipo y semana para respetar el orden escalonado
 - [x] Verificar automáticamente todos los turnos, libres y posiciones contra el Excel
+- [x] Analizar instrucciones oficiales y plantilla XML de SES.HOSPEDAJES para alquiler de vehículos
+- [x] Auditar datos disponibles en Rently y PlanMint frente a los campos obligatorios de SES.HOSPEDAJES
+- [x] Diseñar flujo masivo optimizado con validación, corrección manual y exportación lista para subir
+- [x] Comparar alternativas de carga manual, XML y servicio web antes de implementar
