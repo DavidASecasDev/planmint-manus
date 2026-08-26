@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildNewSesProfileRow,
   mapRentlyCustomerToSesProfile,
   mapRentlyDocumentType,
   normalizeDocumentNumber,
@@ -51,10 +52,21 @@ describe('Rently → SES person profile mapping', () => {
   it('normalizes supported dates, countries and documents deterministically', () => {
     expect(toIsoAlpha3('Reino Unido')).toBe('GBR');
     expect(toIsoAlpha3({ Code: 'DE' })).toBe('DEU');
+    expect(toIsoAlpha3('Arabia Saudita')).toBe('SAU');
+    expect(toIsoAlpha3('Emiratos Árabes Unidos')).toBe('ARE');
+    expect(toIsoAlpha3('United Kingdom of Great Britain and Northern Ireland')).toBe('GBR');
     expect(toIsoAlpha3('ZZ')).toBeNull();
     expect(toDateOnly('2029-01-02T11:30:00Z')).toBe('2029-01-02');
     expect(normalizeDocumentNumber(' 12-34 56 ')).toBe('123456');
     expect(mapRentlyDocumentType(1)).toBe('NIF');
     expect(mapRentlyDocumentType(2)).toBe('OTRO');
+  });
+
+  it('assigns a UUID to every new reusable SES profile', () => {
+    const row = buildNewSesProfileRow({ document_number: 'AB123456' }, 'user-1');
+    expect(row.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(row.created_by).toBe('user-1');
+    expect(row.created_at).toBeTruthy();
+    expect(row.updated_at).toBe(row.created_at);
   });
 });

@@ -9,6 +9,8 @@ import {
 import { syncSesPersonProfiles, type RentlyCustomerForSes } from './rentlyProfiles';
 
 const DETAIL_FIELDS = [
+  'cliente_nombre', 'cliente_apellido', 'email', 'telefono',
+  'tipo_documento_cliente', 'documento_cliente',
   'extras_contratados', 'desglose_precios', 'conductores_adicionales',
   'cliente_direccion', 'cliente_ciudad', 'cliente_estado_provincia', 'cliente_pais',
   'cliente_fecha_nacimiento', 'cliente_carnet_numero', 'cliente_carnet_pais',
@@ -84,6 +86,7 @@ export async function enrichReservationsFromRentlyForSes(options: {
   actorUserId?: string | null;
   credentials?: RentlyCredentials;
   maxReservations?: number;
+  forceEnrichment?: boolean;
 }) {
   const {
     serviceClient,
@@ -91,9 +94,10 @@ export async function enrichReservationsFromRentlyForSes(options: {
     reservations,
     actorUserId = null,
     maxReservations = 50,
+    forceEnrichment = false,
   } = options;
   const candidates = reservations
-    .filter((row) => row.external_reservation_id && needsRentlySesEnrichment(row))
+    .filter((row) => row.external_reservation_id && (forceEnrichment || needsRentlySesEnrichment(row)))
     .sort((a, b) => Number(!b.vehiculo_chasis) - Number(!a.vehiculo_chasis))
     .slice(0, maxReservations);
   if (candidates.length === 0) return { enriched: 0, failed: 0, detailsByReservationId: new Map<string, RentlyBookingDetail>() };

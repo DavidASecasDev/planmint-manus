@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface RentlyCustomerForSes {
@@ -39,6 +40,29 @@ const COUNTRY_ALIASES: Record<string, string> = {
   US: 'USA', USA: 'USA', 'UNITED STATES': 'USA', 'ESTADOS UNIDOS': 'USA',
   AR: 'ARG', ARG: 'ARG', ARGENTINA: 'ARG',
   KW: 'KWT', KWT: 'KWT', KUWAIT: 'KWT',
+  SA: 'SAU', SAU: 'SAU', 'SAUDI ARABIA': 'SAU', 'ARABIA SAUDITA': 'SAU',
+  AE: 'ARE', ARE: 'ARE', 'UNITED ARAB EMIRATES': 'ARE', 'EMIRATOS ARABES UNIDOS': 'ARE',
+  CA: 'CAN', CAN: 'CAN', CANADA: 'CAN',
+  AU: 'AUS', AUS: 'AUS', AUSTRALIA: 'AUS',
+  BR: 'BRA', BRA: 'BRA', BRAZIL: 'BRA', BRASIL: 'BRA',
+  PY: 'PRY', PRY: 'PRY', PARAGUAY: 'PRY',
+  UA: 'UKR', UKR: 'UKR', UKRAINE: 'UKR', UCRANIA: 'UKR',
+  AF: 'AFG', AFG: 'AFG', AFGHANISTAN: 'AFG', AFGANISTAN: 'AFG',
+  HR: 'HRV', HRV: 'HRV', CROATIA: 'HRV', CROACIA: 'HRV',
+  HK: 'HKG', HKG: 'HKG', 'HONG KONG': 'HKG',
+  LU: 'LUX', LUX: 'LUX', LUXEMBOURG: 'LUX', LUXEMBURGO: 'LUX',
+  NG: 'NGA', NGA: 'NGA', NIGERIA: 'NGA',
+  NO: 'NOR', NOR: 'NOR', NORWAY: 'NOR', NORUEGA: 'NOR',
+  RU: 'RUS', RUS: 'RUS', RUSSIA: 'RUS', RUSIA: 'RUS',
+  SG: 'SGP', SGP: 'SGP', SINGAPORE: 'SGP', SINGAPUR: 'SGP',
+  DK: 'DNK', DNK: 'DNK', DENMARK: 'DNK', DINAMARCA: 'DNK',
+  GE: 'GEO', GEO: 'GEO', GEORGIA: 'GEO',
+  MA: 'MAR', MAR: 'MAR', MOROCCO: 'MAR', MARRUECOS: 'MAR',
+  MX: 'MEX', MEX: 'MEX', MEXICO: 'MEX',
+  PL: 'POL', POL: 'POL', POLAND: 'POL', POLONIA: 'POL',
+  RO: 'ROU', ROU: 'ROU', ROMANIA: 'ROU', RUMANIA: 'ROU',
+  MC: 'MCO', MCO: 'MCO', MONACO: 'MCO',
+  'UNITED KINGDOM OF GREAT BRITAIN AND NORTHERN IRELAND': 'GBR',
 };
 
 function normalizedKey(value: string): string {
@@ -131,6 +155,18 @@ const PROTECTED_PROFILE_FIELDS = [
   'licence_valid_until', 'licence_number', 'licence_support', 'licence_country_code',
 ] as const;
 
+export function buildNewSesProfileRow<T extends Record<string, unknown>>(incoming: T, userId: string) {
+  const now = new Date().toISOString();
+  return {
+    ...incoming,
+    id: randomUUID(),
+    created_by: userId,
+    created_at: now,
+    updated_at: now,
+    manual_fields: [] as string[],
+  };
+}
+
 export async function syncSesPersonProfiles(
   serviceClient: SupabaseClient,
   organizationId: string,
@@ -164,7 +200,7 @@ export async function syncSesPersonProfiles(
 
   const rows = Array.from(unique.entries()).map(([key, incoming]) => {
     const current = existingMap.get(key);
-    if (!current) return { ...incoming, created_by: userId, manual_fields: [] };
+    if (!current) return buildNewSesProfileRow(incoming, userId);
 
     const manualFields = new Set(Array.isArray(current.manual_fields) ? current.manual_fields as string[] : []);
     const merged: Record<string, unknown> = { ...current, ...incoming, manual_fields: Array.from(manualFields) };

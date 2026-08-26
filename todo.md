@@ -1525,3 +1525,6 @@
 - [x] Auditar si Rently contiene el bastidor y otros datos pendientes de la reserva 4829
 - [x] Enriquecer automáticamente SES con detalle de reserva, cliente y vehículo de Rently sin sobrescribir datos manuales
 - [x] Repreparar la reserva 4829 y confirmar qué campos quedan realmente pendientes
+- [x] Inventariar los faltantes actuales de las 249 reservas SES.HOSPEDAJES
+- [x] Enriquecer masivamente las 249 reservas con detalle fiable de Rently preservando campos manuales
+- [x] Repreparar y revalidar las 249 reservas y medir la mejora obtenida

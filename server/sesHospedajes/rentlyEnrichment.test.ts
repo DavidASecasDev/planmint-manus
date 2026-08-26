@@ -36,4 +36,19 @@ describe('Rently SES enrichment', () => {
     expect(fields).not.toHaveProperty('vehiculo_chasis');
     expect(fields).toMatchObject({ vehiculo_kms: 41214 });
   });
+
+  it('imports detailed customer identity fields needed to link SES profiles', () => {
+    const fields = buildRentlyDetailUpdateFields({
+      Id: 4829,
+      CurrentStatus: 3,
+      Customer: {
+        Firstname: 'Ana', Lastname: 'García', DocumentTypeId: 3,
+        DocumentId: 'AB123456', EmailAddress: 'ana@example.com', CellPhone: '+34600111222',
+      },
+    }, []);
+    expect(fields).toMatchObject({
+      cliente_nombre: 'Ana', cliente_apellido: 'García', tipo_documento_cliente: 'Pasaporte',
+      documento_cliente: 'AB123456', email: 'ana@example.com', telefono: '+34600111222',
+    });
+  });
 });

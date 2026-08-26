@@ -513,6 +513,14 @@ export function enrichReservationWithDetail(
 
   return {
     ...reservation,
+    cliente_nombre: customer.Firstname || reservation.cliente_nombre || null,
+    cliente_apellido: customer.Lastname || reservation.cliente_apellido || null,
+    email: customer.EmailAddress || reservation.email || null,
+    telefono: customer.CellPhone || reservation.telefono || null,
+    tipo_documento_cliente: customer.DocumentTypeId
+      ? DOCUMENT_TYPE_MAP[customer.DocumentTypeId] || reservation.tipo_documento_cliente || null
+      : reservation.tipo_documento_cliente || null,
+    documento_cliente: customer.DocumentId || reservation.documento_cliente || null,
     balance: detail.Balance ?? null,
     total_pagado_rently: detail.TotalPayed ?? null,
     prepago: detail.PrepaidAmount ?? null,
