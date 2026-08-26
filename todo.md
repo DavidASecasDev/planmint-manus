@@ -1512,7 +1512,7 @@
 - [x] Configurar y validar los códigos oficiales de arrendador y establecimiento de Azul Cars
 - [x] Preparar un periodo piloto y completar los datos pendientes de 1 a 3 contratos
 - [x] Generar y validar el primer XML piloto listo para SES.HOSPEDAJES
-- [ ] Registrar el resultado de la primera subida manual al portal oficial
+- [x] Registrar el resultado de la primera subida manual al portal oficial
 - [x] Implementar conciliación de contratos aceptados y errores devueltos por SES.HOSPEDAJES
 - [x] Evitar que el sync resumido de Rently borre campos detallados de cliente, permiso o vehículo usados por SES
 - [x] Revalidar la reserva piloto 4942 y confirmar que conserva titular y conductor tras reprepararla
