@@ -1495,3 +1495,7 @@
 - [x] Auditar datos disponibles en Rently y PlanMint frente a los campos obligatorios de SES.HOSPEDAJES
 - [x] Diseñar flujo masivo optimizado con validación, corrección manual y exportación lista para subir
 - [x] Comparar alternativas de carga manual, XML y servicio web antes de implementar
+- [x] Diagnosticar el error OAuth de Supabase por client_secret ausente
+- [x] Inventariar endpoints reales de Rently relacionados con cliente, conductor y pagos
+- [x] Medir disponibilidad real de los campos personales y de permiso exigidos por SES.HOSPEDAJES
+- [x] Determinar si municipio INE y método de pago pueden automatizarse o requieren captura manual
