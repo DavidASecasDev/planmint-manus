@@ -38,6 +38,7 @@ const COUNTRY_ALIASES: Record<string, string> = {
   IE: 'IRL', IRL: 'IRL', IRELAND: 'IRL', IRLANDA: 'IRL',
   US: 'USA', USA: 'USA', 'UNITED STATES': 'USA', 'ESTADOS UNIDOS': 'USA',
   AR: 'ARG', ARG: 'ARG', ARGENTINA: 'ARG',
+  KW: 'KWT', KWT: 'KWT', KUWAIT: 'KWT',
 };
 
 function normalizedKey(value: string): string {

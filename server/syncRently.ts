@@ -196,6 +196,38 @@ const PAGE_SIZE = 100;
 const REQUEST_TIMEOUT_MS = 60000;
 const DETAIL_TIMEOUT_MS = 15000;
 
+const RENTLY_ENRICHMENT_FIELDS = [
+  'rently_creation_date',
+  'cliente_nombre',
+  'cliente_apellido',
+  'email',
+  'telefono',
+  'tipo_documento_cliente',
+  'documento_cliente',
+  'cliente_direccion',
+  'cliente_ciudad',
+  'cliente_estado_provincia',
+  'cliente_pais',
+  'cliente_fecha_nacimiento',
+  'cliente_carnet_numero',
+  'cliente_carnet_pais',
+  'cliente_carnet_expiracion',
+  'categoria',
+  'vehiculo_color',
+  'vehiculo_chasis',
+  'vehiculo_kms',
+] as const;
+
+export function removeEmptyRentlyEnrichmentFields(updateData: Record<string, unknown>) {
+  for (const field of RENTLY_ENRICHMENT_FIELDS) {
+    const value = updateData[field];
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+      delete updateData[field];
+    }
+  }
+  return updateData;
+}
+
 // ─── Performance tuning ─────────────────────────────────────────────────────
 /** How many Rently list pages to fetch per single HTTP request from the client */
 const PAGES_PER_REQUEST = 3;
@@ -1266,6 +1298,11 @@ export async function handleSyncRently(req: Request, res: Response) {
         delete updateData.notas;
         delete updateData.notas_entrega;
         delete updateData.notas_devolucion;
+
+        // The list endpoint returns a lightweight customer/car DTO. Never let
+        // missing values from that summary erase richer data previously loaded
+        // from /api/booking/{id} and /api/customer/{id} for SES.HOSPEDAJES.
+        removeEmptyRentlyEnrichmentFields(updateData);
 
         // Note: auto, modelo, notas_internas are also user-editable but we keep
         // syncing them from Rently because vehicle assignment changes in Rently

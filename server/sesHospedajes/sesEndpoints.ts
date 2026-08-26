@@ -6,6 +6,7 @@ import { AuthError, authenticateSupabaseRequest, getServiceClient } from '../sup
 import { checkUserPermission } from '../permissionHelper';
 import {
   mapRentlyCustomerToSesProfile,
+  normalizeDocumentNumber,
   syncSesPersonProfiles,
   toIsoAlpha3,
   type RentlyCustomerForSes,
@@ -183,10 +184,72 @@ async function deriveMunicipality(
   return data[0];
 }
 
+export function resolveKnownSesLocation(name?: string | null, defaultEstablishmentCode?: string | null) {
+  const normalized = normalizeSearch(name || '');
+  if (normalized.includes('oficina azul cars') && normalized.includes('son oms') && defaultEstablishmentCode) {
+    return {
+      use_establishment_code: true,
+      establishment_code: defaultEstablishmentCode,
+      verified: true,
+    };
+  }
+  if (normalized.includes('aeropuerto') && normalized.includes('palma')) {
+    return {
+      use_establishment_code: false,
+      establishment_code: null,
+      address_line: 'Districte de Llevant de Palma',
+      address_complement: 'Aeropuerto de Palma',
+      municipality_code: '07040',
+      municipality_name: 'Palma',
+      postal_code: '07611',
+      country_code: 'ESP',
+      verified: true,
+    };
+  }
+  if (normalized.includes('terminal') && normalized.includes('cruceros') && normalized.includes('palma')) {
+    return {
+      use_establishment_code: false,
+      establishment_code: null,
+      address_line: 'Avinguda de Gabriel Roca, 44D',
+      address_complement: 'Terminal de cruceros de Palma',
+      municipality_code: '07040',
+      municipality_name: 'Palma',
+      postal_code: '07015',
+      country_code: 'ESP',
+      verified: true,
+    };
+  }
+  return null;
+}
+
 async function ensurePersonFromReservation(
   ctx: AuthContext,
   reservation: Record<string, any>,
 ) {
+  const normalizedDocument = normalizeDocumentNumber(reservation.documento_cliente);
+  if (normalizedDocument) {
+    const { data: existingProfile } = await ctx.serviceClient.from('ses_person_profiles').select('*')
+      .eq('organization_id', ctx.organizationId)
+      .eq('document_number', normalizedDocument)
+      .limit(1).maybeSingle();
+    if (existingProfile) {
+      if (!existingProfile.municipality_code && existingProfile.municipality_name) {
+        const municipality = await deriveMunicipality(
+          ctx.serviceClient,
+          existingProfile.municipality_name,
+          existingProfile.postal_code,
+        );
+        if (municipality) {
+          const { data: updated } = await ctx.serviceClient.from('ses_person_profiles')
+            .update({ municipality_code: municipality.code, municipality_name: municipality.name })
+            .eq('id', existingProfile.id).eq('organization_id', ctx.organizationId).select('*').single();
+          return updated ?? existingProfile;
+        }
+      }
+      return existingProfile;
+    }
+  }
+
   const customer: RentlyCustomerForSes = {
     Firstname: reservation.cliente_nombre,
     Lastname: reservation.cliente_apellido,
@@ -247,12 +310,23 @@ async function ensureLocation(
   name?: string | null,
   address?: string | null,
   city?: string | null,
+  defaultEstablishmentCode?: string | null,
 ) {
   if (!name && !address) return null;
   const key = normalizeSearch([name, address, city].filter(Boolean).join('|'));
   const { data: existing } = await ctx.serviceClient.from('ses_locations').select('*')
     .eq('organization_id', ctx.organizationId).eq('normalized_key', key).maybeSingle();
-  if (existing) return existing;
+  const known = resolveKnownSesLocation(name || address, defaultEstablishmentCode);
+  if (existing) {
+    if (known && !(existing.manual_fields ?? []).length) {
+      const { data: updated } = await ctx.serviceClient.from('ses_locations').update({
+        ...known,
+        updated_by: ctx.userId,
+      }).eq('id', existing.id).eq('organization_id', ctx.organizationId).select('*').single();
+      return updated ?? existing;
+    }
+    return existing;
+  }
 
   const municipality = await deriveMunicipality(ctx.serviceClient, city, null);
   const { data, error } = await ctx.serviceClient.from('ses_locations').insert({
@@ -263,7 +337,7 @@ async function ensureLocation(
     municipality_code: municipality?.code ?? null,
     municipality_name: municipality?.name ?? city ?? null,
     country_code: 'ESP',
-    verified: false,
+    ...(known ?? {}),
     created_by: ctx.userId,
     updated_by: ctx.userId,
   }).select('*').single();
@@ -365,8 +439,8 @@ export async function handleSesPrepare(req: Request, res: Response) {
       }
 
       const person = await ensurePersonFromReservation(ctx, reservation);
-      const pickupLocation = await ensureLocation(ctx, reservation.lugar_entrega, reservation.lugar_entrega_direccion, reservation.lugar_entrega_ciudad);
-      const returnLocation = await ensureLocation(ctx, reservation.lugar_devolucion, reservation.lugar_devolucion_direccion, reservation.lugar_devolucion_ciudad);
+      const pickupLocation = await ensureLocation(ctx, reservation.lugar_entrega, reservation.lugar_entrega_direccion, reservation.lugar_entrega_ciudad, settings?.establishment_code);
+      const returnLocation = await ensureLocation(ctx, reservation.lugar_devolucion, reservation.lugar_devolucion_direccion, reservation.lugar_devolucion_ciudad, settings?.establishment_code);
       const fleet = fleetMap.get(reservation.auto) as Record<string, any> | undefined;
 
       const automatic = {
