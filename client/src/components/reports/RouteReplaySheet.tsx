@@ -22,6 +22,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { AZUL_CARS_BASE_LOCATION } from '@shared/azulCarsLocation';
 
 // ── Types ──
 interface Position {
@@ -49,7 +50,7 @@ interface RouteReplaySheetProps {
 }
 
 // ── Azul Cars base ──
-const AZUL_CARS_BASE = { lat: 39.564372, lng: 2.684864 }; // Camí Fondo, 35, Llevant, 07007 Palma
+const AZUL_CARS_BASE = { lat: AZUL_CARS_BASE_LOCATION.latitude, lng: AZUL_CARS_BASE_LOCATION.longitude };
 
 // ── Custom icons ──
 const createCarIcon = (color: string) => {

@@ -1518,3 +1518,6 @@
 - [x] Revalidar la reserva piloto 4942 y confirmar que conserva titular y conductor tras reprepararla
 - [x] Registrar el acuse de envío del lote oficial 3d0ccc9e-a184-11f1-80b7-005056957a69 como pendiente de resultado
 - [x] Añadir flujo manual para conciliar lotes SES aceptados, rechazados y sus errores
+- [x] Sustituir la sede operativa de Son Oms por Carrer Son Malferit, 18, 07007 Palma en toda la lógica activa
+- [x] Evitar que SES aplique automáticamente el código del establecimiento antiguo a la nueva sede sin confirmación oficial
+- [x] Invalidar la caché de trayectos calculada desde la dirección base anterior

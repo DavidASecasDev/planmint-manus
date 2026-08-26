@@ -128,14 +128,14 @@ for (const r of reservations || []) {
   const entregaDt = r.confirmed_entrega_datetime || r.desde;
   if (entregaDt && entregaDt.substring(0, 10) === today) {
     const loc = r.lugar_entrega || '';
-    const isBase = ['aeropuerto', 'son oms', 'oficina azul', 'pmi'].some(kw => loc.toLowerCase().includes(kw));
+    const isBase = ['son malferit', 'oficina azul', 'azul cars', 'base'].some(kw => loc.toLowerCase().includes(kw));
     ops.push({ type: r.tipo_actividad === 'Transfer' ? 'Transfer' : 'Entrega', time: entregaDt.substring(11, 16), location: loc, isBase, completed: r.entrega_completada });
   }
   if (r.tipo_actividad !== 'Transfer') {
     const devolDt = r.confirmed_devolucion_datetime || r.hasta;
     if (devolDt && devolDt.substring(0, 10) === today) {
       const loc = r.lugar_devolucion || '';
-      const isBase = ['aeropuerto', 'son oms', 'oficina azul', 'pmi'].some(kw => loc.toLowerCase().includes(kw));
+      const isBase = ['son malferit', 'oficina azul', 'azul cars', 'base'].some(kw => loc.toLowerCase().includes(kw));
       ops.push({ type: 'Devolución', time: devolDt.substring(11, 16), location: loc, isBase, completed: r.devolucion_completada });
     }
   }

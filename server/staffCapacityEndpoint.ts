@@ -17,12 +17,13 @@ import {
 } from "./supabaseAdmin";
 import { makeRequest, type DistanceMatrixResult } from "./_core/map";
 import { sendOperationalNotification } from "./notificationHelper";
+import { AZUL_CARS_BASE_KEYWORDS, AZUL_CARS_BASE_LOCATION } from "../shared/azulCarsLocation";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 /** Base location: Azul Cars, Llevant, Palma */
-const BASE_LOCATION = "Camí Fondo, 35, Llevant, 07007 Palma, Illes Balears, Spain";
-const BASE_COORDS = "39.564372,2.684864"; // lat,lng for Azul Cars (Camí Fondo, Llevant)
+const BASE_LOCATION = AZUL_CARS_BASE_LOCATION.fullAddress;
+const BASE_COORDS = `${AZUL_CARS_BASE_LOCATION.latitude},${AZUL_CARS_BASE_LOCATION.longitude}`;
 
 /** Time in minutes for a single operation at base (entrega or devolución) */
 const BASE_OPERATION_MINUTES = 10;
@@ -31,15 +32,7 @@ const BASE_OPERATION_MINUTES = 10;
 const DEFAULT_TRAVEL_MINUTES = 15;
 
 /** Locations considered "at base" (no extra travel time) */
-const BASE_LOCATION_KEYWORDS = [
-  "son oms",
-  "polígono son oms",
-  "poligono son oms",
-  "oficina azul",
-  "azul cars",
-  "canal de sant jordi",
-  "base",
-];
+const BASE_LOCATION_KEYWORDS = AZUL_CARS_BASE_KEYWORDS;
 
 /**
  * Location aliases — Known destinations with fixed travel times.

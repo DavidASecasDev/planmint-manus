@@ -217,12 +217,22 @@ async function deriveMunicipality(
   return data[0];
 }
 
-export function resolveKnownSesLocation(name?: string | null, defaultEstablishmentCode?: string | null) {
+export function resolveKnownSesLocation(name?: string | null, _defaultEstablishmentCode?: string | null) {
   const normalized = normalizeSearch(name || '');
-  if (normalized.includes('oficina azul cars') && normalized.includes('son oms') && defaultEstablishmentCode) {
+  const isCurrentOffice = normalized.includes('son malferit')
+    || normalized === 'oficina azul cars'
+    || normalized === 'oficina azul'
+    || normalized === 'base';
+  if (isCurrentOffice) {
     return {
-      use_establishment_code: true,
-      establishment_code: defaultEstablishmentCode,
+      use_establishment_code: false,
+      establishment_code: null,
+      address_line: 'Carrer Son Malferit, 18, Llevant',
+      address_complement: 'Azul Cars',
+      municipality_code: '07040',
+      municipality_name: 'Palma',
+      postal_code: '07007',
+      country_code: 'ESP',
       verified: true,
     };
   }

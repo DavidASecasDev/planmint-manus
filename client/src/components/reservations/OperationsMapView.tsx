@@ -16,6 +16,7 @@ import { MapPin, Loader2, ExternalLink, Navigation, Truck, RotateCcw, Clock, Ale
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { AZUL_CARS_BASE_LOCATION } from '@shared/azulCarsLocation';
 
 // ── Types ──
 export type TipoOperacion = 'Entrega' | 'Devolución' | 'Transfer';
@@ -94,11 +95,12 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number; label: string 
   'terminal maritima alcudia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
   'terminal maritima alcúdia': { lat: 39.8365, lng: 3.1400, label: 'Terminal Marítima Alcúdia' },
 
-  // ── Oficina Azul Cars (Camí Fondo, 35, Llevant, 07007 Palma) ──
-  'oficina azul': { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
-  'oficina azul cars': { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
-  'oficina azul cars - camí fondo': { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
-  base: { lat: 39.564372, lng: 2.684864, label: 'Oficina Azul Cars - Llevant' },
+  // ── Oficina Azul Cars (Carrer Son Malferit, 18, Llevant, 07007 Palma) ──
+  'oficina azul': { lat: AZUL_CARS_BASE_LOCATION.latitude, lng: AZUL_CARS_BASE_LOCATION.longitude, label: 'Oficina Azul Cars - Son Malferit' },
+  'oficina azul cars': { lat: AZUL_CARS_BASE_LOCATION.latitude, lng: AZUL_CARS_BASE_LOCATION.longitude, label: 'Oficina Azul Cars - Son Malferit' },
+  'oficina azul cars son malferit': { lat: AZUL_CARS_BASE_LOCATION.latitude, lng: AZUL_CARS_BASE_LOCATION.longitude, label: 'Oficina Azul Cars - Son Malferit' },
+  'carrer son malferit': { lat: AZUL_CARS_BASE_LOCATION.latitude, lng: AZUL_CARS_BASE_LOCATION.longitude, label: 'Oficina Azul Cars - Son Malferit' },
+  base: { lat: AZUL_CARS_BASE_LOCATION.latitude, lng: AZUL_CARS_BASE_LOCATION.longitude, label: 'Oficina Azul Cars - Son Malferit' },
 
   // ── Zonas de Mallorca (entregas a domicilio - centro aproximado) ──
   'palma de mallorca - entrega a domicilio': { lat: 39.5696, lng: 2.6502, label: 'Palma de Mallorca' },
