@@ -147,6 +147,23 @@ describe('EffectivePermissionsView component', () => {
     expect(viewCode).toContain('mapCustomRoleToFlatPermissions');
   });
 
+  it('maps all four SES.HOSPEDAJES permissions for custom roles', () => {
+    expect(viewCode).toContain("flat['ses_hospedajes.view']");
+    expect(viewCode).toContain("flat['ses_hospedajes.edit']");
+    expect(viewCode).toContain("flat['ses_hospedajes.export']");
+    expect(viewCode).toContain("flat['ses_hospedajes.manage_settings']");
+  });
+
+  it('shows SES.HOSPEDAJES in the dedicated custom-role editor', () => {
+    const roleEditorCode = fs.readFileSync(
+      path.join(ROOT, 'client', 'src', 'components', 'admin', 'RoleEditor.tsx'),
+      'utf-8'
+    );
+    expect(roleEditorCode).toContain('ses_hospedajes: {');
+    expect(roleEditorCode).toContain("label: 'SES.HOSPEDAJES'");
+    expect(roleEditorCode).toContain("manage_settings: 'Permite modificar códigos oficiales");
+  });
+
   it('computes effective permissions with correct priority: role < custom_role < override', () => {
     // Override should be checked AFTER role defaults
     const roleDefaultIdx = viewCode.indexOf('const roleDefault = isOwner ? true');

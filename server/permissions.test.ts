@@ -149,6 +149,22 @@ describe("flattenCustomRolePermissions", () => {
     expect(result["tasks.assign"]).toBe(true); // falls back to tasks.update
   });
 
+  it("correctly maps the four nested SES.HOSPEDAJES permissions for custom roles", () => {
+    const pj = {
+      ses_hospedajes: {
+        view: true,
+        edit: true,
+        export: false,
+        manage_settings: true,
+      },
+    };
+    const result = flattenCustomRolePermissions(pj);
+    expect(result["ses_hospedajes.view"]).toBe(true);
+    expect(result["ses_hospedajes.edit"]).toBe(true);
+    expect(result["ses_hospedajes.export"]).toBe(false);
+    expect(result["ses_hospedajes.manage_settings"]).toBe(true);
+  });
+
   it("correctly maps team.read to members.view and teams.view", () => {
     const pj = {
       team: { read: true, manage: false },

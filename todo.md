@@ -1534,3 +1534,8 @@
 - [x] Auditar la existencia de los permisos SES.HOSPEDAJES en la base de datos y migraciones
 - [x] Mostrar los permisos SES.HOSPEDAJES en la gestión administrativa de usuarios o roles
 - [x] Verificar que la asignación granular controla correctamente ver, editar, exportar y configurar SES
+- [x] Diagnosticar por qué el rol personalizado Rental no permite modificar permisos SES.HOSPEDAJES
+- [x] Corregir el guardado de permisos de Rental sin alterar los permisos de otros roles
+- [x] Verificar en la base real que los permisos SES de Rental guardados se interpretan correctamente
+- [x] Mostrar SES.HOSPEDAJES en el editor dedicado del rol personalizado Rental
+- [x] Reflejar los permisos SES de Rental en la vista de permisos efectivos

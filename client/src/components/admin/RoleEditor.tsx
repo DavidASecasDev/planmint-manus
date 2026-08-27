@@ -30,7 +30,7 @@ const ROLE_EDITOR_CATEGORIES: {
 import {
   ListTodo, FolderOpen, Tag, FileText, ArrowLeftRight, Wrench, Car,
   CalendarDays, Clock, BarChart3, Layout, Zap, Users, CreditCard,
-  Shield as ShieldIcon, Route, ClipboardCheck, Truck, PackageSearch, type LucideIcon,
+  Shield as ShieldIcon, Route, ClipboardCheck, Truck, PackageSearch, FileCheck2, type LucideIcon,
 } from 'lucide-react';
 
 const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; description: Record<string, string> }> = {
@@ -124,6 +124,16 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; descripti
       view: 'Permite acceder al módulo de reservas',
       create: 'Permite crear nuevas reservas',
       manage: 'Permite editar y cancelar reservas',
+    },
+  },
+  ses_hospedajes: {
+    label: 'SES.HOSPEDAJES',
+    icon: FileCheck2,
+    description: {
+      view: 'Permite acceder a la bandeja, contratos, estados y lotes',
+      edit: 'Permite preparar reservas y completar comunicaciones pendientes',
+      export: 'Permite generar XML y conciliar resultados del portal',
+      manage_settings: 'Permite modificar códigos oficiales y valores predeterminados',
     },
   },
   time_tracking: {

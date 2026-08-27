@@ -530,8 +530,8 @@ export async function handleManageCustomRole(req: Request, res: Response) {
     }
 
     if (action === "update") {
-      if (!p_role_id) {
-        return res.status(400).json({ error: "Missing role ID for update" });
+      if (!p_organization_id || !p_role_id) {
+        return res.status(400).json({ error: "Missing organization or role ID for update" });
       }
 
       const updates: any = {};
@@ -542,7 +542,8 @@ export async function handleManageCustomRole(req: Request, res: Response) {
       const { error } = await serviceClient
         .from("custom_roles")
         .update(updates)
-        .eq("id", p_role_id);
+        .eq("id", p_role_id)
+        .eq("organization_id", p_organization_id);
 
       if (error) {
         console.error("[manageCustomRole] Update error:", error);
@@ -553,14 +554,15 @@ export async function handleManageCustomRole(req: Request, res: Response) {
     }
 
     if (action === "delete") {
-      if (!p_role_id) {
-        return res.status(400).json({ error: "Missing role ID for delete" });
+      if (!p_organization_id || !p_role_id) {
+        return res.status(400).json({ error: "Missing organization or role ID for delete" });
       }
 
       const { error } = await serviceClient
         .from("custom_roles")
         .delete()
-        .eq("id", p_role_id);
+        .eq("id", p_role_id)
+        .eq("organization_id", p_organization_id);
 
       if (error) {
         console.error("[manageCustomRole] Delete error:", error);

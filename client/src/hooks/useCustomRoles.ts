@@ -85,9 +85,12 @@ export function useCustomRoles() {
       description?: string;
       permissions?: RolePermissions;
     }) => {
+      if (!profile?.organization_id) throw new Error('No organization');
+
       const result = await apiInvoke('manage-custom-role', {
         body: {
           action: 'update',
+          p_organization_id: profile.organization_id,
           p_role_id: id,
           p_name: name,
           p_description: description,
@@ -108,9 +111,12 @@ export function useCustomRoles() {
 
   const deleteRole = useMutation({
     mutationFn: async (id: string) => {
+      if (!profile?.organization_id) throw new Error('No organization');
+
       const result = await apiInvoke('manage-custom-role', {
         body: {
           action: 'delete',
+          p_organization_id: profile.organization_id,
           p_role_id: id,
         },
       });

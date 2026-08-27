@@ -261,6 +261,11 @@ export function flattenCustomRolePermissions(pj: Record<string, any>): Record<st
   flat["reservations.view"] = pj?.reservations?.view ?? false;
   flat["reservations.create"] = pj?.reservations?.create ?? false;
   flat["reservations.manage"] = pj?.reservations?.manage ?? false;
+  // SES.HOSPEDAJES
+  flat["ses_hospedajes.view"] = pj?.ses_hospedajes?.view ?? false;
+  flat["ses_hospedajes.edit"] = pj?.ses_hospedajes?.edit ?? false;
+  flat["ses_hospedajes.export"] = pj?.ses_hospedajes?.export ?? false;
+  flat["ses_hospedajes.manage_settings"] = pj?.ses_hospedajes?.manage_settings ?? false;
   // Garatech
   flat["garatech.view"] = pj?.garatech?.view ?? false;
   flat["garatech.create"] = pj?.garatech?.create ?? pj?.garatech?.manage ?? false;

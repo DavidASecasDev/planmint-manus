@@ -133,6 +133,27 @@ describe('Permission Override System', () => {
     });
   });
 
+  describe('Custom roles: scoped permission updates', () => {
+    it('should send organization ID when updating or deleting a custom role', () => {
+      const hookCode = fs.readFileSync(
+        path.join(projectRoot, 'client/src/hooks/useCustomRoles.ts'), 'utf-8'
+      );
+      expect(hookCode).toContain('p_organization_id: profile.organization_id');
+    });
+
+    it('should scope custom role updates and deletes to the authenticated organization', () => {
+      const endpointCode = fs.readFileSync(
+        path.join(projectRoot, 'server/orgDataEndpoints.ts'), 'utf-8'
+      );
+      const updateStart = endpointCode.indexOf('if (action === "update")');
+      const deleteStart = endpointCode.indexOf('if (action === "delete")');
+      const updateCode = endpointCode.substring(updateStart, deleteStart);
+      const deleteCode = endpointCode.substring(deleteStart);
+      expect(updateCode).toContain('.eq("organization_id", p_organization_id)');
+      expect(deleteCode).toContain('.eq("organization_id", p_organization_id)');
+    });
+  });
+
   describe('Frontend: Transfer component permission checks', () => {
     it('BrokerTable should use transfers.manage_brokers for broker deletion', () => {
       const code = fs.readFileSync(
