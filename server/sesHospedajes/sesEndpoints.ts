@@ -764,7 +764,7 @@ export async function handleSesGetSettings(req: Request, res: Response) {
 
 export async function handleSesUpdateSettings(req: Request, res: Response) {
   try {
-    const ctx = await authorize(req, 'ses_hospedajes.configure');
+    const ctx = await authorize(req, 'ses_hospedajes.manage_settings');
     const input = SettingsUpdateSchema.parse(req.body);
     const { data, error } = await ctx.serviceClient.from('ses_settings').upsert({
       organization_id: ctx.organizationId,

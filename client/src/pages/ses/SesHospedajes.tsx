@@ -132,7 +132,7 @@ export default function SesHospedajes() {
   const canView = hasPermission('ses_hospedajes.view');
   const canEdit = hasPermission('ses_hospedajes.edit');
   const canExport = hasPermission('ses_hospedajes.export');
-  const canConfigure = hasPermission('ses_hospedajes.configure');
+  const canConfigure = hasPermission('ses_hospedajes.manage_settings');
   const [filters, setFilters] = useState({
     dateFrom: dateInput(subDays(new Date(), 7)),
     dateTo: dateInput(addDays(new Date(), 30)),

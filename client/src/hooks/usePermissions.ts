@@ -65,7 +65,7 @@ export type PermissionKey =
   | 'ses_hospedajes.view'
   | 'ses_hospedajes.edit'
   | 'ses_hospedajes.export'
-  | 'ses_hospedajes.configure'
+  | 'ses_hospedajes.manage_settings'
   // Garatech
   | 'garatech.view'
   | 'garatech.create'

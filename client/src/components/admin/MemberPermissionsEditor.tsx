@@ -74,6 +74,11 @@ function mapCustomRoleToFlatPermissions(permissionsJson: Record<string, any>): R
   flat['reservations.view'] = permissionsJson?.reservations?.view ?? false;
   flat['reservations.create'] = permissionsJson?.reservations?.create ?? false;
   flat['reservations.manage'] = permissionsJson?.reservations?.manage ?? false;
+  // SES.HOSPEDAJES
+  flat['ses_hospedajes.view'] = permissionsJson?.ses_hospedajes?.view ?? false;
+  flat['ses_hospedajes.edit'] = permissionsJson?.ses_hospedajes?.edit ?? false;
+  flat['ses_hospedajes.export'] = permissionsJson?.ses_hospedajes?.export ?? false;
+  flat['ses_hospedajes.manage_settings'] = permissionsJson?.ses_hospedajes?.manage_settings ?? false;
   // Garatech
   flat['garatech.view'] = permissionsJson?.garatech?.view ?? false;
   flat['garatech.create'] = permissionsJson?.garatech?.create ?? permissionsJson?.garatech?.manage ?? false;

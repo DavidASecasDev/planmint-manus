@@ -23,6 +23,7 @@ import {
   PackageSearch,
   RefreshCw,
   SprayCan,
+  FileCheck2,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/hooks/usePermissions';
@@ -148,6 +149,17 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: 'reservations.view', label: 'Ver reservas', description: 'Permite acceder al módulo de reservas y ver el calendario' },
       { key: 'reservations.create', label: 'Crear reservas', description: 'Permite crear nuevas reservas en el calendario' },
       { key: 'reservations.manage', label: 'Gestionar reservas', description: 'Permite editar y cancelar reservas existentes' },
+    ],
+  },
+  {
+    id: 'ses_hospedajes',
+    label: 'SES.HOSPEDAJES',
+    icon: FileCheck2,
+    permissions: [
+      { key: 'ses_hospedajes.view', label: 'Ver SES.HOSPEDAJES', description: 'Permite acceder a la bandeja, consultar contratos, estados y lotes' },
+      { key: 'ses_hospedajes.edit', label: 'Completar comunicaciones', description: 'Permite preparar reservas y completar contratos, personas y lugares pendientes' },
+      { key: 'ses_hospedajes.export', label: 'Generar y conciliar XML', description: 'Permite generar y descargar XML, registrar su subida y conciliar resultados del portal' },
+      { key: 'ses_hospedajes.manage_settings', label: 'Configurar SES.HOSPEDAJES', description: 'Permite modificar códigos oficiales y valores predeterminados del módulo' },
     ],
   },
   {

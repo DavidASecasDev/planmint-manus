@@ -1531,3 +1531,6 @@
 - [x] Añadir en SES.HOSPEDAJES un mini manual operativo completo y contextual
 - [x] Verificar que el manual explica importación Rently, validación, XML, subida y conciliación sin inducir envíos accidentales
 - [x] Validar accesibilidad y presentación del manual en escritorio y móvil
+- [x] Auditar la existencia de los permisos SES.HOSPEDAJES en la base de datos y migraciones
+- [x] Mostrar los permisos SES.HOSPEDAJES en la gestión administrativa de usuarios o roles
+- [x] Verificar que la asignación granular controla correctamente ver, editar, exportar y configurar SES

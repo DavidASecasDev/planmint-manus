@@ -123,6 +123,8 @@ describe('PERMISSION_CATEGORIES completeness', () => {
     'integrations.manage_api_keys',
     // Reservations
     'reservations.view', 'reservations.create', 'reservations.manage',
+    // SES.HOSPEDAJES
+    'ses_hospedajes.view', 'ses_hospedajes.edit', 'ses_hospedajes.export', 'ses_hospedajes.manage_settings',
     // Garatech
     'garatech.view', 'garatech.create', 'garatech.update', 'garatech.change_status', 'garatech.edit_dates', 'garatech.manage_catalog', 'garatech.manage_accidents', 'garatech.manage',
     // Transfers
@@ -282,12 +284,24 @@ describe('Permission mapping structural integrity', () => {
   // We test that the PermissionKey type covers all categories by checking
   // that PERMISSION_CATEGORIES keys match what we expect
   
-  it('PERMISSION_CATEGORIES covers movements, daily_tasks, fleet, and schedules', () => {
+  it('PERMISSION_CATEGORIES covers movements, daily_tasks, fleet, schedules, and SES.HOSPEDAJES', () => {
     const categoryIds = PERMISSION_CATEGORIES.map(c => c.id);
     expect(categoryIds).toContain('movements');
     expect(categoryIds).toContain('daily_tasks');
     expect(categoryIds).toContain('fleet');
     expect(categoryIds).toContain('schedules');
+    expect(categoryIds).toContain('ses_hospedajes');
+  });
+
+  it('SES.HOSPEDAJES exposes the four canonical granular permissions', () => {
+    const ses = PERMISSION_CATEGORIES.find(c => c.id === 'ses_hospedajes');
+    expect(ses).toBeDefined();
+    expect(ses!.permissions.map(permission => permission.key)).toEqual([
+      'ses_hospedajes.view',
+      'ses_hospedajes.edit',
+      'ses_hospedajes.export',
+      'ses_hospedajes.manage_settings',
+    ]);
   });
 
   it('movements category has 6 permissions', () => {
