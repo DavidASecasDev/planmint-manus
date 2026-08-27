@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { SesContractDraft, SesLocation, SesMunicipality, SesPersonProfile } from '@/types/sesHospedajes';
+import { getActionableSesIssues } from '@/lib/sesValidationIssues';
 
 type UpdatePerson = (input: { id: string; values: Record<string, unknown> }) => Promise<unknown>;
 type CreatePerson = (input: {
@@ -351,16 +352,14 @@ export function SesDraftEditor(props: Props) {
   }, [draft]);
 
   const holderIsDriver = Boolean(draft?.holder?.id && draft.holder.id === draft.primary_driver?.id);
+  const actionableIssues = useMemo(() => draft ? getActionableSesIssues(draft) : [], [draft]);
   const issueGroups = useMemo(() => {
-    const groups: Record<string, number> = { contract: 0, holder: 0, driver: 0, locations: 0 };
-    for (const issue of draft?.validation_errors ?? []) {
-      if (issue.path.startsWith('holder')) groups.holder++;
-      else if (issue.path.startsWith('primary_driver')) groups.driver++;
-      else if (issue.path.includes('location')) groups.locations++;
-      else groups.contract++;
+    const groups: Record<string, number> = { contract: 0, person: 0, locations: 0 };
+    for (const issue of actionableIssues) {
+      groups[issue.section]++;
     }
     return groups;
-  }, [draft?.validation_errors]);
+  }, [actionableIssues]);
 
   const personValues = (form: PersonForm) => ({
     ...form,
@@ -428,24 +427,34 @@ export function SesDraftEditor(props: Props) {
               <SheetDescription>{clientName} · {draft.vehicle_plate || 'Sin vehículo'}</SheetDescription>
             </div>
             <Badge className={draft.status === 'ready' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-100 text-amber-700 hover:bg-amber-100'}>
-              {draft.status === 'ready' ? 'Listo' : `${draft.validation_errors.length} datos pendientes`}
+              {draft.status === 'ready' ? 'Listo' : `${actionableIssues.length} datos pendientes`}
             </Badge>
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue={issueGroups.contract ? 'contract' : issueGroups.holder || issueGroups.driver ? 'person' : 'locations'} className="flex h-[calc(100vh-104px)] flex-col">
+        <Tabs defaultValue={issueGroups.contract ? 'contract' : issueGroups.person ? 'person' : 'locations'} className="flex h-[calc(100vh-104px)] flex-col">
           <TabsList className="mx-6 mt-4 grid grid-cols-3">
             <TabsTrigger value="contract">Contrato {issueGroups.contract ? `(${issueGroups.contract})` : ''}</TabsTrigger>
-            <TabsTrigger value="person">Personas {issueGroups.holder + issueGroups.driver ? `(${issueGroups.holder + issueGroups.driver})` : ''}</TabsTrigger>
+            <TabsTrigger value="person">Personas {issueGroups.person ? `(${issueGroups.person})` : ''}</TabsTrigger>
             <TabsTrigger value="locations">Lugares {issueGroups.locations ? `(${issueGroups.locations})` : ''}</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="flex-1 px-6 py-4">
-            {draft.validation_errors.length > 0 ? (
+            {actionableIssues.length > 0 ? (
               <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-900">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Revisión necesaria</AlertTitle>
-                <AlertDescription>Solo debes completar los campos señalados. Los datos guardados se reutilizarán en futuras reservas.</AlertDescription>
+                <AlertDescription>
+                  <p>Solo debes completar los campos indicados. Los datos guardados se reutilizarán en futuras reservas.</p>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {actionableIssues.map((issue) => (
+                      <li key={`${issue.canonicalPath}-${issue.code}`} className="flex gap-1.5">
+                        <span aria-hidden="true">•</span>
+                        <span><strong>{issue.label}:</strong> {issue.message}{issue.code !== 'required' ? ` (${issue.code === 'invalid' ? 'formato no válido' : 'dato incoherente'})` : ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
               </Alert>
             ) : (
               <Alert className="mb-4 border-emerald-200 bg-emerald-50 text-emerald-900">

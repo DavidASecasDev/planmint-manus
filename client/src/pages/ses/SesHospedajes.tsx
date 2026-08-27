@@ -23,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSesHospedajes } from '@/hooks/useSesHospedajes';
 import { getSesSettingsNotice } from '@/lib/sesSettingsNotice';
+import { countActionableSesIssues, getActionableSesIssues } from '@/lib/sesValidationIssues';
 import type { SesContractDraft, SesSettings } from '@/types/sesHospedajes';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -163,7 +164,7 @@ export default function SesHospedajes() {
   const missingFieldCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const draft of ses.drafts) {
-      for (const issue of draft.validation_errors) counts.set(issue.path, (counts.get(issue.path) ?? 0) + 1);
+      for (const issue of getActionableSesIssues(draft)) counts.set(issue.label, (counts.get(issue.label) ?? 0) + 1);
     }
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4);
   }, [ses.drafts]);
@@ -303,7 +304,7 @@ export default function SesHospedajes() {
                     <TableCell><div className="whitespace-nowrap text-sm">{displayDate(draft.pickup_at)}</div><div className="max-w-52 truncate text-xs text-slate-400">{draft.pickup_location?.name || 'Sin lugar'}</div></TableCell>
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
                     <TableCell><StatusBadge status={draft.status} /></TableCell>
-                    <TableCell>{draft.validation_errors.length ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{draft.validation_errors.length}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
+                    <TableCell>{countActionableSesIssues(draft) ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
                     <TableCell className="text-right"><Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button></TableCell>
                   </TableRow>
                 );

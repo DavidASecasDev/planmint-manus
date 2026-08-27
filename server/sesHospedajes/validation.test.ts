@@ -52,6 +52,29 @@ describe('SES contract validation', () => {
     expect(issues).toEqual([]);
   });
 
+  it('does not require supportDocumento or licence support for a passport holder/driver', () => {
+    const issues = validateSesDraft({
+      reference: '4130',
+      contract_date: '2026-08-18',
+      pickup_at: '2026-08-19T09:00:00Z',
+      return_at: '2026-08-21T19:00:00Z',
+      payment_type: 'TARJT',
+      vehicle_category: 'Mini Convertibles',
+      vehicle_type: 'TURISMO',
+      vehicle_brand: 'MINI',
+      vehicle_model: 'Cooper S Cabrio',
+      vehicle_plate: '0000AAA',
+      vehicle_vin: 'WMW00000000000000',
+      vehicle_color: 'NEGRO',
+      km_pickup: 1,
+      holder: { ...completePerson, document_type: 'PAS', licence_support: null },
+      primary_driver: { ...completePerson, document_type: 'PAS', licence_support: null },
+      pickup_location: completeLocation,
+      return_location: completeLocation,
+    });
+    expect(issues.some((issue) => issue.path.includes('support'))).toBe(false);
+  });
+
   it('reports the exact manual fields still required', () => {
     const issues = validateSesDraft({
       reference: '4671',

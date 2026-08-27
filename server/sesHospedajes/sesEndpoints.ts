@@ -19,6 +19,7 @@ import {
   extractRentlyContractVehicleData,
   type ReservationForSesEnrichment,
 } from './rentlyEnrichment';
+import { calculateSesDraftContentHash, getActualChangedValues } from './draftVersioning';
 
 const PrepareSchema = z.object({
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -170,10 +171,6 @@ type AuthContext = { serviceClient: SupabaseClient; userId: string; organization
 function normalizeSearch(value: string): string {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
-function contentHash(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 function sendError(res: Response, error: unknown, context: string) {
@@ -546,13 +543,14 @@ export async function handleSesPrepare(req: Request, res: Response) {
       if (existing) {
         for (const field of Array.from(manualFields)) merged[field] = existing[field];
         merged.manual_fields = Array.from(manualFields);
-        merged.draft_version = existing.draft_version + 1;
       } else {
         merged.manual_fields = [];
-        merged.draft_version = 1;
         merged.created_by = ctx.userId;
       }
-      merged.content_hash = contentHash(merged);
+      const nextContentHash = calculateSesDraftContentHash(merged);
+      const contentChanged = !existing || existing.content_hash !== nextContentHash;
+      merged.draft_version = existing ? existing.draft_version + (contentChanged ? 1 : 0) : 1;
+      merged.content_hash = nextContentHash;
 
       const validationInput: SesDraftValidationInput = {
         ...merged,
@@ -608,16 +606,18 @@ export async function handleSesUpdatePerson(req: Request, res: Response) {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
     const input = PersonUpdateSchema.parse(req.body);
     const { data: current, error: currentError } = await ctx.serviceClient.from('ses_person_profiles')
-      .select('manual_fields').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
+      .select('*').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
     if (currentError) throw currentError;
-    const changedFields = Object.keys(input.values);
-    const manualFields = Array.from(new Set([...(current.manual_fields ?? []), ...changedFields]));
     const normalizedValues = Object.fromEntries(Object.entries(input.values).map(([key, value]) => [
       key,
       key.endsWith('_code') && typeof value === 'string' ? value.toUpperCase() : value,
     ]));
+    const changedValues = getActualChangedValues(current, normalizedValues);
+    const changedFields = Object.keys(changedValues);
+    if (changedFields.length === 0) return res.json({ data: current, error: null });
+    const manualFields = Array.from(new Set([...(current.manual_fields ?? []), ...changedFields]));
     const { data, error } = await ctx.serviceClient.from('ses_person_profiles').update({
-      ...normalizedValues, manual_fields: manualFields, updated_by: ctx.userId,
+      ...changedValues, manual_fields: manualFields, updated_by: ctx.userId,
     }).eq('id', input.id).eq('organization_id', ctx.organizationId).select('*').single();
     if (error) throw error;
     await audit(ctx, 'person', input.id, 'manual_update', changedFields);
@@ -667,19 +667,26 @@ export async function handleSesUpdateDraft(req: Request, res: Response) {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
     const input = DraftUpdateSchema.parse(req.body);
     const { data: current, error: currentError } = await ctx.serviceClient.from('ses_contract_drafts')
-      .select('status,manual_fields,draft_version').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
+      .select('*').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
     if (currentError) throw currentError;
     if (['batched', 'uploaded_pending_result', 'accepted'].includes(current.status)) {
       const error = new Error('El borrador está bloqueado por formar parte de un lote') as Error & { status?: number };
       error.status = 409;
       throw error;
     }
-    const changedFields = Object.keys(input.values);
+    const changedValues = getActualChangedValues(current, input.values);
+    const changedFields = Object.keys(changedValues);
+    if (changedFields.length === 0) {
+      const result = await validateAndPersistDraft(ctx, input.id);
+      return res.json({ data: result, error: null });
+    }
     const manualFields = Array.from(new Set([...(current.manual_fields ?? []), ...changedFields]));
+    const nextContentHash = calculateSesDraftContentHash({ ...current, ...changedValues, manual_fields: manualFields });
     const { error } = await ctx.serviceClient.from('ses_contract_drafts').update({
-      ...input.values,
+      ...changedValues,
       manual_fields: manualFields,
       draft_version: current.draft_version + 1,
+      content_hash: nextContentHash,
       updated_by: ctx.userId,
     }).eq('id', input.id).eq('organization_id', ctx.organizationId);
     if (error) throw error;
@@ -696,16 +703,18 @@ export async function handleSesUpdateLocation(req: Request, res: Response) {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
     const input = LocationUpdateSchema.parse(req.body);
     const { data: current, error: currentError } = await ctx.serviceClient.from('ses_locations')
-      .select('manual_fields').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
+      .select('*').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
     if (currentError) throw currentError;
-    const changedFields = Object.keys(input.values);
-    const manualFields = Array.from(new Set([...(current.manual_fields ?? []), ...changedFields]));
     const normalizedValues = Object.fromEntries(Object.entries(input.values).map(([key, value]) => [
       key,
       key.endsWith('_code') && typeof value === 'string' ? value.toUpperCase() : value,
     ]));
+    const changedValues = getActualChangedValues(current, normalizedValues);
+    const changedFields = Object.keys(changedValues);
+    if (changedFields.length === 0) return res.json({ data: current, error: null });
+    const manualFields = Array.from(new Set([...(current.manual_fields ?? []), ...changedFields]));
     const { data, error } = await ctx.serviceClient.from('ses_locations').update({
-      ...normalizedValues, manual_fields: manualFields, updated_by: ctx.userId,
+      ...changedValues, manual_fields: manualFields, updated_by: ctx.userId,
     }).eq('id', input.id).eq('organization_id', ctx.organizationId).select('*').single();
     if (error) throw error;
     await audit(ctx, 'location', input.id, 'manual_update', changedFields);

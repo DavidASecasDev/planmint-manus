@@ -1539,3 +1539,8 @@
 - [x] Verificar en la base real que los permisos SES de Rental guardados se interpretan correctamente
 - [x] Mostrar SES.HOSPEDAJES en el editor dedicado del rol personalizado Rental
 - [x] Reflejar los permisos SES de Rental en la vista de permisos efectivos
+- [x] Auditar sin datos personales los cinco pendientes y el historial de versiones de la reserva SES 4130
+- [x] Confirmar con las Instrucciones v1.2.0 que PAS no exige soporteDocumento y que el soporte del permiso es opcional en alquileres
+- [x] Evitar incrementos de versión SES provocados por lecturas, recargas o validaciones sin cambios reales
+- [x] Mostrar el nombre y motivo exacto de cada campo contabilizado como pendiente o inválido
+- [x] Revalidar 4130 y confirmar Personas 1 pendiente y Total 4 si no existen otros errores reales
