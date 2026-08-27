@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
-  AlertCircle, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
+  AlertCircle, BookOpen, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
   RefreshCw, Search, Settings2, ShieldAlert, SlidersHorizontal, UsersRound,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
 import { SesBatchPanel } from '@/components/ses/SesBatchPanel';
+import { SesManualDialog } from '@/components/ses/SesManualDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -142,6 +143,7 @@ export default function SesHospedajes() {
   const [selected, setSelected] = useState<SesContractDraft | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   useEffect(() => {
     if (!selected) return;
@@ -191,6 +193,7 @@ export default function SesHospedajes() {
             <p className="mt-1 text-sm text-slate-500">Prepara, completa y valida contratos en bloque antes de generar el XML oficial.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setManualOpen(true)}><BookOpen className="mr-2 h-4 w-4" />Cómo funciona</Button>
             {canConfigure && <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 className="mr-2 h-4 w-4" />Configuración</Button>}
             <Button variant="outline" onClick={() => ses.refetch()} disabled={ses.isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${ses.isLoading ? 'animate-spin' : ''}`} />Actualizar</Button>
             {canEdit && (
@@ -331,6 +334,7 @@ export default function SesHospedajes() {
         onSave={(values) => ses.updateSettings.mutateAsync(values)}
         saving={ses.updateSettings.isPending}
       />
+      <SesManualDialog open={manualOpen} onOpenChange={setManualOpen} />
     </AppLayout>
   );
 }

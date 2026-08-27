@@ -1528,3 +1528,6 @@
 - [x] Inventariar los faltantes actuales de las 249 reservas SES.HOSPEDAJES
 - [x] Enriquecer masivamente las 249 reservas con detalle fiable de Rently preservando campos manuales
 - [x] Repreparar y revalidar las 249 reservas y medir la mejora obtenida
+- [x] Añadir en SES.HOSPEDAJES un mini manual operativo completo y contextual
+- [x] Verificar que el manual explica importación Rently, validación, XML, subida y conciliación sin inducir envíos accidentales
+- [x] Validar accesibilidad y presentación del manual en escritorio y móvil
