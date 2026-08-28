@@ -1,5 +1,8 @@
 -- SES.HOSPEDAJES hardening: eligibility gates, official inventory,
 -- immutable historical snapshots, structured official codes and field audit.
+-- ESTABLISHED DATABASES: this first draft is superseded by the guarded, forward-only
+-- 20260828143000_ses_hospedajes_compatibility_restore.sql. Do not run this file manually
+-- against an installation that already contains SES data.
 
 ALTER TABLE public.reservations
   ADD COLUMN IF NOT EXISTS rently_delivery_branch_office_id integer,

@@ -27,6 +27,22 @@ describe('SES eligibility', () => {
     expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Completada', rentlyStatusCode: 3 }).requiresReview).toBe(true);
   });
 
+  it('keeps legacy communicated and future references non-eligible after recovery', () => {
+    const alreadyCommunicated = evaluateSesEligibility(
+      { ...eligible, legacyReviewReason: 'already_communicated' },
+      new Date('2026-08-28T09:00:00Z'),
+    );
+    expect(alreadyCommunicated).toMatchObject({ eligible: false, requiresReview: true });
+    expect(alreadyCommunicated.issues.map((issue) => issue.code)).toContain('legacy_already_communicated');
+
+    const future = evaluateSesEligibility(
+      { ...eligible, legacyReviewReason: 'future_delivery' },
+      new Date('2026-08-28T09:00:00Z'),
+    );
+    expect(future.eligible).toBe(false);
+    expect(future.issues.map((issue) => issue.code)).toContain('legacy_future_delivery');
+  });
+
   it('validates ordering and a bounded inclusive range', () => {
     expect(validateSesDateRange('2026-08-28', '2026-08-27').valid).toBe(false);
     expect(validateSesDateRange('2026-01-01', '2026-12-31').valid).toBe(false);

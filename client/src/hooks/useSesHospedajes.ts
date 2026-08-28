@@ -36,6 +36,7 @@ export function useSesHospedajes(
       pageCount: number;
       limit: number;
       offset: number;
+      schemaMigrationRequired?: boolean;
     }>>('ses/drafts', { body: { ...filters, ...pagination } })),
     staleTime: 30_000,
     enabled,
@@ -59,6 +60,7 @@ export function useSesHospedajes(
       items: SesOfficialCommunication[];
       total: number;
       confirmation: { official_inventory_confirmed_at: string; official_inventory_source_date: string } | null;
+      schemaMigrationRequired?: boolean;
     }>>('ses/official-inventory', { body: { limit: 100, offset: 0, status: 'all' } })),
     staleTime: 30_000,
   });
@@ -205,6 +207,12 @@ export function useSesHospedajes(
     batches: batchesQuery.data ?? [], batchesLoading: batchesQuery.isLoading,
     officialInventory: officialInventoryQuery.data ?? { items: [], total: 0, confirmation: null },
     officialInventoryLoading: officialInventoryQuery.isLoading,
+    schemaMigrationRequired: Boolean(
+      draftsQuery.data?.schemaMigrationRequired
+      || settingsQuery.data?.schema_migration_required
+      || officialInventoryQuery.data?.schemaMigrationRequired
+    ),
+    readError: draftsQuery.error ?? settingsQuery.error ?? batchesQuery.error ?? officialInventoryQuery.error ?? null,
     prepare: prepareMutation, updatePerson: updatePersonMutation, createPerson: createPersonMutation,
     updateDraft: updateDraftMutation, updateLocation: updateLocationMutation,
     updateSettings: updateSettingsMutation, uploadXsd: uploadXsdMutation,

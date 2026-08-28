@@ -1566,3 +1566,13 @@
 - [x] UX: añadir búsqueda exacta por referencia, etiquetar totales filtrados y explicar cada causa de exclusión
 - [x] UX: actualizar el manual integrado con elegibilidad, duplicados, estados y subida siempre manual
 - [x] Pruebas: cubrir >500, titular=conductor, no-op versioning, duplicado oficial y mutación histórica de perfil/lugar
+- [x] Diagnosticar en solo lectura por qué el PlanMint publicado muestra 0 borradores, lotes y configuración SES
+- [x] Localizar y contar sin PII ses_contract_drafts, ses_batches, ses_batch_items, ses_settings, perfiles, lugares y auditoría históricos
+- [x] Demostrar la preservación de los conteos históricos 224/19/204/1 y del lote aceptado antes de proponer SQL real
+- [x] Preparar migración SES forward-only, transaccional e idempotente sin DROP, TRUNCATE ni reseteos
+- [x] Backfill compatible de cuatro puertas y nuevos campos sin alterar estados, versiones, configuración, snapshots ni auditoría
+- [x] Preservar 4942 y el lote oficial como aceptados/no reenviables; bloquear 5164 y excluir la futura 5343
+- [x] Probar la migración sobre fixture anonimizada exacta 224/19/204/1 con igualdad de identidades y cero pérdida
+- [x] Añadir pruebas RLS, multi-organización, idempotencia e inventario oficial aditivo
+- [x] Mantener la puerta XSD bloqueada y documentar archivo, versión, imports/includes y hash oficiales requeridos
+- [x] Entregar causa raíz, conteos, SQL, diff, pruebas y plan de restauración antes de cualquier aplicación o despliegue

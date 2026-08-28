@@ -32,6 +32,7 @@ import {
   type SesEligibilityIssue,
 } from './eligibility';
 import {
+  assertNonEmptyOfficialInventory,
   assertStableOfficialCommunicationIdentity,
   evaluateOfficialClearance,
   normalizeOfficialInventoryItem,
@@ -42,6 +43,12 @@ import { buildSesHistoricalSnapshots, calculateSesPayloadSnapshotHash } from './
 import { buildSesFieldAuditRows, persistSesFieldAudit } from './fieldAudit';
 import { storageGet, storagePut } from '../storage';
 import { sha256Utf8, validateSesXmlAgainstXsd } from './xsdValidation';
+import {
+  assertSesHardeningSchema,
+  isSesSchemaCompatibilityError,
+  withLegacyBatchFields,
+  withLegacyDraftGates,
+} from './schemaCompatibility';
 
 const PrepareSchema = z.object({
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -201,7 +208,7 @@ const OfficialCommunicationImportSchema = z.object({
 const ImportOfficialInventorySchema = z.object({
   sourceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   confirmedComplete: z.literal(true),
-  items: z.array(OfficialCommunicationImportSchema).max(5000),
+  items: z.array(OfficialCommunicationImportSchema).min(1).max(5000),
 }).strict();
 
 const ListOfficialInventorySchema = z.object({
@@ -475,6 +482,18 @@ const DRAFT_RELATIONS = `
   return_location:ses_locations!ses_contract_drafts_return_location_id_fkey(*)
 `;
 
+const LEGACY_DRAFT_RELATIONS = `
+  *,
+  reservation:reservations!ses_contract_drafts_reservation_id_fkey(
+    id,external_reservation_id,cliente_nombre,cliente_apellido
+  ),
+  holder:ses_person_profiles!ses_contract_drafts_holder_profile_id_fkey(*),
+  primary_driver:ses_person_profiles!ses_contract_drafts_primary_driver_profile_id_fkey(*),
+  secondary_driver:ses_person_profiles!ses_contract_drafts_secondary_driver_profile_id_fkey(*),
+  pickup_location:ses_locations!ses_contract_drafts_pickup_location_id_fkey(*),
+  return_location:ses_locations!ses_contract_drafts_return_location_id_fkey(*)
+`;
+
 async function calculateCurrentDraftGates(ctx: AuthContext, draft: Record<string, any>) {
   const issues = validateSesDraft(buildValidationInput(draft));
   const reservation = Array.isArray(draft.reservation) ? draft.reservation[0] : draft.reservation;
@@ -491,6 +510,7 @@ async function calculateCurrentDraftGates(ctx: AuthContext, draft: Record<string
     detailBookingId: reservation?.rently_detail_booking_id,
     reservationPlate: draft.vehicle_plate ?? reservation?.auto,
     detailVehiclePlate: reservation?.rently_detail_vehicle_plate,
+    legacyReviewReason: draft.legacy_review_reason ?? null,
   });
   const { data: settings, error: settingsError } = await ctx.serviceClient.from('ses_settings')
     .select('official_inventory_confirmed_at')
@@ -568,6 +588,7 @@ async function audit(
 export async function handleSesPrepare(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = PrepareSchema.parse(req.body);
     const period = validateSesDateRange(input.dateFrom, input.dateTo);
     if (!period.valid) {
@@ -819,11 +840,22 @@ export async function handleSesListDrafts(req: Request, res: Response) {
       }
       return filtered;
     };
-    let query = ctx.serviceClient.from('ses_contract_drafts').select(DRAFT_RELATIONS, { count: 'exact' })
-      .eq('organization_id', ctx.organizationId).order('pickup_at', { ascending: true })
-      .range(input.offset, input.offset + input.limit - 1);
-    query = applyFilters(query);
-    const { data, error, count } = await query;
+    const runDraftQuery = async (relations: string) => {
+      let query = ctx.serviceClient.from('ses_contract_drafts').select(relations, { count: 'exact' })
+        .eq('organization_id', ctx.organizationId).order('pickup_at', { ascending: true })
+        .range(input.offset, input.offset + input.limit - 1);
+      query = applyFilters(query);
+      return query;
+    };
+    let { data, error, count } = await runDraftQuery(DRAFT_RELATIONS);
+    let schemaMigrationRequired = false;
+    if (error && isSesSchemaCompatibilityError(error)) {
+      const legacyResult = await runDraftQuery(LEGACY_DRAFT_RELATIONS);
+      data = legacyResult.data;
+      error = legacyResult.error;
+      count = legacyResult.count;
+      schemaMigrationRequired = true;
+    }
     if (error) throw error;
     const statusRows = await collectAllPages<{ status: string }>(async (from, to) => {
       let statusQuery = ctx.serviceClient.from('ses_contract_drafts').select('status')
@@ -837,10 +869,14 @@ export async function handleSesListDrafts(req: Request, res: Response) {
       acc[draft.status] = (acc[draft.status] ?? 0) + 1;
       return acc;
     }, {});
+    const normalizedDrafts = schemaMigrationRequired
+      ? (data ?? []).map((draft) => withLegacyDraftGates(draft as Record<string, any>))
+      : (data ?? []);
     return res.json({
       data: {
-        drafts: data ?? [], summary, total: count ?? statusRows.length,
-        pageCount: data?.length ?? 0, limit: input.limit, offset: input.offset,
+        drafts: normalizedDrafts, summary, total: count ?? statusRows.length,
+        pageCount: normalizedDrafts.length, limit: input.limit, offset: input.offset,
+        schemaMigrationRequired,
       },
       error: null,
     });
@@ -852,6 +888,7 @@ export async function handleSesListDrafts(req: Request, res: Response) {
 export async function handleSesUpdatePerson(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = PersonUpdateSchema.parse(req.body);
     const { data: current, error: currentError } = await ctx.serviceClient.from('ses_person_profiles')
       .select('*').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
@@ -888,6 +925,7 @@ export async function handleSesUpdatePerson(req: Request, res: Response) {
 export async function handleSesCreatePerson(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = PersonCreateSchema.parse(req.body);
     const values = Object.fromEntries(Object.entries(input.values).map(([key, value]) => [
       key,
@@ -918,6 +956,7 @@ export async function handleSesCreatePerson(req: Request, res: Response) {
 export async function handleSesUpdateDraft(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = DraftUpdateSchema.parse(req.body);
     const { data: current, error: currentError } = await ctx.serviceClient.from('ses_contract_drafts')
       .select('*').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
@@ -965,6 +1004,7 @@ export async function handleSesUpdateDraft(req: Request, res: Response) {
 export async function handleSesUpdateLocation(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = LocationUpdateSchema.parse(req.body);
     const { data: current, error: currentError } = await ctx.serviceClient.from('ses_locations')
       .select('*').eq('id', input.id).eq('organization_id', ctx.organizationId).single();
@@ -1017,6 +1057,7 @@ export async function handleSesSearchMunicipalities(req: Request, res: Response)
 export async function handleSesRevalidate(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).parse(req.body);
     const results = [];
     for (const id of input.ids) results.push(await validateAndPersistDraft(ctx, id));
@@ -1029,14 +1070,34 @@ export async function handleSesRevalidate(req: Request, res: Response) {
 export async function handleSesGetSettings(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.view');
-    const { data, error } = await ctx.serviceClient.from('ses_settings').select(`
+    let { data, error } = await ctx.serviceClient.from('ses_settings').select(`
       organization_id,lessor_code,establishment_code,default_payment_type,
       default_vehicle_type,government_service_enabled,updated_at,
       official_xsd_hash,official_xsd_version,official_xsd_uploaded_at,
       official_inventory_confirmed_at,official_inventory_source_date
     `).eq('organization_id', ctx.organizationId).maybeSingle();
+    let schemaMigrationRequired = false;
+    if (error && isSesSchemaCompatibilityError(error)) {
+      const legacy = await ctx.serviceClient.from('ses_settings').select(`
+        organization_id,lessor_code,establishment_code,default_payment_type,
+        default_vehicle_type,government_service_enabled,updated_at
+      `).eq('organization_id', ctx.organizationId).maybeSingle();
+      data = legacy.data ? {
+        ...legacy.data,
+        official_xsd_hash: null,
+        official_xsd_version: null,
+        official_xsd_uploaded_at: null,
+        official_inventory_confirmed_at: null,
+        official_inventory_source_date: null,
+      } as any : null;
+      error = legacy.error;
+      schemaMigrationRequired = true;
+    }
     if (error) throw error;
-    return res.json({ data: data ?? null, error: null });
+    return res.json({
+      data: data ? { ...data, schema_migration_required: schemaMigrationRequired } : null,
+      error: null,
+    });
   } catch (error) {
     return sendError(res, error, 'get-settings');
   }
@@ -1045,6 +1106,7 @@ export async function handleSesGetSettings(req: Request, res: Response) {
 export async function handleSesUploadOfficialXsd(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.manage_settings');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = UploadOfficialXsdSchema.parse(req.body);
     if (!/<(?:xs|xsd):schema\b/.test(input.content)) {
       const invalid = new Error('El archivo no contiene un esquema XSD reconocible') as Error & { status?: number };
@@ -1128,7 +1190,7 @@ export async function handleSesUpdateSettings(req: Request, res: Response) {
 export async function handleSesListBatches(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.view');
-    const { data, error } = await ctx.serviceClient.from('ses_batches').select(`
+    let { data, error } = await ctx.serviceClient.from('ses_batches').select(`
       id,status,schema_version,file_name,xml_hash,item_count,accepted_count,error_count,
       generated_at,downloaded_at,uploaded_at,result_recorded_at,notes,official_lot_code,
       document_version,xsd_version,xsd_hash,xsd_validated_at,
@@ -1138,6 +1200,18 @@ export async function handleSesListBatches(req: Request, res: Response) {
         draft:ses_contract_drafts!ses_batch_items_draft_id_fkey(id,reference,status)
       )
     `).eq('organization_id', ctx.organizationId).order('generated_at', { ascending: false }).limit(50);
+    if (error && isSesSchemaCompatibilityError(error)) {
+      const legacy = await ctx.serviceClient.from('ses_batches').select(`
+        id,status,schema_version,file_name,xml_hash,item_count,accepted_count,error_count,
+        generated_at,downloaded_at,uploaded_at,result_recorded_at,notes,
+        items:ses_batch_items(
+          id,draft_id,item_order,draft_version,result_status,result_code,result_message,
+          payload_snapshot,draft:ses_contract_drafts!ses_batch_items_draft_id_fkey(id,reference,status)
+        )
+      `).eq('organization_id', ctx.organizationId).order('generated_at', { ascending: false }).limit(50);
+      data = (legacy.data ?? []).map((batch) => withLegacyBatchFields(batch as Record<string, any>)) as any;
+      error = legacy.error;
+    }
     if (error) throw error;
     return res.json({ data: data ?? [], error: null });
   } catch (error) {
@@ -1165,6 +1239,13 @@ export async function handleSesListOfficialInventory(req: Request, res: Response
         .select('official_inventory_confirmed_at,official_inventory_source_date')
         .eq('organization_id', ctx.organizationId).maybeSingle(),
     ]);
+    if ((error && isSesSchemaCompatibilityError(error))
+      || (settingsError && isSesSchemaCompatibilityError(settingsError))) {
+      return res.json({
+        data: { items: [], total: 0, confirmation: null, schemaMigrationRequired: true },
+        error: null,
+      });
+    }
     if (error) throw error;
     if (settingsError) throw settingsError;
     return res.json({ data: { items: data ?? [], total: count ?? 0, confirmation: settings ?? null }, error: null });
@@ -1176,7 +1257,9 @@ export async function handleSesListOfficialInventory(req: Request, res: Response
 export async function handleSesImportOfficialInventory(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.export');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = ImportOfficialInventorySchema.parse(req.body);
+    assertNonEmptyOfficialInventory(input.items);
     const now = new Date().toISOString();
     const rows = input.items.map((item) => normalizeOfficialInventoryItem({
       organization_id: ctx.organizationId,
@@ -1227,6 +1310,7 @@ export async function handleSesImportOfficialInventory(req: Request, res: Respon
 export async function handleSesMarkBatchUploaded(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.export');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = MarkBatchUploadedSchema.parse(req.body);
     const { data: batch, error: batchError } = await ctx.serviceClient.from('ses_batches')
       .select('id,status,notes,official_lot_code')
@@ -1279,6 +1363,7 @@ export async function handleSesMarkBatchUploaded(req: Request, res: Response) {
 export async function handleSesRecordBatchResult(req: Request, res: Response) {
   try {
     const ctx = await authorize(req, 'ses_hospedajes.export');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = RecordBatchResultSchema.parse(req.body);
     const { data: batch, error: batchError } = await ctx.serviceClient.from('ses_batches')
       .select(`
@@ -1410,6 +1495,7 @@ export async function handleSesExportXml(req: Request, res: Response) {
   let batchId: string | null = null;
   try {
     const ctx = await authorize(req, 'ses_hospedajes.export');
+    await assertSesHardeningSchema(ctx.serviceClient);
     const input = ExportXmlSchema.parse(req.body);
     try {
       assertUniqueSesExportSelection(input.ids);

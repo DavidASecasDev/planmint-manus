@@ -78,6 +78,12 @@ export function normalizeOfficialInventoryItem<T extends {
   };
 }
 
+export function assertNonEmptyOfficialInventory(items: readonly unknown[]) {
+  if (items.length === 0) {
+    throw new Error('El inventario oficial no puede confirmarse con una lista vacía');
+  }
+}
+
 export function assertStableOfficialCommunicationIdentity(
   existing: SesOfficialCommunication | null | undefined,
   incoming: SesOfficialCommunication,

@@ -159,6 +159,7 @@ export interface SesSettings {
   official_inventory_confirmed_at: string | null;
   official_inventory_source_date: string | null;
   updated_at: string;
+  schema_migration_required?: boolean;
 }
 
 export interface SesOfficialCommunication {

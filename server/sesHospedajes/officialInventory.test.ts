@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assertStableOfficialCommunicationIdentity, evaluateOfficialClearance, normalizeOfficialInventoryItem } from './officialInventory';
+import {
+  assertNonEmptyOfficialInventory,
+  assertStableOfficialCommunicationIdentity,
+  evaluateOfficialClearance,
+  normalizeOfficialInventoryItem,
+} from './officialInventory';
 
 const accepted = {
   official_communication_code: '4b86dae9-a184-11f1-ab80-00505695dcc7',
@@ -48,5 +53,10 @@ describe('SES official inventory', () => {
   it('does not allow an accepted official code to be reassigned', () => {
     expect(() => assertStableOfficialCommunicationIdentity(accepted, { ...accepted, reference: 'OTHER' })).toThrow(/otro contrato/i);
     expect(() => assertStableOfficialCommunicationIdentity(accepted, { ...accepted })).not.toThrow();
+  });
+
+  it('never confirms an empty official inventory', () => {
+    expect(() => assertNonEmptyOfficialInventory([])).toThrow(/lista vacía/i);
+    expect(() => assertNonEmptyOfficialInventory([accepted])).not.toThrow();
   });
 });

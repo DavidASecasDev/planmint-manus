@@ -192,6 +192,7 @@ export default function SesHospedajes() {
   const ready = ses.summary.ready ?? 0;
   const incomplete = ses.summary.incomplete ?? 0;
   const accepted = ses.summary.accepted ?? 0;
+  const schemaMigrationRequired = ses.schemaMigrationRequired;
   const completeness = ses.total ? Math.round((ready / ses.total) * 100) : 0;
   const selectedSaving = ses.updateDraft.isPending || ses.updatePerson.isPending || ses.createPerson.isPending || ses.updateLocation.isPending;
   const readyDrafts = ses.drafts.filter((draft) => draft.status === 'ready' && draft.ready_for_xml);
@@ -232,10 +233,10 @@ export default function SesHospedajes() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setManualOpen(true)}><BookOpen className="mr-2 h-4 w-4" />Cómo funciona</Button>
-            {canConfigure && <Button variant="outline" onClick={() => setComplianceOpen(true)}><ShieldCheck className="mr-2 h-4 w-4" />Control oficial</Button>}
-            {canConfigure && <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 className="mr-2 h-4 w-4" />Configuración</Button>}
+            {canConfigure && !schemaMigrationRequired && <Button variant="outline" onClick={() => setComplianceOpen(true)}><ShieldCheck className="mr-2 h-4 w-4" />Control oficial</Button>}
+            {canConfigure && !schemaMigrationRequired && <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 className="mr-2 h-4 w-4" />Configuración</Button>}
             <Button variant="outline" onClick={() => ses.refetch()} disabled={ses.isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${ses.isLoading ? 'animate-spin' : ''}`} />Actualizar</Button>
-            {canEdit && (
+            {canEdit && !schemaMigrationRequired && (
               <Button onClick={() => ses.prepare.mutate({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }, { onSuccess: (result) => setLastExclusions(result.exclusions) })} disabled={ses.prepare.isPending}>
                 {ses.prepare.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
                 Preparar reservas
@@ -244,7 +245,7 @@ export default function SesHospedajes() {
             {canExport && (
               <Button
                 className="bg-emerald-700 text-white hover:bg-emerald-800"
-                disabled={selectedReadyIds.length === 0 || ses.exportXml.isPending}
+                disabled={schemaMigrationRequired || selectedReadyIds.length === 0 || ses.exportXml.isPending}
                 onClick={() => ses.exportXml.mutate(selectedReadyIds, { onSuccess: () => setSelectedIds(new Set()) })}
               >
                 {ses.exportXml.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
@@ -254,6 +255,25 @@ export default function SesHospedajes() {
           </div>
         </div>
 
+        {schemaMigrationRequired && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Actualización técnica pendiente · modo solo lectura</AlertTitle>
+            <AlertDescription>
+              Se muestran los borradores, la configuración y los lotes históricos sin modificarlos. Preparar,
+              completar, conciliar y generar XML permanecen bloqueados hasta aplicar la migración compatible revisada.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {ses.readError && !schemaMigrationRequired && (
+          <Alert variant="destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>No se pudo cargar SES.HOSPEDAJES</AlertTitle>
+            <AlertDescription>{ses.readError instanceof Error ? ses.readError.message : 'Error de lectura'}</AlertDescription>
+          </Alert>
+        )}
+
         {settingsNotice ? (
           <Alert className={settingsNotice.kind === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-blue-200 bg-blue-50 text-blue-950'}>
             {settingsNotice.kind === 'warning' ? <AlertCircle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
@@ -262,7 +282,7 @@ export default function SesHospedajes() {
           </Alert>
         ) : null}
 
-        {(!ses.settings?.official_xsd_hash || !ses.settings?.official_inventory_confirmed_at) && (
+        {!schemaMigrationRequired && (!ses.settings?.official_xsd_hash || !ses.settings?.official_inventory_confirmed_at) && (
           <Alert className="border-red-200 bg-red-50 text-red-950">
             <ShieldAlert className="h-4 w-4" />
             <AlertTitle>Control oficial pendiente</AlertTitle>
@@ -306,7 +326,7 @@ export default function SesHospedajes() {
         <SesBatchPanel
           batches={ses.batches}
           loading={ses.batchesLoading}
-          canManage={canExport}
+          canManage={canExport && !schemaMigrationRequired}
           savingUpload={ses.markBatchUploaded.isPending}
           savingResult={ses.recordBatchResult.isPending}
           onMarkUploaded={(input) => ses.markBatchUploaded.mutateAsync(input)}
@@ -334,7 +354,11 @@ export default function SesHospedajes() {
               {!ses.isLoading && ses.drafts.map((draft) => {
                 const client = [draft.reservation?.cliente_nombre, draft.reservation?.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre';
                 return (
-                  <TableRow key={draft.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(draft)}>
+                  <TableRow
+                    key={draft.id}
+                    className={schemaMigrationRequired ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50'}
+                    onClick={() => { if (!schemaMigrationRequired) setSelected(draft); }}
+                  >
                     <TableCell onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         aria-label={`Seleccionar contrato ${draft.reference}`}
@@ -353,7 +377,7 @@ export default function SesHospedajes() {
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
                     <TableCell><StatusBadge status={draft.status} />{draft.eligibility_errors?.[0] && <p className="mt-1 max-w-48 text-xs text-red-600">{draft.eligibility_errors[0].message}</p>}{!draft.is_officially_clear && draft.official_check_status === 'not_checked' && <p className="mt-1 text-xs text-amber-600">Inventario oficial sin confirmar</p>}</TableCell>
                     <TableCell>{countActionableSesIssues(draft) || draft.eligibility_errors?.length || !draft.is_officially_clear ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft) + (draft.eligibility_errors?.length ?? 0) + (!draft.is_officially_clear ? 1 : 0)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
-                    <TableCell className="text-right"><Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button></TableCell>
+                    <TableCell className="text-right"><Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{schemaMigrationRequired ? 'Solo lectura' : draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button></TableCell>
                   </TableRow>
                 );
               })}
