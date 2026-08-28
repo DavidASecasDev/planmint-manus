@@ -22,13 +22,14 @@ function evaluateFacts(references: [string, string, string]) {
     visibleStatus: 'Entregado', rentlyStatusCode: 2, isTransfer: false,
     deliveryBranchOfficeId: 1, externalBookingId: futureReference,
     detailBookingId: futureReference, reservationPlate: '1234ABC', detailVehiclePlate: '1234ABC',
+    inExactRentlyIntersection: true,
   };
   return {
-    accepted: evaluateOfficialClearance({ inventoryConfirmed: true, reference: acceptedReference,
+    accepted: evaluateOfficialClearance({ checked: true, reference: acceptedReference,
       contractDate: '2026-08-20', vehiclePlate: '1234ABC', communications: [accepted] }).status,
-    distinct: evaluateOfficialClearance({ inventoryConfirmed: true, reference: reviewReference,
+    distinct: evaluateOfficialClearance({ checked: true, reference: reviewReference,
       contractDate: '2026-08-20', vehiclePlate: '1234ABC', communications: [different] }).status,
-    annulled: evaluateOfficialClearance({ inventoryConfirmed: true, reference: reviewReference,
+    annulled: evaluateOfficialClearance({ checked: true, reference: reviewReference,
       contractDate: '2026-08-20', vehiclePlate: '1234ABC', communications: [annulled] }).status,
     future: evaluateSesEligibility({ ...eligibleBase, actualDeliveryAt: '2026-08-30T10:00:00Z' },
       new Date('2026-08-28T10:00:00Z')).issues.map((issue) => issue.code),

@@ -1588,8 +1588,8 @@
 - [x] Entregar búsqueda de cero referencias productivas, estados unificados, diff y pruebas sin aplicar SQL ni desplegar
 - [x] Confirmar el proyecto Supabase de producción sin revelar credenciales y disponer de un respaldo recuperable verificable
 - [x] Crear un restore point previo con identificador, fecha, conteos y hashes agregados SES
-- [ ] Ejecutar únicamente 20260828143000_ses_hospedajes_compatibility_restore.sql en una transacción con rollback automático
-- [ ] Verificar 224/19/204/1, configuración, lote, item, payload_snapshot, 165 auditorías, RLS y tablas/columnas nuevas
+- [x] Ejecutar únicamente 20260828143000_ses_hospedajes_compatibility_restore.sql en una transacción con rollback automático
+- [x] Verificar 224/19/204/1, configuración, lote, item, payload_snapshot, 165 auditorías, RLS y tablas/columnas nuevas
 - [x] Confirmar idempotencia y que ningún legado queda ready_for_xml antes de revalidación general
 - [x] Detenerse sin publicar, desplegar, cargar XSD, importar inventario, preparar reservas ni generar XML
 - [x] Verificar y comunicar opciones oficiales para obtener un respaldo Supabase actual sin PITR, nuevos proyectos ni costes
@@ -1599,3 +1599,18 @@
 - [x] Documentar que source_hash no existe y proteger todas las columnas reales mediante identidad y hash JSON verificable
 - [x] Mantener intacta la migración revisada original y crear ses_hospedajes_manual_production_migration.sql como archivo separado
 - [x] Validar el SQL manual dos veces en fixture, escanear operaciones destructivas/referencias especiales y calcular SHA-256
+- [x] Entregar íntegramente el SQL manual verificado mediante enlace directo con SHA-256, sin ejecutarlo ni modificarlo
+- [x] Verificar en solo lectura la migración manual aplicada y cerrar conteos, puertas, RLS y preservación histórica sin otras operaciones SES
+- [x] Desglosar pasted_content_3.txt en requisitos funcionales, migraciones propuestas y pruebas de aceptación SES verificables
+- [x] Implementar todos los cambios de código indicados sin ejecutar migraciones ni operaciones SES reales
+- [x] Añadir todas las pruebas de aceptación solicitadas y ejecutar la regresión completa
+- [x] Entregar decisiones de diseño, diff, migraciones sin ejecutar y resultados completos antes de cualquier publicación
+- [x] Sustituir la puerta XSD obligatoria por contrato estructural oficial cuando SES no publique XSD, con precedencia futura del XSD auténtico
+- [x] Mantener namespace, orden, cardinalidades, tipos, longitudes, enumeraciones y reglas obligatorias/condicionales en el validador local
+- [x] Reemplazar el inventario masivo obligatorio por conciliación oficial exacta bajo demanda y aditiva
+- [x] Bloquear duplicados activos/aceptados y enviar anulados, versiones distintas o contradicciones a revisión manual
+- [x] Calcular elegibilidad exclusivamente por intersección Rently–PlanMint de reserva y matrícula con estado, transferencia, sucursal y entrega real
+- [x] Tratar reservas terminadas con protocolo no comunicado como excepción manual sin incorporarlas automáticamente
+- [x] Corregir paginación y contadores para mostrar más de 200 borradores sin discrepancias silenciosas
+- [x] Añadir pruebas 65 vs 64, >200, matrícula, entrega futura, transfer, sucursal, terminada, duplicados, anuladas/versiones y XSD presente/ausente
+- [x] Verificar preservación del lote aceptado y mantener prohibidas operaciones SES reales y despliegues durante la revisión

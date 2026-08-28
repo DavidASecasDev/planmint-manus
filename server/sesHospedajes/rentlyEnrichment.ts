@@ -7,6 +7,7 @@ import {
   type RentlyBookingDetail,
 } from '../syncRently';
 import { syncSesPersonProfiles, type RentlyCustomerForSes } from './rentlyProfiles';
+import type { RentlySesCandidate } from './candidateIntersection';
 
 const DETAIL_FIELDS = [
   'cliente_nombre', 'cliente_apellido', 'email', 'telefono',
@@ -87,6 +88,73 @@ export function extractRentlyContractVehicleData(detail: RentlyBookingDetail) {
 }
 
 type RentlyCredentials = { host: string; clientId: string; clientSecret: string };
+
+type RentlySesListResponse = {
+  Results?: RentlySesCandidate[];
+  NextOffset?: number | null;
+  Total?: number;
+};
+
+export async function fetchRentlyDeliveredCandidatesForSes(options: {
+  host: string;
+  token: string;
+  pageSize?: number;
+  fetchImpl?: typeof fetch;
+}) {
+  const { host, token, pageSize = 100, fetchImpl = fetch } = options;
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) throw new Error('Tamaño de página Rently no válido');
+  const candidates: RentlySesCandidate[] = [];
+  let offset = 0;
+  const visitedOffsets = new Set<number>();
+
+  while (!visitedOffsets.has(offset)) {
+    visitedOffsets.add(offset);
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: String(pageSize),
+      IsTransfer: 'false',
+      CurrentStatus: '2',
+      DeliveryBranchOffice: '1',
+    });
+    const response = await fetchImpl(`https://${host}/api/bookings/list?${params}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Rently no pudo listar las reservas entregadas (${response.status})`);
+    const payload = await response.json() as RentlySesListResponse;
+    const page = Array.isArray(payload.Results) ? payload.Results : [];
+    candidates.push(...page);
+    if (payload.NextOffset === null || payload.NextOffset === undefined || payload.NextOffset === 0 || page.length === 0) break;
+    offset = payload.NextOffset;
+  }
+
+  return candidates;
+}
+
+export async function loadRentlyDeliveredCandidatesForSes(options: {
+  serviceClient: SupabaseClient;
+  organizationId: string;
+  pageSize?: number;
+}) {
+  const { data: settings, error } = await options.serviceClient.from('integration_settings')
+    .select('rently_api_host,rently_client_id,rently_client_secret')
+    .eq('organization_id', options.organizationId).maybeSingle();
+  if (error || !settings?.rently_client_id || !settings?.rently_client_secret) {
+    throw new Error('No se puede verificar la lista exacta de entregadas: faltan las credenciales Rently de la organización');
+  }
+  const credentials: RentlyCredentials = {
+    host: settings.rently_api_host || 'azul.rently.com.ar',
+    clientId: settings.rently_client_id,
+    clientSecret: settings.rently_client_secret,
+  };
+  const token = await getRentlyToken(credentials.host, credentials.clientId, credentials.clientSecret);
+  const candidates = await fetchRentlyDeliveredCandidatesForSes({
+    host: credentials.host,
+    token,
+    pageSize: options.pageSize,
+  });
+  return { candidates, credentials };
+}
 
 export async function enrichReservationsFromRentlyForSes(options: {
   serviceClient: SupabaseClient;

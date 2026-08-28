@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertNonEmptyOfficialInventory,
   assertStableOfficialCommunicationIdentity,
+  buildOfficialIdentityHash,
   evaluateOfficialClearance,
   normalizeOfficialInventoryItem,
 } from './officialInventory';
@@ -17,15 +18,15 @@ const accepted = {
 };
 
 describe('SES official inventory', () => {
-  it('never clears a contract before the official inventory is confirmed', () => {
+  it('never clears a contract before its exact official identity is checked', () => {
     expect(evaluateOfficialClearance({
-      inventoryConfirmed: false, reference: '1', contractDate: '2026-08-26', vehiclePlate: '1234BCD', communications: [],
+      checked: false, reference: '1', contractDate: '2026-08-26', vehiclePlate: '1234BCD', communications: [],
     }).status).toBe('not_checked');
   });
 
   it('blocks the accepted pilot reference 4942 from being sent again', () => {
     const result = evaluateOfficialClearance({
-      inventoryConfirmed: true,
+      checked: true,
       reference: '4942',
       contractDate: '2026-08-26',
       vehiclePlate: '1234-BCD',
@@ -35,13 +36,32 @@ describe('SES official inventory', () => {
     expect(result.matchingCommunicationCode).toBe(accepted.official_communication_code);
   });
 
+  it('blocks both active and accepted exact duplicates', () => {
+    for (const status of ['active', 'accepted'] as const) {
+      expect(evaluateOfficialClearance({
+        checked: true,
+        reference: 'SYNTHETIC-100',
+        contractDate: '2026-08-26',
+        vehiclePlate: '1234BCD',
+        communications: [{ ...accepted, reference: 'SYNTHETIC-100', status }],
+      }).status).toBe('blocked');
+    }
+  });
+
+  it('invalidates a previous clear check when date or plate changes', () => {
+    const original = buildOfficialIdentityHash({ reference: 'SYNTHETIC-200', contractDate: '2026-08-26', vehiclePlate: '1234-BCD' });
+    expect(buildOfficialIdentityHash({ reference: 'SYNTHETIC-200', contractDate: '2026-08-27', vehiclePlate: '1234-BCD' })).not.toBe(original);
+    expect(buildOfficialIdentityHash({ reference: 'SYNTHETIC-200', contractDate: '2026-08-26', vehiclePlate: '9999XYZ' })).not.toBe(original);
+    expect(buildOfficialIdentityHash({ reference: 'SYNTHETIC-200', contractDate: '2026-08-26', vehiclePlate: '1234BCD' })).toBe(original);
+  });
+
   it('routes annulled or mismatching communications to review', () => {
     expect(evaluateOfficialClearance({
-      inventoryConfirmed: true, reference: '4942', contractDate: '2026-08-26', vehiclePlate: '1234BCD',
+      checked: true, reference: '4942', contractDate: '2026-08-26', vehiclePlate: '1234BCD',
       communications: [{ ...accepted, status: 'annulled' }],
     }).status).toBe('review');
     expect(evaluateOfficialClearance({
-      inventoryConfirmed: true, reference: '4942', contractDate: '2026-08-27', vehiclePlate: '1234BCD',
+      checked: true, reference: '4942', contractDate: '2026-08-27', vehiclePlate: '1234BCD',
       communications: [accepted],
     }).status).toBe('review');
   });

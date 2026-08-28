@@ -17,35 +17,35 @@ export const SES_MANUAL_STEPS: SesManualStep[] = [
   {
     number: 1,
     title: 'Configura los datos oficiales',
-    action: 'Abre “Configuración” y comprueba el código de arrendador. Después entra en “Control oficial”, carga el XSD oficial vigente y confirma un inventario completo de comunicaciones ya existentes en el portal.',
-    result: 'PlanMint dispone de la norma técnica y del inventario necesarios para validar y evitar duplicados.',
+    action: 'Abre “Configuración” y comprueba el código de arrendador. En “Control oficial” verás si se usa la plantilla y las Instrucciones v1.2.0 o un XSD oficial auténtico cargado posteriormente.',
+    result: 'Sin XSD publicado, PlanMint aplica el contrato estructural oficial local. Si se carga en el futuro un XSD auténtico, este prevalece por versión y huella.',
     warning: 'No introduzcas aquí usuario, contraseña, Cl@ve ni credenciales del portal oficial.',
   },
   {
     number: 2,
     title: 'Selecciona el periodo y prepara',
-    action: 'Indica un rango máximo de 93 días y pulsa “Preparar reservas”. Solo entran alquileres entregados en Rently (CurrentStatus 2), de la sucursal 1, no transfer, con entrega efectiva no futura y coincidencia de reserva y matrícula.',
-    result: 'La tabla muestra los contratos elegibles y explica cada exclusión; las terminadas nunca comunicadas quedan en revisión obligatoria.',
-    warning: '“Actualizar” solo recarga la pantalla. “Preparar reservas” vuelve a enriquecer y validar los datos.',
+    action: 'Indica un rango máximo de 93 días y pulsa “Preparar reservas”. Se cruza el listado paginado de Rently con CurrentStatus=2, IsTransfer=false y DeliveryBranchOffice=1 contra PlanMint por reserva y matrícula.',
+    result: 'Solo la intersección exacta entra como candidata. Una entrega futura, matrícula distinta, transferencia, otra sucursal o detalle ausente queda excluida.',
+    warning: '“Actualizar” solo recarga la pantalla. “Revalidar Rently” vuelve a consultar la lista exacta y el detalle. Una terminada no comunicada solo admite una excepción temporal con protocolo.',
   },
   {
     number: 3,
     title: 'Revisa la bandeja',
-    action: 'Usa los contadores del filtro aplicado, la barra de completitud, la búsqueda exacta por reserva o matrícula, las fechas y el estado para localizar excepciones.',
-    result: 'Puedes priorizar los faltantes más repetidos y trabajar solo sobre las excepciones reales.',
+    action: 'Usa los contadores del filtro completo, la paginación superior e inferior, la búsqueda exacta por reserva o matrícula, las fechas y el estado para localizar excepciones.',
+    result: 'Cada página muestra su rango y el total filtrado; puedes recorrer más de 200 contratos sin perder filas ni alterar los contadores globales.',
   },
   {
     number: 4,
     title: 'Completa únicamente los faltantes',
     action: 'Abre una reserva y revisa las pestañas Contrato, Personas y Lugares. PlanMint señala los campos obligatorios pendientes; al guardarlos manualmente quedan protegidos frente a futuras sincronizaciones de Rently.',
-    result: 'El contrato solo pasa a “Listo” si está completo, es elegible, no existe en el inventario oficial y supera todas las validaciones.',
+    result: 'Cuando esté completo y sea elegible, pulsa “Comprobar” y registra el resultado exacto del portal para esa referencia, fecha y matrícula.',
     warning: 'No inventes datos legales. Si Rently no ofrece pago, categoría del permiso, domicilio o municipio fiable, confírmalo con la documentación real.',
   },
   {
     number: 5,
     title: 'Selecciona y genera el XML',
-    action: 'Marca exclusivamente contratos “Listos” y pulsa “Generar XML”. El servidor revalida las cuatro puertas, comprueba referencias únicas, valida contra el XSD oficial y bloquea XML idénticos.',
-    result: 'El XML se descarga y el lote conserva SHA-256, versión documental, versión XSD y snapshots históricos inmutables.',
+    action: 'Marca exclusivamente contratos “Listos” y pulsa “Generar XML”. El servidor revalida las puertas, comprueba referencias únicas y aplica el XSD oficial si está completo; en caso contrario usa el contrato estructural oficial.',
+    result: 'El XML se descarga y el lote conserva SHA-256, versión documental, modo de validación y snapshots históricos inmutables.',
     warning: 'Generar el XML no envía información al Gobierno.',
   },
   {
@@ -81,17 +81,19 @@ export const SES_MANUAL_DATA = [
   'Identidades incompletas que no permiten crear un perfil reutilizable',
   'Bastidor o kilómetros que tampoco existen en el detalle ni en la flota de Rently',
   'Resultado exacto de aceptación o error mostrado por el portal oficial',
+  'Resultado de la consulta exacta por contrato cuando no existe comunicación previa',
+  'Protocolo, justificación y caducidad de una excepción manual autorizada',
 ];
 
 export const SES_MANUAL_STATUSES: SesManualStatus[] = [
   { status: 'Incompleto', meaning: 'Falta al menos un dato obligatorio.', nextAction: 'Abrir y completar los campos señalados.', tone: 'amber' },
-  { status: 'Listo', meaning: 'Supera todas las validaciones locales.', nextAction: 'Seleccionar para generar XML.', tone: 'emerald' },
+  { status: 'Listo', meaning: 'Está completo, pertenece a la intersección exacta y no tiene duplicado oficial.', nextAction: 'Seleccionar para generar XML.', tone: 'emerald' },
   { status: 'En lote', meaning: 'Ya forma parte de un XML generado.', nextAction: 'Subir ese archivo al portal.', tone: 'slate' },
   { status: 'Subido · pendiente', meaning: 'El portal recibió el XML y sigue procesándolo.', nextAction: 'Esperar el resultado definitivo.', tone: 'blue' },
   { status: 'Aceptado', meaning: 'El portal confirmó la comunicación.', nextAction: 'No requiere ninguna acción adicional.', tone: 'emerald' },
   { status: 'Error', meaning: 'El portal rechazó la comunicación.', nextAction: 'Copiar el error, corregir y volver a preparar.', tone: 'red' },
   { status: 'Requiere revisión', meaning: 'Cambió un dato después de generar o aceptar.', nextAction: 'Revisar antes de crear una nueva comunicación.', tone: 'orange' },
-  { status: 'Revisión obligatoria', meaning: 'La reserva no cumple la elegibilidad automática o está terminada sin prueba oficial.', nextAction: 'Resolver la causa indicada; no generar XML.', tone: 'red' },
+  { status: 'Revisión obligatoria', meaning: 'Existe una discrepancia Rently/PlanMint u oficial, o una terminada sin protocolo autorizado.', nextAction: 'Resolver la causa o registrar una excepción temporal verificable; no generar XML mientras siga bloqueada.', tone: 'red' },
 ];
 
 export const SES_GOLDEN_RULES = [
@@ -99,7 +101,8 @@ export const SES_GOLDEN_RULES = [
   'Una corrección manual prevalece siempre sobre una sincronización posterior.',
   '“Listo” significa: completo, elegible, libre de duplicado oficial y preparado para XML.',
   'Cada lote conserva snapshots; cambios posteriores en perfiles o lugares no alteran lo que se generó.',
-  'Sin XSD oficial vigente e inventario confirmado no se puede generar XML.',
+  'Sin XSD auténtico se usa la plantilla y documentación oficial; nunca se etiqueta un esquema inferido como XSD oficial.',
+  'No se exige un inventario masivo: cada contrato se comprueba por referencia, tipo, fecha y matrícula.',
   'PlanMint nunca envía automáticamente datos al Gobierno.',
   'El acuse de subida no equivale a una aceptación: hay que consultar el resultado del lote.',
 ];

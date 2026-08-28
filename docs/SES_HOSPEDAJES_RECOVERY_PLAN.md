@@ -89,11 +89,11 @@ La fixture crea dos organizaciones sintéticas. La principal contiene exactament
 | RLS `authenticated` / `service_role` | Denegado / permitido |
 | Segunda organización | Conservada y aislada |
 
-## XSD oficial
+## XSD oficial y contrato estructural
 
-No se inventó ni cargó ningún XSD. La generación continúa bloqueada hasta disponer del esquema oficial. La página pública del Ministerio remite al procedimiento electrónico, pero no ofrece públicamente el XSD de alquiler; el portal sin autenticación tampoco expone el recurso.[1] [2]
+No se inventó ni cargó ningún XSD. Mientras SES no publique un XSD auténtico, la propuesta valida el XML contra un contrato estructural local derivado de la plantilla oficial suministrada y de las Instrucciones v1.2.0. Este modo conserva el namespace, orden, cardinalidades, formatos, longitudes, enumeraciones y condiciones documentadas, y se identifica como `official_contract`, nunca como “XSD oficial”.
 
-Debe obtenerse del portal oficial o del soporte técnico de SES el **XSD raíz cuyo `targetNamespace` sea `http://www.neg.hospedajes.mir.es/altaAlquilerVehiculo`**, junto con todos los ficheros referidos por `xs:import` o `xs:include`. Antes de activarlo se registrarán nombre exacto, versión oficial y SHA-256 del raíz y dependencias. `xmllint-wasm` valida los documentos suministrados, pero no sustituye ni reconstruye un XSD oficial ausente.[3]
+Si SES publica posteriormente el **XSD raíz cuyo `targetNamespace` sea `http://www.neg.hospedajes.mir.es/altaAlquilerVehiculo`**, deberán conservarse todos los ficheros referidos por `xs:import` o `xs:include`, nombre exacto, versión oficial y SHA-256. Una configuración completa activa `official_xsd` con precedencia estricta; una configuración parcial o una huella distinta bloquea la exportación.[1] [2] [3]
 
 ## Plan de aplicación y restauración
 

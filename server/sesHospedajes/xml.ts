@@ -183,12 +183,12 @@ export function communicationXml(draft: SesXmlDraft): string {
     personXml('CP', draft.primary_driver),
     draft.secondary_driver ? personXml('CS', draft.secondary_driver) : '',
   ].join('');
-  return `<solicitud><comunicacion>${contract}${vehicle}${people}</comunicacion></solicitud>`;
+  return `<comunicacion>${contract}${vehicle}${people}</comunicacion>`;
 }
 
 export function generateSesXml(drafts: SesXmlDraft[]): string {
   if (drafts.length === 0) throw new Error('El lote no contiene contratos');
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<ns2:peticion xmlns:ns2="${XML_NAMESPACE}">${drafts.map(communicationXml).join('')}</ns2:peticion>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<ns2:peticion xmlns:ns2="${XML_NAMESPACE}"><solicitud>${drafts.map(communicationXml).join('')}</solicitud></ns2:peticion>`;
   const validation = XMLValidator.validate(xml);
   if (validation !== true) {
     const message = typeof validation === 'object' && validation.err?.msg ? validation.err.msg : 'XML no válido';

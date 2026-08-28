@@ -1,4 +1,4 @@
-import { normalizeSesPlate } from './eligibility';
+import { createHash } from 'node:crypto';
 
 export type SesOfficialCommunicationStatus = 'active' | 'accepted' | 'annulled' | 'error';
 
@@ -19,18 +19,37 @@ export type SesOfficialClearance = {
   matchingCommunicationCode: string | null;
 };
 
+export function normalizeSesPlate(value: string | null | undefined) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function buildOfficialIdentityHash(input: {
+  reference: string;
+  communicationType?: string | null;
+  contractDate?: string | null;
+  vehiclePlate?: string | null;
+}) {
+  const normalized = [
+    input.reference.trim(),
+    input.communicationType || 'ALQUILER_VEHICULO',
+    input.contractDate || '',
+    normalizeSesPlate(input.vehiclePlate),
+  ].join('|');
+  return createHash('sha256').update(normalized, 'utf8').digest('hex');
+}
+
 export function evaluateOfficialClearance(input: {
-  inventoryConfirmed: boolean;
+  checked: boolean;
   reference: string;
   contractDate?: string | null;
   vehiclePlate?: string | null;
   communications: SesOfficialCommunication[];
 }): SesOfficialClearance {
-  if (!input.inventoryConfirmed) {
+  if (!input.checked) {
     return {
       status: 'not_checked',
       clear: false,
-      reasons: ['El inventario oficial todavía no se ha confirmado'],
+      reasons: ['Esta identidad contractual todavía no se ha consultado en el registro oficial'],
       matchingCommunicationCode: null,
     };
   }

@@ -45,6 +45,14 @@ Representan un lote XML y sus comunicaciones. El lote guarda nombre de fichero, 
 
 Registra entidad, acción, campos modificados, usuario y fecha. No almacena documentos completos ni valores anteriores en claro.
 
+### `ses_official_communications`
+
+Conserva evidencia oficial de forma aditiva por código de comunicación. La comprobación operativa se hace bajo demanda para la identidad exacta `referencia + tipo + fecha de contrato + matrícula normalizada`; una comunicación activa o aceptada bloquea el reenvío y una anulada, errónea o distinta exige revisión.
+
+### `ses_eligibility_exceptions` (migración propuesta, no ejecutada)
+
+Registra exclusivamente excepciones temporales para reservas terminadas y no comunicadas. Exige protocolo, justificación, actor, fecha de aprobación y caducidad máxima de siete días; puede revocarse y nunca omite las comprobaciones de matrícula, sucursal, transferencia, entrega, completitud o duplicados oficiales.
+
 ### `ses_municipalities`
 
 Catálogo oficial de municipios españoles con código INE de cinco dígitos. La resolución automática utiliza país, provincia/estado, municipio y código postal; las coincidencias ambiguas quedan pendientes de revisión.
@@ -80,7 +88,7 @@ Rently no aportó nacionalidad, sexo, categoría del permiso, código INE ni mé
 |---|---|
 | `pending_sync` | Falta recuperar el detalle completo de Rently |
 | `incomplete` | Falta un dato obligatorio o hay una validación pendiente |
-| `ready` | Supera todas las validaciones locales |
+| `ready` | Está completo, pertenece a la intersección Rently–PlanMint y supera la comprobación oficial exacta |
 | `batched` | Incluido en un lote XML |
 | `uploaded_pending_result` | El operador subió el fichero y aún no registró el resultado |
 | `accepted` | Comunicación aceptada |
@@ -99,22 +107,37 @@ Rently no aportó nacionalidad, sexo, categoría del permiso, código INE ni mé
 * El vehículo exige categoría, tipo, marca, modelo, matrícula, bastidor, color y kilómetros de recogida. Los kilómetros de devolución y datos GPS son opcionales.
 * Las fechas se serializan con zona `Europe/Madrid`.
 * La huella del contenido impide generar accidentalmente el mismo borrador dos veces.
+* La candidatura exige aparecer en el listado paginado de Rently con `CurrentStatus=2`, `IsTransfer=false` y `DeliveryBranchOffice=1`, y coincidir con PlanMint por identificador de reserva y matrícula normalizada.
+* La fecha real de entrega debe existir y no ser futura. El detalle contractual de Rently debe confirmar identificador, estado, sucursal, transferencia y matrícula.
+* Las reservas terminadas no comunicadas quedan en revisión salvo una excepción temporal con protocolo vigente; esa excepción no convierte por sí sola el borrador en listo.
+* Cada identidad contractual se consulta exactamente en el portal oficial. No se exige transcribir un inventario masivo.
 
 ## Flujo operativo
 
 1. El operador abre la bandeja y selecciona un periodo.
-2. PlanMint prepara o actualiza borradores desde Rently sin sobrescribir correcciones manuales.
-3. La bandeja muestra únicamente faltantes y errores.
+2. PlanMint obtiene todas las páginas del listado Rently filtrado y calcula la intersección exacta con las reservas locales del periodo.
+3. Solo las coincidencias por reserva y matrícula se preparan; las exclusiones actualizan borradores previos sin crear candidatos nuevos indiscriminadamente.
 4. El operador corrige en línea, reutiliza datos por documento y puede aplicar valores a varias filas.
-5. Solo los borradores `ready` con elegibilidad revalidada e inventario oficial confirmado pueden seleccionarse.
-6. El servidor valida de nuevo, genera el XML, calcula hash y registra el lote.
-7. El operador descarga y sube manualmente el XML al portal oficial.
-8. El resultado se registra o concilia posteriormente; no existe envío automático en esta fase.
+5. El operador registra por contrato el resultado de la consulta oficial exacta. Un resultado no encontrado solo vale mientras no cambien referencia, fecha o matrícula.
+6. Solo los borradores `ready` con elegibilidad revalidada y conciliación oficial exacta pueden seleccionarse.
+7. El servidor valida de nuevo, genera el XML, calcula hash y registra el lote.
+8. El operador descarga y sube manualmente el XML al portal oficial.
+9. El resultado se registra o concilia posteriormente; no existe envío automático en esta fase.
 
 ## Estructura XML
 
 El generador conserva el orden de la plantilla oficial:
 
-`peticion > solicitud > comunicacion > contrato > vehiculo > persona(TI) > persona(CP) > persona(CS opcional)`.
+`peticion > solicitud única > comunicacion (1..n) > contrato > vehiculo > persona(TI) > persona(CP) > persona(CS opcional)`.
 
 Las etiquetas opcionales vacías se omiten. El XML se escapa y valida antes de permitir la descarga.
+
+## Precedencia del validador XML
+
+Cuando no existe un XSD oficial auténtico y completo, el servidor aplica el contrato estructural local derivado de la plantilla oficial de alquiler de vehículo y de las Instrucciones v1.2.0. Este validador comprueba namespace, orden, cardinalidades, formatos, longitudes, enumeraciones y condiciones conocidas, pero nunca se presenta como “XSD oficial”.
+
+Si se configura posteriormente un XSD auténtico con clave de almacenamiento, versión y SHA-256, este tiene precedencia estricta. Una configuración parcial o una huella que no coincida bloquea la exportación; no existe retorno silencioso al validador estructural.
+
+## Paginación y contadores
+
+La consulta devuelve `total` mediante conteo exacto y calcula el resumen de estados sobre todas las páginas filtradas. La interfaz muestra 50 filas por página y controles superiores e inferiores con rango visible, página actual y total; los contadores no se limitan a la página renderizada.

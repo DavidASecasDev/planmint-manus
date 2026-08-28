@@ -4,6 +4,7 @@ import { apiInvoke } from '@/lib/apiClient';
 import type {
   SesBatch,
   SesContractDraft,
+  SesEligibilityException,
   SesMunicipality,
   SesOfficialCommunication,
   SesPersonProfile,
@@ -59,7 +60,7 @@ export function useSesHospedajes(
     queryFn: async () => unwrap(await apiInvoke<ServerEnvelope<{
       items: SesOfficialCommunication[];
       total: number;
-      confirmation: { official_inventory_confirmed_at: string; official_inventory_source_date: string } | null;
+      mode: 'exact_on_demand';
       schemaMigrationRequired?: boolean;
     }>>('ses/official-inventory', { body: { limit: 100, offset: 0, status: 'all' } })),
     staleTime: 30_000,
@@ -139,13 +140,13 @@ export function useSesHospedajes(
 
   const importOfficialInventoryMutation = useMutation({
     mutationFn: async (input: {
-      sourceDate: string; confirmedComplete: true;
+      sourceDate?: string; confirmedComplete?: boolean;
       items: Array<{
         officialCommunicationCode: string; officialLotCode?: string | null; reference: string;
         communicationType?: 'ALQUILER_VEHICULO'; contractDate: string; vehiclePlate?: string | null;
         status: 'active' | 'accepted' | 'annulled' | 'error'; notes?: string | null;
       }>;
-    }) => unwrap(await apiInvoke<ServerEnvelope<{ imported: number; confirmedAt: string; sourceDate: string }>>(
+    }) => unwrap(await apiInvoke<ServerEnvelope<{ imported: number; mode: 'additive_optional' }>>(
       'ses/official-inventory/import', { body: input, timeoutMs: 120_000 },
     )),
     onSuccess: (result) => {
@@ -156,10 +157,66 @@ export function useSesHospedajes(
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const checkOfficialCommunicationMutation = useMutation({
+    mutationFn: async (input: {
+      draftId: string;
+      outcome: 'not_found' | 'found';
+      communication?: {
+        officialCommunicationCode: string; officialLotCode?: string | null; reference: string;
+        communicationType?: 'ALQUILER_VEHICULO'; contractDate: string; vehiclePlate?: string | null;
+        status: 'active' | 'accepted' | 'annulled' | 'error'; notes?: string | null;
+      };
+    }) => unwrap(await apiInvoke<ServerEnvelope<{
+      draft: SesContractDraft;
+      officialClearance: { status: 'clear' | 'blocked' | 'review'; clear: boolean; reasons: string[] };
+      checkedAt: string;
+    }>>('ses/official-check', { body: input })),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['ses-official-inventory'] });
+      invalidate();
+      const label = result.officialClearance.status === 'clear' ? 'sin coincidencias'
+        : result.officialClearance.status === 'blocked' ? 'ya comunicada' : 'requiere revisión';
+      toast.success(`Comprobación oficial registrada: ${label}`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const revalidateMutation = useMutation({
+    mutationFn: async (ids: string[]) => unwrap(await apiInvoke<ServerEnvelope<{
+      results: Array<{ draft: SesContractDraft; issues: unknown[] }>;
+      rentlyCandidates: number;
+      intersectionMatches: number;
+    }>>('ses/revalidate', { body: { ids }, timeoutMs: 120_000 })),
+    onSuccess: (result) => {
+      invalidate();
+      toast.success(`${result.results.length} contrato(s) revalidados contra la lista exacta de Rently`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const createEligibilityExceptionMutation = useMutation({
+    mutationFn: async (input: { draftId: string; protocolReference: string; reason: string; expiresAt: string }) =>
+      unwrap(await apiInvoke<ServerEnvelope<{ exception: SesEligibilityException }>>(
+        'ses/eligibility-exceptions/create', { body: input },
+      )),
+    onSuccess: () => { invalidate(); toast.success('Excepción manual temporal registrada y auditada'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const revokeEligibilityExceptionMutation = useMutation({
+    mutationFn: async (input: { exceptionId: string; reason: string }) =>
+      unwrap(await apiInvoke<ServerEnvelope<{ exception: SesEligibilityException }>>(
+        'ses/eligibility-exceptions/revoke', { body: input },
+      )),
+    onSuccess: () => { invalidate(); toast.success('Excepción manual revocada'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const exportXmlMutation = useMutation({
     mutationFn: async (ids: string[]) => unwrap(await apiInvoke<ServerEnvelope<{
       batchId: string; fileName: string; xml: string; xmlHash: string; itemCount: number;
-      documentVersion: string; xsdVersion: string; xsdHash: string;
+      documentVersion: string; validationMode: 'official_xsd' | 'official_contract';
+      validationVersion: string; validationHash: string; xsdVersion: string | null; xsdHash: string | null;
     }>>('ses/xml/export', { body: { ids }, timeoutMs: 120_000 })),
     onSuccess: (result) => {
       const blob = new Blob([result.xml], { type: 'application/xml;charset=utf-8' });
@@ -173,7 +230,8 @@ export function useSesHospedajes(
       URL.revokeObjectURL(url);
       invalidate();
       invalidateBatches();
-      toast.success(`XML validado contra XSD y generado con ${result.itemCount} contrato(s)`);
+      const validationLabel = result.validationMode === 'official_xsd' ? 'XSD oficial' : 'contrato estructural oficial';
+      toast.success(`XML validado con ${validationLabel} y generado con ${result.itemCount} contrato(s)`);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -205,7 +263,7 @@ export function useSesHospedajes(
     isLoading: draftsQuery.isLoading, refetch: draftsQuery.refetch,
     settings: settingsQuery.data ?? null, settingsLoading: settingsQuery.isLoading,
     batches: batchesQuery.data ?? [], batchesLoading: batchesQuery.isLoading,
-    officialInventory: officialInventoryQuery.data ?? { items: [], total: 0, confirmation: null },
+    officialInventory: officialInventoryQuery.data ?? { items: [], total: 0, mode: 'exact_on_demand' as const },
     officialInventoryLoading: officialInventoryQuery.isLoading,
     schemaMigrationRequired: Boolean(
       draftsQuery.data?.schemaMigrationRequired
@@ -216,7 +274,12 @@ export function useSesHospedajes(
     prepare: prepareMutation, updatePerson: updatePersonMutation, createPerson: createPersonMutation,
     updateDraft: updateDraftMutation, updateLocation: updateLocationMutation,
     updateSettings: updateSettingsMutation, uploadXsd: uploadXsdMutation,
-    importOfficialInventory: importOfficialInventoryMutation, exportXml: exportXmlMutation,
+    importOfficialInventory: importOfficialInventoryMutation,
+    checkOfficialCommunication: checkOfficialCommunicationMutation,
+    revalidate: revalidateMutation,
+    createEligibilityException: createEligibilityExceptionMutation,
+    revokeEligibilityException: revokeEligibilityExceptionMutation,
+    exportXml: exportXmlMutation,
     markBatchUploaded: markBatchUploadedMutation, recordBatchResult: recordBatchResultMutation,
     searchMunicipalities,
   };

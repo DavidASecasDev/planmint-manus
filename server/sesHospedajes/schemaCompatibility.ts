@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const SES_SCHEMA_MIGRATION = '20260828143000_ses_hospedajes_compatibility_restore.sql';
+export const SES_EXACT_RECONCILIATION_MIGRATION = '20260828190000_ses_exact_reconciliation_and_exceptions.sql';
 
 const POSTGRES_UNDEFINED_OBJECT_CODES = new Set(['42P01', '42703']);
 
@@ -28,6 +29,18 @@ export async function assertSesHardeningSchema(serviceClient: SupabaseClient): P
     .select('is_complete,is_eligible,is_officially_clear,ready_for_xml,official_check_status')
     .limit(1);
   if (error) throw createSesMigrationRequiredError(error);
+}
+
+export async function assertSesEligibilityExceptionSchema(serviceClient: SupabaseClient): Promise<void> {
+  const { error } = await serviceClient.from('ses_eligibility_exceptions').select('id').limit(1);
+  if (error) {
+    const migrationError = new Error(
+      `Las excepciones manuales SES requieren la migración propuesta ${SES_EXACT_RECONCILIATION_MIGRATION}. No se ha modificado ningún dato.`,
+    ) as Error & { status?: number; cause?: unknown };
+    migrationError.status = 503;
+    migrationError.cause = error;
+    throw migrationError;
+  }
 }
 
 export function parseLegacyOfficialLotCode(notes: unknown): string | null {

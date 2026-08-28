@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertUniqueSesExportSelection, deriveSesGateState } from './readiness';
+import { assertUniqueSesExportSelection, deriveSesGateState, isSesDraftLocked } from './readiness';
 
 const clear = { status: 'clear' as const, clear: true, reasons: [], matchingCommunicationCode: null };
 
@@ -23,5 +23,13 @@ describe('SES readiness gates', () => {
     expect(() => assertUniqueSesExportSelection(['a', 'a'])).toThrow('mismo contrato');
     expect(() => assertUniqueSesExportSelection(['a', 'b'], ['100', '100'])).toThrow('referencias');
     expect(() => assertUniqueSesExportSelection(['a', 'b'], ['100', '101'])).not.toThrow();
+  });
+
+  it('keeps historical batch members and accepted drafts non-resendable regardless of reference', () => {
+    for (const status of ['batched', 'uploaded_pending_result', 'accepted']) {
+      expect(isSesDraftLocked(status)).toBe(true);
+    }
+    expect(isSesDraftLocked('ready')).toBe(false);
+    expect(isSesDraftLocked('needs_revision')).toBe(false);
   });
 });

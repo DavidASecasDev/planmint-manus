@@ -84,6 +84,7 @@ export interface SesContractDraft {
   gps_data: string | null;
   validation_errors: SesValidationIssue[];
   eligibility_errors: Array<{ code: string; message: string; path?: string; severity?: string }>;
+  eligibility_snapshot?: Record<string, unknown> | null;
   is_complete: boolean;
   is_eligible: boolean;
   is_officially_clear: boolean;
@@ -174,6 +175,19 @@ export interface SesOfficialCommunication {
   status: 'active' | 'accepted' | 'annulled' | 'error';
   source: 'manual_import' | 'portal_result' | 'migration';
   recorded_at: string;
+}
+
+export interface SesEligibilityException {
+  id: string;
+  draft_id: string;
+  reservation_id: string;
+  kind: 'terminated_not_reported';
+  protocol_reference: string;
+  reason: string;
+  approved_by: string;
+  approved_at: string;
+  expires_at: string;
+  revoked_at: string | null;
 }
 
 export interface SesMunicipality {

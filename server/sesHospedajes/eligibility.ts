@@ -12,7 +12,8 @@ export type SesEligibilityReasonCode =
   | 'future_actual_delivery'
   | 'booking_mismatch'
   | 'plate_mismatch'
-  | 'missing_rently_detail';
+  | 'missing_rently_detail'
+  | 'not_in_rently_intersection';
 
 export type SesEligibilityIssue = {
   code: SesEligibilityReasonCode;
@@ -30,6 +31,18 @@ export type SesEligibilityInput = {
   detailBookingId?: string | number | null;
   reservationPlate?: string | null;
   detailVehiclePlate?: string | null;
+  inExactRentlyIntersection?: boolean;
+  manualException?: SesManualEligibilityException | null;
+};
+
+export type SesManualEligibilityException = {
+  kind: 'terminated_not_reported';
+  protocolReference: string;
+  reason: string;
+  approvedBy: string;
+  approvedAt: string;
+  expiresAt: string;
+  revokedAt?: string | null;
 };
 
 function normalizeText(value: unknown) {
@@ -76,14 +89,34 @@ export function evaluateSesEligibility(input: SesEligibilityInput, now = new Dat
   const statusLabel = normalizeText(input.visibleStatus);
   const delivered = ['entregado', 'en curso'].includes(statusLabel) && input.rentlyStatusCode === SES_RENTLY_DELIVERED_STATUS;
   const terminated = ['terminada', 'completada'].includes(statusLabel) || input.rentlyStatusCode === SES_RENTLY_TERMINATED_STATUS;
+  const manualException = input.manualException;
+  const exceptionExpiry = manualException ? new Date(manualException.expiresAt).getTime() : Number.NaN;
+  const validTerminatedException = Boolean(
+    terminated
+    && manualException?.kind === 'terminated_not_reported'
+    && manualException.protocolReference.trim()
+    && manualException.reason.trim().length >= 10
+    && manualException.approvedBy.trim()
+    && !manualException.revokedAt
+    && Number.isFinite(exceptionExpiry)
+    && exceptionExpiry >= now.getTime(),
+  );
 
-  if (terminated) {
+  if (input.inExactRentlyIntersection !== true && !validTerminatedException) {
+    issues.push({
+      code: 'not_in_rently_intersection',
+      message: 'La reserva no pertenece a la intersección exacta de entregadas entre Rently y PlanMint',
+      reviewRequired: false,
+    });
+  }
+
+  if (terminated && !validTerminatedException) {
     issues.push({
       code: 'terminated_never_reported',
       message: 'La reserva está Terminada y no consta como comunicada: requiere revisión manual',
       reviewRequired: true,
     });
-  } else if (!delivered) {
+  } else if (!delivered && !validTerminatedException) {
     issues.push({ code: 'not_delivered', message: 'La reserva todavía no figura como Entregada en Rently', reviewRequired: false });
   }
   if (input.isTransfer === true) {
@@ -120,6 +153,7 @@ export function evaluateSesEligibility(input: SesEligibilityInput, now = new Dat
   return {
     eligible: issues.length === 0,
     requiresReview: issues.some((issue) => issue.reviewRequired),
+    manualExceptionApplied: validTerminatedException,
     issues,
   };
 }

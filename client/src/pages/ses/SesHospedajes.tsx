@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
   AlertCircle, BookOpen, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
-  RefreshCw, Settings2, ShieldAlert, ShieldCheck, UsersRound,
+  RefreshCw, SearchCheck, Settings2, ShieldAlert, ShieldCheck, UsersRound,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
@@ -10,6 +10,9 @@ import { SesBatchPanel } from '@/components/ses/SesBatchPanel';
 import { SesFiltersBar } from '@/components/ses/SesFiltersBar';
 import { SesManualDialog } from '@/components/ses/SesManualDialog';
 import { SesComplianceDialog } from '@/components/ses/SesComplianceDialog';
+import { SesOfficialCheckDialog } from '@/components/ses/SesOfficialCheckDialog';
+import { SesEligibilityExceptionDialog } from '@/components/ses/SesEligibilityExceptionDialog';
+import { SesPagination } from '@/components/ses/SesPagination';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,6 +45,7 @@ const PAYMENT_TYPES = [
   ['PLATF', 'Plataforma de pago'], ['TRANS', 'Transferencia'], ['MOVIL', 'Pago móvil'],
   ['TREG', 'Tarjeta regalo'], ['OTRO', 'Otro'],
 ];
+const SES_PAGE_SIZE = 50;
 
 function dateInput(date: Date) { return format(date, 'yyyy-MM-dd'); }
 function displayDate(value: string | null) {
@@ -150,12 +154,14 @@ export default function SesHospedajes() {
   const savedFiltersRef = useRef<string>('');
   const filterPreferences = useSesFilterPreferences(canView && !permissionsLoading);
   const filtersReady = Boolean(filterPreferences.userId && hydratedUserId === filterPreferences.userId);
-  const ses = useSesHospedajes(filters, filtersReady, { limit: 200, offset: pageOffset, searchMode: 'exact' });
+  const ses = useSesHospedajes(filters, filtersReady, { limit: SES_PAGE_SIZE, offset: pageOffset, searchMode: 'exact' });
   const [selected, setSelected] = useState<SesContractDraft | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [complianceOpen, setComplianceOpen] = useState(false);
+  const [officialCheckDraft, setOfficialCheckDraft] = useState<SesContractDraft | null>(null);
+  const [exceptionDraft, setExceptionDraft] = useState<SesContractDraft | null>(null);
   const [lastExclusions, setLastExclusions] = useState<Array<{ reference: string; reasons: Array<{ code: string; message: string }> }>>([]);
 
   useEffect(() => {
@@ -235,6 +241,7 @@ export default function SesHospedajes() {
             {canConfigure && !schemaMigrationRequired && <Button variant="outline" onClick={() => setComplianceOpen(true)}><ShieldCheck className="mr-2 h-4 w-4" />Control oficial</Button>}
             {canConfigure && !schemaMigrationRequired && <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 className="mr-2 h-4 w-4" />Configuración</Button>}
             <Button variant="outline" onClick={() => ses.refetch()} disabled={ses.isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${ses.isLoading ? 'animate-spin' : ''}`} />Actualizar</Button>
+            {canEdit && !schemaMigrationRequired && <Button variant="outline" onClick={() => ses.revalidate.mutate(ses.drafts.map((draft) => draft.id))} disabled={ses.revalidate.isPending || ses.drafts.length === 0}>{ses.revalidate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Revalidar Rently</Button>}
             {canEdit && !schemaMigrationRequired && (
               <Button onClick={() => ses.prepare.mutate({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }, { onSuccess: (result) => setLastExclusions(result.exclusions) })} disabled={ses.prepare.isPending}>
                 {ses.prepare.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
@@ -281,11 +288,11 @@ export default function SesHospedajes() {
           </Alert>
         ) : null}
 
-        {!schemaMigrationRequired && (!ses.settings?.official_xsd_hash || !ses.settings?.official_inventory_confirmed_at) && (
-          <Alert className="border-red-200 bg-red-50 text-red-950">
-            <ShieldAlert className="h-4 w-4" />
-            <AlertTitle>Control oficial pendiente</AlertTitle>
-            <AlertDescription>La generación XML permanece bloqueada hasta cargar el XSD oficial y confirmar el inventario de comunicaciones del portal.</AlertDescription>
+        {!schemaMigrationRequired && !ses.settings?.official_xsd_hash && (
+          <Alert className="border-blue-200 bg-blue-50 text-blue-950">
+            <ShieldCheck className="h-4 w-4" />
+            <AlertTitle>Validación estructural oficial activa</AlertTitle>
+            <AlertDescription>Sin un XSD auténtico cargado, el XML se valida contra la plantilla oficial y las Instrucciones v1.2.0. Cada contrato necesita además una comprobación oficial exacta; no se exige una cobertura global del inventario.</AlertDescription>
           </Alert>
         )}
 
@@ -334,6 +341,8 @@ export default function SesHospedajes() {
 
         <SesFiltersBar filters={filters} onChange={setFilters} saving={filterPreferences.save.isPending} />
 
+        <SesPagination total={ses.total} offset={pageOffset} limit={SES_PAGE_SIZE} pageCount={ses.pageCount} onOffsetChange={setPageOffset} />
+
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <Table>
             <TableHeader className="bg-slate-50">
@@ -345,7 +354,7 @@ export default function SesHospedajes() {
                     onCheckedChange={(checked) => setSelectedIds(checked ? new Set(readyDrafts.map((draft) => draft.id)) : new Set())}
                   />
                 </TableHead>
-                <TableHead>Reserva</TableHead><TableHead>Cliente</TableHead><TableHead>Recogida</TableHead><TableHead>Vehículo</TableHead><TableHead>Estado</TableHead><TableHead>Faltan</TableHead><TableHead className="w-28 text-right">Acción</TableHead>
+                <TableHead>Reserva</TableHead><TableHead>Cliente</TableHead><TableHead>Recogida</TableHead><TableHead>Vehículo</TableHead><TableHead>Estado</TableHead><TableHead>Faltan</TableHead><TableHead className="w-64 text-right">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -374,9 +383,9 @@ export default function SesHospedajes() {
                     <TableCell><div className="max-w-44 truncate font-medium">{client}</div><div className="text-xs text-slate-400">{draft.holder?.document_number || 'Sin documento'}</div></TableCell>
                     <TableCell><div className="whitespace-nowrap text-sm">{displayDate(draft.pickup_at)}</div><div className="max-w-52 truncate text-xs text-slate-400">{draft.pickup_location?.name || 'Sin lugar'}</div></TableCell>
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
-                    <TableCell><StatusBadge status={draft.status} />{draft.eligibility_errors?.[0] && <p className="mt-1 max-w-48 text-xs text-red-600">{draft.eligibility_errors[0].message}</p>}{!draft.is_officially_clear && draft.official_check_status === 'not_checked' && <p className="mt-1 text-xs text-amber-600">Inventario oficial sin confirmar</p>}</TableCell>
+                    <TableCell><StatusBadge status={draft.status} />{draft.eligibility_errors?.[0] && <p className="mt-1 max-w-48 text-xs text-red-600">{draft.eligibility_errors[0].message}</p>}{!draft.is_officially_clear && draft.official_check_status === 'not_checked' && <p className="mt-1 text-xs text-amber-600">Comprobación exacta pendiente</p>}</TableCell>
                     <TableCell>{countActionableSesIssues(draft) || draft.eligibility_errors?.length || !draft.is_officially_clear ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft) + (draft.eligibility_errors?.length ?? 0) + (!draft.is_officially_clear ? 1 : 0)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
-                    <TableCell className="text-right"><Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{schemaMigrationRequired ? 'Solo lectura' : draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button></TableCell>
+                    <TableCell className="text-right"><div className="flex flex-wrap justify-end gap-1"><Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{schemaMigrationRequired ? 'Solo lectura' : draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button>{canExport && draft.is_complete && draft.is_eligible && !['batched', 'uploaded_pending_result', 'accepted'].includes(draft.status) && <Button size="sm" variant="outline" disabled={schemaMigrationRequired || ses.checkOfficialCommunication.isPending} onClick={(event) => { event.stopPropagation(); setOfficialCheckDraft(draft); }}><SearchCheck className="mr-1 h-4 w-4" />Comprobar</Button>}{canExport && !['batched', 'uploaded_pending_result', 'accepted'].includes(draft.status) && (draft.eligibility_errors?.some((issue) => issue.code === 'terminated_never_reported') || typeof draft.eligibility_snapshot?.manual_exception_id === 'string') && <Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); setExceptionDraft(draft); }}>{typeof draft.eligibility_snapshot?.manual_exception_id === 'string' ? 'Revocar excepción' : 'Excepción'}</Button>}</div></TableCell>
                   </TableRow>
                 );
               })}
@@ -386,12 +395,7 @@ export default function SesHospedajes() {
             </TableBody>
           </Table>
         </div>
-        {ses.total > 200 && (
-          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-            <span>Mostrando {pageOffset + 1}–{Math.min(pageOffset + ses.pageCount, ses.total)} de {ses.total} contratos filtrados</span>
-            <div className="flex gap-2"><Button variant="outline" size="sm" disabled={pageOffset === 0} onClick={() => setPageOffset(Math.max(0, pageOffset - 200))}>Anterior</Button><Button variant="outline" size="sm" disabled={pageOffset + ses.pageCount >= ses.total} onClick={() => setPageOffset(pageOffset + 200)}>Siguiente</Button></div>
-          </div>
-        )}
+        <SesPagination total={ses.total} offset={pageOffset} limit={SES_PAGE_SIZE} pageCount={ses.pageCount} onOffsetChange={setPageOffset} />
       </div>
 
       <SesDraftEditor
@@ -422,6 +426,21 @@ export default function SesHospedajes() {
         importingInventory={ses.importOfficialInventory.isPending}
         onUploadXsd={(input) => ses.uploadXsd.mutateAsync(input)}
         onImportInventory={(input) => ses.importOfficialInventory.mutateAsync(input)}
+      />
+      <SesOfficialCheckDialog
+        draft={officialCheckDraft}
+        open={Boolean(officialCheckDraft)}
+        onOpenChange={(open) => !open && setOfficialCheckDraft(null)}
+        checking={ses.checkOfficialCommunication.isPending}
+        onCheck={(input) => ses.checkOfficialCommunication.mutateAsync(input)}
+      />
+      <SesEligibilityExceptionDialog
+        draft={exceptionDraft}
+        open={Boolean(exceptionDraft)}
+        onOpenChange={(open) => !open && setExceptionDraft(null)}
+        saving={ses.createEligibilityException.isPending || ses.revokeEligibilityException.isPending}
+        onCreate={(input) => ses.createEligibilityException.mutateAsync(input)}
+        onRevoke={(input) => ses.revokeEligibilityException.mutateAsync(input)}
       />
     </AppLayout>
   );

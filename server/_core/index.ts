@@ -152,6 +152,9 @@ import {
   handleSesListDrafts,
   handleSesListOfficialInventory,
   handleSesImportOfficialInventory,
+  handleSesCheckOfficialCommunication,
+  handleSesCreateEligibilityException,
+  handleSesRevokeEligibilityException,
   handleSesUploadOfficialXsd,
   handleSesMarkBatchUploaded,
   handleSesPrepare,
@@ -584,6 +587,9 @@ async function startServer() {
   app.post('/api/ses/batches/result', handleSesRecordBatchResult);
   app.post('/api/ses/official-inventory', handleSesListOfficialInventory);
   app.post('/api/ses/official-inventory/import', handleSesImportOfficialInventory);
+  app.post('/api/ses/official-check', handleSesCheckOfficialCommunication);
+  app.post('/api/ses/eligibility-exceptions/create', handleSesCreateEligibilityException);
+  app.post('/api/ses/eligibility-exceptions/revoke', handleSesRevokeEligibilityException);
   app.post('/api/ses/settings/xsd', handleSesUploadOfficialXsd);
   app.post("/api/ses/settings/update", handleSesUpdateSettings);
 

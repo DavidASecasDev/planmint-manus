@@ -8,6 +8,10 @@ export type SesGateState = {
   status: 'pending_sync' | 'incomplete' | 'ready' | 'needs_revision';
 };
 
+export function isSesDraftLocked(status: unknown) {
+  return ['batched', 'uploaded_pending_result', 'accepted'].includes(String(status));
+}
+
 export function deriveSesGateState(input: {
   validationIssueCount: number;
   eligible: boolean;
