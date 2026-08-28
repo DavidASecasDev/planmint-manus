@@ -53,4 +53,4 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB" -c "
   );
 " >/dev/null
 
-echo "SES compatibility fixture OK: before=224/19/204/1, after=224 with explained 5164 reclassification, idempotent, RLS isolated, multi-org preserved"
+echo "SES compatibility fixture OK: 224/19/204/1 preserved, accepted history non-resendable, all legacy drafts require revalidation, idempotent, RLS isolated, multi-org preserved"

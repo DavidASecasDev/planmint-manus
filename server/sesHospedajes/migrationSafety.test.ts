@@ -14,11 +14,12 @@ describe('SES compatibility migration safety', () => {
     expect(sql).not.toMatch(/\b(DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   });
 
-  it('preserves the accepted pilot and blocks the protected references', () => {
-    expect(sql).toContain("reference = '4942'");
-    expect(sql).toContain("reference = '5164'");
-    expect(sql).toContain("reference = '5343'");
-    expect(sql).toContain("ready_for_xml = true");
+  it('uses generic historical evidence and contains no nominal business branches', () => {
+    expect(sql).toContain("item.result_status = 'accepted'");
+    expect(sql).toContain('draft.ready_for_xml = true');
+    expect(sql).toContain('migration.revalidation_required');
+    expect(sql).not.toMatch(/\b(4942|5164|5343|0000065825)\b/);
+    expect(sql).not.toMatch(/DROP\s+CONSTRAINT/i);
   });
 
   it('does not invent or populate an XSD', () => {

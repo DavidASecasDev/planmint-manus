@@ -1,6 +1,6 @@
 export type SesDraftStatus = 'pending_sync'
   | 'incomplete' | 'ready' | 'batched' | 'uploaded_pending_result'
-  | 'accepted' | 'error' | 'needs_revision' | 'requires_review';
+  | 'accepted' | 'error' | 'needs_revision';
 
 export interface SesValidationIssue {
   path: string;

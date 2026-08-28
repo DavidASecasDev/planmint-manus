@@ -78,8 +78,7 @@ ALTER TABLE public.ses_contract_drafts
   ADD COLUMN IF NOT EXISTS eligibility_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS official_check_status text NOT NULL DEFAULT 'not_checked',
   ADD COLUMN IF NOT EXISTS last_eligibility_checked_at timestamptz,
-  ADD COLUMN IF NOT EXISTS document_version text NOT NULL DEFAULT '1.2.0',
-  ADD COLUMN IF NOT EXISTS legacy_review_reason text;
+  ADD COLUMN IF NOT EXISTS document_version text NOT NULL DEFAULT '1.2.0';
 
 DO $$
 BEGIN
@@ -91,16 +90,6 @@ BEGIN
     ALTER TABLE public.ses_contract_drafts
       ADD CONSTRAINT ses_drafts_official_check_status CHECK (
         official_check_status IN ('not_checked','clear','blocked','review')
-      );
-  END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'public.ses_contract_drafts'::regclass
-      AND conname = 'ses_drafts_legacy_review_reason'
-  ) THEN
-    ALTER TABLE public.ses_contract_drafts
-      ADD CONSTRAINT ses_drafts_legacy_review_reason CHECK (
-        legacy_review_reason IS NULL OR legacy_review_reason IN ('already_communicated','future_delivery')
       );
   END IF;
 END;
@@ -297,8 +286,8 @@ FROM public.ses_batch_items item
 JOIN public.ses_batches batch ON batch.id = item.batch_id
 ON CONFLICT (batch_item_id, entity_kind, entity_role) DO NOTHING;
 
--- Backfill the four independent gates conservatively. Legacy status/version/content remain unchanged,
--- except reference 5164, which is moved from ready to the existing safe status needs_revision.
+-- Backfill the four independent gates conservatively. No legacy draft is exportable until
+-- current Rently eligibility and confirmed official coverage are recalculated by the application.
 ALTER TABLE public.ses_contract_drafts DISABLE TRIGGER USER;
 UPDATE public.ses_contract_drafts
 SET
@@ -307,21 +296,11 @@ SET
     OR status IN ('ready','batched','uploaded_pending_result','accepted')
   ),
   is_eligible = false,
-  is_officially_clear = (status = 'accepted'),
+  is_officially_clear = false,
   ready_for_xml = false,
-  eligibility_errors = CASE
-    WHEN organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND reference = '5164' THEN jsonb_build_array(jsonb_build_object(
-      'code','official.already_communicated','message','Comunicación histórica pendiente de conciliación estructurada'
-    ))
-    WHEN organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND reference = '5343' THEN jsonb_build_array(jsonb_build_object(
-      'code','eligibility.future_delivery','message','Entrega futura: no elegible para comunicación'
-    ))
-    WHEN status = 'ready' THEN jsonb_build_array(jsonb_build_object(
+  eligibility_errors = CASE WHEN status = 'accepted' THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object(
       'code','migration.revalidation_required','message','Requiere recalcular elegibilidad e inventario oficial'
     ))
-    ELSE '[]'::jsonb
   END,
   eligibility_snapshot = jsonb_build_object(
     'migration','20260828143000_ses_hospedajes_compatibility_restore',
@@ -329,25 +308,11 @@ SET
     'revalidated',false
   ),
   official_check_status = CASE
-    WHEN organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND (reference = '5164' OR legacy_review_reason = 'already_communicated') THEN 'review'
-    WHEN status = 'accepted' THEN 'clear'
+    WHEN status = 'accepted' THEN 'blocked'
     ELSE 'not_checked'
   END,
   last_eligibility_checked_at = NULL,
-  document_version = coalesce(nullif(document_version, ''), '1.2.0'),
-  legacy_review_reason = CASE
-    WHEN organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND reference = '5164' THEN 'already_communicated'
-    WHEN organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND reference = '5343' THEN 'future_delivery'
-    ELSE legacy_review_reason
-  END;
-
-UPDATE public.ses_contract_drafts
-SET status = 'needs_revision', official_check_status = 'review'
-WHERE organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-  AND reference = '5164' AND status = 'ready';
+  document_version = coalesce(nullif(document_version, ''), '1.2.0');
 
 UPDATE public.ses_contract_drafts current_row
 SET updated_at = previous_row.updated_at
@@ -370,18 +335,7 @@ BEGIN
     WHERE before_row.draft_version IS DISTINCT FROM after_row.draft_version
        OR before_row.content_hash IS DISTINCT FROM after_row.content_hash
        OR before_row.updated_at IS DISTINCT FROM after_row.updated_at
-       OR (
-         before_row.status IS DISTINCT FROM after_row.status
-         AND NOT (
-           before_row.organization_id IN (
-             SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825'
-           )
-           AND
-           before_row.reference = '5164'
-           AND before_row.status = 'ready'
-           AND after_row.status = 'needs_revision'
-         )
-       )
+       OR before_row.status IS DISTINCT FROM after_row.status
   ) THEN
     RAISE EXCEPTION 'SES recovery postcondition failed: draft status/version/hash/history changed unexpectedly';
   END IF;
@@ -389,23 +343,15 @@ BEGIN
     SELECT 1
     FROM _ses_pre_draft_rows before_row
     JOIN public.ses_contract_drafts after_row USING (id)
-    WHERE (CASE
-      WHEN before_row.payload->>'organization_id' IN (
-        SELECT organization_id::text FROM public.ses_settings WHERE lessor_code = '0000065825'
-      )
-       AND before_row.payload->>'reference' = '5164'
-       AND before_row.payload->>'status' = 'ready'
-      THEN jsonb_set(before_row.payload, '{status}', to_jsonb('needs_revision'::text), false)
-      ELSE before_row.payload
-    END - ARRAY[
+    WHERE (before_row.payload - ARRAY[
       'is_complete','is_eligible','is_officially_clear','ready_for_xml','eligibility_errors',
       'eligibility_snapshot','official_check_status','last_eligibility_checked_at',
-      'document_version','legacy_review_reason'
+      'document_version'
     ]) IS DISTINCT FROM (
       to_jsonb(after_row) - ARRAY[
         'is_complete','is_eligible','is_officially_clear','ready_for_xml','eligibility_errors',
         'eligibility_snapshot','official_check_status','last_eligibility_checked_at',
-        'document_version','legacy_review_reason'
+        'document_version'
       ]
     )
   ) THEN
@@ -492,19 +438,36 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'SES recovery postcondition failed: a legacy settings column changed';
   END IF;
-  IF EXISTS (
-    SELECT 1 FROM public.ses_contract_drafts
-    WHERE organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND reference = '4942' AND status <> 'accepted'
-  ) THEN
-    RAISE EXCEPTION 'SES recovery postcondition failed: reference 4942 is no longer accepted';
+  IF EXISTS (SELECT 1 FROM public.ses_contract_drafts WHERE ready_for_xml = true) THEN
+    RAISE EXCEPTION 'SES recovery postcondition failed: a legacy draft became exportable without revalidation';
   END IF;
   IF EXISTS (
-    SELECT 1 FROM public.ses_contract_drafts
-    WHERE organization_id IN (SELECT organization_id FROM public.ses_settings WHERE lessor_code = '0000065825')
-      AND reference IN ('5164','5343') AND ready_for_xml = true
+    SELECT 1
+    FROM public.ses_batch_items item
+    JOIN public.ses_contract_drafts draft ON draft.id = item.draft_id
+    WHERE item.result_status = 'accepted'
+      AND (draft.status <> 'accepted' OR draft.ready_for_xml = true)
   ) THEN
-    RAISE EXCEPTION 'SES recovery postcondition failed: protected reference became exportable';
+    RAISE EXCEPTION 'SES recovery postcondition failed: an accepted historical item is resendable';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM public.ses_batch_items item
+    JOIN public.ses_batches batch ON batch.id = item.batch_id
+    JOIN public.ses_contract_drafts draft ON draft.id = item.draft_id
+    WHERE item.result_status = 'accepted'
+      AND item.official_communication_code IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM public.ses_official_communications official
+        WHERE official.organization_id = draft.organization_id
+          AND official.official_communication_code = item.official_communication_code
+          AND official.reference = draft.reference
+          AND official.communication_type = 'ALQUILER_VEHICULO'
+          AND official.contract_date = draft.contract_date
+          AND official.status = 'accepted'
+      )
+  ) THEN
+    RAISE EXCEPTION 'SES recovery postcondition failed: accepted history is absent from official inventory';
   END IF;
 END;
 $$;

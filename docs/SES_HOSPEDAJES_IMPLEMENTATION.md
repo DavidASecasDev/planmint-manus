@@ -85,7 +85,7 @@ Rently no aportó nacionalidad, sexo, categoría del permiso, código INE ni mé
 | `uploaded_pending_result` | El operador subió el fichero y aún no registró el resultado |
 | `accepted` | Comunicación aceptada |
 | `error` | El portal devolvió un error |
-| `needs_revision` | Cambió un dato después de generar o aceptar la comunicación |
+| `needs_revision` | Estado único de revisión: existe una discrepancia de elegibilidad o evidencia oficial que exige intervención antes de continuar |
 
 ## Validaciones principales
 
@@ -106,7 +106,7 @@ Rently no aportó nacionalidad, sexo, categoría del permiso, código INE ni mé
 2. PlanMint prepara o actualiza borradores desde Rently sin sobrescribir correcciones manuales.
 3. La bandeja muestra únicamente faltantes y errores.
 4. El operador corrige en línea, reutiliza datos por documento y puede aplicar valores a varias filas.
-5. Solo los borradores `ready` pueden seleccionarse.
+5. Solo los borradores `ready` con elegibilidad revalidada e inventario oficial confirmado pueden seleccionarse.
 6. El servidor valida de nuevo, genera el XML, calcula hash y registra el lote.
 7. El operador descarga y sube manualmente el XML al portal oficial.
 8. El resultado se registra o concilia posteriormente; no existe envío automático en esta fase.

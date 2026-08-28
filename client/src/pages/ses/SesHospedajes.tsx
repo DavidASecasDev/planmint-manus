@@ -34,7 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending_sync: 'Pendiente de sincronizar',
   incomplete: 'Incompleto', ready: 'Listo', batched: 'En lote',
   uploaded_pending_result: 'Subido · pendiente', accepted: 'Aceptado',
-  error: 'Error', needs_revision: 'Requiere revisión', requires_review: 'Revisión obligatoria',
+  error: 'Error', needs_revision: 'Revisión obligatoria',
 };
 
 const PAYMENT_TYPES = [
@@ -55,8 +55,7 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'incomplete') return <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">Incompleto</Badge>;
   if (status === 'accepted') return <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">Aceptado</Badge>;
   if (status === 'error') return <Badge variant="destructive">Error</Badge>;
-  if (status === 'needs_revision') return <Badge className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">Requiere revisión</Badge>;
-  if (status === 'requires_review') return <Badge className="border-red-200 bg-red-50 text-red-700 hover:bg-red-50">Revisión obligatoria</Badge>;
+  if (status === 'needs_revision') return <Badge className="border-red-200 bg-red-50 text-red-700 hover:bg-red-50">Revisión obligatoria</Badge>;
   return <Badge variant="secondary">{STATUS_LABELS[status] || status}</Badge>;
 }
 

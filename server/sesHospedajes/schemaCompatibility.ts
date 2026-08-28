@@ -48,13 +48,12 @@ export function withLegacyDraftGates<T extends Record<string, any>>(draft: T): T
   const legacyReady = draft.status === 'ready';
   const complete = accepted || legacyReady || ['batched', 'uploaded_pending_result'].includes(draft.status)
     || (Array.isArray(draft.validation_errors) && draft.validation_errors.length === 0);
-  const protectedReference = draft.reference === '5164' || draft.reference === '5343';
   return {
     ...draft,
     is_complete: Boolean(draft.is_complete ?? complete),
     is_eligible: Boolean(draft.is_eligible ?? false),
     is_officially_clear: Boolean(draft.is_officially_clear ?? accepted),
-    ready_for_xml: Boolean(draft.ready_for_xml ?? false) && !protectedReference,
+    ready_for_xml: false,
     eligibility_errors: Array.isArray(draft.eligibility_errors) ? draft.eligibility_errors : [],
     official_check_status: String(draft.official_check_status ?? (accepted ? 'clear' : 'not_checked')),
     document_version: String(draft.document_version ?? '1.2.0'),

@@ -27,20 +27,13 @@ describe('SES eligibility', () => {
     expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Completada', rentlyStatusCode: 3 }).requiresReview).toBe(true);
   });
 
-  it('keeps legacy communicated and future references non-eligible after recovery', () => {
-    const alreadyCommunicated = evaluateSesEligibility(
-      { ...eligible, legacyReviewReason: 'already_communicated' },
-      new Date('2026-08-28T09:00:00Z'),
-    );
-    expect(alreadyCommunicated).toMatchObject({ eligible: false, requiresReview: true });
-    expect(alreadyCommunicated.issues.map((issue) => issue.code)).toContain('legacy_already_communicated');
-
+  it('excludes any reservation whose effective delivery is future, regardless of reference', () => {
     const future = evaluateSesEligibility(
-      { ...eligible, legacyReviewReason: 'future_delivery' },
+      { ...eligible, externalBookingId: 'RANDOM-7781', detailBookingId: 'RANDOM-7781', actualDeliveryAt: '2026-08-29T09:00:00Z' },
       new Date('2026-08-28T09:00:00Z'),
     );
     expect(future.eligible).toBe(false);
-    expect(future.issues.map((issue) => issue.code)).toContain('legacy_future_delivery');
+    expect(future.issues.map((issue) => issue.code)).toContain('future_actual_delivery');
   });
 
   it('validates ordering and a bounded inclusive range', () => {

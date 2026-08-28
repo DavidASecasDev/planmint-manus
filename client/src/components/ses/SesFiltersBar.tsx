@@ -35,8 +35,7 @@ export function SesFiltersBar({ filters, onChange, saving }: SesFiltersBarProps)
             <SelectItem value="batched">En lote</SelectItem>
             <SelectItem value="uploaded_pending_result">Subidos · pendientes</SelectItem>
             <SelectItem value="accepted">Aceptados</SelectItem>
-            <SelectItem value="needs_revision">Requieren revisión</SelectItem>
-            <SelectItem value="requires_review">Revisión obligatoria</SelectItem>
+            <SelectItem value="needs_revision">Revisión obligatoria</SelectItem>
             <SelectItem value="error">Con error</SelectItem>
           </SelectContent>
         </Select>

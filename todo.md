@@ -1515,7 +1515,7 @@
 - [x] Registrar el resultado de la primera subida manual al portal oficial
 - [x] Implementar conciliación de contratos aceptados y errores devueltos por SES.HOSPEDAJES
 - [x] Evitar que el sync resumido de Rently borre campos detallados de cliente, permiso o vehículo usados por SES
-- [x] Revalidar la reserva piloto 4942 y confirmar que conserva titular y conductor tras reprepararla
+- [x] Revalidar la primera reserva piloto y confirmar que conserva titular y conductor tras reprepararla
 - [x] Registrar el acuse de envío del lote oficial 3d0ccc9e-a184-11f1-80b7-005056957a69 como pendiente de resultado
 - [x] Añadir flujo manual para conciliar lotes SES aceptados, rechazados y sus errores
 - [x] Sustituir la sede operativa de Son Oms por Carrer Son Malferit, 18, 07007 Palma en toda la lógica activa
@@ -1554,10 +1554,10 @@
 - [x] Implementar todas las mejoras UX y la cobertura de pruebas exigida en el archivo adjunto
 - [x] Verificar la solución completa sin credenciales ni datos personales reales y sin desplegar
 - [x] P0: limitar preparación y exportación a Entregado + CurrentStatus 2 + no transfer + sucursal 1 + entrega real no futura + reserva/matrícula coincidente
-- [x] P0: enviar Terminadas nunca comunicadas a requires_review y eliminar truncamientos silenciosos superiores a 500
+- [x] P0: enviar Terminadas nunca comunicadas al estado único de revisión y eliminar truncamientos silenciosos superiores a 500
 - [x] P0: validar dateFrom <= dateTo y aplicar un rango máximo razonable
 - [x] P0: crear inventario oficial importable y bloquear duplicados activos/aceptados por referencia, tipo, fecha y matrícula
-- [x] P0: almacenar códigos oficiales de lote/comunicación en columnas estructuradas y únicas, protegiendo la comunicación aceptada 4942
+- [x] P0: almacenar códigos oficiales de lote/comunicación en columnas estructuradas y únicas, protegiendo cualquier comunicación aceptada
 - [x] P0: separar las puertas complete, eligible, officially_clear y ready_for_xml y revalidarlas justo antes del XML
 - [x] P1: congelar snapshots versionados de contrato, vehículo, personas y lugares para lotes generados, pendientes y aceptados
 - [x] P1: registrar auditoría por campo con fuente, actor, fecha, valor anterior/nuevo y motivo sin PII en logs generales
@@ -1571,8 +1571,18 @@
 - [x] Demostrar la preservación de los conteos históricos 224/19/204/1 y del lote aceptado antes de proponer SQL real
 - [x] Preparar migración SES forward-only, transaccional e idempotente sin DROP, TRUNCATE ni reseteos
 - [x] Backfill compatible de cuatro puertas y nuevos campos sin alterar estados, versiones, configuración, snapshots ni auditoría
-- [x] Preservar 4942 y el lote oficial como aceptados/no reenviables; bloquear 5164 y excluir la futura 5343
+- [x] Preservar cualquier comunicación histórica aceptada como no reenviable y excluir/revisar por hechos estructurados
 - [x] Probar la migración sobre fixture anonimizada exacta 224/19/204/1 con igualdad de identidades y cero pérdida
 - [x] Añadir pruebas RLS, multi-organización, idempotencia e inventario oficial aditivo
 - [x] Mantener la puerta XSD bloqueada y documentar archivo, versión, imports/includes y hash oficiales requeridos
 - [x] Entregar causa raíz, conteos, SQL, diff, pruebas y plan de restauración antes de cualquier aplicación o despliegue
+- [x] Eliminar de código, SQL y lógica productiva toda excepción basada en referencias o lessor_code concretos
+- [x] Generalizar no reenvío mediante batch/item aceptado o inventario oficial activo por identidad contractual
+- [x] Generalizar revisión mediante inventario oficial no conciliado, distinto o anulado
+- [x] Generalizar exclusión futura mediante actual_delivery_at y estado Rently en preparación y revalidación
+- [x] Impedir que cualquier legado sea ready_for_xml antes de revalidar elegibilidad y cobertura oficial
+- [x] Unificar needs_revision como única denominación compatible, documentando por qué no se sustituye la restricción histórica mediante DROP
+- [x] Actualizar migración forward-only e idempotente con reglas orientadas a datos y preservación histórica
+- [x] Añadir prueba de mutación de referencias y casos generales de lote aceptado, duplicado oficial, anulado y entrega futura
+- [x] Demostrar preservación 224/19/204/1, configuración, lote, item, snapshots y auditoría tras dos ejecuciones
+- [x] Entregar búsqueda de cero referencias productivas, estados unificados, diff y pruebas sin aplicar SQL ni desplegar

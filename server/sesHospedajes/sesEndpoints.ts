@@ -510,7 +510,6 @@ async function calculateCurrentDraftGates(ctx: AuthContext, draft: Record<string
     detailBookingId: reservation?.rently_detail_booking_id,
     reservationPlate: draft.vehicle_plate ?? reservation?.auto,
     detailVehiclePlate: reservation?.rently_detail_vehicle_plate,
-    legacyReviewReason: draft.legacy_review_reason ?? null,
   });
   const { data: settings, error: settingsError } = await ctx.serviceClient.from('ses_settings')
     .select('official_inventory_confirmed_at')

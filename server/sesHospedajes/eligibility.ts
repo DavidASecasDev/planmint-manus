@@ -12,9 +12,7 @@ export type SesEligibilityReasonCode =
   | 'future_actual_delivery'
   | 'booking_mismatch'
   | 'plate_mismatch'
-  | 'missing_rently_detail'
-  | 'legacy_already_communicated'
-  | 'legacy_future_delivery';
+  | 'missing_rently_detail';
 
 export type SesEligibilityIssue = {
   code: SesEligibilityReasonCode;
@@ -32,7 +30,6 @@ export type SesEligibilityInput = {
   detailBookingId?: string | number | null;
   reservationPlate?: string | null;
   detailVehiclePlate?: string | null;
-  legacyReviewReason?: 'already_communicated' | 'future_delivery' | null;
 };
 
 function normalizeText(value: unknown) {
@@ -76,20 +73,6 @@ export async function collectAllPages<T>(
 
 export function evaluateSesEligibility(input: SesEligibilityInput, now = new Date()) {
   const issues: SesEligibilityIssue[] = [];
-  if (input.legacyReviewReason === 'already_communicated') {
-    issues.push({
-      code: 'legacy_already_communicated',
-      message: 'La reserva ya fue comunicada fuera del inventario estructurado y requiere conciliación manual',
-      reviewRequired: true,
-    });
-  }
-  if (input.legacyReviewReason === 'future_delivery') {
-    issues.push({
-      code: 'legacy_future_delivery',
-      message: 'La entrega todavía es futura y no puede comunicarse',
-      reviewRequired: false,
-    });
-  }
   const statusLabel = normalizeText(input.visibleStatus);
   const delivered = ['entregado', 'en curso'].includes(statusLabel) && input.rentlyStatusCode === SES_RENTLY_DELIVERED_STATUS;
   const terminated = ['terminada', 'completada'].includes(statusLabel) || input.rentlyStatusCode === SES_RENTLY_TERMINATED_STATUS;

@@ -29,9 +29,9 @@ describe('SES schema compatibility', () => {
     expect(restored.document_version).toBe('1.2.0');
   });
 
-  it('keeps protected historical and future references non-exportable', () => {
-    expect(withLegacyDraftGates({ reference: '5164', status: 'ready', ready_for_xml: true }).ready_for_xml).toBe(false);
-    expect(withLegacyDraftGates({ reference: '5343', status: 'ready', ready_for_xml: true }).ready_for_xml).toBe(false);
+  it('keeps every historical reference non-exportable while the schema is legacy', () => {
+    expect(withLegacyDraftGates({ reference: 'RANDOM-A', status: 'ready', ready_for_xml: true }).ready_for_xml).toBe(false);
+    expect(withLegacyDraftGates({ reference: 'RANDOM-B', status: 'accepted', ready_for_xml: true }).ready_for_xml).toBe(false);
   });
 
   it('recovers structured official identifiers from legacy batch fields', () => {

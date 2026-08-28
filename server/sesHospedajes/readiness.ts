@@ -5,7 +5,7 @@ export type SesGateState = {
   isEligible: boolean;
   isOfficiallyClear: boolean;
   readyForXml: boolean;
-  status: 'pending_sync' | 'incomplete' | 'ready' | 'requires_review';
+  status: 'pending_sync' | 'incomplete' | 'ready' | 'needs_revision';
 };
 
 export function deriveSesGateState(input: {
@@ -24,7 +24,7 @@ export function deriveSesGateState(input: {
   const status = readyForXml
     ? 'ready'
     : requiresReview
-      ? 'requires_review'
+      ? 'needs_revision'
       : !isEligible || input.officialClearance.status === 'not_checked'
         ? 'pending_sync'
         : 'incomplete';

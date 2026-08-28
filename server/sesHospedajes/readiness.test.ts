@@ -15,7 +15,7 @@ describe('SES readiness gates', () => {
   it('routes official duplicates to review instead of ready', () => {
     const blocked = { status: 'blocked' as const, clear: false, reasons: ['duplicate'], matchingCommunicationCode: 'official' };
     expect(deriveSesGateState({ validationIssueCount: 0, eligible: true, officialClearance: blocked })).toMatchObject({
-      readyForXml: false, status: 'requires_review',
+      readyForXml: false, status: 'needs_revision',
     });
   });
 

@@ -1,4 +1,16 @@
--- Synthetic fixture: one organization with exactly 224 drafts = 19 ready + 204 incomplete + 1 accepted.
+CREATE TABLE public.ses_fixture_facts (
+  fact_key text PRIMARY KEY,
+  reference text NOT NULL,
+  reservation_id uuid NOT NULL,
+  draft_id uuid NOT NULL,
+  plate text NOT NULL
+);
+
+INSERT INTO public.ses_fixture_facts (fact_key, reference, reservation_id, draft_id, plate) VALUES
+  ('accepted_history', '700001', md5('reservation-a-1')::uuid, md5('draft-a-1')::uuid, '0001SYN'),
+  ('official_review', '700002', md5('reservation-a-2')::uuid, md5('draft-a-2')::uuid, '0002SYN'),
+  ('future_delivery', '700003', md5('reservation-a-3')::uuid, md5('draft-a-3')::uuid, '0003SYN');
+
 INSERT INTO public.organizations (id, name) VALUES
   ('00000000-0000-0000-0000-000000000001', 'Organización sintética A'),
   ('00000000-0000-0000-0000-000000000002', 'Organización sintética B');
@@ -11,9 +23,9 @@ INSERT INTO public.ses_settings (
   organization_id, lessor_code, establishment_code, government_service_enabled,
   default_payment_type, default_vehicle_type, created_by, updated_by
 ) VALUES
-  ('00000000-0000-0000-0000-000000000001', '0000065825', NULL, false, NULL, 'TURISMO',
+  ('00000000-0000-0000-0000-000000000001', 'SYNTHETIC-A', NULL, false, NULL, 'TURISMO',
    '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001'),
-  ('00000000-0000-0000-0000-000000000002', 'SYNTHETIC2', NULL, false, NULL, 'TURISMO',
+  ('00000000-0000-0000-0000-000000000002', 'SYNTHETIC-B', NULL, false, NULL, 'TURISMO',
    '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002');
 
 INSERT INTO public.ses_person_profiles (
@@ -39,7 +51,9 @@ INSERT INTO public.reservations (
 SELECT
   md5('reservation-a-' || n)::uuid,
   '00000000-0000-0000-0000-000000000001',
-  CASE WHEN n = 1 THEN '4942' WHEN n = 2 THEN '5164' WHEN n = 3 THEN '5343' ELSE (9000 + n)::text END,
+  CASE WHEN n <= 3 THEN (SELECT reference FROM public.ses_fixture_facts WHERE fact_key =
+    CASE n WHEN 1 THEN 'accepted_history' WHEN 2 THEN 'official_review' ELSE 'future_delivery' END)
+    ELSE (9000 + n)::text END,
   CASE WHEN n = 3 THEN 'Pendiente' ELSE 'Entregado' END,
   lpad(n::text, 4, '0') || 'SYN', false, CASE WHEN n = 3 THEN 0 ELSE 2 END
 FROM source;
@@ -56,8 +70,12 @@ SELECT
   md5('draft-a-' || n)::uuid,
   '00000000-0000-0000-0000-000000000001',
   md5('reservation-a-' || n)::uuid,
-  CASE WHEN n = 1 THEN 4942 WHEN n = 2 THEN 5164 WHEN n = 3 THEN 5343 ELSE 9000 + n END,
-  CASE WHEN n = 1 THEN '4942' WHEN n = 2 THEN '5164' WHEN n = 3 THEN '5343' ELSE (9000 + n)::text END,
+  CASE WHEN n <= 3 THEN (SELECT reference::bigint FROM public.ses_fixture_facts WHERE fact_key =
+    CASE n WHEN 1 THEN 'accepted_history' WHEN 2 THEN 'official_review' ELSE 'future_delivery' END)
+    ELSE 9000 + n END,
+  CASE WHEN n <= 3 THEN (SELECT reference FROM public.ses_fixture_facts WHERE fact_key =
+    CASE n WHEN 1 THEN 'accepted_history' WHEN 2 THEN 'official_review' ELSE 'future_delivery' END)
+    ELSE (9000 + n)::text END,
   CASE WHEN n = 1 THEN 'accepted' WHEN n BETWEEN 2 AND 20 THEN 'ready' ELSE 'incomplete' END,
   DATE '2026-08-01',
   CASE WHEN n = 3 THEN TIMESTAMPTZ '2026-12-01 10:00:00+00' ELSE TIMESTAMPTZ '2026-08-01 10:00:00+00' + n * INTERVAL '1 minute' END,
@@ -101,12 +119,14 @@ INSERT INTO public.ses_batches (
 INSERT INTO public.ses_batch_items (
   id, batch_id, draft_id, item_order, draft_version, payload_snapshot,
   result_status, result_code, result_message
-) VALUES (
+)
+SELECT
   '70000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001',
-  md5('draft-a-1')::uuid, 1, 7,
-  '{"reference":"4942","contract":{"synthetic":true},"person":{"synthetic":true},"location":{"synthetic":true}}',
+  fact.draft_id, 1, 7,
+  jsonb_build_object('reference', fact.reference, 'contract', jsonb_build_object('synthetic', true),
+    'person', jsonb_build_object('synthetic', true), 'location', jsonb_build_object('synthetic', true)),
   'accepted', '80000000-0000-0000-0000-000000000001', NULL
-);
+FROM public.ses_fixture_facts fact WHERE fact.fact_key = 'accepted_history';
 
 INSERT INTO public.ses_audit_events (
   organization_id, entity_type, entity_id, action, changed_fields, metadata, performed_by
@@ -117,17 +137,11 @@ INSERT INTO public.ses_audit_events (
 
 DO $$
 BEGIN
-  IF (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001') <> 224 THEN
-    RAISE EXCEPTION 'Fixture precondition failed: expected 224 drafts';
-  END IF;
-  IF (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'ready') <> 19 THEN
-    RAISE EXCEPTION 'Fixture precondition failed: expected 19 ready';
-  END IF;
-  IF (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'incomplete') <> 204 THEN
-    RAISE EXCEPTION 'Fixture precondition failed: expected 204 incomplete';
-  END IF;
-  IF (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'accepted') <> 1 THEN
-    RAISE EXCEPTION 'Fixture precondition failed: expected 1 accepted';
+  IF (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001') <> 224
+     OR (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'ready') <> 19
+     OR (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'incomplete') <> 204
+     OR (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'accepted') <> 1 THEN
+    RAISE EXCEPTION 'Fixture precondition failed: expected 224/19/204/1';
   END IF;
 END;
 $$;
