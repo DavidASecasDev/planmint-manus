@@ -1544,3 +1544,7 @@
 - [x] Evitar incrementos de versión SES provocados por lecturas, recargas o validaciones sin cambios reales
 - [x] Mostrar el nombre y motivo exacto de cada campo contabilizado como pendiente o inválido
 - [x] Revalidar 4130 y confirmar Personas 1 pendiente y Total 4 si no existen otros errores reales
+- [x] Auditar cómo se inicializan y actualizan actualmente los filtros de SES.HOSPEDAJES
+- [x] Guardar por usuario el rango de fechas, estado y búsqueda del módulo SES
+- [x] Restaurar las preferencias SES entre sesiones y dispositivos sin mezclar cuentas
+- [x] Verificar valores iniciales, aislamiento por usuario y ausencia de parpadeos o consultas con filtros incorrectos

@@ -145,6 +145,7 @@ import {
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 import {
   handleSesCreatePerson,
+  handleSesGetFilterPreferences,
   handleSesGetSettings,
   handleSesExportXml,
   handleSesListBatches,
@@ -155,6 +156,7 @@ import {
   handleSesRevalidate,
   handleSesSearchMunicipalities,
   handleSesUpdateDraft,
+  handleSesUpdateFilterPreferences,
   handleSesUpdateLocation,
   handleSesUpdatePerson,
   handleSesUpdateSettings,
@@ -571,6 +573,8 @@ async function startServer() {
   app.post("/api/ses/municipalities", handleSesSearchMunicipalities);
   app.post("/api/ses/revalidate", handleSesRevalidate);
   app.post('/api/ses/settings', handleSesGetSettings);
+  app.post('/api/ses/filter-preferences', handleSesGetFilterPreferences);
+  app.post('/api/ses/filter-preferences/update', handleSesUpdateFilterPreferences);
   app.post('/api/ses/xml/export', handleSesExportXml);
   app.post('/api/ses/batches', handleSesListBatches);
   app.post('/api/ses/batches/uploaded', handleSesMarkBatchUploaded);

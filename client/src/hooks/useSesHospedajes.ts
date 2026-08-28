@@ -8,6 +8,7 @@ import type {
   SesPersonProfile,
   SesSettings,
 } from '@/types/sesHospedajes';
+import type { SesDraftFilters } from '@/lib/sesFilterPreferences';
 
 interface ServerEnvelope<T> { data: T; error: string | null }
 
@@ -18,14 +19,7 @@ function unwrap<T>(response: Awaited<ReturnType<typeof apiInvoke<ServerEnvelope<
   return response.data.data;
 }
 
-export interface SesDraftFilters {
-  dateFrom: string;
-  dateTo: string;
-  status: string;
-  search: string;
-}
-
-export function useSesHospedajes(filters: SesDraftFilters) {
+export function useSesHospedajes(filters: SesDraftFilters, enabled = true) {
   const queryClient = useQueryClient();
 
   const draftsQuery = useQuery({
@@ -36,6 +30,7 @@ export function useSesHospedajes(filters: SesDraftFilters) {
       total: number;
     }>>('ses/drafts', { body: { ...filters } })),
     staleTime: 30_000,
+    enabled,
   });
 
   const settingsQuery = useQuery({

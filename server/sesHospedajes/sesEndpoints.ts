@@ -20,6 +20,11 @@ import {
   type ReservationForSesEnrichment,
 } from './rentlyEnrichment';
 import { calculateSesDraftContentHash, getActualChangedValues } from './draftVersioning';
+import {
+  mergeSesFilterPreferences,
+  readSesFilterPreferences,
+  SesFilterPreferencesSchema,
+} from './filterPreferences';
 
 const PrepareSchema = z.object({
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -768,6 +773,35 @@ export async function handleSesGetSettings(req: Request, res: Response) {
     return res.json({ data: data ?? null, error: null });
   } catch (error) {
     return sendError(res, error, 'get-settings');
+  }
+}
+
+export async function handleSesGetFilterPreferences(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.view');
+    const { data, error } = await ctx.serviceClient.auth.admin.getUserById(ctx.userId);
+    if (error) throw error;
+    return res.json({ data: readSesFilterPreferences(data.user?.user_metadata), error: null });
+  } catch (error) {
+    return sendError(res, error, 'filter-preferences');
+  }
+}
+
+export async function handleSesUpdateFilterPreferences(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.view');
+    const input = SesFilterPreferencesSchema.parse(req.body);
+    const { data: current, error: readError } = await ctx.serviceClient.auth.admin.getUserById(ctx.userId);
+    if (readError) throw readError;
+    if (!current.user) throw new Error('No se encontró la cuenta de usuario');
+
+    const { error: updateError } = await ctx.serviceClient.auth.admin.updateUserById(ctx.userId, {
+      user_metadata: mergeSesFilterPreferences(current.user.user_metadata, input),
+    });
+    if (updateError) throw updateError;
+    return res.json({ data: input, error: null });
+  } catch (error) {
+    return sendError(res, error, 'filter-preferences-update');
   }
 }
 

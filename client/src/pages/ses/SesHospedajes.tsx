@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
   AlertCircle, BookOpen, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
-  RefreshCw, Search, Settings2, ShieldAlert, SlidersHorizontal, UsersRound,
+  RefreshCw, Settings2, ShieldAlert, UsersRound,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
 import { SesBatchPanel } from '@/components/ses/SesBatchPanel';
+import { SesFiltersBar } from '@/components/ses/SesFiltersBar';
 import { SesManualDialog } from '@/components/ses/SesManualDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +22,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSesFilterPreferences } from '@/hooks/useSesFilterPreferences';
 import { useSesHospedajes } from '@/hooks/useSesHospedajes';
+import { sanitizeSesFilterPreferences, serializeSesFilters, type SesDraftFilters } from '@/lib/sesFilterPreferences';
 import { getSesSettingsNotice } from '@/lib/sesSettingsNotice';
 import { countActionableSesIssues, getActionableSesIssues } from '@/lib/sesValidationIssues';
 import type { SesContractDraft, SesSettings } from '@/types/sesHospedajes';
@@ -134,17 +137,42 @@ export default function SesHospedajes() {
   const canEdit = hasPermission('ses_hospedajes.edit');
   const canExport = hasPermission('ses_hospedajes.export');
   const canConfigure = hasPermission('ses_hospedajes.manage_settings');
-  const [filters, setFilters] = useState({
+  const defaultFilters = useMemo<SesDraftFilters>(() => ({
     dateFrom: dateInput(subDays(new Date(), 7)),
     dateTo: dateInput(addDays(new Date(), 30)),
     status: 'all',
     search: '',
-  });
-  const ses = useSesHospedajes(filters);
+  }), []);
+  const [filters, setFilters] = useState<SesDraftFilters>(defaultFilters);
+  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
+  const savedFiltersRef = useRef<string>('');
+  const filterPreferences = useSesFilterPreferences(canView && !permissionsLoading);
+  const filtersReady = Boolean(filterPreferences.userId && hydratedUserId === filterPreferences.userId);
+  const ses = useSesHospedajes(filters, filtersReady);
   const [selected, setSelected] = useState<SesContractDraft | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+
+  useEffect(() => {
+    if (!filterPreferences.userId || !filterPreferences.isFetched || filterPreferences.isLoading) return;
+    const restored = sanitizeSesFilterPreferences(filterPreferences.data, defaultFilters);
+    setFilters(restored);
+    savedFiltersRef.current = serializeSesFilters(restored);
+    setHydratedUserId(filterPreferences.userId);
+  }, [defaultFilters, filterPreferences.data, filterPreferences.isFetched, filterPreferences.isLoading, filterPreferences.userId]);
+
+  useEffect(() => {
+    if (!filtersReady) return;
+    const serialized = serializeSesFilters(filters);
+    if (serialized === savedFiltersRef.current) return;
+    const timeout = window.setTimeout(() => {
+      filterPreferences.save.mutate(filters, {
+        onSuccess: (saved) => { savedFiltersRef.current = serializeSesFilters(saved); },
+      });
+    }, 600);
+    return () => window.clearTimeout(timeout);
+  }, [filterPreferences.save, filters, filtersReady]);
 
   useEffect(() => {
     if (!selected) return;
@@ -169,7 +197,7 @@ export default function SesHospedajes() {
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4);
   }, [ses.drafts]);
 
-  if (permissionsLoading) {
+  if (permissionsLoading || (canView && !filtersReady)) {
     return <AppLayout title="SES.HOSPEDAJES"><div className="space-y-4 p-2"><Skeleton className="h-24" /><Skeleton className="h-96" /></div></AppLayout>;
   }
   if (!canView) {
@@ -254,18 +282,7 @@ export default function SesHospedajes() {
           onRecordResult={(input) => ses.recordBatchResult.mutateAsync(input)}
         />
 
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-center">
-          <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Buscar por reserva o matrícula..." className="pl-9" /></div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} className="w-40" />
-            <span className="text-xs text-slate-400">a</span>
-            <Input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} className="w-40" />
-            <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
-              <SelectTrigger className="w-44"><SlidersHorizontal className="mr-2 h-4 w-4" /><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value="incomplete">Incompletos</SelectItem><SelectItem value="ready">Listos</SelectItem><SelectItem value="batched">En lote</SelectItem><SelectItem value="uploaded_pending_result">Subidos · pendientes</SelectItem><SelectItem value="accepted">Aceptados</SelectItem><SelectItem value="needs_revision">Requieren revisión</SelectItem><SelectItem value="error">Con error</SelectItem></SelectContent>
-            </Select>
-          </div>
-        </div>
+        <SesFiltersBar filters={filters} onChange={setFilters} saving={filterPreferences.save.isPending} />
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <Table>
