@@ -1,57 +1,28 @@
 import { useState } from 'react';
-import { AlertCircle, CheckCircle2, FileCode2, Loader2, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileCode2, Loader2, SearchCheck, ShieldCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import type { SesSettings } from '@/types/sesHospedajes';
 
-type InventoryItem = {
-  officialCommunicationCode: string;
-  officialLotCode?: string | null;
-  reference: string;
-  contractDate: string;
-  vehiclePlate?: string | null;
-  status: 'active' | 'accepted' | 'annulled' | 'error';
-};
-
 export function SesComplianceDialog({
-  open, onOpenChange, settings, inventoryTotal, uploadingXsd, importingInventory,
-  onUploadXsd, onImportInventory,
+  open, onOpenChange, settings, uploadingXsd, onUploadXsd,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settings: SesSettings | null;
-  inventoryTotal: number;
   uploadingXsd: boolean;
-  importingInventory: boolean;
   onUploadXsd: (input: { fileName: string; version: string; content: string }) => Promise<unknown>;
-  onImportInventory: (input: { sourceDate?: string; items: InventoryItem[] }) => Promise<unknown>;
 }) {
   const [xsdFile, setXsdFile] = useState<File | null>(null);
   const [xsdVersion, setXsdVersion] = useState(settings?.official_xsd_version ?? '');
-  const [sourceDate, setSourceDate] = useState('');
-  const [inventoryJson, setInventoryJson] = useState('[]');
-  const [parseError, setParseError] = useState('');
 
   const uploadXsd = async () => {
     if (!xsdFile || !xsdVersion.trim()) return;
     await onUploadXsd({ fileName: xsdFile.name, version: xsdVersion.trim(), content: await xsdFile.text() });
     setXsdFile(null);
-  };
-
-  const importInventory = async () => {
-    setParseError('');
-    try {
-      const parsed = JSON.parse(inventoryJson) as InventoryItem[];
-      if (!Array.isArray(parsed)) throw new Error('El contenido debe ser una lista JSON');
-      if (parsed.length === 0) throw new Error('La lista está vacía. No se reemplaza ni se borra el historial existente.');
-      await onImportInventory({ ...(sourceDate ? { sourceDate } : {}), items: parsed });
-    } catch (error) {
-      setParseError(error instanceof Error ? error.message : 'JSON no válido');
-    }
   };
 
   return (
@@ -79,21 +50,12 @@ export function SesComplianceDialog({
             </Button>
           </section>
 
-          <section className="space-y-3 rounded-xl border border-slate-200 p-4">
+          <section className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
             <div className="flex items-start justify-between gap-3">
-              <div><h3 className="font-semibold">2. Evidencia oficial aditiva</h3><p className="text-sm text-slate-500">Opcionalmente añade comunicaciones activas, aceptadas, anuladas o con error. Nunca reemplaza registros previos ni acredita una cobertura global.</p></div>
-              <ShieldCheck className="h-5 w-5 text-blue-700" />
+              <div><h3 className="font-semibold">2. Comprobación SES por contrato</h3><p className="text-sm text-slate-600">La evidencia oficial solo se registra desde «Comprobar SES» en la fila del contrato. La consulta queda ligada a su referencia, tipo, fecha y matrícula exactas.</p></div>
+              <SearchCheck className="h-5 w-5 text-blue-700" />
             </div>
-            <p className="text-xs text-slate-500">Evidencias registradas: {inventoryTotal}. Cada contrato debe comprobarse por su identidad exacta antes de quedar listo.</p>
-            <div className="space-y-2"><Label>Fecha de la fuente (opcional)</Label><Input type="date" value={sourceDate} onChange={(event) => setSourceDate(event.target.value)} /></div>
-            <div className="space-y-2">
-              <Label>Lista JSON exportada o transcrita del portal</Label>
-              <Textarea className="min-h-36 font-mono text-xs" value={inventoryJson} onChange={(event) => setInventoryJson(event.target.value)} placeholder='[{"officialCommunicationCode":"…","reference":"4130","contractDate":"2026-08-18","vehiclePlate":"0000AAA","status":"accepted"}]' />
-            </div>
-            {parseError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>No se puede importar</AlertTitle><AlertDescription>{parseError}</AlertDescription></Alert>}
-            <Button variant="outline" disabled={importingInventory} onClick={importInventory}>
-              {importingInventory && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Añadir evidencia
-            </Button>
+            <Alert className="border-blue-200 bg-white"><ShieldCheck className="h-4 w-4" /><AlertTitle>Sin cargas masivas</AlertTitle><AlertDescription>No se ofrecen campos JSON ni importaciones de inventario en la interfaz operativa. Cada resultado debe reproducir una consulta concreta del portal.</AlertDescription></Alert>
           </section>
         </div>
         <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button></DialogFooter>

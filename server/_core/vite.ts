@@ -20,6 +20,18 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
+  app.get("/__fixtures/ses-hospedajes", async (req, res, next) => {
+    try {
+      const fixturePath = path.resolve(import.meta.dirname, "../..", "client", "ses-hospedajes-fixture.html");
+      const template = await fs.promises.readFile(fixturePath, "utf-8");
+      const page = await vite.transformIndexHtml(req.originalUrl, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (error) {
+      vite.ssrFixStacktrace(error as Error);
+      next(error);
+    }
+  });
+
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;

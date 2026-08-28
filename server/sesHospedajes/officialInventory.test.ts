@@ -55,14 +55,20 @@ describe('SES official inventory', () => {
     expect(buildOfficialIdentityHash({ reference: 'SYNTHETIC-200', contractDate: '2026-08-26', vehiclePlate: '1234BCD' })).toBe(original);
   });
 
-  it('routes annulled or mismatching communications to review', () => {
+  it('routes annulled, errored or version-mismatching communications to review', () => {
+    for (const status of ['annulled', 'error'] as const) {
+      expect(evaluateOfficialClearance({
+        checked: true, reference: 'SYNTHETIC-300', contractDate: '2026-08-26', vehiclePlate: '1234BCD',
+        communications: [{ ...accepted, reference: 'SYNTHETIC-300', status }],
+      }).status).toBe('review');
+    }
     expect(evaluateOfficialClearance({
-      checked: true, reference: '4942', contractDate: '2026-08-26', vehiclePlate: '1234BCD',
-      communications: [{ ...accepted, status: 'annulled' }],
+      checked: true, reference: 'SYNTHETIC-300', contractDate: '2026-08-27', vehiclePlate: '1234BCD',
+      communications: [{ ...accepted, reference: 'SYNTHETIC-300' }],
     }).status).toBe('review');
     expect(evaluateOfficialClearance({
-      checked: true, reference: '4942', contractDate: '2026-08-27', vehiclePlate: '1234BCD',
-      communications: [accepted],
+      checked: true, reference: 'SYNTHETIC-300', contractDate: '2026-08-26', vehiclePlate: '9999XYZ',
+      communications: [{ ...accepted, reference: 'SYNTHETIC-300' }],
     }).status).toBe('review');
   });
 

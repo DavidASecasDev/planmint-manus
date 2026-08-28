@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import fs from "node:fs";
 import path from "node:path";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { sanitizeConsoleEntries, sanitizeNetworkEntries, sanitizeSessionEntries } from "./server/_core/debugLogSanitizer";
 
 // =============================================================================
 // Supabase fallbacks
@@ -69,9 +70,9 @@ function vitePluginManusDebugCollector(): Plugin {
       server.middlewares.use("/__manus__/logs", (req, res, next) => {
         if (req.method !== "POST") return next();
         const handlePayload = (payload: any) => {
-          if (payload.consoleLogs?.length > 0) writeToLogFile("browserConsole", payload.consoleLogs);
-          if (payload.networkRequests?.length > 0) writeToLogFile("networkRequests", payload.networkRequests);
-          if (payload.sessionEvents?.length > 0) writeToLogFile("sessionReplay", payload.sessionEvents);
+          if (payload.consoleLogs?.length > 0) writeToLogFile("browserConsole", sanitizeConsoleEntries(payload.consoleLogs));
+          if (payload.networkRequests?.length > 0) writeToLogFile("networkRequests", sanitizeNetworkEntries(payload.networkRequests));
+          if (payload.sessionEvents?.length > 0) writeToLogFile("sessionReplay", sanitizeSessionEntries(payload.sessionEvents));
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ success: true }));
         };

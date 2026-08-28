@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
   AlertCircle, BookOpen, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
-  RefreshCw, SearchCheck, Settings2, ShieldAlert, ShieldCheck, UsersRound,
+  RefreshCw, Settings2, ShieldAlert, ShieldCheck, UsersRound,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
@@ -13,6 +13,7 @@ import { SesComplianceDialog } from '@/components/ses/SesComplianceDialog';
 import { SesOfficialCheckDialog } from '@/components/ses/SesOfficialCheckDialog';
 import { SesEligibilityExceptionDialog } from '@/components/ses/SesEligibilityExceptionDialog';
 import { SesPagination } from '@/components/ses/SesPagination';
+import { SesDraftActions } from '@/components/ses/SesDraftActions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -354,7 +355,7 @@ export default function SesHospedajes() {
                     onCheckedChange={(checked) => setSelectedIds(checked ? new Set(readyDrafts.map((draft) => draft.id)) : new Set())}
                   />
                 </TableHead>
-                <TableHead>Reserva</TableHead><TableHead>Cliente</TableHead><TableHead>Recogida</TableHead><TableHead>Vehículo</TableHead><TableHead>Estado</TableHead><TableHead>Faltan</TableHead><TableHead className="w-64 text-right">Acción</TableHead>
+                <TableHead>Reserva</TableHead><TableHead>Cliente</TableHead><TableHead>Recogida</TableHead><TableHead>Vehículo</TableHead><TableHead>Estado</TableHead><TableHead>Faltan</TableHead><TableHead className="sticky right-0 z-10 w-64 bg-slate-50 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -385,7 +386,7 @@ export default function SesHospedajes() {
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
                     <TableCell><StatusBadge status={draft.status} />{draft.eligibility_errors?.[0] && <p className="mt-1 max-w-48 text-xs text-red-600">{draft.eligibility_errors[0].message}</p>}{!draft.is_officially_clear && draft.official_check_status === 'not_checked' && <p className="mt-1 text-xs text-amber-600">Comprobación exacta pendiente</p>}</TableCell>
                     <TableCell>{countActionableSesIssues(draft) || draft.eligibility_errors?.length || !draft.is_officially_clear ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft) + (draft.eligibility_errors?.length ?? 0) + (!draft.is_officially_clear ? 1 : 0)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
-                    <TableCell className="text-right"><div className="flex flex-wrap justify-end gap-1"><Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{schemaMigrationRequired ? 'Solo lectura' : draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button>{canExport && draft.is_complete && draft.is_eligible && !['batched', 'uploaded_pending_result', 'accepted'].includes(draft.status) && <Button size="sm" variant="outline" disabled={schemaMigrationRequired || ses.checkOfficialCommunication.isPending} onClick={(event) => { event.stopPropagation(); setOfficialCheckDraft(draft); }}><SearchCheck className="mr-1 h-4 w-4" />Comprobar</Button>}{canExport && !['batched', 'uploaded_pending_result', 'accepted'].includes(draft.status) && (draft.eligibility_errors?.some((issue) => issue.code === 'terminated_never_reported') || typeof draft.eligibility_snapshot?.manual_exception_id === 'string') && <Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); setExceptionDraft(draft); }}>{typeof draft.eligibility_snapshot?.manual_exception_id === 'string' ? 'Revocar excepción' : 'Excepción'}</Button>}</div></TableCell>
+                    <TableCell className="sticky right-0 z-10 bg-white text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]"><SesDraftActions draft={draft} canExport={canExport} schemaMigrationRequired={schemaMigrationRequired} checking={ses.checkOfficialCommunication.isPending} onCheck={() => setOfficialCheckDraft(draft)} onComplete={() => setSelected(draft)} onException={() => setExceptionDraft(draft)} /></TableCell>
                   </TableRow>
                 );
               })}
@@ -421,11 +422,8 @@ export default function SesHospedajes() {
         open={complianceOpen}
         onOpenChange={setComplianceOpen}
         settings={ses.settings}
-        inventoryTotal={ses.officialInventory.total}
         uploadingXsd={ses.uploadXsd.isPending}
-        importingInventory={ses.importOfficialInventory.isPending}
         onUploadXsd={(input) => ses.uploadXsd.mutateAsync(input)}
-        onImportInventory={(input) => ses.importOfficialInventory.mutateAsync(input)}
       />
       <SesOfficialCheckDialog
         draft={officialCheckDraft}

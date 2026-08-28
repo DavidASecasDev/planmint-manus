@@ -1614,3 +1614,10 @@
 - [x] Corregir paginación y contadores para mostrar más de 200 borradores sin discrepancias silenciosas
 - [x] Añadir pruebas 65 vs 64, >200, matrícula, entrega futura, transfer, sucursal, terminada, duplicados, anuladas/versiones y XSD presente/ausente
 - [x] Verificar preservación del lote aceptado y mantener prohibidas operaciones SES reales y despliegues durante la revisión
+- [x] Retirar de la interfaz operativa SES toda importación JSON o inventario masivo, conservando solo compatibilidad histórica interna no expuesta
+- [x] Mostrar una acción visible «Comprobar SES» por contrato antes de «Completar», incluso si está incompleto o pendiente de revalidación
+- [x] Verificar técnicamente la conexión de la preview y documentar que no se copiaron ni persistieron datos reales durante la verificación visual
+- [x] Mantener la automatización visual SES exclusivamente sobre fixtures sintéticos aislados de producción
+- [x] Añadir pruebas concretas para ausencia de importación masiva en UI, disponibilidad de Comprobar SES y aislamiento de la preview sintética
+- [x] Ejecutar regresión SES, matriz focal, TypeScript y build sin migrar, publicar ni desplegar
+- [x] Entregar diff y resultados finales de los tres bloqueos para revisión
