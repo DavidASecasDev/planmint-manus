@@ -77,9 +77,9 @@ SELECT
     CASE n WHEN 1 THEN 'accepted_history' WHEN 2 THEN 'official_review' ELSE 'future_delivery' END)
     ELSE (9000 + n)::text END,
   CASE WHEN n = 1 THEN 'accepted' WHEN n BETWEEN 2 AND 20 THEN 'ready' ELSE 'incomplete' END,
-  DATE '2026-08-01',
-  CASE WHEN n = 3 THEN TIMESTAMPTZ '2026-12-01 10:00:00+00' ELSE TIMESTAMPTZ '2026-08-01 10:00:00+00' + n * INTERVAL '1 minute' END,
-  CASE WHEN n = 3 THEN TIMESTAMPTZ '2026-12-02 10:00:00+00' ELSE TIMESTAMPTZ '2026-08-02 10:00:00+00' + n * INTERVAL '1 minute' END,
+  DATE '2026-08-21',
+  CASE WHEN n = 3 THEN TIMESTAMPTZ '2026-09-27 10:00:00+00' ELSE TIMESTAMPTZ '2026-08-21 10:00:00+00' + n * INTERVAL '1 minute' END,
+  CASE WHEN n = 3 THEN TIMESTAMPTZ '2026-09-28 10:00:00+00' ELSE TIMESTAMPTZ '2026-08-22 10:00:00+00' + n * INTERVAL '1 minute' END,
   CASE WHEN n = 1 THEN '20000000-0000-0000-0000-000000000001'::uuid END,
   CASE WHEN n = 1 THEN '20000000-0000-0000-0000-000000000001'::uuid END,
   CASE WHEN n = 1 THEN '30000000-0000-0000-0000-000000000001'::uuid END,
@@ -128,12 +128,18 @@ SELECT
   'accepted', '80000000-0000-0000-0000-000000000001', NULL
 FROM public.ses_fixture_facts fact WHERE fact.fact_key = 'accepted_history';
 
+WITH source AS (SELECT generate_series(1, 165) AS n)
 INSERT INTO public.ses_audit_events (
   organization_id, entity_type, entity_id, action, changed_fields, metadata, performed_by
-) VALUES (
-  '00000000-0000-0000-0000-000000000001', 'batch', '60000000-0000-0000-0000-000000000001',
-  'synthetic_accepted', ARRAY['status'], '{"synthetic":true}', '10000000-0000-0000-0000-000000000001'
-);
+)
+SELECT
+  '00000000-0000-0000-0000-000000000001',
+  CASE WHEN n = 1 THEN 'batch' ELSE 'draft' END,
+  CASE WHEN n = 1 THEN '60000000-0000-0000-0000-000000000001'::uuid ELSE md5('draft-a-' || (((n - 2) % 224) + 1))::uuid END,
+  CASE WHEN n = 1 THEN 'synthetic_accepted' ELSE 'synthetic_history' END,
+  ARRAY['status'], jsonb_build_object('synthetic', true, 'sequence', n),
+  '10000000-0000-0000-0000-000000000001'
+FROM source;
 
 DO $$
 BEGIN
@@ -142,6 +148,9 @@ BEGIN
      OR (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'incomplete') <> 204
      OR (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000001' AND status = 'accepted') <> 1 THEN
     RAISE EXCEPTION 'Fixture precondition failed: expected 224/19/204/1';
+  END IF;
+  IF (SELECT count(*) FROM public.ses_audit_events WHERE organization_id = '00000000-0000-0000-0000-000000000001') <> 165 THEN
+    RAISE EXCEPTION 'Fixture precondition failed: expected 165 audit events';
   END IF;
 END;
 $$;

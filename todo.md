@@ -1586,3 +1586,16 @@
 - [x] Añadir prueba de mutación de referencias y casos generales de lote aceptado, duplicado oficial, anulado y entrega futura
 - [x] Demostrar preservación 224/19/204/1, configuración, lote, item, snapshots y auditoría tras dos ejecuciones
 - [x] Entregar búsqueda de cero referencias productivas, estados unificados, diff y pruebas sin aplicar SQL ni desplegar
+- [x] Confirmar el proyecto Supabase de producción sin revelar credenciales y disponer de un respaldo recuperable verificable
+- [x] Crear un restore point previo con identificador, fecha, conteos y hashes agregados SES
+- [ ] Ejecutar únicamente 20260828143000_ses_hospedajes_compatibility_restore.sql en una transacción con rollback automático
+- [ ] Verificar 224/19/204/1, configuración, lote, item, payload_snapshot, 165 auditorías, RLS y tablas/columnas nuevas
+- [x] Confirmar idempotencia y que ningún legado queda ready_for_xml antes de revalidación general
+- [x] Detenerse sin publicar, desplegar, cargar XSD, importar inventario, preparar reservas ni generar XML
+- [x] Verificar y comunicar opciones oficiales para obtener un respaldo Supabase actual sin PITR, nuevos proyectos ni costes
+- [x] Revisar nuevamente el SQL autocontenido de compatibilidad SES contra las precondiciones y postcondiciones autorizadas
+- [x] Ejecutar la fixture anonimizada final sin tocar producción y confirmar rollback automático ante cualquier fallo
+- [x] Entregar el SQL íntegro al usuario para ejecución exclusivamente manual en el SQL Editor oficial
+- [x] Documentar que source_hash no existe y proteger todas las columnas reales mediante identidad y hash JSON verificable
+- [x] Mantener intacta la migración revisada original y crear ses_hospedajes_manual_production_migration.sql como archivo separado
+- [x] Validar el SQL manual dos veces en fixture, escanear operaciones destructivas/referencias especiales y calcular SHA-256

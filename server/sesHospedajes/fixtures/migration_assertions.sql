@@ -44,7 +44,7 @@ BEGIN
   IF (SELECT count(*) FROM public.ses_batch_items) <> 1
      OR (SELECT count(*) FROM public.ses_historical_snapshots) <> 1
      OR (SELECT count(*) FROM public.ses_official_communications WHERE organization_id = org_a AND status = 'accepted') <> 1
-     OR (SELECT count(*) FROM public.ses_audit_events WHERE organization_id = org_a) <> 1 THEN
+     OR (SELECT count(*) FROM public.ses_audit_events WHERE organization_id = org_a) <> 165 THEN
     RAISE EXCEPTION 'Historical item, snapshot, inventory or audit was not preserved exactly once';
   END IF;
   IF (SELECT count(*) FROM public.ses_contract_drafts WHERE organization_id = '00000000-0000-0000-0000-000000000002') <> 1 THEN
