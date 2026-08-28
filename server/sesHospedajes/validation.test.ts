@@ -100,4 +100,46 @@ describe('SES contract validation', () => {
     });
     expect(issues.some((issue) => issue.code === 'inconsistent' && issue.path === 'return_at')).toBe(true);
   });
+
+  it('rejects syntactically shaped but nonexistent ISO-3 country codes', () => {
+    const issues = validateSesDraft({
+      reference: 'TEST-ISO', contract_date: '2026-08-20', pickup_at: '2026-08-21T10:00:00Z',
+      return_at: '2026-08-22T13:00:00Z', payment_type: 'TARJT', vehicle_category: 'SUV',
+      vehicle_type: 'TURISMO', vehicle_brand: 'MERCEDES', vehicle_model: 'GLA', vehicle_plate: '1234ABC',
+      vehicle_vin: 'WDD12345678901234', vehicle_color: 'NEGRO', km_pickup: 100,
+      holder: { ...completePerson, nationality_code: 'ZZZ' }, primary_driver: completePerson,
+      pickup_location: completeLocation, return_location: completeLocation,
+    });
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'holder.nationality_code', code: 'invalid' }),
+    ]));
+  });
+
+  it('rejects invalid vehicle, postal, contact and licence formats', () => {
+    const issues = validateSesDraft({
+      reference: 'TEST-FORMAT', contract_date: '2026-08-20', pickup_at: '2026-08-21T10:00:00Z',
+      return_at: '2026-08-22T13:00:00Z', payment_type: 'TARJT', vehicle_category: 'SUV',
+      vehicle_type: 'TURISMO', vehicle_brand: 'MERCEDES', vehicle_model: 'GLA', vehicle_plate: '**',
+      vehicle_vin: 'SHORT', vehicle_color: 'NEGRO', km_pickup: 200, km_return: 150,
+      holder: { ...completePerson, postal_code: 'ABC', email: 'no-email', phone: '12' },
+      primary_driver: { ...completePerson, licence_number: '@@', licence_valid_until: '2026-01-01' },
+      pickup_location: completeLocation, return_location: completeLocation,
+    });
+    expect(issues.map((issue) => issue.path)).toEqual(expect.arrayContaining([
+      'vehicle_plate', 'vehicle_vin', 'km_return', 'holder.postal_code',
+      'holder.email', 'holder.phone', 'primary_driver.licence_number',
+      'primary_driver.licence_valid_until',
+    ]));
+  });
+
+  it('rejects a contract signed after pickup and rentals longer than 366 days', () => {
+    const issues = validateSesDraft({
+      reference: 'TEST-DATES', contract_date: '2026-08-22', pickup_at: '2026-08-21T10:00:00Z',
+      return_at: '2027-09-01T10:00:00Z',
+    });
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'contract_date', code: 'inconsistent' }),
+      expect.objectContaining({ path: 'return_at', code: 'inconsistent' }),
+    ]));
+  });
 });

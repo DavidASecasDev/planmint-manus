@@ -1,6 +1,6 @@
 export type SesDraftStatus = 'pending_sync'
   | 'incomplete' | 'ready' | 'batched' | 'uploaded_pending_result'
-  | 'accepted' | 'error' | 'needs_revision';
+  | 'accepted' | 'error' | 'needs_revision' | 'requires_review';
 
 export interface SesValidationIssue {
   path: string;
@@ -83,6 +83,12 @@ export interface SesContractDraft {
   km_return: number | null;
   gps_data: string | null;
   validation_errors: SesValidationIssue[];
+  eligibility_errors: Array<{ code: string; message: string; path?: string; severity?: string }>;
+  is_complete: boolean;
+  is_eligible: boolean;
+  is_officially_clear: boolean;
+  ready_for_xml: boolean;
+  official_check_status: 'not_checked' | 'clear' | 'blocked' | 'review';
   manual_fields: string[];
   draft_version: number;
   updated_at: string;
@@ -111,6 +117,10 @@ export interface SesBatchItem {
   result_status: 'pending' | 'accepted' | 'error';
   result_code: string | null;
   result_message: string | null;
+  official_communication_code: string | null;
+  payload_snapshot: Record<string, unknown> | null;
+  snapshot_version: number;
+  snapshot_hash: string | null;
   draft: { id: string; reference: string; status: SesDraftStatus } | null;
 }
 
@@ -128,6 +138,11 @@ export interface SesBatch {
   uploaded_at: string | null;
   result_recorded_at: string | null;
   notes: string | null;
+  official_lot_code: string | null;
+  document_version: string;
+  xsd_version: string | null;
+  xsd_hash: string | null;
+  xsd_validated_at: string | null;
   items: SesBatchItem[];
 }
 
@@ -138,7 +153,26 @@ export interface SesSettings {
   default_payment_type: string | null;
   default_vehicle_type: string;
   government_service_enabled: boolean;
+  official_xsd_hash: string | null;
+  official_xsd_version: string | null;
+  official_xsd_uploaded_at: string | null;
+  official_inventory_confirmed_at: string | null;
+  official_inventory_source_date: string | null;
   updated_at: string;
+}
+
+export interface SesOfficialCommunication {
+  id: string;
+  official_communication_code: string;
+  official_lot_code: string | null;
+  reference: string;
+  communication_type: 'ALQUILER_VEHICULO';
+  contract_date: string;
+  vehicle_plate: string | null;
+  normalized_plate: string | null;
+  status: 'active' | 'accepted' | 'annulled' | 'error';
+  source: 'manual_import' | 'portal_result' | 'migration';
+  recorded_at: string;
 }
 
 export interface SesMunicipality {

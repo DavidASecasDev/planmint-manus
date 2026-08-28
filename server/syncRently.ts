@@ -70,6 +70,8 @@ export interface RentlyBookingDetail extends RentlyBooking {
   Currency?: string;
   SalesCommision?: number;
   IsTransfer?: boolean;
+  DeliveryBranchOffice?: number | { Id?: number } | null;
+  DeliveryBranchOfficeId?: number | null;
   IsQuotation?: boolean;
   Version?: string;
   DailyRate?: number;
@@ -544,6 +546,12 @@ export function enrichReservationWithDetail(
     rently_status_code: detail.CurrentStatus,
     rently_status_date: new Date().toISOString(),
     es_transferencia: detail.IsTransfer ?? false,
+    rently_delivery_branch_office_id: typeof detail.DeliveryBranchOffice === 'number'
+      ? detail.DeliveryBranchOffice
+      : detail.DeliveryBranchOffice?.Id ?? detail.DeliveryBranchOfficeId ?? null,
+    rently_delivery_actual_at: detail.DeliveryInfo?.Date || null,
+    rently_detail_booking_id: detail.Id,
+    rently_detail_vehicle_plate: car.Plate || null,
     es_cotizacion: detail.IsQuotation ?? false,
     rently_version: detail.Version || null,
     lugar_entrega_direccion: deliveryPlace.Address || null,

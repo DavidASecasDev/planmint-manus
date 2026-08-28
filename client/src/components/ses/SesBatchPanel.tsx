@@ -31,10 +31,6 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function officialLotCode(notes: string | null) {
-  return notes?.match(/Código oficial de lote:\s*([0-9a-f-]{36})/i)?.[1] ?? null;
-}
-
 export function SesBatchPanel({
   batches,
   loading,
@@ -52,7 +48,7 @@ export function SesBatchPanel({
   onMarkUploaded: (input: { batchId: string; officialLotCode: string; notes?: string | null }) => Promise<unknown>;
   onRecordResult: (input: {
     batchId: string;
-    acceptedDraftIds: string[];
+    accepted: Array<{ draftId: string; officialCommunicationCode: string }>;
     errors: Array<{ draftId: string; code?: string | null; message: string }>;
     notes?: string | null;
   }) => Promise<unknown>;
@@ -66,7 +62,7 @@ export function SesBatchPanel({
 
   useEffect(() => {
     if (!uploadBatch) return;
-    setLotCode(officialLotCode(uploadBatch.notes) ?? '');
+    setLotCode(uploadBatch.official_lot_code ?? '');
     setUploadNotes('');
   }, [uploadBatch]);
 
@@ -74,7 +70,7 @@ export function SesBatchPanel({
     if (!resultBatch) return;
     setRows(Object.fromEntries(resultBatch.items.map((item) => [item.draft_id, {
       status: item.result_status === 'error' ? 'error' : 'accepted',
-      code: item.result_code ?? '',
+      code: item.result_status === 'error' ? item.result_code ?? '' : item.official_communication_code ?? '',
       message: item.result_message ?? '',
     }])));
     setResultNotes('');
@@ -82,7 +78,7 @@ export function SesBatchPanel({
 
   const resultCanSave = useMemo(() => resultBatch?.items.every((item) => {
     const row = rows[item.draft_id];
-    return row && (row.status === 'accepted' || row.message.trim().length > 0);
+    return row && (row.status === 'accepted' ? row.code.trim().length === 36 : row.message.trim().length > 0);
   }) ?? false, [resultBatch, rows]);
 
   return (
@@ -105,11 +101,11 @@ export function SesBatchPanel({
               {loading && <TableRow><TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell></TableRow>}
               {!loading && batches.slice(0, 10).map((batch) => {
                 const status = BATCH_STATUS[batch.status] ?? { label: batch.status, className: '' };
-                const code = officialLotCode(batch.notes);
+                const code = batch.official_lot_code;
                 return (
                   <TableRow key={batch.id}>
                     <TableCell className="whitespace-nowrap text-sm">{formatDate(batch.generated_at)}</TableCell>
-                    <TableCell><div className="max-w-64 truncate font-medium text-slate-800">{batch.file_name}</div><div className="font-mono text-[11px] text-slate-500">{code ?? 'Sin código oficial'}</div></TableCell>
+                    <TableCell><div className="max-w-64 truncate font-medium text-slate-800">{batch.file_name}</div><div className="font-mono text-[11px] text-slate-500">{code ?? 'Sin código oficial'}</div><div className="text-[11px] text-slate-400">Doc. {batch.document_version} · XSD {batch.xsd_version ?? 'sin validar'}</div></TableCell>
                     <TableCell><div className="text-sm font-medium">{batch.item_count}</div>{batch.result_recorded_at && <div className="text-xs text-slate-500">{batch.accepted_count} aceptados · {batch.error_count} errores</div>}</TableCell>
                     <TableCell><Badge variant="outline" className={status.className}>{status.label}</Badge></TableCell>
                     <TableCell className="text-right">
@@ -139,12 +135,12 @@ export function SesBatchPanel({
           <div className="space-y-3 py-2">
             {resultBatch?.items.map((item) => {
               const row = rows[item.draft_id] ?? { status: 'accepted', code: '', message: '' };
-              return <div key={item.id} className="rounded-lg border border-slate-200 p-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">Contrato #{item.draft?.reference ?? item.item_order}</p><p className="text-xs text-slate-500">Versión {item.draft_version}</p></div><Select value={row.status} onValueChange={(value: 'accepted' | 'error') => setRows((current) => ({ ...current, [item.draft_id]: { ...row, status: value } }))}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="accepted">Aceptado</SelectItem><SelectItem value="error">Con error</SelectItem></SelectContent></Select></div>{row.status === 'error' && <div className="mt-3 grid gap-3 sm:grid-cols-[160px_1fr]"><Input value={row.code} onChange={(event) => setRows((current) => ({ ...current, [item.draft_id]: { ...row, code: event.target.value } }))} placeholder="Código (opcional)" /><Textarea value={row.message} onChange={(event) => setRows((current) => ({ ...current, [item.draft_id]: { ...row, message: event.target.value } }))} placeholder="Mensaje exacto del portal" /></div>}</div>;
+              return <div key={item.id} className="rounded-lg border border-slate-200 p-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">Contrato #{item.draft?.reference ?? item.item_order}</p><p className="text-xs text-slate-500">Versión {item.draft_version} · snapshot {item.snapshot_hash?.slice(0, 10) ?? 'pendiente'}</p></div><Select value={row.status} onValueChange={(value: 'accepted' | 'error') => setRows((current) => ({ ...current, [item.draft_id]: { ...row, status: value, code: value === 'accepted' ? item.official_communication_code ?? '' : item.result_code ?? '' } }))}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="accepted">Aceptado</SelectItem><SelectItem value="error">Con error</SelectItem></SelectContent></Select></div><div className="mt-3 grid gap-3 sm:grid-cols-[220px_1fr]"><Input value={row.code} onChange={(event) => setRows((current) => ({ ...current, [item.draft_id]: { ...row, code: event.target.value.trim() } }))} placeholder={row.status === 'accepted' ? 'Código oficial de comunicación' : 'Código de error (opcional)'} className={row.status === 'accepted' ? 'font-mono' : ''} />{row.status === 'error' && <Textarea value={row.message} onChange={(event) => setRows((current) => ({ ...current, [item.draft_id]: { ...row, message: event.target.value } }))} placeholder="Mensaje exacto del portal" />}</div></div>;
             })}
             <div className="space-y-2"><Label>Notas generales opcionales</Label><Textarea value={resultNotes} onChange={(event) => setResultNotes(event.target.value)} placeholder="Observaciones sobre el procesamiento del lote" /></div>
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><Clock3 className="mt-0.5 h-4 w-4 shrink-0" />Si el portal indica que sigue procesando, cierra este diálogo y vuelve a comprobarlo más tarde.</div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setResultBatch(null)}>Cancelar</Button><Button disabled={savingResult || !resultCanSave} onClick={async () => { if (!resultBatch) return; const acceptedDraftIds = resultBatch.items.filter((item) => rows[item.draft_id]?.status === 'accepted').map((item) => item.draft_id); const errors = resultBatch.items.filter((item) => rows[item.draft_id]?.status === 'error').map((item) => ({ draftId: item.draft_id, code: rows[item.draft_id]?.code || null, message: rows[item.draft_id]?.message.trim() || '' })); await onRecordResult({ batchId: resultBatch.id, acceptedDraftIds, errors, notes: resultNotes || null }); setResultBatch(null); }}>{savingResult && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar resultado</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setResultBatch(null)}>Cancelar</Button><Button disabled={savingResult || !resultCanSave} onClick={async () => { if (!resultBatch) return; const accepted = resultBatch.items.filter((item) => rows[item.draft_id]?.status === 'accepted').map((item) => ({ draftId: item.draft_id, officialCommunicationCode: rows[item.draft_id]?.code.trim() || '' })); const errors = resultBatch.items.filter((item) => rows[item.draft_id]?.status === 'error').map((item) => ({ draftId: item.draft_id, code: rows[item.draft_id]?.code || null, message: rows[item.draft_id]?.message.trim() || '' })); await onRecordResult({ batchId: resultBatch.id, accepted, errors, notes: resultNotes || null }); setResultBatch(null); }}>{savingResult && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar resultado</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>

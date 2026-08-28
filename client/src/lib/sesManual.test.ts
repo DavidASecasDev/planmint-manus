@@ -21,8 +21,11 @@ describe('manual operativo SES.HOSPEDAJES', () => {
   it('cubre todos los estados operativos y las protecciones críticas', () => {
     expect(SES_MANUAL_STATUSES.map((item) => item.status)).toEqual([
       'Incompleto', 'Listo', 'En lote', 'Subido · pendiente', 'Aceptado', 'Error', 'Requiere revisión',
+      'Revisión obligatoria',
     ]);
     expect(SES_GOLDEN_RULES.some((rule) => rule.includes('nunca envía automáticamente'))).toBe(true);
     expect(SES_GOLDEN_RULES.some((rule) => rule.includes('no equivale a una aceptación'))).toBe(true);
+    expect(SES_GOLDEN_RULES.some((rule) => rule.includes('XSD oficial'))).toBe(true);
+    expect(SES_GOLDEN_RULES.some((rule) => rule.includes('snapshots'))).toBe(true);
   });
 });

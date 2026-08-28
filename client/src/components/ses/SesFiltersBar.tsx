@@ -17,14 +17,15 @@ export function SesFiltersBar({ filters, onChange, saving }: SesFiltersBarProps)
         <Input
           value={filters.search}
           onChange={(event) => onChange({ ...filters, search: event.target.value })}
-          placeholder="Buscar por reserva o matrícula..."
+          placeholder="Reserva o matrícula exacta..."
           className="pl-9"
+          aria-label="Buscar coincidencia exacta por reserva o matrícula"
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Input type="date" value={filters.dateFrom} onChange={(event) => onChange({ ...filters, dateFrom: event.target.value })} className="w-40" />
+        <Input type="date" value={filters.dateFrom} max={filters.dateTo || undefined} onChange={(event) => onChange({ ...filters, dateFrom: event.target.value })} className="w-40" aria-label="Fecha inicial" />
         <span className="text-xs text-slate-400">a</span>
-        <Input type="date" value={filters.dateTo} onChange={(event) => onChange({ ...filters, dateTo: event.target.value })} className="w-40" />
+        <Input type="date" value={filters.dateTo} min={filters.dateFrom || undefined} onChange={(event) => onChange({ ...filters, dateTo: event.target.value })} className="w-40" aria-label="Fecha final, máximo 93 días" />
         <Select value={filters.status} onValueChange={(status) => onChange({ ...filters, status })}>
           <SelectTrigger className="w-44"><SlidersHorizontal className="mr-2 h-4 w-4" /><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -35,6 +36,7 @@ export function SesFiltersBar({ filters, onChange, saving }: SesFiltersBarProps)
             <SelectItem value="uploaded_pending_result">Subidos · pendientes</SelectItem>
             <SelectItem value="accepted">Aceptados</SelectItem>
             <SelectItem value="needs_revision">Requieren revisión</SelectItem>
+            <SelectItem value="requires_review">Revisión obligatoria</SelectItem>
             <SelectItem value="error">Con error</SelectItem>
           </SelectContent>
         </Select>

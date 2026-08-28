@@ -57,4 +57,16 @@ describe('SES XML generator', () => {
     expect(xml).not.toContain('<kmDevolucion>');
     expect(xml).not.toContain('<apellido2>');
   });
+
+  it('preserves communication cardinality, unique references and a single secondary-driver role', () => {
+    const secondary = { ...person, document_number: 'CD654321', first_name: 'Luis' };
+    const second = { ...draft, id: 'draft-2', reference: '4672', vehicle_plate: '5678DEF', secondary_driver: secondary };
+    const xml = generateSesXml([draft, second]);
+    expect(xml.match(/<comunicacion>/g)).toHaveLength(2);
+    expect(xml.match(/<referencia>4671<\/referencia>/g)).toHaveLength(1);
+    expect(xml.match(/<referencia>4672<\/referencia>/g)).toHaveLength(1);
+    expect(xml.match(/<rol>CS<\/rol>/g)).toHaveLength(1);
+    expect(xml.indexOf('<contrato>')).toBeLessThan(xml.indexOf('<vehiculo>'));
+    expect(xml.indexOf('<vehiculo>')).toBeLessThan(xml.indexOf('<persona>'));
+  });
 });

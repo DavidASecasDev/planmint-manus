@@ -1548,3 +1548,21 @@
 - [x] Guardar por usuario el rango de fechas, estado y búsqueda del módulo SES
 - [x] Restaurar las preferencias SES entre sesiones y dispositivos sin mezclar cuentas
 - [x] Verificar valores iniciales, aislamiento por usuario y ausencia de parpadeos o consultas con filtros incorrectos
+- [x] Desglosar pasted_content_2.txt en requisitos verificables P0, P1 y UX/pruebas para SES.HOSPEDAJES
+- [x] Implementar todos los requisitos P0 del archivo adjunto con migraciones y pruebas específicas
+- [x] Implementar todos los requisitos P1 del archivo adjunto con compatibilidad hacia atrás
+- [x] Implementar todas las mejoras UX y la cobertura de pruebas exigida en el archivo adjunto
+- [x] Verificar la solución completa sin credenciales ni datos personales reales y sin desplegar
+- [x] P0: limitar preparación y exportación a Entregado + CurrentStatus 2 + no transfer + sucursal 1 + entrega real no futura + reserva/matrícula coincidente
+- [x] P0: enviar Terminadas nunca comunicadas a requires_review y eliminar truncamientos silenciosos superiores a 500
+- [x] P0: validar dateFrom <= dateTo y aplicar un rango máximo razonable
+- [x] P0: crear inventario oficial importable y bloquear duplicados activos/aceptados por referencia, tipo, fecha y matrícula
+- [x] P0: almacenar códigos oficiales de lote/comunicación en columnas estructuradas y únicas, protegiendo la comunicación aceptada 4942
+- [x] P0: separar las puertas complete, eligible, officially_clear y ready_for_xml y revalidarlas justo antes del XML
+- [x] P1: congelar snapshots versionados de contrato, vehículo, personas y lugares para lotes generados, pendientes y aceptados
+- [x] P1: registrar auditoría por campo con fuente, actor, fecha, valor anterior/nuevo y motivo sin PII en logs generales
+- [x] P1: reforzar ISO-3, municipio/INE, postal, VIN, matrícula, fechas, kilómetros, pago, permiso, marca/color/tipo y contacto
+- [x] P1: validar XML contra XSD oficial, cardinalidad, roles, referencias únicas, selección exacta, UTF-8, SHA-256 y versión documental
+- [x] UX: añadir búsqueda exacta por referencia, etiquetar totales filtrados y explicar cada causa de exclusión
+- [x] UX: actualizar el manual integrado con elegibilidad, duplicados, estados y subida siempre manual
+- [x] Pruebas: cubrir >500, titular=conductor, no-op versioning, duplicado oficial y mutación histórica de perfil/lugar

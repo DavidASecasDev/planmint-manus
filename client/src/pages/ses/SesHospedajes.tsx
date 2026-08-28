@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
   AlertCircle, BookOpen, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
-  RefreshCw, Settings2, ShieldAlert, UsersRound,
+  RefreshCw, Settings2, ShieldAlert, ShieldCheck, UsersRound,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
 import { SesBatchPanel } from '@/components/ses/SesBatchPanel';
 import { SesFiltersBar } from '@/components/ses/SesFiltersBar';
 import { SesManualDialog } from '@/components/ses/SesManualDialog';
+import { SesComplianceDialog } from '@/components/ses/SesComplianceDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending_sync: 'Pendiente de sincronizar',
   incomplete: 'Incompleto', ready: 'Listo', batched: 'En lote',
   uploaded_pending_result: 'Subido · pendiente', accepted: 'Aceptado',
-  error: 'Error', needs_revision: 'Requiere revisión',
+  error: 'Error', needs_revision: 'Requiere revisión', requires_review: 'Revisión obligatoria',
 };
 
 const PAYMENT_TYPES = [
@@ -55,6 +56,7 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'accepted') return <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">Aceptado</Badge>;
   if (status === 'error') return <Badge variant="destructive">Error</Badge>;
   if (status === 'needs_revision') return <Badge className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">Requiere revisión</Badge>;
+  if (status === 'requires_review') return <Badge className="border-red-200 bg-red-50 text-red-700 hover:bg-red-50">Revisión obligatoria</Badge>;
   return <Badge variant="secondary">{STATUS_LABELS[status] || status}</Badge>;
 }
 
@@ -144,15 +146,18 @@ export default function SesHospedajes() {
     search: '',
   }), []);
   const [filters, setFilters] = useState<SesDraftFilters>(defaultFilters);
+  const [pageOffset, setPageOffset] = useState(0);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const savedFiltersRef = useRef<string>('');
   const filterPreferences = useSesFilterPreferences(canView && !permissionsLoading);
   const filtersReady = Boolean(filterPreferences.userId && hydratedUserId === filterPreferences.userId);
-  const ses = useSesHospedajes(filters, filtersReady);
+  const ses = useSesHospedajes(filters, filtersReady, { limit: 200, offset: pageOffset, searchMode: 'exact' });
   const [selected, setSelected] = useState<SesContractDraft | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [complianceOpen, setComplianceOpen] = useState(false);
+  const [lastExclusions, setLastExclusions] = useState<Array<{ reference: string; reasons: Array<{ code: string; message: string }> }>>([]);
 
   useEffect(() => {
     if (!filterPreferences.userId || !filterPreferences.isFetched || filterPreferences.isLoading) return;
@@ -175,6 +180,10 @@ export default function SesHospedajes() {
   }, [filterPreferences.save, filters, filtersReady]);
 
   useEffect(() => {
+    setPageOffset(0);
+  }, [filters.dateFrom, filters.dateTo, filters.search, filters.status]);
+
+  useEffect(() => {
     if (!selected) return;
     const refreshed = ses.drafts.find((draft) => draft.id === selected.id);
     if (refreshed) setSelected(refreshed);
@@ -185,7 +194,7 @@ export default function SesHospedajes() {
   const accepted = ses.summary.accepted ?? 0;
   const completeness = ses.total ? Math.round((ready / ses.total) * 100) : 0;
   const selectedSaving = ses.updateDraft.isPending || ses.updatePerson.isPending || ses.createPerson.isPending || ses.updateLocation.isPending;
-  const readyDrafts = ses.drafts.filter((draft) => draft.status === 'ready');
+  const readyDrafts = ses.drafts.filter((draft) => draft.status === 'ready' && draft.ready_for_xml);
   const selectedReadyIds = Array.from(selectedIds).filter((id) => readyDrafts.some((draft) => draft.id === id));
   const settingsNotice = getSesSettingsNotice(ses.settings);
 
@@ -223,10 +232,11 @@ export default function SesHospedajes() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setManualOpen(true)}><BookOpen className="mr-2 h-4 w-4" />Cómo funciona</Button>
+            {canConfigure && <Button variant="outline" onClick={() => setComplianceOpen(true)}><ShieldCheck className="mr-2 h-4 w-4" />Control oficial</Button>}
             {canConfigure && <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 className="mr-2 h-4 w-4" />Configuración</Button>}
             <Button variant="outline" onClick={() => ses.refetch()} disabled={ses.isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${ses.isLoading ? 'animate-spin' : ''}`} />Actualizar</Button>
             {canEdit && (
-              <Button onClick={() => ses.prepare.mutate({ dateFrom: filters.dateFrom, dateTo: filters.dateTo })} disabled={ses.prepare.isPending}>
+              <Button onClick={() => ses.prepare.mutate({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }, { onSuccess: (result) => setLastExclusions(result.exclusions) })} disabled={ses.prepare.isPending}>
                 {ses.prepare.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
                 Preparar reservas
               </Button>
@@ -252,11 +262,32 @@ export default function SesHospedajes() {
           </Alert>
         ) : null}
 
+        {(!ses.settings?.official_xsd_hash || !ses.settings?.official_inventory_confirmed_at) && (
+          <Alert className="border-red-200 bg-red-50 text-red-950">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Control oficial pendiente</AlertTitle>
+            <AlertDescription>La generación XML permanece bloqueada hasta cargar el XSD oficial y confirmar el inventario de comunicaciones del portal.</AlertDescription>
+          </Alert>
+        )}
+
+        {lastExclusions.length > 0 && (
+          <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{lastExclusions.length} reservas excluidas de la preparación automática</AlertTitle>
+            <AlertDescription>
+              <div className="mt-2 space-y-1">
+                {lastExclusions.slice(0, 8).map((item) => <p key={item.reference}><strong>#{item.reference}:</strong> {item.reasons.map((reason) => reason.message).join(' · ')}</p>)}
+                {lastExclusions.length > 8 && <p>Y {lastExclusions.length - 8} exclusiones adicionales.</p>}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Card className="border-slate-200 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-slate-500">Preparados</p><p className="mt-1 text-2xl font-bold">{ses.total}</p></div><ClipboardCheck className="h-8 w-8 text-slate-300" /></CardContent></Card>
-          <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-emerald-700">Listos para XML</p><p className="mt-1 text-2xl font-bold text-emerald-900">{ready}</p></div><CheckCircle2 className="h-8 w-8 text-emerald-400" /></CardContent></Card>
-          <Card className="border-amber-200 bg-amber-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-amber-700">Requieren datos</p><p className="mt-1 text-2xl font-bold text-amber-900">{incomplete}</p></div><AlertCircle className="h-8 w-8 text-amber-400" /></CardContent></Card>
-          <Card className="border-blue-200 bg-blue-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-blue-700">Aceptados</p><p className="mt-1 text-2xl font-bold text-blue-900">{accepted}</p></div><UsersRound className="h-8 w-8 text-blue-400" /></CardContent></Card>
+          <Card className="border-slate-200 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-slate-500">Preparados · filtro</p><p className="mt-1 text-2xl font-bold">{ses.total}</p></div><ClipboardCheck className="h-8 w-8 text-slate-300" /></CardContent></Card>
+          <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-emerald-700">Listos · filtro</p><p className="mt-1 text-2xl font-bold text-emerald-900">{ready}</p></div><CheckCircle2 className="h-8 w-8 text-emerald-400" /></CardContent></Card>
+          <Card className="border-amber-200 bg-amber-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-amber-700">Requieren datos · filtro</p><p className="mt-1 text-2xl font-bold text-amber-900">{incomplete}</p></div><AlertCircle className="h-8 w-8 text-amber-400" /></CardContent></Card>
+          <Card className="border-blue-200 bg-blue-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-blue-700">Aceptados · filtro</p><p className="mt-1 text-2xl font-bold text-blue-900">{accepted}</p></div><UsersRound className="h-8 w-8 text-blue-400" /></CardContent></Card>
         </div>
 
         <Card className="border-slate-200 shadow-sm">
@@ -308,7 +339,7 @@ export default function SesHospedajes() {
                       <Checkbox
                         aria-label={`Seleccionar contrato ${draft.reference}`}
                         checked={selectedIds.has(draft.id)}
-                        disabled={draft.status !== 'ready'}
+                        disabled={draft.status !== 'ready' || !draft.ready_for_xml}
                         onCheckedChange={(checked) => setSelectedIds((current) => {
                           const next = new Set(current);
                           if (checked) next.add(draft.id); else next.delete(draft.id);
@@ -320,8 +351,8 @@ export default function SesHospedajes() {
                     <TableCell><div className="max-w-44 truncate font-medium">{client}</div><div className="text-xs text-slate-400">{draft.holder?.document_number || 'Sin documento'}</div></TableCell>
                     <TableCell><div className="whitespace-nowrap text-sm">{displayDate(draft.pickup_at)}</div><div className="max-w-52 truncate text-xs text-slate-400">{draft.pickup_location?.name || 'Sin lugar'}</div></TableCell>
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
-                    <TableCell><StatusBadge status={draft.status} /></TableCell>
-                    <TableCell>{countActionableSesIssues(draft) ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
+                    <TableCell><StatusBadge status={draft.status} />{draft.eligibility_errors?.[0] && <p className="mt-1 max-w-48 text-xs text-red-600">{draft.eligibility_errors[0].message}</p>}{!draft.is_officially_clear && draft.official_check_status === 'not_checked' && <p className="mt-1 text-xs text-amber-600">Inventario oficial sin confirmar</p>}</TableCell>
+                    <TableCell>{countActionableSesIssues(draft) || draft.eligibility_errors?.length || !draft.is_officially_clear ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft) + (draft.eligibility_errors?.length ?? 0) + (!draft.is_officially_clear ? 1 : 0)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
                     <TableCell className="text-right"><Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); setSelected(draft); }}>{draft.status === 'ready' ? 'Revisar' : 'Completar'}</Button></TableCell>
                   </TableRow>
                 );
@@ -332,6 +363,12 @@ export default function SesHospedajes() {
             </TableBody>
           </Table>
         </div>
+        {ses.total > 200 && (
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+            <span>Mostrando {pageOffset + 1}–{Math.min(pageOffset + ses.pageCount, ses.total)} de {ses.total} contratos filtrados</span>
+            <div className="flex gap-2"><Button variant="outline" size="sm" disabled={pageOffset === 0} onClick={() => setPageOffset(Math.max(0, pageOffset - 200))}>Anterior</Button><Button variant="outline" size="sm" disabled={pageOffset + ses.pageCount >= ses.total} onClick={() => setPageOffset(pageOffset + 200)}>Siguiente</Button></div>
+          </div>
+        )}
       </div>
 
       <SesDraftEditor
@@ -353,6 +390,16 @@ export default function SesHospedajes() {
         saving={ses.updateSettings.isPending}
       />
       <SesManualDialog open={manualOpen} onOpenChange={setManualOpen} />
+      <SesComplianceDialog
+        open={complianceOpen}
+        onOpenChange={setComplianceOpen}
+        settings={ses.settings}
+        inventoryTotal={ses.officialInventory.total}
+        uploadingXsd={ses.uploadXsd.isPending}
+        importingInventory={ses.importOfficialInventory.isPending}
+        onUploadXsd={(input) => ses.uploadXsd.mutateAsync(input)}
+        onImportInventory={(input) => ses.importOfficialInventory.mutateAsync(input)}
+      />
     </AppLayout>
   );
 }

@@ -150,6 +150,9 @@ import {
   handleSesExportXml,
   handleSesListBatches,
   handleSesListDrafts,
+  handleSesListOfficialInventory,
+  handleSesImportOfficialInventory,
+  handleSesUploadOfficialXsd,
   handleSesMarkBatchUploaded,
   handleSesPrepare,
   handleSesRecordBatchResult,
@@ -579,6 +582,9 @@ async function startServer() {
   app.post('/api/ses/batches', handleSesListBatches);
   app.post('/api/ses/batches/uploaded', handleSesMarkBatchUploaded);
   app.post('/api/ses/batches/result', handleSesRecordBatchResult);
+  app.post('/api/ses/official-inventory', handleSesListOfficialInventory);
+  app.post('/api/ses/official-inventory/import', handleSesImportOfficialInventory);
+  app.post('/api/ses/settings/xsd', handleSesUploadOfficialXsd);
   app.post("/api/ses/settings/update", handleSesUpdateSettings);
 
   // ─── External API (B2B) ──────────────────────────────────────────────────

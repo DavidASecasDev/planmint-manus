@@ -20,6 +20,8 @@ const DETAIL_FIELDS = [
   'pagado_por_cliente', 'moneda', 'comision_ventas', 'tarifa_diaria', 'tarifa_hora',
   'tarifa_dia_extra', 'tarifa_hora_extra', 'km_ilimitados', 'km_max_permitidos',
   'km_max_por_dia', 'rently_detail_synced_at',
+  'rently_delivery_branch_office_id', 'rently_delivery_actual_at',
+  'rently_detail_booking_id', 'rently_detail_vehicle_plate',
 ] as const;
 
 export interface ReservationForSesEnrichment extends Record<string, unknown> {
@@ -35,6 +37,13 @@ export interface ReservationForSesEnrichment extends Record<string, unknown> {
   cliente_pais?: unknown;
   cliente_carnet_numero?: string | null;
   cliente_carnet_expiracion?: string | null;
+  estado?: string | null;
+  rently_status_code?: number | null;
+  es_transferencia?: boolean | null;
+  rently_delivery_branch_office_id?: number | null;
+  rently_delivery_actual_at?: string | null;
+  rently_detail_booking_id?: number | null;
+  rently_detail_vehicle_plate?: string | null;
 }
 
 export function needsRentlySesEnrichment(reservation: ReservationForSesEnrichment) {

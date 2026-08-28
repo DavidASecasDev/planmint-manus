@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { buildSesFieldAuditRows, persistSesFieldAudit } from './fieldAudit';
 
 export interface RentlyCustomerForSes {
   Id?: number;
@@ -218,6 +219,28 @@ export async function syncSesPersonProfiles(
     .from('ses_person_profiles')
     .upsert(rows, { onConflict: 'organization_id,document_type,document_number' });
   if (error) throw error;
+
+  const auditRows = Array.from(unique.entries()).flatMap(([key, incoming]) => {
+    const current = existingMap.get(key) ?? {};
+    const saved = rows.find((row) => `${row.document_type}:${row.document_number}` === key) ?? incoming;
+    const savedRecord = saved as Record<string, unknown>;
+    const changes = Object.fromEntries(
+      ['rently_customer_id', ...PROTECTED_PROFILE_FIELDS]
+        .filter((field) => Object.prototype.hasOwnProperty.call(incoming, field))
+        .map((field) => [field, savedRecord[field]]),
+    );
+    return buildSesFieldAuditRows({
+      organizationId,
+      entityType: 'person',
+      entityId: String(savedRecord.id),
+      source: 'rently',
+      actorUserId: userId,
+      previous: current,
+      changes,
+      reason: 'Enriquecimiento automático desde el detalle contractual de Rently',
+    });
+  });
+  await persistSesFieldAudit(serviceClient, auditRows);
 
   return { synced: rows.length, skipped: customers.length - rows.length };
 }
