@@ -93,6 +93,19 @@ export interface SesContractDraft {
   manual_fields: string[];
   draft_version: number;
   updated_at: string;
+  operationalStatus: 'incomplete' | 'ready' | 'xml_generated';
+  readyForXml: boolean;
+  missingFields: SesValidationIssue[];
+  invalidFields: SesValidationIssue[];
+  sourceByField: Record<string, 'manual' | 'rently' | 'derived'>;
+  syncConflicts: Array<{
+    field: string;
+    keptSource: 'manual';
+    incomingSource: 'rently' | 'derived';
+    existingValue: unknown;
+    incomingValue: unknown;
+  }>;
+  sesDuplicateWarning: { level: 'warning'; message: string; reasons: string[] } | null;
   reservation: {
     id: string;
     external_reservation_id: string | null;

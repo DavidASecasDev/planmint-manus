@@ -11,7 +11,7 @@ import {
   toIsoAlpha3,
   type RentlyCustomerForSes,
 } from './rentlyProfiles';
-import { validateSesDraft, type SesDraftValidationInput } from './validation';
+import { validateSesDraft, type SesDraftValidationInput, type SesValidationIssue } from './validation';
 import { generateSesXml, type SesXmlDraft } from './xml';
 import { normalizeSesVehicleBrand, normalizeSesVehicleColor } from './codes';
 import {
@@ -40,18 +40,20 @@ import {
   buildOfficialIdentityHash,
   evaluateOfficialClearance,
   normalizeOfficialInventoryItem,
+  type SesOfficialClearance,
   type SesOfficialCommunication,
 } from './officialInventory';
 import { assertUniqueSesExportSelection, deriveSesGateState, isSesDraftLocked } from './readiness';
 import { buildSesHistoricalSnapshots, calculateSesPayloadSnapshotHash } from './historicalSnapshots';
 import { buildSesFieldAuditRows, persistSesFieldAudit } from './fieldAudit';
-import { storageGet, storagePut } from '../storage';
-import { sha256Utf8, validateSesXmlAgainstXsd } from './xsdValidation';
+import { storagePut } from '../storage';
+import { sha256Utf8 } from './xsdValidation';
 import {
   SES_OFFICIAL_CONTRACT_VERSION,
   validateSesXmlAgainstOfficialContract,
 } from './officialStructuralContract';
-import { selectSesXmlValidationMode } from './xmlValidationMode';
+import { deriveSesOperationalState, mergeSesRentlyFields, projectSesOperationalDraft } from './operationalDraft';
+import { mapStoredRentlyDriverToCustomer, parseStoredRentlyDrivers } from './additionalDrivers';
 import {
   assertSesHardeningSchema,
   assertSesEligibilityExceptionSchema,
@@ -65,6 +67,11 @@ const PrepareSchema = z.object({
   dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   reservationIds: z.array(z.string().uuid()).max(500).optional(),
 });
+
+const SyncDraftsSchema = z.object({
+  offset: z.number().int().min(0).default(0),
+  limit: z.number().int().min(1).max(100).default(50),
+}).strict();
 
 const ListSchema = z.object({
   dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -580,57 +587,20 @@ const LEGACY_DRAFT_RELATIONS = `
 
 async function calculateCurrentDraftGates(ctx: AuthContext, draft: Record<string, any>) {
   const issues = validateSesDraft(buildValidationInput(draft));
-  const reservation = Array.isArray(draft.reservation) ? draft.reservation[0] : draft.reservation;
-  const previousSnapshot = draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object'
-    ? draft.eligibility_snapshot : {};
-  const activeException = reservation?.id
-    ? (await loadActiveEligibilityExceptions(ctx, [reservation.id])).get(reservation.id)
-    : undefined;
-  const visibleStatus = reservation?.rently_status_code === 2
-    ? 'Entregado'
-    : reservation?.rently_status_code === 3 ? 'Terminada' : reservation?.estado;
-  const eligibility = evaluateSesEligibility({
-    visibleStatus,
-    rentlyStatusCode: reservation?.rently_status_code,
-    isTransfer: reservation?.es_transferencia,
-    deliveryBranchOfficeId: reservation?.rently_delivery_branch_office_id,
-    actualDeliveryAt: reservation?.rently_delivery_actual_at,
-    externalBookingId: reservation?.external_reservation_id ?? draft.external_booking_id,
-    detailBookingId: reservation?.rently_detail_booking_id,
-    reservationPlate: draft.vehicle_plate ?? reservation?.auto,
-    detailVehiclePlate: reservation?.rently_detail_vehicle_plate,
-    inExactRentlyIntersection: previousSnapshot.in_exact_rently_intersection === true,
-    manualException: toManualEligibilityException(activeException),
-  });
-  const { data: officialRows, error: officialError } = await ctx.serviceClient.from('ses_official_communications')
-    .select('official_communication_code,official_lot_code,reference,communication_type,contract_date,normalized_plate,status')
-    .eq('organization_id', ctx.organizationId)
-    .eq('reference', draft.reference);
-  if (officialError) throw officialError;
-  const officialIdentityHash = buildOfficialIdentityHash({
-    reference: draft.reference,
-    contractDate: draft.contract_date,
-    vehiclePlate: draft.vehicle_plate,
-  });
-  const checked = (officialRows ?? []).length > 0
-    || (previousSnapshot.official_identity_hash === officialIdentityHash
-      && ['clear', 'blocked', 'review'].includes(draft.official_check_status));
-  const officialClearance = evaluateOfficialClearance({
-    checked,
-    reference: draft.reference,
-    contractDate: draft.contract_date,
-    vehiclePlate: draft.vehicle_plate,
-    communications: (officialRows ?? []) as SesOfficialCommunication[],
-  });
+  const officialStatus: SesOfficialClearance['status'] = ['clear', 'blocked', 'review'].includes(draft.official_check_status)
+    ? draft.official_check_status
+    : 'not_checked';
+  const officialClearance: SesOfficialClearance = {
+    status: officialStatus,
+    clear: officialStatus === 'clear',
+    reasons: [],
+    matchingCommunicationCode: null,
+  };
   return {
     issues,
-    eligibility,
     officialClearance,
-    officialIdentityHash,
     gates: deriveSesGateState({
       validationIssueCount: issues.length,
-      eligible: eligibility.eligible,
-      eligibilityRequiresReview: eligibility.requiresReview,
       officialClearance,
     }),
   };
@@ -642,27 +612,16 @@ async function validateAndPersistDraft(ctx: AuthContext, draftId: string) {
   if (error) throw error;
   const locked = isSesDraftLocked(draft.status);
   if (locked) return { draft, issues: draft.validation_errors ?? [] };
-  const { issues, eligibility, officialClearance, officialIdentityHash, gates } = await calculateCurrentDraftGates(ctx, draft);
-  const previousSnapshot = draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object'
-    ? draft.eligibility_snapshot : {};
+  const { issues, officialClearance, gates } = await calculateCurrentDraftGates(ctx, draft);
   const { data: updated, error: updateError } = await ctx.serviceClient.from('ses_contract_drafts')
     .update({
       validation_errors: issues,
-      eligibility_errors: eligibility.issues,
+      eligibility_errors: [],
       is_complete: gates.isComplete,
-      is_eligible: gates.isEligible,
+      is_eligible: true,
       is_officially_clear: gates.isOfficiallyClear,
       ready_for_xml: gates.readyForXml,
-      official_check_status: officialClearance.status,
       status: gates.status,
-      eligibility_snapshot: {
-        ...previousSnapshot,
-        official_identity_hash: officialIdentityHash,
-        official_checked_at: officialClearance.status === 'not_checked' ? null : new Date().toISOString(),
-        official_status: officialClearance.status,
-        official_reasons: officialClearance.reasons,
-      },
-      last_eligibility_checked_at: new Date().toISOString(),
       last_prepared_at: new Date().toISOString(),
     })
     .eq('id', draftId).eq('organization_id', ctx.organizationId).select('*').single();
@@ -687,6 +646,165 @@ async function audit(
     metadata,
     performed_by: ctx.userId,
   });
+}
+
+export async function handleSesSyncDrafts(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesHardeningSchema(ctx.serviceClient);
+    const input = SyncDraftsSchema.parse(req.body ?? {});
+    const { data, error, count } = await ctx.serviceClient.from('reservations').select(`
+      id,organization_id,external_reservation_id,rently_creation_date,estado,desde,hasta,
+      cliente_nombre,cliente_apellido,email,telefono,tipo_documento_cliente,documento_cliente,
+      cliente_direccion,cliente_ciudad,cliente_estado_provincia,cliente_pais,cliente_fecha_nacimiento,
+      cliente_carnet_numero,cliente_carnet_pais,cliente_carnet_expiracion,
+      lugar_entrega,lugar_entrega_direccion,lugar_entrega_ciudad,
+      lugar_devolucion,lugar_devolucion_direccion,lugar_devolucion_ciudad,
+      modelo,auto,categoria,vehiculo_color,vehiculo_chasis,vehiculo_kms,conductores_adicionales,imported_by
+    `, { count: 'exact' })
+      .eq('organization_id', ctx.organizationId)
+      .order('external_reservation_id', { ascending: true })
+      .range(input.offset, input.offset + input.limit - 1);
+    if (error) throw error;
+    const reservations = (data ?? []) as Array<Record<string, any>>;
+    const total = count ?? input.offset + reservations.length;
+    if (!reservations.length) {
+      return res.json({ data: { processed: 0, created: 0, updated: 0, unchanged: 0, skippedLocked: 0, total, nextOffset: null, hasMore: false }, error: null });
+    }
+
+    const reservationIds = reservations.map((row) => row.id);
+    const { data: existingDrafts, error: existingError } = await ctx.serviceClient.from('ses_contract_drafts').select('*')
+      .eq('organization_id', ctx.organizationId).in('reservation_id', reservationIds);
+    if (existingError) throw existingError;
+    const existingMap = new Map((existingDrafts ?? []).map((draft) => [draft.reservation_id, draft]));
+    const plates = Array.from(new Set(reservations.map((row) => row.auto).filter(Boolean)));
+    const { data: fleetVehicles } = plates.length
+      ? await ctx.serviceClient.from('fleet_vehicles').select('*').eq('organization_id', ctx.organizationId).in('matricula', plates)
+      : { data: [] as any[] };
+    const fleetMap = new Map((fleetVehicles ?? []).map((vehicle) => [vehicle.matricula, vehicle]));
+    const { data: settings } = await ctx.serviceClient.from('ses_settings').select('*')
+      .eq('organization_id', ctx.organizationId).maybeSingle();
+    const additionalCustomers = reservations.flatMap((reservation) =>
+      parseStoredRentlyDrivers(reservation.conductores_adicionales)
+        .map(mapStoredRentlyDriverToCustomer)
+        .filter((customer): customer is RentlyCustomerForSes => Boolean(customer)),
+    );
+    if (additionalCustomers.length) {
+      await syncSesPersonProfiles(ctx.serviceClient, ctx.organizationId, ctx.userId, additionalCustomers);
+    }
+    const additionalDocuments = Array.from(new Set(
+      additionalCustomers.map((customer) => normalizeDocumentNumber(customer.DocumentId)).filter(Boolean),
+    )) as string[];
+    const { data: additionalProfiles } = additionalDocuments.length
+      ? await ctx.serviceClient.from('ses_person_profiles').select('*')
+        .eq('organization_id', ctx.organizationId).in('document_number', additionalDocuments)
+      : { data: [] as any[] };
+    const additionalProfileMap = new Map(
+      (additionalProfiles ?? []).map((profile) => [normalizeDocumentNumber(profile.document_number), profile]),
+    );
+    let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+    let skippedLocked = 0;
+
+    for (const reservation of reservations) {
+      const existing = existingMap.get(reservation.id) as Record<string, any> | undefined;
+      if (existing && isSesDraftLocked(existing.status)) {
+        skippedLocked++;
+        continue;
+      }
+      const person = await ensurePersonFromReservation(ctx, reservation);
+      const pickupLocation = await ensureLocation(ctx, reservation.lugar_entrega, reservation.lugar_entrega_direccion, reservation.lugar_entrega_ciudad, settings?.establishment_code);
+      const returnLocation = await ensureLocation(ctx, reservation.lugar_devolucion, reservation.lugar_devolucion_direccion, reservation.lugar_devolucion_ciudad, settings?.establishment_code);
+      const fleet = fleetMap.get(reservation.auto) as Record<string, any> | undefined;
+      const firstAdditionalDriver = mapStoredRentlyDriverToCustomer(
+        parseStoredRentlyDrivers(reservation.conductores_adicionales)[0] ?? {},
+      );
+      const secondaryDocument = normalizeDocumentNumber(firstAdditionalDriver?.DocumentId);
+      const secondaryProfile = secondaryDocument ? additionalProfileMap.get(secondaryDocument) : null;
+      const automatic = {
+        organization_id: ctx.organizationId,
+        reservation_id: reservation.id,
+        external_booking_id: Number(reservation.external_reservation_id) || null,
+        reference: String(reservation.external_reservation_id || reservation.id).slice(0, 50),
+        contract_date: reservation.rently_creation_date?.slice(0, 10) || null,
+        pickup_at: reservation.desde,
+        return_at: reservation.hasta,
+        pickup_location_id: pickupLocation?.id ?? null,
+        return_location_id: returnLocation?.id ?? null,
+        holder_profile_id: person?.id ?? null,
+        primary_driver_profile_id: person?.id ?? null,
+        secondary_driver_profile_id: secondaryProfile?.id ?? null,
+        payment_type: settings?.default_payment_type ?? null,
+        vehicle_category: fleet?.categoria ?? reservation.categoria ?? null,
+        vehicle_type: settings?.default_vehicle_type ?? 'TURISMO',
+        vehicle_brand: normalizeSesVehicleBrand(fleet?.marca),
+        vehicle_model: fleet?.modelo ?? reservation.modelo ?? null,
+        vehicle_plate: fleet?.matricula ?? reservation.auto ?? null,
+        vehicle_vin: fleet?.numero_bastidor ?? reservation.vehiculo_chasis ?? null,
+        vehicle_color: normalizeSesVehicleColor(fleet?.color ?? reservation.vehiculo_color),
+        km_pickup: fleet?.km_recogida ?? reservation.vehiculo_kms ?? null,
+        km_return: fleet?.km_devolucion ?? null,
+        updated_by: ctx.userId,
+      };
+      const manualFields = Array.isArray(existing?.manual_fields) ? existing.manual_fields : [];
+      const mergedRently = mergeSesRentlyFields({
+        existing,
+        incoming: automatic,
+        manualFields,
+        derivedFields: ['payment_type', 'vehicle_type'],
+      });
+      const merged: Record<string, any> = {
+        ...mergedRently.values,
+        manual_fields: manualFields,
+        ...(existing ? {} : { created_by: ctx.userId }),
+      };
+      const issues = validateSesDraft({
+        ...merged,
+        holder: person,
+        primary_driver: person,
+        secondary_driver: secondaryProfile ?? null,
+        pickup_location: pickupLocation,
+        return_location: returnLocation,
+      });
+      const operational = deriveSesOperationalState({ validationIssues: issues });
+      const previousSnapshot = existing?.eligibility_snapshot && typeof existing.eligibility_snapshot === 'object'
+        ? existing.eligibility_snapshot : {};
+      merged.validation_errors = issues;
+      merged.is_complete = operational.readyForXml;
+      merged.is_eligible = true;
+      merged.eligibility_errors = [];
+      merged.ready_for_xml = operational.readyForXml;
+      merged.status = operational.status;
+      merged.eligibility_snapshot = {
+        ...previousSnapshot,
+        source_by_field: mergedRently.sourceByField,
+        sync_conflicts: mergedRently.syncConflicts,
+        rently_synced_at: new Date().toISOString(),
+      };
+      merged.last_prepared_at = new Date().toISOString();
+      const nextContentHash = calculateSesDraftContentHash(merged);
+      const contentChanged = !existing || existing.content_hash !== nextContentHash;
+      merged.draft_version = existing ? existing.draft_version + (contentChanged ? 1 : 0) : 1;
+      merged.content_hash = nextContentHash;
+      if (existing && !contentChanged && mergedRently.syncConflicts.length === 0) {
+        unchanged++;
+        continue;
+      }
+      const { error: saveError } = await ctx.serviceClient.from('ses_contract_drafts')
+        .upsert(merged, { onConflict: 'organization_id,reservation_id' });
+      if (saveError) throw saveError;
+      existing ? updated++ : created++;
+    }
+
+    const nextOffset = input.offset + reservations.length < total ? input.offset + reservations.length : null;
+    return res.json({
+      data: { processed: reservations.length, created, updated, unchanged, skippedLocked, total, nextOffset, hasMore: nextOffset !== null },
+      error: null,
+    });
+  } catch (error) {
+    return sendError(res, error, 'sync-drafts');
+  }
 }
 
 export async function handleSesPrepare(req: Request, res: Response) {
@@ -1019,7 +1137,11 @@ export async function handleSesListDrafts(req: Request, res: Response) {
       let filtered = query;
       if (input.dateFrom) filtered = filtered.gte('pickup_at', `${input.dateFrom}T00:00:00`);
       if (input.dateTo) filtered = filtered.lte('pickup_at', `${input.dateTo}T23:59:59`);
-      if (input.status && input.status !== 'all') filtered = filtered.eq('status', input.status);
+      if (input.status && input.status !== 'all') {
+        filtered = input.status === 'xml_generated'
+          ? filtered.in('status', ['batched', 'uploaded_pending_result', 'accepted'])
+          : filtered.eq('status', input.status);
+      }
       if (input.search?.trim()) {
         const search = input.search.trim().replace(/[%_,]/g, '');
         const plate = search.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1046,8 +1168,8 @@ export async function handleSesListDrafts(req: Request, res: Response) {
       schemaMigrationRequired = true;
     }
     if (error) throw error;
-    const statusRows = await collectAllPages<{ status: string }>(async (from, to) => {
-      let statusQuery = ctx.serviceClient.from('ses_contract_drafts').select('status')
+    const statusRows = await collectAllPages<{ status: string; validation_errors: unknown[] | null }>(async (from, to) => {
+      let statusQuery = ctx.serviceClient.from('ses_contract_drafts').select('status,validation_errors')
         .eq('organization_id', ctx.organizationId).order('pickup_at', { ascending: true }).range(from, to);
       statusQuery = applyFilters(statusQuery);
       const { data: page, error: pageError } = await statusQuery;
@@ -1055,12 +1177,17 @@ export async function handleSesListDrafts(req: Request, res: Response) {
       return page ?? [];
     });
     const summary = statusRows.reduce((acc: Record<string, number>, draft) => {
-      acc[draft.status] = (acc[draft.status] ?? 0) + 1;
+      const operational = deriveSesOperationalState({
+        historicalStatus: draft.status,
+        validationIssues: Array.isArray(draft.validation_errors) ? draft.validation_errors as SesValidationIssue[] : [],
+      });
+      acc[operational.status] = (acc[operational.status] ?? 0) + 1;
       return acc;
     }, {});
-    const normalizedDrafts = schemaMigrationRequired
+    const compatibleDrafts = schemaMigrationRequired
       ? (data ?? []).map((draft) => withLegacyDraftGates(draft as Record<string, any>))
       : (data ?? []);
+    const normalizedDrafts = compatibleDrafts.map((draft) => projectSesOperationalDraft(draft as Record<string, any>));
     return res.json({
       data: {
         drafts: normalizedDrafts, summary, total: count ?? statusRows.length,
@@ -1130,8 +1257,12 @@ export async function handleSesCreatePerson(req: Request, res: Response) {
     if (error) throw error;
     const field = input.role === 'holder' ? 'holder_profile_id'
       : input.role === 'primary_driver' ? 'primary_driver_profile_id' : 'secondary_driver_profile_id';
+    const { data: currentDraft, error: draftError } = await ctx.serviceClient.from('ses_contract_drafts')
+      .select('manual_fields').eq('id', input.draftId).eq('organization_id', ctx.organizationId).single();
+    if (draftError) throw draftError;
+    const draftManualFields = Array.from(new Set([...(currentDraft.manual_fields ?? []), field]));
     const { error: attachError } = await ctx.serviceClient.from('ses_contract_drafts')
-      .update({ [field]: person.id, updated_by: ctx.userId })
+      .update({ [field]: person.id, manual_fields: draftManualFields, updated_by: ctx.userId })
       .eq('id', input.draftId).eq('organization_id', ctx.organizationId);
     if (attachError) throw attachError;
     await audit(ctx, 'person', person.id, 'created_manually', Object.keys(input.values));
@@ -1589,37 +1720,10 @@ export async function handleSesCheckOfficialCommunication(req: Request, res: Res
     });
     const previousSnapshot = draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object'
       ? draft.eligibility_snapshot : {};
-    const eligibility = evaluateSesEligibility({
-      visibleStatus: draft.reservation?.rently_status_code === 2 ? 'Entregado'
-        : draft.reservation?.rently_status_code === 3 ? 'Terminada' : draft.reservation?.estado,
-      rentlyStatusCode: draft.reservation?.rently_status_code,
-      isTransfer: draft.reservation?.es_transferencia,
-      deliveryBranchOfficeId: draft.reservation?.rently_delivery_branch_office_id,
-      actualDeliveryAt: draft.reservation?.rently_delivery_actual_at,
-      externalBookingId: draft.reservation?.external_reservation_id ?? draft.external_booking_id,
-      detailBookingId: draft.reservation?.rently_detail_booking_id,
-      reservationPlate: draft.vehicle_plate ?? draft.reservation?.auto,
-      detailVehiclePlate: draft.reservation?.rently_detail_vehicle_plate,
-      inExactRentlyIntersection: previousSnapshot.in_exact_rently_intersection === true,
-      manualException: toManualEligibilityException(
-        draft.reservation?.id
-          ? (await loadActiveEligibilityExceptions(ctx, [draft.reservation.id])).get(draft.reservation.id)
-          : undefined,
-      ),
-    });
-    const issues = validateSesDraft(buildValidationInput(draft));
-    const gates = deriveSesGateState({
-      validationIssueCount: issues.length,
-      eligible: eligibility.eligible,
-      eligibilityRequiresReview: eligibility.requiresReview,
-      officialClearance,
-    });
     const checkedAt = new Date().toISOString();
     const { data: updated, error: updateError } = await ctx.serviceClient.from('ses_contract_drafts').update({
       official_check_status: officialClearance.status,
       is_officially_clear: officialClearance.clear,
-      ready_for_xml: gates.readyForXml,
-      status: gates.status,
       eligibility_snapshot: {
         ...previousSnapshot,
         official_identity_hash: expectedHash,
@@ -1631,7 +1735,7 @@ export async function handleSesCheckOfficialCommunication(req: Request, res: Res
     }).eq('organization_id', ctx.organizationId).eq('id', draft.id).select('*').single();
     if (updateError) throw updateError;
     await audit(ctx, 'draft', draft.id, 'official_exact_check_recorded', [
-      'official_check_status', 'is_officially_clear', 'ready_for_xml', 'status',
+      'official_check_status', 'is_officially_clear', 'eligibility_snapshot',
     ], { outcome: input.outcome, official_status: officialClearance.status, checked_at: checkedAt });
     return res.json({ data: { draft: updated, officialClearance, checkedAt }, error: null });
   } catch (error) {
@@ -1946,9 +2050,9 @@ export async function handleSesExportXml(req: Request, res: Response) {
       notFound.status = 404;
       throw notFound;
     }
-    const notReady = drafts.filter((draft) => draft.status !== 'ready' || draft.ready_for_xml !== true);
-    if (notReady.length) {
-      const conflict = new Error('Solo se pueden exportar contratos en estado Listo; recarga y revisa la selección') as Error & { status?: number };
+    const alreadyGenerated = drafts.filter((draft) => isSesDraftLocked(draft.status));
+    if (alreadyGenerated.length) {
+      const conflict = new Error('La selección contiene contratos que ya forman parte del historial XML') as Error & { status?: number };
       conflict.status = 409;
       throw conflict;
     }
@@ -1982,50 +2086,15 @@ export async function handleSesExportXml(req: Request, res: Response) {
     })) as unknown as SesXmlDraft[];
     const xml = generateSesXml(payloads);
     const xmlHash = sha256Utf8(xml);
-    const { data: xsdSettings, error: xsdSettingsError } = await ctx.serviceClient.from('ses_settings')
-      .select('official_xsd_storage_key,official_xsd_hash,official_xsd_version')
-      .eq('organization_id', ctx.organizationId).maybeSingle();
-    if (xsdSettingsError) throw xsdSettingsError;
-    let selectedValidation;
-    try {
-      selectedValidation = selectSesXmlValidationMode(xsdSettings);
-    } catch (error) {
-      (error as Error & { status?: number }).status = 409;
-      throw error;
-    }
-    let validationMode: 'official_xsd' | 'official_contract' = selectedValidation.mode;
-    let validationVersion = selectedValidation.version;
-    let validationHash: string | null = null;
-    let xsdValidatedAt: string | null = null;
-
-    if (selectedValidation.mode === 'official_xsd') {
-      validationHash = selectedValidation.hash;
-      const storedXsd = await storageGet(selectedValidation.storageKey, 300);
-      const xsdResponse = await fetch(storedXsd.url);
-      if (!xsdResponse.ok) throw new Error('No se pudo recuperar el XSD oficial configurado');
-      const xsdContent = await xsdResponse.text();
-      if (sha256Utf8(xsdContent) !== validationHash) {
-        const mismatch = new Error('La huella del XSD almacenado no coincide con la configuración') as Error & { status?: number };
-        mismatch.status = 409;
-        throw mismatch;
-      }
-      const xsdValidation = await validateSesXmlAgainstXsd(xml, xsdContent);
-      if (!xsdValidation.valid) {
-        return res.status(422).json({
-          data: { validationMode, xsdErrors: xsdValidation.errors },
-          error: 'El XML no cumple el XSD oficial configurado',
-        });
-      }
-      xsdValidatedAt = new Date().toISOString();
-    } else {
-      const structuralValidation = validateSesXmlAgainstOfficialContract(xml);
-      validationHash = sha256Utf8(`SES:${structuralValidation.contractVersion}:${structuralValidation.namespace}`);
-      if (!structuralValidation.valid) {
-        return res.status(422).json({
-          data: { validationMode, structuralErrors: structuralValidation.errors },
-          error: 'El XML no cumple la plantilla y las Instrucciones oficiales vigentes',
-        });
-      }
+    const validationMode = 'official_contract' as const;
+    const validationVersion = SES_OFFICIAL_CONTRACT_VERSION;
+    const structuralValidation = validateSesXmlAgainstOfficialContract(xml);
+    const validationHash = sha256Utf8(`SES:${structuralValidation.contractVersion}:${structuralValidation.namespace}`);
+    if (!structuralValidation.valid) {
+      return res.status(422).json({
+        data: { validationMode, structuralErrors: structuralValidation.errors },
+        error: 'El XML no cumple la plantilla y las Instrucciones oficiales vigentes',
+      });
     }
     const { data: duplicateBatch, error: duplicateBatchError } = await ctx.serviceClient.from('ses_batches')
       .select('id,status,file_name').eq('organization_id', ctx.organizationId).eq('xml_hash', xmlHash)
@@ -2052,11 +2121,11 @@ export async function handleSesExportXml(req: Request, res: Response) {
     const { data: batch, error: batchError } = await ctx.serviceClient.from('ses_batches').insert({
       organization_id: ctx.organizationId,
       status: 'downloaded',
-      schema_version: validationMode === 'official_xsd' ? 'xsd' : 'official-contract',
+      schema_version: 'official-contract',
       document_version: documentVersions[0],
-      xsd_version: validationMode === 'official_xsd' ? validationVersion : null,
-      xsd_hash: validationMode === 'official_xsd' ? validationHash : null,
-      xsd_validated_at: xsdValidatedAt,
+      xsd_version: null,
+      xsd_hash: null,
+      xsd_validated_at: null,
       file_name: fileName,
       xml_hash: xmlHash,
       item_count: drafts.length,
@@ -2107,8 +2176,8 @@ export async function handleSesExportXml(req: Request, res: Response) {
       data: {
         batchId: batch.id, fileName, xml, xmlHash, itemCount: drafts.length,
         documentVersion: documentVersions[0], validationMode, validationVersion, validationHash,
-        xsdVersion: validationMode === 'official_xsd' ? validationVersion : null,
-        xsdHash: validationMode === 'official_xsd' ? validationHash : null,
+        xsdVersion: null,
+        xsdHash: null,
       },
       error: null,
     });

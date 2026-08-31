@@ -4,18 +4,20 @@ import { assertUniqueSesExportSelection, deriveSesGateState, isSesDraftLocked } 
 const clear = { status: 'clear' as const, clear: true, reasons: [], matchingCommunicationCode: null };
 
 describe('SES readiness gates', () => {
-  it('requires complete, eligible and officially clear simultaneously', () => {
+  it('deriva listo únicamente de la ausencia de campos pendientes o inválidos', () => {
     expect(deriveSesGateState({ validationIssueCount: 0, eligible: true, officialClearance: clear })).toMatchObject({
       isComplete: true, isEligible: true, isOfficiallyClear: true, readyForXml: true, status: 'ready',
     });
     expect(deriveSesGateState({ validationIssueCount: 1, eligible: true, officialClearance: clear }).readyForXml).toBe(false);
-    expect(deriveSesGateState({ validationIssueCount: 0, eligible: false, officialClearance: clear }).readyForXml).toBe(false);
+    expect(deriveSesGateState({ validationIssueCount: 0, eligible: false, officialClearance: { status: 'blocked', clear: false, reasons: ['duplicada'] } })).toMatchObject({
+      readyForXml: true, status: 'ready',
+    });
   });
 
-  it('routes official duplicates to review instead of ready', () => {
+  it('conserva el duplicado oficial como metadato sin bloquear la disponibilidad', () => {
     const blocked = { status: 'blocked' as const, clear: false, reasons: ['duplicate'], matchingCommunicationCode: 'official' };
     expect(deriveSesGateState({ validationIssueCount: 0, eligible: true, officialClearance: blocked })).toMatchObject({
-      readyForXml: false, status: 'needs_revision',
+      readyForXml: true, status: 'ready', isOfficiallyClear: false,
     });
   });
 

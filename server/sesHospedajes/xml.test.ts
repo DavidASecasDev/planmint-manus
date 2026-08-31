@@ -69,4 +69,18 @@ describe('SES XML generator', () => {
     expect(xml.indexOf('<contrato>')).toBeLessThan(xml.indexOf('<vehiculo>'));
     expect(xml.indexOf('<vehiculo>')).toBeLessThan(xml.indexOf('<persona>'));
   });
+
+  it('genera exclusivamente la selección explícita y sin marcadores de ejemplo', () => {
+    const candidates = [
+      draft,
+      { ...draft, id: 'draft-2', reference: 'SELECTED-2', vehicle_plate: '5678DEF' },
+      { ...draft, id: 'draft-3', reference: 'NOT-SELECTED', vehicle_plate: '9012GHI' },
+    ];
+    const xml = generateSesXml(candidates.filter((item) => ['draft-1', 'draft-2'].includes(item.id)));
+    expect(xml.match(/<comunicacion>/g)).toHaveLength(2);
+    expect(xml).toContain('<referencia>4671</referencia>');
+    expect(xml).toContain('<referencia>SELECTED-2</referencia>');
+    expect(xml).not.toContain('NOT-SELECTED');
+    expect(xml).not.toMatch(/\{\{|\}\}|\$\{|PLACEHOLDER|RELLENAR/i);
+  });
 });

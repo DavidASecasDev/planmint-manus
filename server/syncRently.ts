@@ -242,6 +242,22 @@ const EARLY_TERM_UNCHANGED_PAGES = 5;
 /** Max time (ms) for a single request before we return partial results (Cloudflare 524 = 100s) */
 const REQUEST_DEADLINE_MS = 75_000;
 
+export function shouldIncludeRentlyBookingInSync(input: {
+  currentStatus: number;
+  existsInPlanMint: boolean;
+  includeAll?: boolean;
+}) {
+  if (input.includeAll) return true;
+  if (input.existsInPlanMint) return input.currentStatus !== 5;
+  return !EXCLUDED_NEW_STATUSES.includes(input.currentStatus) && input.currentStatus !== CANCELLATION_STATUS;
+}
+
+export function deduplicateRentlyBookingsByStableId<T extends { Id: string | number }>(bookings: T[]) {
+  const unique = new Map<string, T>();
+  for (const booking of bookings) unique.set(String(booking.Id), booking);
+  return Array.from(unique.values());
+}
+
 // ─── Rently API helpers ──────────────────────────────────────────────────────
 
 export async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
@@ -905,7 +921,7 @@ export async function handleSyncRently(req: Request, res: Response) {
     const clientId = settings.rently_client_id;
     const clientSecret = settings.rently_client_secret;
 
-    const { continue_sync, reset, test_only, action } = req.body || {};
+    const { continue_sync, reset, test_only, action, include_all } = req.body || {};
 
     // Handle sync_vehicles action separately
     if (action === "sync_vehicles") {
@@ -1053,13 +1069,13 @@ export async function handleSyncRently(req: Request, res: Response) {
       }
 
       // Filter bookings
-      const validBookings = bookings.filter((b) => {
+      const validBookings = deduplicateRentlyBookingsByStableId(bookings).filter((b) => {
         const extId = String(b.Id);
-        if (existingIdsSet.has(extId)) {
-          return b.CurrentStatus !== 5;
-        } else {
-          return !EXCLUDED_NEW_STATUSES.includes(b.CurrentStatus) && b.CurrentStatus !== CANCELLATION_STATUS;
-        }
+        return shouldIncludeRentlyBookingInSync({
+          currentStatus: b.CurrentStatus,
+          existsInPlanMint: existingIdsSet.has(extId),
+          includeAll: include_all === true,
+        });
       });
       const filteredCount = bookings.length - validBookings.length;
       totalFilteredCount += filteredCount;
@@ -1179,7 +1195,7 @@ export async function handleSyncRently(req: Request, res: Response) {
 
       if (!pageHadChanges && detailsMap.size === 0) {
         consecutiveUnchangedPages++;
-        if (consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES && hasMore) {
+        if (include_all !== true && consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES && hasMore) {
           console.log(`[sync-rently] Early termination: ${consecutiveUnchangedPages} consecutive unchanged pages, skipping remaining old bookings`);
           // Don't set hasMore = false — we still want to mark sync as running
           // but we break out of the multi-page loop to return faster
@@ -1433,7 +1449,7 @@ export async function handleSyncRently(req: Request, res: Response) {
     // Archive and sync vehicles if complete
     let archivedCount = 0;
     let vehicleSyncResult = { released: 0, rented: 0, errors: 0 };
-    if (!hasMore) {
+    if (!hasMore && include_all !== true) {
       try {
         console.log("[sync-rently] Sync complete, archiving old reservations...");
         const { data: archiveResult, error: archiveError } = await serviceClient.rpc(

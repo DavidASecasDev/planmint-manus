@@ -24,7 +24,15 @@ describe('contrato estructural oficial de alquiler de vehículos', () => {
     expect(result.valid).toBe(true);
     expect(result.communicationCount).toBe(2);
     expect(result.contractVersion).toBe(SES_OFFICIAL_CONTRACT_VERSION);
+    expect(result.errors).toHaveLength(0);
     expect((xml.match(/<solicitud>/g) ?? []).length).toBe(1);
+  });
+
+  it('rechaza marcadores de plantilla antes de descargar', () => {
+    const xml = generateSesXml([validDraft('{{REFERENCIA}}')]);
+    const result = validateSesXmlAgainstOfficialContract(xml);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('XML: contiene marcadores de plantilla no permitidos');
   });
 
   it('rechaza cardinalidad de personas y roles inválidos', () => {

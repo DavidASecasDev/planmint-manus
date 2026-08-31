@@ -99,7 +99,9 @@ export function SesOfficialCheckDialog({
           )}
 
           {outcome === 'not_found' && <Alert className="border-blue-200 bg-blue-50 text-blue-950"><ShieldCheck className="h-4 w-4" /><AlertTitle>Resultado sin coincidencias</AlertTitle><AlertDescription>Solo se registrará para la identidad exacta actual. Si cambia referencia, fecha o matrícula, la comprobación deja de ser válida automáticamente.</AlertDescription></Alert>}
-          {requiresReview && <Alert className="border-amber-300 bg-amber-50 text-amber-950"><AlertCircle className="h-4 w-4" /><AlertTitle>Se enviará a revisión</AlertTitle><AlertDescription>La comunicación está anulada, tiene error o no coincide exactamente con fecha o matrícula. No quedará lista para XML.</AlertDescription></Alert>}
+          {requiresReview && <Alert className="border-amber-300 bg-amber-50 text-amber-950"><AlertCircle className="h-4 w-4" /><AlertTitle>Aviso para el operador</AlertTitle><AlertDescription>La comunicación está anulada, tiene error o no coincide exactamente con fecha o matrícula. Se conservará como aviso informativo, pero no bloqueará la selección ni la descarga XML.</AlertDescription></Alert>}
+
+          {outcome === 'found' && !requiresReview && <Alert className="border-amber-300 bg-amber-50 text-amber-950"><AlertCircle className="h-4 w-4" /><AlertTitle>Posible comunicación previa</AlertTitle><AlertDescription>La coincidencia se mostrará como advertencia en la bandeja. PlanMint no tomará la decisión por el operador ni desactivará la descarga XML.</AlertDescription></Alert>}
 
           <label className="flex items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm">
             <Checkbox checked={confirmed} onCheckedChange={(value) => setConfirmed(value === true)} />

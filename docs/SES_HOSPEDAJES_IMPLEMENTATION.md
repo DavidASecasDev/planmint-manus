@@ -1,5 +1,23 @@
 # SES.HOSPEDAJES — Diseño de implementación
 
+## Estado operativo vigente — 31 de agosto de 2026
+
+La ruta diaria de **SES.HOSPEDAJES** queda reducida a cinco pasos: **Sincronizar Rently → Completar faltantes → Validar campos → Seleccionar reservas listas → Descargar XML**. La sincronización recorre todas las páginas y estados de Rently, actualiza o crea un único borrador por reserva mediante su identificador estable y conserva cualquier corrección manual.
+
+Los únicos estados visibles son **Incompleta**, **Listo** y **XML generado**. `readyForXml` depende exclusivamente de que `missingFields` e `invalidFields` estén vacíos. Elegibilidad, inventario oficial, conciliación por lotes, excepciones y XSD quedan fuera de la ruta crítica; permanecen únicamente como compatibilidad e historial interno. **Comprobar SES** es un aviso opcional y nunca impide completar, seleccionar ni descargar.
+
+La descarga genera XML solo para la selección explícita, comprueba duplicados dentro de esa selección, valida todos los campos y ejecuta el contrato estructural local 1.2.0. No existe envío automático al Gobierno. Las secciones posteriores que describen puertas o flujos anteriores deben interpretarse como antecedentes de compatibilidad, no como comportamiento operativo actual.
+
+| Campo operativo | Significado |
+|---|---|
+| `operationalStatus` | `incomplete`, `ready` o `xml_generated`. |
+| `missingFields` | Campos obligatorios ausentes, deduplicados si TI y CP comparten perfil. |
+| `invalidFields` | Formatos o incoherencias detectados localmente. |
+| `sourceByField` | Procedencia `rently`, `manual` o `derived`. |
+| `syncConflicts` | Valor Rently distinto de una corrección manual conservada; es informativo. |
+| `sesDuplicateWarning` | Aviso opcional de posible duplicado oficial; no bloquea. |
+| `readyForXml` | `true` únicamente cuando no quedan ausentes ni inválidos. |
+
 ## Alcance de la primera versión
 
 La primera versión prepara comunicaciones de **alquiler de vehículos**, reutiliza datos de Rently y PlanMint, permite completar faltantes mediante edición asistida y genera un XML compatible con la plantilla oficial aportada. No inicia sesión, no automatiza el navegador y no envía comunicaciones al Ministerio.

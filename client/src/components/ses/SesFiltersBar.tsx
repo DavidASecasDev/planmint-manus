@@ -32,11 +32,7 @@ export function SesFiltersBar({ filters, onChange, saving }: SesFiltersBarProps)
             <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="incomplete">Incompletos</SelectItem>
             <SelectItem value="ready">Listos</SelectItem>
-            <SelectItem value="batched">En lote</SelectItem>
-            <SelectItem value="uploaded_pending_result">Subidos · pendientes</SelectItem>
-            <SelectItem value="accepted">Aceptados</SelectItem>
-            <SelectItem value="needs_revision">Revisión obligatoria</SelectItem>
-            <SelectItem value="error">Con error</SelectItem>
+            <SelectItem value="xml_generated">XML generado</SelectItem>
           </SelectContent>
         </Select>
       </div>

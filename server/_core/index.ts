@@ -158,6 +158,7 @@ import {
   handleSesUploadOfficialXsd,
   handleSesMarkBatchUploaded,
   handleSesPrepare,
+  handleSesSyncDrafts,
   handleSesRecordBatchResult,
   handleSesRevalidate,
   handleSesSearchMunicipalities,
@@ -571,6 +572,7 @@ async function startServer() {
 
   // SES.HOSPEDAJES — preparación y revisión; nunca realiza envíos automáticos.
   app.post("/api/ses/prepare", handleSesPrepare);
+  app.post("/api/ses/sync", handleSesSyncDrafts);
   app.post("/api/ses/drafts", handleSesListDrafts);
   app.post("/api/ses/person/create", handleSesCreatePerson);
   app.post("/api/ses/person/update", handleSesUpdatePerson);

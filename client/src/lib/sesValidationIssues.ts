@@ -71,6 +71,10 @@ function issueLabel(path: string, holderIsDriver: boolean): string {
   return `${roleLabel(path, holderIsDriver)} · ${FIELD_LABELS[field] ?? field}`;
 }
 
+export function getSesFieldLabel(path: string, holderIsDriver = false) {
+  return issueLabel(path, holderIsDriver);
+}
+
 export function getActionableSesIssues(draft: SesContractDraft): SesActionableIssue[] {
   const holderIsDriver = Boolean(draft.holder?.id && draft.holder.id === draft.primary_driver?.id);
   const deduplicated = new Map<string, SesActionableIssue>();

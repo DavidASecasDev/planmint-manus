@@ -75,6 +75,33 @@ describe('SES contract validation', () => {
     expect(issues.some((issue) => issue.path.includes('support'))).toBe(false);
   });
 
+  it('no cuenta como pendientes los opcionales y exige tipo, validez y número para CP y CS', () => {
+    const optionalEmpty = {
+      ...completePerson,
+      birth_date: null,
+      nationality_code: null,
+      sex: null,
+      second_surname: null,
+      licence_support: null,
+      licence_country_code: null,
+    };
+    const issues = validateSesDraft({
+      reference: 'SYNTHETIC-OPTIONAL', contract_date: '2026-08-20', pickup_at: '2026-08-21T10:00:00Z',
+      return_at: '2026-08-22T13:00:00Z', payment_type: 'TARJT', payment_date: null,
+      payment_medium: null, payment_holder: null, card_expiry: null,
+      vehicle_category: 'SUV', vehicle_type: 'TURISMO', vehicle_brand: 'MERCEDES', vehicle_model: 'GLA',
+      vehicle_plate: '1234ABC', vehicle_vin: 'WDD12345678901234', vehicle_color: 'NEGRO', km_pickup: 100,
+      km_return: null, gps_data: null, holder: optionalEmpty, primary_driver: optionalEmpty,
+      secondary_driver: { ...optionalEmpty, licence_type: null, licence_valid_until: null, licence_number: null },
+      pickup_location: completeLocation, return_location: completeLocation,
+    });
+    expect(issues.map((issue) => issue.path)).toEqual([
+      'secondary_driver.licence_type',
+      'secondary_driver.licence_valid_until',
+      'secondary_driver.licence_number',
+    ]);
+  });
+
   it('reports the exact manual fields still required', () => {
     const issues = validateSesDraft({
       reference: '4671',

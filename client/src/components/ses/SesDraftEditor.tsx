@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CarFront, CheckCircle2, Loader2, Save, UserRound } from 'lucide-react';
+import { AlertCircle, CarFront, CheckCircle2, GitCompareArrows, Loader2, Plus, Save, UserRound } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { SesContractDraft, SesLocation, SesMunicipality, SesPersonProfile } from '@/types/sesHospedajes';
-import { getActionableSesIssues } from '@/lib/sesValidationIssues';
+import { getActionableSesIssues, getSesFieldLabel } from '@/lib/sesValidationIssues';
 
 type UpdatePerson = (input: { id: string; values: Record<string, unknown> }) => Promise<unknown>;
 type CreatePerson = (input: {
@@ -319,11 +319,14 @@ export function SesDraftEditor(props: Props) {
   const { draft } = props;
   const [contract, setContract] = useState({
     contract_date: '', pickup_at: '', return_at: '', payment_type: '', payment_date: '',
+    payment_medium: '', payment_holder: '', card_expiry: '',
     vehicle_category: '', vehicle_type: '', vehicle_brand: '', vehicle_model: '', vehicle_plate: '', vehicle_vin: '', vehicle_color: '',
     km_pickup: '', km_return: '',
   });
   const [holder, setHolder] = useState<PersonForm>(() => personToForm(null));
   const [driver, setDriver] = useState<PersonForm>(() => personToForm(null));
+  const [secondaryDriver, setSecondaryDriver] = useState<PersonForm>(() => personToForm(null));
+  const [includeSecondaryDriver, setIncludeSecondaryDriver] = useState(false);
   const [pickup, setPickup] = useState<LocationForm>(() => locationToForm(null));
   const [returnLocation, setReturnLocation] = useState<LocationForm>(() => locationToForm(null));
 
@@ -335,6 +338,9 @@ export function SesDraftEditor(props: Props) {
       return_at: toLocalDateTime(draft.return_at),
       payment_type: draft.payment_type ?? '',
       payment_date: draft.payment_date ?? '',
+      payment_medium: draft.payment_medium ?? '',
+      payment_holder: draft.payment_holder ?? '',
+      card_expiry: draft.card_expiry ?? '',
       vehicle_category: draft.vehicle_category ?? '',
       vehicle_type: draft.vehicle_type ?? '',
       vehicle_brand: draft.vehicle_brand ?? '',
@@ -347,6 +353,8 @@ export function SesDraftEditor(props: Props) {
     });
     setHolder(personToForm(draft.holder));
     setDriver(personToForm(draft.primary_driver));
+    setSecondaryDriver(personToForm(draft.secondary_driver));
+    setIncludeSecondaryDriver(Boolean(draft.secondary_driver));
     setPickup(locationToForm(draft.pickup_location));
     setReturnLocation(locationToForm(draft.return_location));
   }, [draft]);
@@ -392,6 +400,9 @@ export function SesDraftEditor(props: Props) {
         return_at: fromLocalDateTime(contract.return_at),
         payment_type: nullable(contract.payment_type),
         payment_date: nullable(contract.payment_date),
+        payment_medium: nullable(contract.payment_medium),
+        payment_holder: nullable(contract.payment_holder),
+        card_expiry: nullable(contract.card_expiry),
         vehicle_category: nullable(contract.vehicle_category),
         vehicle_type: nullable(contract.vehicle_type),
         vehicle_brand: nullable(contract.vehicle_brand),
@@ -401,6 +412,7 @@ export function SesDraftEditor(props: Props) {
         vehicle_color: nullable(contract.vehicle_color),
         km_pickup: contract.km_pickup === '' ? null : Number(contract.km_pickup),
         km_return: contract.km_return === '' ? null : Number(contract.km_return),
+        ...(draft.secondary_driver && !includeSecondaryDriver ? { secondary_driver_profile_id: null } : {}),
       },
     });
 
@@ -409,6 +421,10 @@ export function SesDraftEditor(props: Props) {
     if (!holderIsDriver) {
       if (draft.primary_driver) await props.onUpdatePerson({ id: draft.primary_driver.id, values: personValues(driver) });
       else await props.onCreatePerson({ draftId: draft.id, role: 'primary_driver', values: personValues(driver) });
+    }
+    if (includeSecondaryDriver) {
+      if (draft.secondary_driver) await props.onUpdatePerson({ id: draft.secondary_driver.id, values: personValues(secondaryDriver) });
+      else await props.onCreatePerson({ draftId: draft.id, role: 'secondary_driver', values: personValues(secondaryDriver) });
     }
     if (draft.pickup_location) await props.onUpdateLocation({ id: draft.pickup_location.id, values: locationValues(pickup) });
     if (draft.return_location) await props.onUpdateLocation({ id: draft.return_location.id, values: locationValues(returnLocation) });
@@ -426,8 +442,8 @@ export function SesDraftEditor(props: Props) {
               <SheetTitle>Contrato #{draft.reference}</SheetTitle>
               <SheetDescription>{clientName} · {draft.vehicle_plate || 'Sin vehículo'}</SheetDescription>
             </div>
-            <Badge className={draft.status === 'ready' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-100 text-amber-700 hover:bg-amber-100'}>
-              {draft.status === 'ready' ? 'Listo' : `${actionableIssues.length} datos pendientes`}
+            <Badge className={draft.operationalStatus === 'ready' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-100 text-amber-700 hover:bg-amber-100'}>
+              {draft.operationalStatus === 'ready' ? 'Listo' : draft.operationalStatus === 'xml_generated' ? 'XML generado' : `${actionableIssues.length} datos pendientes`}
             </Badge>
           </div>
         </SheetHeader>
@@ -440,6 +456,25 @@ export function SesDraftEditor(props: Props) {
           </TabsList>
 
           <ScrollArea className="flex-1 px-6 py-4">
+            <Alert className="mb-4 border-blue-200 bg-blue-50 text-blue-950">
+              <GitCompareArrows className="h-4 w-4" />
+              <AlertTitle>Procedencia de los datos</AlertTitle>
+              <AlertDescription>
+                <p>Rently completa los campos disponibles; las correcciones manuales siempre prevalecen. Los valores derivados proceden de la configuración de PlanMint.</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {Object.entries(draft.sourceByField).slice(0, 24).map(([path, source]) => (
+                    <Badge key={path} variant="outline" className="bg-white font-normal">
+                      {getSesFieldLabel(path, holderIsDriver)} · {source === 'manual' ? 'Manual' : source === 'derived' ? 'Derivado' : 'Rently'}
+                    </Badge>
+                  ))}
+                </div>
+                {draft.syncConflicts.length > 0 && (
+                  <ul className="mt-3 space-y-1 text-xs">
+                    {draft.syncConflicts.map((conflict) => <li key={conflict.field}><strong>{getSesFieldLabel(conflict.field, holderIsDriver)}:</strong> Rently propuso otro valor; se conservó la corrección manual.</li>)}
+                  </ul>
+                )}
+              </AlertDescription>
+            </Alert>
             {actionableIssues.length > 0 ? (
               <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-900">
                 <AlertCircle className="h-4 w-4" />
@@ -473,6 +508,10 @@ export function SesDraftEditor(props: Props) {
                       <SelectContent>{PAYMENT_TYPES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
                     </Select>
                   </Field>
+                  <Field label="Fecha de pago"><Input type="date" value={contract.payment_date} onChange={(e) => setContract({ ...contract, payment_date: e.target.value })} /></Field>
+                  <Field label="Medio de pago"><Input value={contract.payment_medium} onChange={(e) => setContract({ ...contract, payment_medium: e.target.value })} /></Field>
+                  <Field label="Titular del pago"><Input value={contract.payment_holder} onChange={(e) => setContract({ ...contract, payment_holder: e.target.value })} /></Field>
+                  <Field label="Caducidad de tarjeta"><Input value={contract.card_expiry} onChange={(e) => setContract({ ...contract, card_expiry: e.target.value })} placeholder="MM/AAAA" /></Field>
                   <Field label="Recogida" required><Input type="datetime-local" value={contract.pickup_at} onChange={(e) => setContract({ ...contract, pickup_at: e.target.value })} /></Field>
                   <Field label="Devolución" required><Input type="datetime-local" value={contract.return_at} onChange={(e) => setContract({ ...contract, return_at: e.target.value })} /></Field>
                   <Field label="Categoría de empresa" required><Input value={contract.vehicle_category} onChange={(e) => setContract({ ...contract, vehicle_category: e.target.value })} placeholder="Ej. SUV" /></Field>
@@ -501,6 +540,14 @@ export function SesDraftEditor(props: Props) {
             <TabsContent value="person" className="mt-0 space-y-4">
               <PersonEditor title={holderIsDriver ? 'Titular y conductor principal' : 'Titular del contrato'} person={draft.holder} form={holder} setForm={setHolder} searchMunicipalities={props.onSearchMunicipalities} driver={holderIsDriver} />
               {!holderIsDriver && <PersonEditor title="Conductor principal" person={draft.primary_driver} form={driver} setForm={setDriver} searchMunicipalities={props.onSearchMunicipalities} driver />}
+              {includeSecondaryDriver ? (
+                <>
+                  <PersonEditor title="Segundo conductor" person={draft.secondary_driver} form={secondaryDriver} setForm={setSecondaryDriver} searchMunicipalities={props.onSearchMunicipalities} driver />
+                  <Button type="button" variant="ghost" onClick={() => setIncludeSecondaryDriver(false)}>No incluir segundo conductor</Button>
+                </>
+              ) : (
+                <Button type="button" variant="outline" onClick={() => setIncludeSecondaryDriver(true)}><Plus className="mr-2 h-4 w-4" />Añadir segundo conductor</Button>
+              )}
             </TabsContent>
 
             <TabsContent value="locations" className="mt-0 space-y-4">

@@ -1621,3 +1621,19 @@
 - [x] Añadir pruebas concretas para ausencia de importación masiva en UI, disponibilidad de Comprobar SES y aislamiento de la preview sintética
 - [x] Ejecutar regresión SES, matriz focal, TypeScript y build sin migrar, publicar ni desplegar
 - [x] Entregar diff y resultados finales de los tres bloqueos para revisión
+
+- [x] Auditar el flujo SES actual y decidir qué piezas reutilizar sin borrar historia
+- [x] Sustituir «Preparar reservas» por sincronización idempotente de todas las reservas Rently mediante identificador estable
+- [x] Exponer missingFields, invalidFields, sourceByField, syncConflicts, readyForXml y sesDuplicateWarning
+- [x] Preservar correcciones manuales y registrar conflictos Rently visibles no bloqueantes
+- [x] Reducir los estados operativos visibles a Incompleta, Lista para XML y XML generado
+- [x] Ajustar campos obligatorios y opcionales, incluida la deduplicación TI/CP con dos roles XML
+- [x] Hacer que readyForXml dependa solo de missingFields e invalidFields
+- [x] Mantener selección manual y generar XML exclusivamente con los borradores seleccionados y válidos
+- [x] Validar XML localmente contra plantilla e Instrucciones v1.2.0 antes de descargar
+- [x] Convertir «Comprobar SES» en sesDuplicateWarning opcional y no bloqueante
+- [x] Desconectar de la ruta crítica inventario, conciliación, elegibilidad, XSD y control oficial pendiente sin borrar historia
+- [x] Mantener la UI sin importación JSON, inventarios masivos ni envío automático a SES
+- [x] Añadir todas las pruebas de aceptación con fixtures sintéticos y sin datos personales
+- [x] Ejecutar suites SES, matriz focal, TypeScript, build y verificación visual sintética
+- [x] Entregar diseño final, diff, ausencia de migraciones y limitaciones sin publicar ni desplegar

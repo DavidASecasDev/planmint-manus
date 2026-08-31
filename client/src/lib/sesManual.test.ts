@@ -5,11 +5,12 @@ import {
 } from './sesManual';
 
 describe('manual operativo SES.HOSPEDAJES', () => {
-  it('explica el flujo completo y ordenado desde configuración hasta conciliación', () => {
-    expect(SES_MANUAL_STEPS.map((step) => step.number)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(SES_MANUAL_STEPS[4].action).toContain('Generar XML');
-    expect(SES_MANUAL_STEPS[5].warning).toContain('mismo XML');
-    expect(SES_MANUAL_STEPS[6].action).toContain('Mis comunicaciones → Lote');
+  it('explica el flujo simplificado completo y ordenado', () => {
+    expect(SES_MANUAL_STEPS.map((step) => step.number)).toEqual([1, 2, 3, 4, 5]);
+    expect(SES_MANUAL_STEPS[0].action).toContain('Sincronizar Rently');
+    expect(SES_MANUAL_STEPS[1].title).toContain('Completa');
+    expect(SES_MANUAL_STEPS[3].action).toContain('Comprobar SES');
+    expect(SES_MANUAL_STEPS[4].action).toContain('Descargar XML');
   });
 
   it('distingue datos automáticos de los que requieren confirmación humana', () => {
@@ -18,14 +19,10 @@ describe('manual operativo SES.HOSPEDAJES', () => {
     expect(SES_MANUAL_DATA.join(' ')).toContain('Categoría del permiso');
   });
 
-  it('cubre todos los estados operativos y las protecciones críticas', () => {
-    expect(SES_MANUAL_STATUSES.map((item) => item.status)).toEqual([
-      'Incompleto', 'Listo', 'En lote', 'Subido · pendiente', 'Aceptado', 'Error', 'Requiere revisión',
-      'Revisión obligatoria',
-    ]);
+  it('cubre únicamente los tres estados operativos y las protecciones críticas', () => {
+    expect(SES_MANUAL_STATUSES.map((item) => item.status)).toEqual(['Incompleta', 'Listo', 'XML generado']);
     expect(SES_GOLDEN_RULES.some((rule) => rule.includes('nunca envía automáticamente'))).toBe(true);
-    expect(SES_GOLDEN_RULES.some((rule) => rule.includes('no equivale a una aceptación'))).toBe(true);
-    expect(SES_GOLDEN_RULES.some((rule) => rule.includes('XSD oficial'))).toBe(true);
+    expect(SES_GOLDEN_RULES.some((rule) => rule.includes('nunca bloquea'))).toBe(true);
     expect(SES_GOLDEN_RULES.some((rule) => rule.includes('snapshots'))).toBe(true);
   });
 });

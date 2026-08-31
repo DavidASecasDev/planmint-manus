@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import {
-  AlertCircle, BookOpen, CheckCircle2, ClipboardCheck, FileCode2, FileDown, Info, Loader2,
-  RefreshCw, Settings2, ShieldAlert, ShieldCheck, UsersRound,
+  AlertCircle, BookOpen, CheckCircle2, FileCode2, FileDown, History, Info, Loader2,
+  RefreshCw, Settings2, ShieldAlert,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
-import { SesBatchPanel } from '@/components/ses/SesBatchPanel';
 import { SesFiltersBar } from '@/components/ses/SesFiltersBar';
 import { SesManualDialog } from '@/components/ses/SesManualDialog';
-import { SesComplianceDialog } from '@/components/ses/SesComplianceDialog';
 import { SesOfficialCheckDialog } from '@/components/ses/SesOfficialCheckDialog';
-import { SesEligibilityExceptionDialog } from '@/components/ses/SesEligibilityExceptionDialog';
 import { SesPagination } from '@/components/ses/SesPagination';
 import { SesDraftActions } from '@/components/ses/SesDraftActions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -22,7 +19,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,15 +27,9 @@ import { useSesFilterPreferences } from '@/hooks/useSesFilterPreferences';
 import { useSesHospedajes } from '@/hooks/useSesHospedajes';
 import { sanitizeSesFilterPreferences, serializeSesFilters, type SesDraftFilters } from '@/lib/sesFilterPreferences';
 import { getSesSettingsNotice } from '@/lib/sesSettingsNotice';
+import { canSelectSesDraftForXml } from '@/lib/sesSelection';
 import { countActionableSesIssues, getActionableSesIssues } from '@/lib/sesValidationIssues';
 import type { SesContractDraft, SesSettings } from '@/types/sesHospedajes';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending_sync: 'Pendiente de sincronizar',
-  incomplete: 'Incompleto', ready: 'Listo', batched: 'En lote',
-  uploaded_pending_result: 'Subido · pendiente', accepted: 'Aceptado',
-  error: 'Error', needs_revision: 'Revisión obligatoria',
-};
 
 const PAYMENT_TYPES = [
   ['DESTI', 'Pago en destino'], ['EFECT', 'Efectivo'], ['TARJT', 'Tarjeta'],
@@ -55,13 +45,10 @@ function displayDate(value: string | null) {
   return Number.isNaN(date.getTime()) ? value : format(date, 'dd/MM/yyyy HH:mm');
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: SesContractDraft['operationalStatus'] }) {
   if (status === 'ready') return <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Listo</Badge>;
-  if (status === 'incomplete') return <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">Incompleto</Badge>;
-  if (status === 'accepted') return <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">Aceptado</Badge>;
-  if (status === 'error') return <Badge variant="destructive">Error</Badge>;
-  if (status === 'needs_revision') return <Badge className="border-red-200 bg-red-50 text-red-700 hover:bg-red-50">Revisión obligatoria</Badge>;
-  return <Badge variant="secondary">{STATUS_LABELS[status] || status}</Badge>;
+  if (status === 'incomplete') return <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">Incompleta</Badge>;
+  return <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">XML generado</Badge>;
 }
 
 function SettingsDialog({
@@ -160,10 +147,7 @@ export default function SesHospedajes() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [complianceOpen, setComplianceOpen] = useState(false);
   const [officialCheckDraft, setOfficialCheckDraft] = useState<SesContractDraft | null>(null);
-  const [exceptionDraft, setExceptionDraft] = useState<SesContractDraft | null>(null);
-  const [lastExclusions, setLastExclusions] = useState<Array<{ reference: string; reasons: Array<{ code: string; message: string }> }>>([]);
 
   useEffect(() => {
     if (!filterPreferences.userId || !filterPreferences.isFetched || filterPreferences.isLoading) return;
@@ -197,11 +181,10 @@ export default function SesHospedajes() {
 
   const ready = ses.summary.ready ?? 0;
   const incomplete = ses.summary.incomplete ?? 0;
-  const accepted = ses.summary.accepted ?? 0;
+  const xmlGenerated = ses.summary.xml_generated ?? 0;
   const schemaMigrationRequired = ses.schemaMigrationRequired;
-  const completeness = ses.total ? Math.round((ready / ses.total) * 100) : 0;
   const selectedSaving = ses.updateDraft.isPending || ses.updatePerson.isPending || ses.createPerson.isPending || ses.updateLocation.isPending;
-  const readyDrafts = ses.drafts.filter((draft) => draft.status === 'ready' && draft.ready_for_xml);
+  const readyDrafts = ses.drafts.filter(canSelectSesDraftForXml);
   const selectedReadyIds = Array.from(selectedIds).filter((id) => readyDrafts.some((draft) => draft.id === id));
   const settingsNotice = getSesSettingsNotice(ses.settings);
 
@@ -235,18 +218,15 @@ export default function SesHospedajes() {
           <div>
             <div className="mb-1 flex items-center gap-2"><FileCode2 className="h-5 w-5 text-amber-600" /><span className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Cumplimiento · alquiler de vehículos</span></div>
             <h1 className="text-2xl font-bold text-slate-950">SES.HOSPEDAJES</h1>
-            <p className="mt-1 text-sm text-slate-500">Prepara, completa y valida contratos en bloque antes de generar el XML oficial.</p>
+            <p className="mt-1 text-sm text-slate-500">Sincroniza Rently, completa solo lo que falta y descarga un XML con los contratos seleccionados.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setManualOpen(true)}><BookOpen className="mr-2 h-4 w-4" />Cómo funciona</Button>
-            {canConfigure && !schemaMigrationRequired && <Button variant="outline" onClick={() => setComplianceOpen(true)}><ShieldCheck className="mr-2 h-4 w-4" />Control oficial</Button>}
             {canConfigure && !schemaMigrationRequired && <Button variant="outline" onClick={() => setSettingsOpen(true)}><Settings2 className="mr-2 h-4 w-4" />Configuración</Button>}
-            <Button variant="outline" onClick={() => ses.refetch()} disabled={ses.isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${ses.isLoading ? 'animate-spin' : ''}`} />Actualizar</Button>
-            {canEdit && !schemaMigrationRequired && <Button variant="outline" onClick={() => ses.revalidate.mutate(ses.drafts.map((draft) => draft.id))} disabled={ses.revalidate.isPending || ses.drafts.length === 0}>{ses.revalidate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Revalidar Rently</Button>}
             {canEdit && !schemaMigrationRequired && (
-              <Button onClick={() => ses.prepare.mutate({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }, { onSuccess: (result) => setLastExclusions(result.exclusions) })} disabled={ses.prepare.isPending}>
-                {ses.prepare.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
-                Preparar reservas
+              <Button variant="outline" onClick={() => ses.syncAll.mutate()} disabled={ses.syncAll.isPending}>
+                {ses.syncAll.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                {ses.syncAll.isPending ? 'Sincronizando…' : 'Sincronizar Rently'}
               </Button>
             )}
             {canExport && (
@@ -256,7 +236,7 @@ export default function SesHospedajes() {
                 onClick={() => ses.exportXml.mutate(selectedReadyIds, { onSuccess: () => setSelectedIds(new Set()) })}
               >
                 {ses.exportXml.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                Generar XML{selectedReadyIds.length ? ` (${selectedReadyIds.length})` : ''}
+                Descargar XML{selectedReadyIds.length ? ` (${selectedReadyIds.length})` : ''}
               </Button>
             )}
           </div>
@@ -267,8 +247,8 @@ export default function SesHospedajes() {
             <ShieldAlert className="h-4 w-4" />
             <AlertTitle>Actualización técnica pendiente · modo solo lectura</AlertTitle>
             <AlertDescription>
-              Se muestran los borradores, la configuración y los lotes históricos sin modificarlos. Preparar,
-              completar, conciliar y generar XML permanecen bloqueados hasta aplicar la migración compatible revisada.
+              Se muestran los borradores y el historial sin modificarlos. Sincronizar, completar y descargar XML
+              permanecen bloqueados hasta aplicar la migración compatible revisada.
             </AlertDescription>
           </Alert>
         )}
@@ -289,56 +269,13 @@ export default function SesHospedajes() {
           </Alert>
         ) : null}
 
-        {!schemaMigrationRequired && !ses.settings?.official_xsd_hash && (
-          <Alert className="border-blue-200 bg-blue-50 text-blue-950">
-            <ShieldCheck className="h-4 w-4" />
-            <AlertTitle>Validación estructural oficial activa</AlertTitle>
-            <AlertDescription>Sin un XSD auténtico cargado, el XML se valida contra la plantilla oficial y las Instrucciones v1.2.0. Cada contrato necesita además una comprobación oficial exacta; no se exige una cobertura global del inventario.</AlertDescription>
-          </Alert>
-        )}
-
-        {lastExclusions.length > 0 && (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-950">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{lastExclusions.length} reservas excluidas de la preparación automática</AlertTitle>
-            <AlertDescription>
-              <div className="mt-2 space-y-1">
-                {lastExclusions.slice(0, 8).map((item) => <p key={item.reference}><strong>#{item.reference}:</strong> {item.reasons.map((reason) => reason.message).join(' · ')}</p>)}
-                {lastExclusions.length > 8 && <p>Y {lastExclusions.length - 8} exclusiones adicionales.</p>}
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Card className="border-slate-200 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-slate-500">Preparados · filtro</p><p className="mt-1 text-2xl font-bold">{ses.total}</p></div><ClipboardCheck className="h-8 w-8 text-slate-300" /></CardContent></Card>
+        <div className="grid gap-3 sm:grid-cols-3">
           <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-emerald-700">Listos · filtro</p><p className="mt-1 text-2xl font-bold text-emerald-900">{ready}</p></div><CheckCircle2 className="h-8 w-8 text-emerald-400" /></CardContent></Card>
-          <Card className="border-amber-200 bg-amber-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-amber-700">Requieren datos · filtro</p><p className="mt-1 text-2xl font-bold text-amber-900">{incomplete}</p></div><AlertCircle className="h-8 w-8 text-amber-400" /></CardContent></Card>
-          <Card className="border-blue-200 bg-blue-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-blue-700">Aceptados · filtro</p><p className="mt-1 text-2xl font-bold text-blue-900">{accepted}</p></div><UsersRound className="h-8 w-8 text-blue-400" /></CardContent></Card>
+          <Card className="border-amber-200 bg-amber-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-amber-700">Incompletos · filtro</p><p className="mt-1 text-2xl font-bold text-amber-900">{incomplete}</p></div><AlertCircle className="h-8 w-8 text-amber-400" /></CardContent></Card>
+          <Card className="border-blue-200 bg-blue-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-blue-700">XML generado · filtro</p><p className="mt-1 text-2xl font-bold text-blue-900">{xmlGenerated}</p></div><History className="h-8 w-8 text-blue-400" /></CardContent></Card>
         </div>
 
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="space-y-3 p-4">
-            <div className="flex items-center justify-between text-sm"><span className="font-medium">Completitud del periodo</span><span className="font-semibold text-emerald-700">{completeness}%</span></div>
-            <Progress value={completeness} className="h-2" />
-            {missingFieldCounts.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-500">
-                <span className="font-medium">Más frecuentes:</span>
-                {missingFieldCounts.map(([path, count]) => <Badge key={path} variant="outline" className="font-normal">{path}: {count}</Badge>)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <SesBatchPanel
-          batches={ses.batches}
-          loading={ses.batchesLoading}
-          canManage={canExport && !schemaMigrationRequired}
-          savingUpload={ses.markBatchUploaded.isPending}
-          savingResult={ses.recordBatchResult.isPending}
-          onMarkUploaded={(input) => ses.markBatchUploaded.mutateAsync(input)}
-          onRecordResult={(input) => ses.recordBatchResult.mutateAsync(input)}
-        />
+        {missingFieldCounts.length > 0 && <p className="text-sm text-slate-500"><strong>Campos pendientes más frecuentes:</strong> {missingFieldCounts.map(([path, count]) => `${path} (${count})`).join(' · ')}</p>}
 
         <SesFiltersBar filters={filters} onChange={setFilters} saving={filterPreferences.save.isPending} />
 
@@ -362,6 +299,7 @@ export default function SesHospedajes() {
               {ses.isLoading ? Array.from({ length: 6 }).map((_, index) => <TableRow key={index}><TableCell colSpan={8}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : null}
               {!ses.isLoading && ses.drafts.map((draft) => {
                 const client = [draft.reservation?.cliente_nombre, draft.reservation?.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre';
+                const actionableIssues = getActionableSesIssues(draft);
                 return (
                   <TableRow
                     key={draft.id}
@@ -372,7 +310,7 @@ export default function SesHospedajes() {
                       <Checkbox
                         aria-label={`Seleccionar contrato ${draft.reference}`}
                         checked={selectedIds.has(draft.id)}
-                        disabled={draft.status !== 'ready' || !draft.ready_for_xml}
+                        disabled={!canSelectSesDraftForXml(draft)}
                         onCheckedChange={(checked) => setSelectedIds((current) => {
                           const next = new Set(current);
                           if (checked) next.add(draft.id); else next.delete(draft.id);
@@ -384,14 +322,14 @@ export default function SesHospedajes() {
                     <TableCell><div className="max-w-44 truncate font-medium">{client}</div><div className="text-xs text-slate-400">{draft.holder?.document_number || 'Sin documento'}</div></TableCell>
                     <TableCell><div className="whitespace-nowrap text-sm">{displayDate(draft.pickup_at)}</div><div className="max-w-52 truncate text-xs text-slate-400">{draft.pickup_location?.name || 'Sin lugar'}</div></TableCell>
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
-                    <TableCell><StatusBadge status={draft.status} />{draft.eligibility_errors?.[0] && <p className="mt-1 max-w-48 text-xs text-red-600">{draft.eligibility_errors[0].message}</p>}{!draft.is_officially_clear && draft.official_check_status === 'not_checked' && <p className="mt-1 text-xs text-amber-600">Comprobación exacta pendiente</p>}</TableCell>
-                    <TableCell>{countActionableSesIssues(draft) || draft.eligibility_errors?.length || !draft.is_officially_clear ? <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />{countActionableSesIssues(draft) + (draft.eligibility_errors?.length ?? 0) + (!draft.is_officially_clear ? 1 : 0)}</div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
-                    <TableCell className="sticky right-0 z-10 bg-white text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]"><SesDraftActions draft={draft} canExport={canExport} schemaMigrationRequired={schemaMigrationRequired} checking={ses.checkOfficialCommunication.isPending} onCheck={() => setOfficialCheckDraft(draft)} onComplete={() => setSelected(draft)} onException={() => setExceptionDraft(draft)} /></TableCell>
+                    <TableCell><StatusBadge status={draft.operationalStatus} />{draft.sesDuplicateWarning && <p className="mt-1 max-w-56 text-xs text-amber-700">Aviso SES: {draft.sesDuplicateWarning.message}</p>}{draft.syncConflicts.length > 0 && <p className="mt-1 max-w-56 text-xs text-blue-700">{draft.syncConflicts.length} corrección(es) manual(es) preservada(s)</p>}</TableCell>
+                    <TableCell>{actionableIssues.length > 0 ? <div className="max-w-64 space-y-1 text-amber-700"><div className="flex items-center gap-1.5 text-sm font-medium"><AlertCircle className="h-4 w-4" />{actionableIssues.length}</div><p className="text-xs leading-4">{actionableIssues.map((issue) => issue.label).join(' · ')}</p></div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
+                    <TableCell className="sticky right-0 z-10 bg-white text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]"><SesDraftActions draft={draft} canExport={canExport} schemaMigrationRequired={schemaMigrationRequired} checking={ses.checkOfficialCommunication.isPending} onCheck={() => setOfficialCheckDraft(draft)} onComplete={() => setSelected(draft)} /></TableCell>
                   </TableRow>
                 );
               })}
               {!ses.isLoading && ses.drafts.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="h-52 text-center"><FileCode2 className="mx-auto mb-3 h-10 w-10 text-slate-300" /><p className="font-medium text-slate-700">No hay contratos preparados</p><p className="mt-1 text-sm text-slate-400">Selecciona un periodo y pulsa “Preparar reservas”.</p></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-52 text-center"><FileCode2 className="mx-auto mb-3 h-10 w-10 text-slate-300" /><p className="font-medium text-slate-700">No hay reservas sincronizadas</p><p className="mt-1 text-sm text-slate-400">Pulsa “Sincronizar Rently” para importar y actualizar todas las disponibles.</p></TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -418,27 +356,12 @@ export default function SesHospedajes() {
         saving={ses.updateSettings.isPending}
       />
       <SesManualDialog open={manualOpen} onOpenChange={setManualOpen} />
-      <SesComplianceDialog
-        open={complianceOpen}
-        onOpenChange={setComplianceOpen}
-        settings={ses.settings}
-        uploadingXsd={ses.uploadXsd.isPending}
-        onUploadXsd={(input) => ses.uploadXsd.mutateAsync(input)}
-      />
       <SesOfficialCheckDialog
         draft={officialCheckDraft}
         open={Boolean(officialCheckDraft)}
         onOpenChange={(open) => !open && setOfficialCheckDraft(null)}
         checking={ses.checkOfficialCommunication.isPending}
         onCheck={(input) => ses.checkOfficialCommunication.mutateAsync(input)}
-      />
-      <SesEligibilityExceptionDialog
-        draft={exceptionDraft}
-        open={Boolean(exceptionDraft)}
-        onOpenChange={(open) => !open && setExceptionDraft(null)}
-        saving={ses.createEligibilityException.isPending || ses.revokeEligibilityException.isPending}
-        onCreate={(input) => ses.createEligibilityException.mutateAsync(input)}
-        onRevoke={(input) => ses.revokeEligibilityException.mutateAsync(input)}
       />
     </AppLayout>
   );

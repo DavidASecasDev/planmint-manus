@@ -6,8 +6,7 @@ export interface SesDraftFilters {
 }
 
 const VALID_STATUSES = new Set([
-  'all', 'pending_sync', 'incomplete', 'ready', 'batched',
-  'uploaded_pending_result', 'accepted', 'error', 'needs_revision',
+  'all', 'incomplete', 'ready', 'xml_generated',
 ]);
 
 function isDateInput(value: unknown): value is string {

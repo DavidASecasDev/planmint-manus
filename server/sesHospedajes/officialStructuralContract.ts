@@ -136,6 +136,9 @@ function validatePerson(errors: string[], path: string, person: Record<string, a
 
 export function validateSesXmlAgainstOfficialContract(xml: string): SesStructuralValidationResult {
   const errors: string[] = [];
+  if (/\{\{|\}\}|\$\{|\b(?:RELLENAR|PLACEHOLDER)\b/i.test(xml)) {
+    errors.push('XML: contiene marcadores de plantilla no permitidos');
+  }
   const wellFormed = XMLValidator.validate(xml);
   if (wellFormed !== true) {
     const message = typeof wellFormed === 'object' && wellFormed.err?.msg ? wellFormed.err.msg : 'XML no bien formado';

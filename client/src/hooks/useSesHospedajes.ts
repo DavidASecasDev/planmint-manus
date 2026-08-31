@@ -57,6 +57,54 @@ export function useSesHospedajes(
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['ses-drafts'] });
   const invalidateBatches = () => queryClient.invalidateQueries({ queryKey: ['ses-batches'] });
 
+  const syncAllMutation = useMutation({
+    mutationFn: async () => {
+      let reset = true;
+      let rentlyFetched = 0;
+      let rentlyInserted = 0;
+      for (let iteration = 0; iteration < 200; iteration++) {
+        const response = await apiInvoke<{
+          success: boolean;
+          hasMore: boolean;
+          progress: { fetched: number; inserted: number; totalFetched: number; totalInserted: number };
+          error?: string;
+        }>('sync-rently', { body: { reset, continue_sync: !reset, include_all: true }, timeoutMs: 120_000 });
+        if (response.error) throw new Error(response.error.message);
+        if (!response.data?.success) throw new Error(response.data?.error || 'Rently no pudo completar la sincronización');
+        rentlyFetched = response.data.progress.totalFetched;
+        rentlyInserted = response.data.progress.totalInserted;
+        if (!response.data.hasMore) break;
+        reset = false;
+        if (iteration === 199) throw new Error('La sincronización Rently superó el límite de seguridad de páginas');
+      }
+
+      let offset = 0;
+      let draftsCreated = 0;
+      let draftsUpdated = 0;
+      let draftsUnchanged = 0;
+      let draftsTotal = 0;
+      for (let iteration = 0; iteration < 200; iteration++) {
+        const result = unwrap(await apiInvoke<ServerEnvelope<{
+          processed: number; created: number; updated: number; unchanged: number; skippedLocked: number;
+          total: number; nextOffset: number | null; hasMore: boolean;
+        }>>('ses/sync', { body: { offset, limit: 50 }, timeoutMs: 120_000 }));
+        draftsCreated += result.created;
+        draftsUpdated += result.updated;
+        draftsUnchanged += result.unchanged;
+        draftsTotal = result.total;
+        if (!result.hasMore || result.nextOffset === null) break;
+        offset = result.nextOffset;
+        if (iteration === 199) throw new Error('La sincronización SES superó el límite de seguridad de páginas');
+      }
+      return { rentlyFetched, rentlyInserted, draftsCreated, draftsUpdated, draftsUnchanged, draftsTotal };
+    },
+    onSuccess: (result) => {
+      invalidate();
+      toast.success(`Sincronización completada: ${result.draftsTotal} reservas disponibles en SES`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const prepareMutation = useMutation({
     mutationFn: async (input: { dateFrom: string; dateTo: string; reservationIds?: string[] }) =>
       unwrap(await apiInvoke<ServerEnvelope<{
@@ -183,7 +231,7 @@ export function useSesHospedajes(
   const exportXmlMutation = useMutation({
     mutationFn: async (ids: string[]) => unwrap(await apiInvoke<ServerEnvelope<{
       batchId: string; fileName: string; xml: string; xmlHash: string; itemCount: number;
-      documentVersion: string; validationMode: 'official_xsd' | 'official_contract';
+      documentVersion: string; validationMode: 'official_contract';
       validationVersion: string; validationHash: string; xsdVersion: string | null; xsdHash: string | null;
     }>>('ses/xml/export', { body: { ids }, timeoutMs: 120_000 })),
     onSuccess: (result) => {
@@ -198,8 +246,7 @@ export function useSesHospedajes(
       URL.revokeObjectURL(url);
       invalidate();
       invalidateBatches();
-      const validationLabel = result.validationMode === 'official_xsd' ? 'XSD oficial' : 'contrato estructural oficial';
-      toast.success(`XML validado con ${validationLabel} y generado con ${result.itemCount} contrato(s)`);
+      toast.success(`XML validado localmente y descargado con ${result.itemCount} contrato(s)`);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -236,6 +283,7 @@ export function useSesHospedajes(
       || settingsQuery.data?.schema_migration_required
     ),
     readError: draftsQuery.error ?? settingsQuery.error ?? batchesQuery.error ?? null,
+    syncAll: syncAllMutation,
     prepare: prepareMutation, updatePerson: updatePersonMutation, createPerson: createPersonMutation,
     updateDraft: updateDraftMutation, updateLocation: updateLocationMutation,
     updateSettings: updateSettingsMutation, uploadXsd: uploadXsdMutation,
