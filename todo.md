@@ -1637,3 +1637,8 @@
 - [x] Añadir todas las pruebas de aceptación con fixtures sintéticos y sin datos personales
 - [x] Ejecutar suites SES, matriz focal, TypeScript, build y verificación visual sintética
 - [x] Entregar diseño final, diff, ausencia de migraciones y limitaciones sin publicar ni desplegar
+- [x] Analizar íntegramente Horarios_Azul_Cars_SEPTIEMBRE_2026_PREPARACION_CORREGIDA.xlsx, incluidas todas las hojas, semanas, celdas y orden visual
+- [x] Contrastar cada persona del Excel con el empleado y equipo correctos en PlanMint sin asumir coincidencias ambiguas
+- [x] Preparar y aplicar exactamente turnos, libres, incorporaciones, finalizaciones y orden escalonado de septiembre de 2026
+- [x] Verificar fila por fila y día por día que PlanMint coincide con el Excel y que no se modificaron otros meses o módulos
+- [x] Entregar conteos y comprobaciones de la actualización de horarios
