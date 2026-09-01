@@ -267,7 +267,7 @@ import externalApiTransfersRouter from "../externalApiTransfers";
 import externalApiWebhooksRouter from "../externalApiWebhooks";
 import { handleCreateApiKey, handleListApiKeys, handleRevokeApiKey, handleRotateApiKey, handleGetApiKeyLogs, handleGetWebhookDispatcherStatus } from "../externalApiKeyManagement";
 import { handleScheduledExternalWebhooks } from "../externalWebhookDispatcher";
-import { handleExternalTransferDocs, handleExternalTransferOpenApi } from "../externalTransferOpenApi";
+import { handleExternalTransferDocs, handleExternalTransferOpenApi, handleExternalTransferRoot } from "../externalTransferOpenApi";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -599,6 +599,8 @@ async function startServer() {
   app.post("/api/ses/settings/update", handleSesUpdateSettings);
 
   // ─── External API (B2B) ──────────────────────────────────────────────────
+  app.get("/api/external/v1", handleExternalTransferRoot);
+  app.get("/api/external/v1/", handleExternalTransferRoot);
   app.get("/api/external/v1/openapi.json", handleExternalTransferOpenApi);
   app.get("/api/external/v1/docs", handleExternalTransferDocs);
   app.use("/api/external/v1/transfers", externalApiTransfersRouter);

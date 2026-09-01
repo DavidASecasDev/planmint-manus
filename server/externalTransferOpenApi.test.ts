@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { externalTransferOpenApi } from "./externalTransferOpenApi";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { externalTransferOpenApi, handleExternalTransferRoot } from "./externalTransferOpenApi";
 
 describe("externalTransferOpenApi", () => {
   it("documents every approved bidirectional operation", () => {
@@ -17,5 +19,18 @@ describe("externalTransferOpenApi", () => {
     expect(serialized).not.toContain("provider_cost");
     expect(serialized).not.toContain("internal_margin");
     expect(serialized).not.toContain("price_with_commission");
+  });
+
+  it("redirects the public API root to the navigable documentation", () => {
+    const setHeader = vi.fn();
+    const redirect = vi.fn();
+    handleExternalTransferRoot({} as never, { setHeader, redirect } as never);
+
+    expect(setHeader).toHaveBeenCalledWith("Cache-Control", "public, max-age=300");
+    expect(redirect).toHaveBeenCalledWith(302, "/api/external/v1/docs");
+
+    const indexSource = readFileSync(resolve(process.cwd(), "server/_core/index.ts"), "utf8");
+    expect(indexSource).toContain('app.get("/api/external/v1", handleExternalTransferRoot)');
+    expect(indexSource.indexOf('app.get("/api/external/v1", handleExternalTransferRoot)')).toBeLessThan(indexSource.indexOf("setupVite(app, server)"));
   });
 });

@@ -1668,3 +1668,6 @@
 - [x] Añadir pruebas de autenticación, organización, scopes, validación, duplicados, estados y regresión del módulo existente
 - [x] Ejecutar TypeScript, suite focal, suite de Transfers y build sin publicar ni desplegar hasta revisión
 - [x] Entregar guía de integración, diff y resultados verificables antes de activar credenciales reales
+- [x] Corregir `GET /api/external/v1` para abrir la documentación pública en lugar del 404 general
+- [x] Añadir una prueba de regresión que preserve OpenAPI público y autenticación en endpoints operativos
+- [x] Validar la URL raíz localmente, guardar checkpoint y entregar la ruta correcta

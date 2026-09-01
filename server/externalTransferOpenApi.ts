@@ -165,6 +165,11 @@ export function handleExternalTransferOpenApi(_req: Request, res: Response) {
   return res.json(externalTransferOpenApi);
 }
 
+export function handleExternalTransferRoot(_req: Request, res: Response) {
+  res.setHeader("Cache-Control", "public, max-age=300");
+  return res.redirect(302, "/api/external/v1/docs");
+}
+
 export function handleExternalTransferDocs(_req: Request, res: Response) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=300");
