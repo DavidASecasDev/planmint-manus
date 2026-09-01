@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CarFront, CheckCircle2, GitCompareArrows, Loader2, Plus, Save, UserRound } from 'lucide-react';
+import { AlertCircle, CarFront, CheckCircle2, Loader2, Plus, Save, UserRound } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -456,25 +456,6 @@ export function SesDraftEditor(props: Props) {
           </TabsList>
 
           <ScrollArea className="flex-1 px-6 py-4">
-            <Alert className="mb-4 border-blue-200 bg-blue-50 text-blue-950">
-              <GitCompareArrows className="h-4 w-4" />
-              <AlertTitle>Procedencia de los datos</AlertTitle>
-              <AlertDescription>
-                <p>Rently completa los campos disponibles; las correcciones manuales siempre prevalecen. Los valores derivados proceden de la configuración de PlanMint.</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {Object.entries(draft.sourceByField).slice(0, 24).map(([path, source]) => (
-                    <Badge key={path} variant="outline" className="bg-white font-normal">
-                      {getSesFieldLabel(path, holderIsDriver)} · {source === 'manual' ? 'Manual' : source === 'derived' ? 'Derivado' : 'Rently'}
-                    </Badge>
-                  ))}
-                </div>
-                {draft.syncConflicts.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-xs">
-                    {draft.syncConflicts.map((conflict) => <li key={conflict.field}><strong>{getSesFieldLabel(conflict.field, holderIsDriver)}:</strong> Rently propuso otro valor; se conservó la corrección manual.</li>)}
-                  </ul>
-                )}
-              </AlertDescription>
-            </Alert>
             {actionableIssues.length > 0 ? (
               <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-900">
                 <AlertCircle className="h-4 w-4" />

@@ -1642,3 +1642,13 @@
 - [x] Preparar y aplicar exactamente turnos, libres, incorporaciones, finalizaciones y orden escalonado de septiembre de 2026
 - [x] Verificar fila por fila y día por día que PlanMint coincide con el Excel y que no se modificaron otros meses o módulos
 - [x] Entregar conteos y comprobaciones de la actualización de horarios
+- [x] Auditar en modo agregado los borradores SES con matrícula/modelo pero sin marca y clasificar la causa sin exponer PII
+- [x] Centralizar la resolución de matrícula, marca, modelo, categoría, bastidor, color y kilómetros desde flota y detalle Rently
+- [x] Normalizar la matrícula al enlazar con fleet_vehicles para tolerar espacios, guiones y diferencias de mayúsculas
+- [x] Usar la marca auténtica de detail.Car.Model.Brand.Name cuando la flota no la aporte, sin deducirla del modelo
+- [x] Aplicar la resolución corregida en todos los recorridos SES preservando correcciones manuales y valores no vacíos
+- [x] Eliminar del editor operativo la tarjeta «Procedencia de los datos» y sus badges técnicos
+- [x] Mantener internamente manual_fields, auditoría y compatibilidad histórica sin exponer la procedencia en la UI
+- [x] Añadir pruebas de marca/modelo/matrícula, fallback Rently, matrícula normalizada, ausencia real, precedencia manual y UI simplificada
+- [x] Ejecutar regresión SES, matriz focal, TypeScript, build y verificación visual solo con fixtures sintéticos
+- [x] Entregar causa raíz, diff y resultados sin desplegar ni resincronizar producción

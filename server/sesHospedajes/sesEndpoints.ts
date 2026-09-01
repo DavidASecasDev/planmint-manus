@@ -13,7 +13,12 @@ import {
 } from './rentlyProfiles';
 import { validateSesDraft, type SesDraftValidationInput, type SesValidationIssue } from './validation';
 import { generateSesXml, type SesXmlDraft } from './xml';
-import { normalizeSesVehicleBrand, normalizeSesVehicleColor } from './codes';
+import {
+  getFleetVehicleCandidates,
+  groupFleetVehiclesByPlate,
+  needsRentlyVehicleDetail,
+  resolveSesVehicleData,
+} from './vehicleResolver';
 import {
   enrichReservationsFromRentlyForSes,
   extractRentlyContractVehicleData,
@@ -677,11 +682,10 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
       .eq('organization_id', ctx.organizationId).in('reservation_id', reservationIds);
     if (existingError) throw existingError;
     const existingMap = new Map((existingDrafts ?? []).map((draft) => [draft.reservation_id, draft]));
-    const plates = Array.from(new Set(reservations.map((row) => row.auto).filter(Boolean)));
-    const { data: fleetVehicles } = plates.length
-      ? await ctx.serviceClient.from('fleet_vehicles').select('*').eq('organization_id', ctx.organizationId).in('matricula', plates)
-      : { data: [] as any[] };
-    const fleetMap = new Map((fleetVehicles ?? []).map((vehicle) => [vehicle.matricula, vehicle]));
+    const { data: fleetVehicles, error: fleetError } = await ctx.serviceClient.from('fleet_vehicles').select('*')
+      .eq('organization_id', ctx.organizationId);
+    if (fleetError) throw fleetError;
+    const fleetByPlate = groupFleetVehiclesByPlate(fleetVehicles ?? []);
     const { data: settings } = await ctx.serviceClient.from('ses_settings').select('*')
       .eq('organization_id', ctx.organizationId).maybeSingle();
     const additionalCustomers = reservations.flatMap((reservation) =>
@@ -702,6 +706,21 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
     const additionalProfileMap = new Map(
       (additionalProfiles ?? []).map((profile) => [normalizeDocumentNumber(profile.document_number), profile]),
     );
+    const reservationsNeedingVehicleDetail = reservations.filter((reservation) => {
+      const existing = existingMap.get(reservation.id) as Record<string, any> | undefined;
+      return !isSesDraftLocked(existing?.status) && needsRentlyVehicleDetail({
+        existingDraft: existing,
+        fleetVehicles: getFleetVehicleCandidates(fleetByPlate, reservation.auto),
+      });
+    });
+    const vehicleEnrichment = await enrichReservationsFromRentlyForSes({
+      serviceClient: ctx.serviceClient,
+      organizationId: ctx.organizationId,
+      reservations: reservationsNeedingVehicleDetail as ReservationForSesEnrichment[],
+      actorUserId: ctx.userId,
+      maxReservations: reservationsNeedingVehicleDetail.length,
+      forceEnrichment: true,
+    });
     let created = 0;
     let updated = 0;
     let unchanged = 0;
@@ -716,7 +735,9 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
       const person = await ensurePersonFromReservation(ctx, reservation);
       const pickupLocation = await ensureLocation(ctx, reservation.lugar_entrega, reservation.lugar_entrega_direccion, reservation.lugar_entrega_ciudad, settings?.establishment_code);
       const returnLocation = await ensureLocation(ctx, reservation.lugar_devolucion, reservation.lugar_devolucion_direccion, reservation.lugar_devolucion_ciudad, settings?.establishment_code);
-      const fleet = fleetMap.get(reservation.auto) as Record<string, any> | undefined;
+      const fleetCandidates = getFleetVehicleCandidates(fleetByPlate, reservation.auto);
+      const detail = vehicleEnrichment.detailsByReservationId.get(reservation.id) ?? null;
+      const vehicle = resolveSesVehicleData({ reservation, fleetVehicles: fleetCandidates, detail });
       const firstAdditionalDriver = mapStoredRentlyDriverToCustomer(
         parseStoredRentlyDrivers(reservation.conductores_adicionales)[0] ?? {},
       );
@@ -736,15 +757,15 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
         primary_driver_profile_id: person?.id ?? null,
         secondary_driver_profile_id: secondaryProfile?.id ?? null,
         payment_type: settings?.default_payment_type ?? null,
-        vehicle_category: fleet?.categoria ?? reservation.categoria ?? null,
+        vehicle_category: vehicle.vehicle_category,
         vehicle_type: settings?.default_vehicle_type ?? 'TURISMO',
-        vehicle_brand: normalizeSesVehicleBrand(fleet?.marca),
-        vehicle_model: fleet?.modelo ?? reservation.modelo ?? null,
-        vehicle_plate: fleet?.matricula ?? reservation.auto ?? null,
-        vehicle_vin: fleet?.numero_bastidor ?? reservation.vehiculo_chasis ?? null,
-        vehicle_color: normalizeSesVehicleColor(fleet?.color ?? reservation.vehiculo_color),
-        km_pickup: fleet?.km_recogida ?? reservation.vehiculo_kms ?? null,
-        km_return: fleet?.km_devolucion ?? null,
+        vehicle_brand: vehicle.vehicle_brand,
+        vehicle_model: vehicle.vehicle_model,
+        vehicle_plate: vehicle.vehicle_plate,
+        vehicle_vin: vehicle.vehicle_vin,
+        vehicle_color: vehicle.vehicle_color,
+        km_pickup: vehicle.km_pickup,
+        km_return: vehicle.km_return,
         updated_by: ctx.userId,
       };
       const manualFields = Array.isArray(existing?.manual_fields) ? existing.manual_fields : [];
@@ -876,12 +897,10 @@ export async function handleSesPrepare(req: Request, res: Response) {
       console.warn('[ses-hospedajes] Rently detail enrichment failed (non-blocking):', enrichmentError);
     }
 
-    const plates = Array.from(new Set(candidateReservations.map((row) => row.auto).filter(Boolean)));
-    const { data: fleetVehicles } = plates.length
-      ? await ctx.serviceClient.from('fleet_vehicles').select('*')
-          .eq('organization_id', ctx.organizationId).in('matricula', plates)
-      : { data: [] as any[] };
-    const fleetMap = new Map((fleetVehicles ?? []).map((vehicle) => [vehicle.matricula, vehicle]));
+    const { data: fleetVehicles, error: fleetError } = await ctx.serviceClient.from('fleet_vehicles').select('*')
+      .eq('organization_id', ctx.organizationId);
+    if (fleetError) throw fleetError;
+    const fleetByPlate = groupFleetVehiclesByPlate(fleetVehicles ?? []);
     const { data: settings } = await ctx.serviceClient.from('ses_settings').select('*')
       .eq('organization_id', ctx.organizationId).maybeSingle();
     const { data: existingDrafts } = await ctx.serviceClient.from('ses_contract_drafts').select('*')
@@ -948,9 +967,10 @@ export async function handleSesPrepare(req: Request, res: Response) {
       const person = await ensurePersonFromReservation(ctx, reservation);
       const pickupLocation = await ensureLocation(ctx, reservation.lugar_entrega, reservation.lugar_entrega_direccion, reservation.lugar_entrega_ciudad, settings?.establishment_code);
       const returnLocation = await ensureLocation(ctx, reservation.lugar_devolucion, reservation.lugar_devolucion_direccion, reservation.lugar_devolucion_ciudad, settings?.establishment_code);
-      const fleet = fleetMap.get(reservation.auto) as Record<string, any> | undefined;
+      const fleetCandidates = getFleetVehicleCandidates(fleetByPlate, reservation.auto);
       const detail = detailsByReservationId.get(reservation.id);
       const contractVehicle = detail ? extractRentlyContractVehicleData(detail) : null;
+      const vehicle = resolveSesVehicleData({ reservation, fleetVehicles: fleetCandidates, detail });
       const reference = String(reservation.external_reservation_id || reservation.id).slice(0, 50);
       const contractDate = reservation.rently_creation_date?.slice(0, 10) || null;
       const visibleStatus = detail?.CurrentStatus === 2
@@ -976,7 +996,7 @@ export async function handleSesPrepare(req: Request, res: Response) {
       const officialIdentityHash = buildOfficialIdentityHash({
         reference,
         contractDate,
-        vehiclePlate: fleet?.matricula ?? reservation.auto ?? null,
+        vehiclePlate: vehicle.vehicle_plate,
       });
       const existingSnapshot = existing?.eligibility_snapshot && typeof existing.eligibility_snapshot === 'object'
         ? existing.eligibility_snapshot : {};
@@ -987,7 +1007,7 @@ export async function handleSesPrepare(req: Request, res: Response) {
         checked,
         reference,
         contractDate,
-        vehiclePlate: fleet?.matricula ?? reservation.auto ?? null,
+        vehiclePlate: vehicle.vehicle_plate,
         communications: officialByReference.get(reference) ?? [],
       });
       if (!eligibility.eligible) {
@@ -1011,15 +1031,15 @@ export async function handleSesPrepare(req: Request, res: Response) {
         holder_profile_id: person?.id ?? null,
         primary_driver_profile_id: person?.id ?? null,
         payment_type: settings?.default_payment_type ?? null,
-        vehicle_category: fleet?.categoria ?? reservation.categoria ?? null,
+        vehicle_category: vehicle.vehicle_category,
         vehicle_type: settings?.default_vehicle_type ?? 'TURISMO',
-        vehicle_brand: normalizeSesVehicleBrand(fleet?.marca),
-        vehicle_model: fleet?.modelo ?? reservation.modelo ?? null,
-        vehicle_plate: fleet?.matricula ?? reservation.auto ?? null,
-        vehicle_vin: fleet?.numero_bastidor ?? contractVehicle?.vehicleVin ?? reservation.vehiculo_chasis ?? null,
-        vehicle_color: normalizeSesVehicleColor(fleet?.color ?? reservation.vehiculo_color),
-        km_pickup: fleet?.km_recogida ?? contractVehicle?.pickupKm ?? reservation.vehiculo_kms ?? null,
-        km_return: fleet?.km_devolucion ?? contractVehicle?.returnKm ?? null,
+        vehicle_brand: vehicle.vehicle_brand,
+        vehicle_model: vehicle.vehicle_model,
+        vehicle_plate: vehicle.vehicle_plate,
+        vehicle_vin: vehicle.vehicle_vin ?? contractVehicle?.vehicleVin ?? null,
+        vehicle_color: vehicle.vehicle_color,
+        km_pickup: vehicle.km_pickup ?? contractVehicle?.pickupKm ?? null,
+        km_return: vehicle.km_return ?? contractVehicle?.returnKm ?? null,
         is_eligible: eligibility.eligible,
         eligibility_errors: eligibility.issues,
         eligibility_snapshot: {

@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SesDraftActions } from '@/components/ses/SesDraftActions';
+import { SesDraftEditor } from '@/components/ses/SesDraftEditor';
 import { SesOfficialCheckDialog } from '@/components/ses/SesOfficialCheckDialog';
 import { SesPagination } from '@/components/ses/SesPagination';
 import { canSelectSesDraftForXml } from '@/lib/sesSelection';
@@ -56,6 +57,7 @@ const FIXTURE_DRAFTS: SesContractDraft[] = [
 function Fixture() {
   const [checkedIds, setCheckedIds] = useState(() => window.location.search.includes('selected=1') ? new Set([FIXTURE_DRAFTS[1].id]) : new Set<string>());
   const [officialDraft, setOfficialDraft] = useState<SesContractDraft | null>(() => window.location.search.includes('dialog=1') ? FIXTURE_DRAFTS[1] : null);
+  const [editorDraft, setEditorDraft] = useState<SesContractDraft | null>(() => window.location.search.includes('editor=1') ? FIXTURE_DRAFTS[0] : null);
   const selected = useMemo(() => FIXTURE_DRAFTS.filter((draft) => checkedIds.has(draft.id) && canSelectSesDraftForXml(draft)), [checkedIds]);
   return <main className="min-h-screen bg-slate-50 p-4 text-slate-950 sm:p-8">
     <div className="mx-auto max-w-7xl space-y-5">
@@ -65,10 +67,21 @@ function Fixture() {
       </header>
       <div className="grid gap-3 sm:grid-cols-3"><Card className="border-amber-200 bg-amber-50"><CardContent className="p-4"><p className="text-sm text-amber-700">Incompletos</p><p className="text-2xl font-bold">1</p></CardContent></Card><Card className="border-emerald-200 bg-emerald-50"><CardContent className="p-4"><p className="text-sm text-emerald-700">Listos</p><p className="text-2xl font-bold">1</p></CardContent></Card><Card className="border-blue-200 bg-blue-50"><CardContent className="p-4"><p className="text-sm text-blue-700">XML generado</p><p className="text-2xl font-bold">1</p></CardContent></Card></div>
       <SesPagination total={3} offset={0} limit={50} pageCount={3} onOffsetChange={() => undefined} />
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm"><Table><TableHeader><TableRow><TableHead className="w-10" /><TableHead>Reserva</TableHead><TableHead>Vehículo</TableHead><TableHead>Estado</TableHead><TableHead>Faltan / avisos</TableHead><TableHead className="sticky right-0 bg-slate-50 text-right">Acción</TableHead></TableRow></TableHeader><TableBody>{FIXTURE_DRAFTS.map((draft) => <TableRow key={draft.id}><TableCell><Checkbox checked={checkedIds.has(draft.id)} disabled={!canSelectSesDraftForXml(draft)} onCheckedChange={(checked) => setCheckedIds((current) => { const next = new Set(current); checked ? next.add(draft.id) : next.delete(draft.id); return next; })} /></TableCell><TableCell className="font-semibold">#{draft.reference}</TableCell><TableCell>{draft.vehicle_plate}</TableCell><TableCell>{draft.operationalStatus === 'ready' ? <Badge className="bg-emerald-100 text-emerald-700">Lista para XML</Badge> : draft.operationalStatus === 'xml_generated' ? <Badge className="bg-blue-100 text-blue-700"><History className="mr-1 h-3 w-3" />XML generado</Badge> : <Badge className="bg-amber-100 text-amber-700">Incompleta</Badge>}</TableCell><TableCell>{draft.missingFields.length ? <span className="flex items-center gap-1 text-sm text-amber-700"><AlertCircle className="h-4 w-4" />Tipo de pago</span> : draft.sesDuplicateWarning ? <span className="text-xs text-amber-700">Aviso SES no bloqueante · corrección manual preservada</span> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell><TableCell className="sticky right-0 bg-white"><SesDraftActions draft={draft} canExport schemaMigrationRequired={false} checking={false} onCheck={() => setOfficialDraft(draft)} onComplete={() => undefined} /></TableCell></TableRow>)}</TableBody></Table></div>
-      <p className="text-xs text-slate-500">La reserva lista conserva un aviso SES y un conflicto manual, pero sigue seleccionable para XML.</p>
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm"><Table><TableHeader><TableRow><TableHead className="w-10" /><TableHead>Reserva</TableHead><TableHead>Vehículo</TableHead><TableHead>Estado</TableHead><TableHead>Faltan / avisos</TableHead><TableHead className="sticky right-0 bg-slate-50 text-right">Acción</TableHead></TableRow></TableHeader><TableBody>{FIXTURE_DRAFTS.map((draft) => <TableRow key={draft.id}><TableCell><Checkbox checked={checkedIds.has(draft.id)} disabled={!canSelectSesDraftForXml(draft)} onCheckedChange={(checked) => setCheckedIds((current) => { const next = new Set(current); checked ? next.add(draft.id) : next.delete(draft.id); return next; })} /></TableCell><TableCell className="font-semibold">#{draft.reference}</TableCell><TableCell>{[draft.vehicle_brand, draft.vehicle_model, draft.vehicle_plate].filter(Boolean).join(' · ')}</TableCell><TableCell>{draft.operationalStatus === 'ready' ? <Badge className="bg-emerald-100 text-emerald-700">Lista para XML</Badge> : draft.operationalStatus === 'xml_generated' ? <Badge className="bg-blue-100 text-blue-700"><History className="mr-1 h-3 w-3" />XML generado</Badge> : <Badge className="bg-amber-100 text-amber-700">Incompleta</Badge>}</TableCell><TableCell>{draft.missingFields.length ? <span className="flex items-center gap-1 text-sm text-amber-700"><AlertCircle className="h-4 w-4" />Tipo de pago</span> : draft.sesDuplicateWarning ? <span className="text-xs text-amber-700">Aviso SES no bloqueante</span> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell><TableCell className="sticky right-0 bg-white"><SesDraftActions draft={draft} canExport schemaMigrationRequired={false} checking={false} onCheck={() => setOfficialDraft(draft)} onComplete={() => setEditorDraft(draft)} /></TableCell></TableRow>)}</TableBody></Table></div>
+      <p className="text-xs text-slate-500">La fixture muestra únicamente datos funcionales y nunca consulta reservas reales.</p>
     </div>
     <SesOfficialCheckDialog draft={officialDraft} open={Boolean(officialDraft)} onOpenChange={(open) => !open && setOfficialDraft(null)} checking={false} onCheck={async () => undefined} />
+    <SesDraftEditor
+      draft={editorDraft}
+      open={Boolean(editorDraft)}
+      onOpenChange={(open) => !open && setEditorDraft(null)}
+      onUpdatePerson={async () => undefined}
+      onCreatePerson={async () => undefined}
+      onUpdateDraft={async () => undefined}
+      onUpdateLocation={async () => undefined}
+      onSearchMunicipalities={async () => []}
+      saving={false}
+    />
   </main>;
 }
 
