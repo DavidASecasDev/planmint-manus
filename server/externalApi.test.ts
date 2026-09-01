@@ -1,238 +1,130 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import crypto from "node:crypto";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { authenticateExternalApi, ExternalApiError, generateApiKey, hashAuditValue, logExternalApiRequest } from "./externalApiAuth";
 
-// Mock supabaseAdmin
-vi.mock("./supabaseAdmin", () => {
-  const mockSelect = vi.fn().mockReturnThis();
-  const mockInsert = vi.fn().mockReturnThis();
-  const mockUpdate = vi.fn().mockReturnThis();
-  const mockDelete = vi.fn().mockReturnThis();
-  const mockEq = vi.fn().mockReturnThis();
-  const mockIs = vi.fn().mockReturnThis();
-  const mockOrder = vi.fn().mockReturnThis();
-  const mockRange = vi.fn().mockReturnThis();
-  const mockGte = vi.fn().mockReturnThis();
-  const mockLte = vi.fn().mockReturnThis();
-  const mockOr = vi.fn().mockReturnThis();
-  const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-  const mockThen = vi.fn().mockResolvedValue(undefined);
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+vi.mock("./supabaseAdmin", () => ({ getServiceClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
 
-  const chainedClient = {
-    from: vi.fn().mockReturnValue({
-      select: mockSelect,
-      insert: mockInsert,
-      update: mockUpdate,
-      delete: mockDelete,
-      eq: mockEq,
-      is: mockIs,
-      order: mockOrder,
-      range: mockRange,
-      gte: mockGte,
-      lte: mockLte,
-      or: mockOr,
-      single: mockSingle,
-      then: mockThen,
-    }),
-  };
+const validApiKey = "pmk_12345678_1234567890abcdef1234567890abcdef";
+const validHash = crypto.createHash("sha256").update(validApiKey).digest("hex");
 
-  // Make chained methods return the same object
-  Object.values(chainedClient.from()).forEach((fn: any) => {
-    if (typeof fn === "function" && fn.mockReturnThis) {
-      fn.mockReturnValue(chainedClient.from());
-    }
-  });
+function request(apiKey?: string) {
+  return { headers: apiKey ? { "x-api-key": apiKey } : {} } as any;
+}
 
+function query(record: Record<string, unknown> | null, error: unknown = null) {
+  const chain: any = {};
+  chain.select = vi.fn(() => chain);
+  chain.eq = vi.fn(() => chain);
+  chain.update = vi.fn(() => chain);
+  chain.insert = vi.fn(() => chain);
+  chain.single = vi.fn(async () => ({ data: record, error }));
+  chain.then = vi.fn((resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: null }).then(resolve));
+  return chain;
+}
+
+function activeRecord(overrides: Record<string, unknown> = {}) {
   return {
-    getServiceClient: vi.fn(() => chainedClient),
-    authenticateSupabaseRequest: vi.fn().mockResolvedValue({
-      userId: "user-123",
-      organizationId: "org-123",
-    }),
-    AuthError: class AuthError extends Error {
-      status: number;
-      constructor(message: string, status: number) {
-        super(message);
-        this.status = status;
-      }
-    },
+    id: "00000000-0000-0000-0000-000000000001",
+    organization_id: "00000000-0000-0000-0000-000000000002",
+    name: "Comerciales · Clave compartida",
+    key_hash: validHash,
+    permissions: ["transfers.read", "transfers.create", "transfers.cancel", "webhooks.manage"],
+    is_active: true,
+    expires_at: null,
+    metadata: { rate_limit_per_minute: 60 },
+    ...overrides,
   };
-});
-
-// Mock automationEngine
-vi.mock("./automationEngine", () => ({
-  onTransferCreated: vi.fn().mockResolvedValue(undefined),
-}));
-
-import {
-  authenticateExternalApi,
-  ExternalApiError,
-  generateApiKey,
-} from "./externalApiAuth";
-import crypto from "crypto";
+}
 
 describe("ExternalApiAuth", () => {
-  describe("authenticateExternalApi", () => {
-    it("should throw MISSING_API_KEY when no header is provided", async () => {
-      const req = { headers: {} } as any;
-      await expect(authenticateExternalApi(req)).rejects.toThrow(ExternalApiError);
-      try {
-        await authenticateExternalApi(req);
-      } catch (err: any) {
-        expect(err.code).toBe("MISSING_API_KEY");
-        expect(err.status).toBe(401);
-      }
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.JWT_SECRET = "synthetic-jwt-secret";
+  });
 
-    it("should throw INVALID_API_KEY_FORMAT for malformed keys", async () => {
-      const req = { headers: { "x-api-key": "bad_key" } } as any;
-      await expect(authenticateExternalApi(req)).rejects.toThrow(ExternalApiError);
-      try {
-        await authenticateExternalApi(req);
-      } catch (err: any) {
-        expect(err.code).toBe("INVALID_API_KEY_FORMAT");
-        expect(err.status).toBe(401);
-      }
-    });
+  it("rejects missing and malformed keys before storage lookup", async () => {
+    await expect(authenticateExternalApi(request())).rejects.toMatchObject({ code: "MISSING_API_KEY", status: 401 });
+    await expect(authenticateExternalApi(request("invalid"))).rejects.toMatchObject({ code: "INVALID_API_KEY_FORMAT", status: 401 });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
 
-    it("should throw INVALID_API_KEY for non-existent key prefix", async () => {
-      const { getServiceClient } = await import("./supabaseAdmin");
-      const mockClient = getServiceClient() as any;
-      mockClient.from().single.mockResolvedValueOnce({ data: null, error: { message: "not found" } });
+  it("rejects unknown, deactivated and expired keys", async () => {
+    mocks.from.mockReturnValueOnce(query(null, { message: "not found" }));
+    await expect(authenticateExternalApi(request(validApiKey))).rejects.toMatchObject({ code: "INVALID_API_KEY" });
+    mocks.from.mockReturnValueOnce(query(activeRecord({ is_active: false })));
+    await expect(authenticateExternalApi(request(validApiKey))).rejects.toMatchObject({ code: "API_KEY_DEACTIVATED" });
+    mocks.from.mockReturnValueOnce(query(activeRecord({ expires_at: "2020-01-01T00:00:00Z" })));
+    await expect(authenticateExternalApi(request(validApiKey))).rejects.toMatchObject({ code: "API_KEY_EXPIRED" });
+  });
 
-      const req = {
-        headers: { "x-api-key": "pmk_abcdefgh_12345678901234567890123456789012" },
-      } as any;
+  it("enforces scopes before rate limiting", async () => {
+    mocks.from.mockReturnValue(query(activeRecord({ permissions: ["transfers.read"] })));
+    await expect(authenticateExternalApi(request(validApiKey), "transfers.create")).rejects.toMatchObject({ code: "INSUFFICIENT_PERMISSIONS", status: 403 });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
 
-      try {
-        await authenticateExternalApi(req);
-      } catch (err: any) {
-        expect(err.code).toBe("INVALID_API_KEY");
-        expect(err.status).toBe(401);
-      }
-    });
+  it("fails closed without the security RPC and returns 429 when exhausted", async () => {
+    mocks.from.mockReturnValue(query(activeRecord()));
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "missing" } });
+    await expect(authenticateExternalApi(request(validApiKey), "transfers.read")).rejects.toMatchObject({ code: "API_SCHEMA_NOT_READY", status: 503 });
+    mocks.from.mockReturnValue(query(activeRecord()));
+    mocks.rpc.mockResolvedValueOnce({ data: false, error: null });
+    await expect(authenticateExternalApi(request(validApiKey), "transfers.read")).rejects.toMatchObject({ code: "RATE_LIMIT_EXCEEDED", status: 429 });
+  });
 
-    it("should throw API_KEY_DEACTIVATED for inactive keys", async () => {
-      const { getServiceClient } = await import("./supabaseAdmin");
-      const mockClient = getServiceClient() as any;
-
-      const testKey = "pmk_abcdefgh_12345678901234567890123456789012";
-      const keyHash = crypto.createHash("sha256").update(testKey).digest("hex");
-
-      mockClient.from().single.mockResolvedValueOnce({
-        data: {
-          id: "key-1",
-          organization_id: "org-1",
-          name: "Test Key",
-          key_hash: keyHash,
-          permissions: ["transfers.create"],
-          is_active: false,
-          expires_at: null,
-        },
-        error: null,
-      });
-
-      const req = { headers: { "x-api-key": testKey } } as any;
-
-      try {
-        await authenticateExternalApi(req);
-      } catch (err: any) {
-        expect(err.code).toBe("API_KEY_DEACTIVATED");
-        expect(err.status).toBe(403);
-      }
-    });
-
-    it("should throw INSUFFICIENT_PERMISSIONS when permission is missing", async () => {
-      const { getServiceClient } = await import("./supabaseAdmin");
-      const mockClient = getServiceClient() as any;
-
-      const testKey = "pmk_abcdefgh_12345678901234567890123456789012";
-      const keyHash = crypto.createHash("sha256").update(testKey).digest("hex");
-
-      mockClient.from().single.mockResolvedValueOnce({
-        data: {
-          id: "key-1",
-          organization_id: "org-1",
-          name: "Test Key",
-          key_hash: keyHash,
-          permissions: ["transfers.read"],
-          is_active: true,
-          expires_at: null,
-        },
-        error: null,
-      });
-
-      const req = { headers: { "x-api-key": testKey } } as any;
-
-      try {
-        await authenticateExternalApi(req, "transfers.create");
-      } catch (err: any) {
-        expect(err.code).toBe("INSUFFICIENT_PERMISSIONS");
-        expect(err.status).toBe(403);
-      }
+  it("returns the shared organization context when valid", async () => {
+    mocks.from.mockReturnValue(query(activeRecord()));
+    mocks.rpc.mockResolvedValue({ data: true, error: null });
+    await expect(authenticateExternalApi(request(validApiKey), "transfers.read")).resolves.toMatchObject({
+      organizationId: "00000000-0000-0000-0000-000000000002",
+      keyName: "Comerciales · Clave compartida",
+      rateLimitPerMinute: 60,
     });
   });
 
-  describe("generateApiKey", () => {
-    it("should generate a key with the correct format", async () => {
-      const { getServiceClient } = await import("./supabaseAdmin");
-      const mockClient = getServiceClient() as any;
-
-      mockClient.from().single.mockResolvedValueOnce({
-        data: { id: "new-key-id" },
-        error: null,
-      });
-
-      const result = await generateApiKey({
-        organizationId: "org-123",
-        name: "Bluebnc BYM",
-      });
-
-      expect(result.apiKey).toMatch(/^pmk_[a-f0-9]{8}_[a-f0-9]{32}$/);
-      expect(result.keyId).toBe("new-key-id");
-      expect(result.prefix).toHaveLength(8);
+  it("generates only supported shared-key scopes and hashes the secret", async () => {
+    const db = query({ id: "00000000-0000-0000-0000-000000000010" });
+    mocks.from.mockReturnValue(db);
+    const result = await generateApiKey({
+      organizationId: "00000000-0000-0000-0000-000000000002",
+      name: "Comerciales",
+      permissions: ["transfers.read", "transfers.create"],
+      rateLimitPerMinute: 75,
     });
-  });
-});
-
-describe("External API Validation", () => {
-  it("should validate required fields for transfer creation", () => {
-    // Test the validation logic directly
-    const invalidBody = {
-      client_name: "",
-      items: [],
-    };
-
-    // client_name empty and items empty should fail
-    expect(invalidBody.client_name.trim().length).toBe(0);
-    expect(invalidBody.items.length).toBe(0);
+    expect(result.apiKey).toMatch(/^pmk_[a-f0-9]{8}_[a-f0-9]{32}$/);
+    expect(db.insert).toHaveBeenCalledWith(expect.objectContaining({
+      key_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      metadata: expect.objectContaining({ key_type: "shared", rate_limit_per_minute: 75 }),
+    }));
+    await expect(generateApiKey({ organizationId: "x", name: "invalid", permissions: ["database.admin"] })).rejects.toThrow("Unsupported API permission");
   });
 
-  it("should validate date format", () => {
-    const validDate = "2025-07-15";
-    const invalidDate = "15/07/2025";
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-
-    expect(regex.test(validDate)).toBe(true);
-    expect(regex.test(invalidDate)).toBe(false);
+  it("never persists request or response bodies and hashes client metadata", async () => {
+    const db = query(null);
+    db.insert = vi.fn(async () => ({ data: null, error: null }));
+    mocks.from.mockReturnValue(db);
+    await logExternalApiRequest({
+      apiKeyId: "00000000-0000-0000-0000-000000000001",
+      organizationId: "00000000-0000-0000-0000-000000000002",
+      method: "POST",
+      endpoint: "/transfers",
+      statusCode: 201,
+      requestBody: { client_name: "No debe guardarse" },
+      responseBody: { client_phone: "No debe guardarse" },
+      ipAddress: "203.0.113.10",
+      userAgent: "Synthetic Agent",
+    });
+    expect(db.insert).toHaveBeenCalledWith(expect.objectContaining({
+      request_body: null,
+      response_body: null,
+      ip_address: expect.stringMatching(/^ip_[a-f0-9]{64}$/),
+      user_agent: expect.stringMatching(/^ua_[a-f0-9]{64}$/),
+    }));
+    expect(hashAuditValue("ip", "203.0.113.10")).not.toContain("203.0.113.10");
   });
 
-  it("should validate time format", () => {
-    const validTime = "14:30";
-    const invalidTime = "2:30 PM";
-    const regex = /^\d{2}:\d{2}$/;
-
-    expect(regex.test(validTime)).toBe(true);
-    expect(regex.test(invalidTime)).toBe(false);
-  });
-
-  it("should validate vehicle types", () => {
-    const validTypes = ["sedan", "v_class", "minibus", "sprinter", "luxury"];
-    expect(validTypes.includes("v_class")).toBe(true);
-    expect(validTypes.includes("bus")).toBe(false);
-  });
-
-  it("should validate service types", () => {
-    const validTypes = ["point_to_point", "hourly", "daily", "airport", "port"];
-    expect(validTypes.includes("airport")).toBe(true);
-    expect(validTypes.includes("unknown")).toBe(false);
+  it("keeps structured API error status and code", () => {
+    expect(new ExternalApiError("Test", 418, "TEST_ERROR")).toMatchObject({ status: 418, code: "TEST_ERROR" });
   });
 });

@@ -1,23 +1,25 @@
 /**
- * External API Authentication Middleware
- * 
- * Authenticates external API requests using API keys.
- * Keys are stored as SHA-256 hashes in the database.
- * Format: pmk_<prefix>_<secret> (PlanMint Key)
- * 
- * Usage:
- *   import { authenticateExternalApi } from "./externalApiAuth";
- *   const auth = await authenticateExternalApi(req, "transfers.create");
+ * Autenticación y auditoría de la API externa de PlanMint.
+ * Las claves completas solo se muestran al crearlas; en base se conserva SHA-256.
  */
-import { Request } from "express";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import type { Request } from "express";
 import { getServiceClient } from "./supabaseAdmin";
+
+export const EXTERNAL_API_PERMISSIONS = [
+  "transfers.create",
+  "transfers.read",
+  "transfers.cancel",
+  "webhooks.manage",
+] as const;
+
+export type ExternalApiPermission = typeof EXTERNAL_API_PERMISSIONS[number];
 
 export class ExternalApiError extends Error {
   constructor(
     public message: string,
     public status: number,
-    public code: string
+    public code: string,
   ) {
     super(message);
     this.name = "ExternalApiError";
@@ -29,128 +31,117 @@ export interface ExternalApiAuth {
   organizationId: string;
   keyName: string;
   permissions: string[];
+  rateLimitPerMinute: number;
 }
 
-/**
- * Authenticate an external API request using the X-API-Key header.
- * Validates the key, checks permissions, and updates last_used_at.
- */
+function secureHashMatches(actualHashHex: string, expectedHashHex: string): boolean {
+  if (!/^[a-f0-9]{64}$/i.test(actualHashHex) || !/^[a-f0-9]{64}$/i.test(expectedHashHex)) return false;
+  const actual = Buffer.from(actualHashHex, "hex");
+  const expected = Buffer.from(expectedHashHex, "hex");
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+}
+
+function parseRateLimit(metadata: unknown): number {
+  const candidate = Number((metadata as { rate_limit_per_minute?: unknown } | null)?.rate_limit_per_minute);
+  if (!Number.isInteger(candidate) || candidate < 1 || candidate > 1000) return 60;
+  return candidate;
+}
+
 export async function authenticateExternalApi(
   req: Request,
-  requiredPermission?: string
+  requiredPermission?: ExternalApiPermission,
 ): Promise<ExternalApiAuth> {
   const apiKey = req.headers["x-api-key"] as string | undefined;
-
   if (!apiKey) {
-    throw new ExternalApiError(
-      "Missing API key. Provide it in the X-API-Key header.",
-      401,
-      "MISSING_API_KEY"
-    );
+    throw new ExternalApiError("Missing API key. Provide it in the X-API-Key header.", 401, "MISSING_API_KEY");
+  }
+  if (!/^pmk_[a-f0-9]{8}_[a-f0-9]{32}$/i.test(apiKey)) {
+    throw new ExternalApiError("Invalid API key format.", 401, "INVALID_API_KEY_FORMAT");
   }
 
-  // Validate key format: pmk_<prefix(8)>_<secret(32)>
-  if (!apiKey.startsWith("pmk_") || apiKey.length < 44) {
-    throw new ExternalApiError(
-      "Invalid API key format.",
-      401,
-      "INVALID_API_KEY_FORMAT"
-    );
-  }
-
-  // Extract prefix for lookup (first 8 chars after "pmk_")
-  const prefix = apiKey.substring(4, 12);
-
-  // Hash the full key for comparison
+  const prefix = apiKey.substring(4, 12).toLowerCase();
   const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
-
   const supabase = getServiceClient();
-
-  // Look up the key by prefix
   const { data: keyRecord, error } = await supabase
     .from("external_api_keys")
-    .select("id, organization_id, name, key_hash, permissions, is_active, expires_at")
+    .select("id, organization_id, name, key_hash, permissions, is_active, expires_at, metadata")
     .eq("key_prefix", prefix)
     .single();
 
-  if (error || !keyRecord) {
-    throw new ExternalApiError(
-      "Invalid API key.",
-      401,
-      "INVALID_API_KEY"
-    );
+  if (error || !keyRecord || !secureHashMatches(keyRecord.key_hash, keyHash)) {
+    throw new ExternalApiError("Invalid API key.", 401, "INVALID_API_KEY");
   }
-
-  // Verify hash matches
-  if (keyRecord.key_hash !== keyHash) {
-    throw new ExternalApiError(
-      "Invalid API key.",
-      401,
-      "INVALID_API_KEY"
-    );
-  }
-
-  // Check if key is active
   if (!keyRecord.is_active) {
-    throw new ExternalApiError(
-      "API key has been deactivated.",
-      403,
-      "API_KEY_DEACTIVATED"
-    );
+    throw new ExternalApiError("API key has been deactivated.", 403, "API_KEY_DEACTIVATED");
   }
-
-  // Check expiration
   if (keyRecord.expires_at && new Date(keyRecord.expires_at) < new Date()) {
-    throw new ExternalApiError(
-      "API key has expired.",
-      403,
-      "API_KEY_EXPIRED"
-    );
+    throw new ExternalApiError("API key has expired.", 403, "API_KEY_EXPIRED");
   }
 
-  // Check permission
-  const permissions: string[] = keyRecord.permissions || [];
+  const permissions: string[] = Array.isArray(keyRecord.permissions) ? keyRecord.permissions : [];
   if (requiredPermission && !permissions.includes(requiredPermission)) {
     throw new ExternalApiError(
       `Insufficient permissions. Required: ${requiredPermission}`,
       403,
-      "INSUFFICIENT_PERMISSIONS"
+      "INSUFFICIENT_PERMISSIONS",
     );
   }
 
-  // Update last_used_at (fire and forget)
-  supabase
+  const rateLimitPerMinute = parseRateLimit(keyRecord.metadata);
+  const { data: withinRateLimit, error: rateLimitError } = await supabase.rpc(
+    "consume_external_api_rate_limit",
+    { p_api_key_id: keyRecord.id, p_limit: rateLimitPerMinute },
+  );
+  if (rateLimitError) {
+    throw new ExternalApiError("The API security schema is not ready.", 503, "API_SCHEMA_NOT_READY");
+  }
+  if (withinRateLimit !== true) {
+    throw new ExternalApiError(
+      "Rate limit exceeded. Retry after the next minute boundary.",
+      429,
+      "RATE_LIMIT_EXCEEDED",
+    );
+  }
+
+  void supabase
     .from("external_api_keys")
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", keyRecord.id)
-    .then(() => {});
+    .then(() => undefined);
 
   return {
     apiKeyId: keyRecord.id,
     organizationId: keyRecord.organization_id,
     keyName: keyRecord.name,
     permissions,
+    rateLimitPerMinute,
   };
 }
 
-/**
- * Generate a new API key for an organization.
- * Returns the full key (only shown once) and stores the hash.
- */
 export async function generateApiKey(params: {
   organizationId: string;
   name: string;
   permissions?: string[];
   expiresAt?: string | null;
   createdBy?: string;
+  rateLimitPerMinute?: number;
 }): Promise<{ apiKey: string; keyId: string; prefix: string }> {
-  const prefix = crypto.randomBytes(4).toString("hex"); // 8 chars
-  const secret = crypto.randomBytes(16).toString("hex"); // 32 chars
-  const fullKey = `pmk_${prefix}_${secret}`;
-  const keyHash = crypto.createHash("sha256").update(fullKey).digest("hex");
+  const requestedPermissions = params.permissions || [...EXTERNAL_API_PERMISSIONS];
+  const invalidPermission = requestedPermissions.find(
+    (permission) => !EXTERNAL_API_PERMISSIONS.includes(permission as ExternalApiPermission),
+  );
+  if (invalidPermission) throw new Error(`Unsupported API permission: ${invalidPermission}`);
 
+  const rateLimitPerMinute = params.rateLimitPerMinute ?? 60;
+  if (!Number.isInteger(rateLimitPerMinute) || rateLimitPerMinute < 1 || rateLimitPerMinute > 1000) {
+    throw new Error("rateLimitPerMinute must be an integer between 1 and 1000");
+  }
+
+  const prefix = crypto.randomBytes(4).toString("hex");
+  const secret = crypto.randomBytes(16).toString("hex");
+  const apiKey = `pmk_${prefix}_${secret}`;
+  const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
   const supabase = getServiceClient();
-
   const { data, error } = await supabase
     .from("external_api_keys")
     .insert({
@@ -158,42 +149,46 @@ export async function generateApiKey(params: {
       name: params.name,
       key_hash: keyHash,
       key_prefix: prefix,
-      permissions: params.permissions || [
-        "transfers.create",
-        "transfers.read",
-        "transfers.cancel",
-      ],
+      permissions: requestedPermissions,
       expires_at: params.expiresAt || null,
       created_by: params.createdBy || null,
+      metadata: {
+        key_type: "shared",
+        audience: "commercial_software",
+        rate_limit_per_minute: rateLimitPerMinute,
+      },
     })
     .select("id")
     .single();
-
-  if (error || !data) {
-    throw new Error(`Failed to create API key: ${error?.message}`);
-  }
-
-  return {
-    apiKey: fullKey,
-    keyId: data.id,
-    prefix,
-  };
+  if (error || !data) throw new Error(`Failed to create API key: ${error?.message}`);
+  return { apiKey, keyId: data.id, prefix };
 }
 
-/**
- * Log an external API request for audit purposes.
- */
+export function hashAuditValue(prefix: "ip" | "ua", value?: string): string | null {
+  if (!value || !process.env.JWT_SECRET) return null;
+  return `${prefix}_${crypto.createHmac("sha256", process.env.JWT_SECRET).update(value).digest("hex")}`;
+}
+
+export function createCorrelationId(headerValue: unknown): string {
+  if (typeof headerValue === "string" && /^[a-f0-9-]{36}$/i.test(headerValue)) return headerValue.toLowerCase();
+  return crypto.randomUUID();
+}
+
 export async function logExternalApiRequest(params: {
   apiKeyId: string;
   organizationId: string;
   method: string;
   endpoint: string;
   statusCode: number;
-  requestBody?: any;
-  responseBody?: any;
+  requestBody?: unknown;
+  responseBody?: unknown;
   ipAddress?: string;
   userAgent?: string;
   durationMs?: number;
+  correlationId?: string;
+  transferRequestId?: string;
+  idempotencyKeyHash?: string;
+  errorCode?: string;
 }): Promise<void> {
   try {
     const supabase = getServiceClient();
@@ -203,13 +198,17 @@ export async function logExternalApiRequest(params: {
       method: params.method,
       endpoint: params.endpoint,
       status_code: params.statusCode,
-      request_body: params.requestBody || null,
-      response_body: params.responseBody || null,
-      ip_address: params.ipAddress || null,
-      user_agent: params.userAgent || null,
+      request_body: null,
+      response_body: null,
+      ip_address: hashAuditValue("ip", params.ipAddress),
+      user_agent: hashAuditValue("ua", params.userAgent),
       duration_ms: params.durationMs || null,
+      correlation_id: params.correlationId || null,
+      transfer_request_id: params.transferRequestId || null,
+      idempotency_key_hash: params.idempotencyKeyHash || null,
+      error_code: params.errorCode || null,
     });
-  } catch (err) {
-    console.error("[ExternalAPI] Failed to log request:", err);
+  } catch (error) {
+    console.error("[ExternalAPI] Failed to write redacted request audit", error);
   }
 }

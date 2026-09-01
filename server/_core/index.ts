@@ -264,7 +264,10 @@ import {
 import notificationTriggerRouter from "../notificationTriggerEndpoint";
 import { handleChangeVehicleStatus, handleGetVehicleStatusHistory } from "../vehicleStatusChangeEndpoint";
 import externalApiTransfersRouter from "../externalApiTransfers";
-import { handleCreateApiKey, handleListApiKeys, handleRevokeApiKey, handleGetApiKeyLogs } from "../externalApiKeyManagement";
+import externalApiWebhooksRouter from "../externalApiWebhooks";
+import { handleCreateApiKey, handleListApiKeys, handleRevokeApiKey, handleRotateApiKey, handleGetApiKeyLogs, handleGetWebhookDispatcherStatus } from "../externalApiKeyManagement";
+import { handleScheduledExternalWebhooks } from "../externalWebhookDispatcher";
+import { handleExternalTransferDocs, handleExternalTransferOpenApi } from "../externalTransferOpenApi";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -596,11 +599,16 @@ async function startServer() {
   app.post("/api/ses/settings/update", handleSesUpdateSettings);
 
   // ─── External API (B2B) ──────────────────────────────────────────────────
+  app.get("/api/external/v1/openapi.json", handleExternalTransferOpenApi);
+  app.get("/api/external/v1/docs", handleExternalTransferDocs);
   app.use("/api/external/v1/transfers", externalApiTransfersRouter);
+  app.use("/api/external/v1/webhooks", externalApiWebhooksRouter);
   app.post("/api/external/v1/keys", handleCreateApiKey);
   app.get("/api/external/v1/keys", handleListApiKeys);
   app.delete("/api/external/v1/keys/:id", handleRevokeApiKey);
+  app.post("/api/external/v1/keys/:id/rotate", handleRotateApiKey);
   app.get("/api/external/v1/keys/:id/logs", handleGetApiKeyLogs);
+  app.get("/api/external/v1/keys/webhook-dispatcher/status", handleGetWebhookDispatcherStatus);
 
   // ─── Notification Trigger ─────────────────────────────────────────────────
   app.use("/api/notifications", notificationTriggerRouter);
@@ -612,6 +620,7 @@ async function startServer() {
   app.post("/api/scheduled/geofence-check", handleScheduledGeofenceCheck);
   app.post("/api/scheduled/xexun-poll", handleScheduledXexunPoll);
   app.post("/api/scheduled/morning-summary", handleScheduledMorningSummary);
+  app.post("/api/scheduled/external-api-webhooks", handleScheduledExternalWebhooks);
 
   // Open Graph meta tags for /track/:token (must be before SPA catch-all)
   const { trackingOgMiddleware } = await import("../trackingOgMiddleware");

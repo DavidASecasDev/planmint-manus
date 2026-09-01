@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "PlanMint Transfers API v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://plan-mint.com/api/external/v1" },
+    { "key": "api_key", "value": "REEMPLAZAR_CON_LA_CLAVE_COMPARTIDA", "type": "secret" },
+    { "key": "transfer_id", "value": "00000000-0000-0000-0000-000000000000" }
+  ],
+  "item": [
+    {
+      "name": "Crear transfer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Idempotency-Key", "value": "postman-demo-{{$guid}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_type\": \"villa\",\n  \"client_name\": \"Cliente de ejemplo\",\n  \"client_phone\": \"+34000000000\",\n  \"villa_name\": \"Villa de ejemplo\",\n  \"external_reference\": \"CRM-DEMO\",\n  \"items\": [{\n    \"transfer_date\": \"2026-09-18\",\n    \"transfer_time\": \"10:30\",\n    \"pickup_location\": \"Origen de ejemplo\",\n    \"dropoff_location\": \"Destino de ejemplo\",\n    \"vehicle_type\": \"mercedes_v_class\",\n    \"pax_count\": 4,\n    \"luggage_count\": 3,\n    \"vans_needed\": 1\n  }]\n}"
+        },
+        "url": "{{base_url}}/transfers"
+      }
+    },
+    {
+      "name": "Listar todos",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+        "url": "{{base_url}}/transfers?page=1&limit=50"
+      }
+    },
+    {
+      "name": "Consultar detalle",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "X-API-Key", "value": "{{api_key}}", "type": "text" }],
+        "url": "{{base_url}}/transfers/{{transfer_id}}"
+      }
+    },
+    {
+      "name": "Cancelar",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"reason\":\"Cancelación de prueba del sistema comercial\"}" },
+        "url": "{{base_url}}/transfers/{{transfer_id}}/cancel"
+      }
+    }
+  ]
+}

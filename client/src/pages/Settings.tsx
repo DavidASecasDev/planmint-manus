@@ -29,6 +29,7 @@ import { RolesSection } from '@/components/settings/RolesSection';
 import { SessionsSection } from '@/components/settings/SessionsSection';
 import { DataExportSection } from '@/components/settings/DataExportSection';
 import { ProfileAvatarUpload } from '@/components/settings/ProfileAvatarUpload';
+import { ExternalTransferApiSection } from '@/components/settings/ExternalTransferApiSection';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ReactNode; description: string }[] = [
   { 
@@ -53,7 +54,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ReactN
 
 export default function Settings() {
   const { profile, organization, refreshProfile } = useAuth();
-  const { isAdmin, isOwner, role } = usePermissions();
+  const { isAdmin, isOwner, role, hasPermission } = usePermissions();
   const { theme, setTheme } = useTheme();
   const { isModuleEnabled } = useOrganizationModules();
   const [profileName, setProfileName] = useState(profile?.name || '');
@@ -62,6 +63,7 @@ export default function Settings() {
   const [savingOrg, setSavingOrg] = useState(false);
   
   const transfersEnabled = isModuleEnabled('transfers');
+  const canManageTransferApi = hasPermission('integrations.manage_api_keys');
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,8 +364,8 @@ export default function Settings() {
             </Card>
           )}
 
-          {/* Transfer Settings (Admin Only, Module Enabled) */}
-          {isAdmin && transfersEnabled && (
+          {/* Transfer API Settings (Granular Permission, Module Enabled) */}
+          {canManageTransferApi && transfersEnabled && (
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -372,10 +374,10 @@ export default function Settings() {
                   </div>
                   Transfers
                 </CardTitle>
-                <CardDescription>Gestiona los brokers y proveedores externos</CardDescription>
+                <CardDescription>Gestiona brokers, proveedores y la integración externa de solicitudes</CardDescription>
               </CardHeader>
               <CardContent>
-                
+                <ExternalTransferApiSection />
               </CardContent>
             </Card>
           )}

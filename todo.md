@@ -1652,3 +1652,19 @@
 - [x] Añadir pruebas de marca/modelo/matrícula, fallback Rently, matrícula normalizada, ausencia real, precedencia manual y UI simplificada
 - [x] Ejecutar regresión SES, matriz focal, TypeScript, build y verificación visual solo con fixtures sintéticos
 - [x] Entregar causa raíz, diff y resultados sin desplegar ni resincronizar producción
+- [x] Auditar el flujo real de creación, validación, precios, estados, permisos y notificaciones de Transfers
+- [x] Comparar una API de creación simple frente a una API bidireccional con consulta de estado y webhooks
+- [x] Confirmar el alcance funcional, identidad de cada comercial y política de acceso por organización
+- [x] Implementar el alcance aprobado: API bidireccional con una clave compartida para Azul Cars
+- [x] Permitir que la clave compartida consulte todas las solicitudes de Transfers de la organización, incluidas portal, API e internas
+- [x] Mantener scopes separados para lectura, creación, cancelación y gestión de webhooks aunque la clave inicial sea compartida
+- [x] Diseñar autenticación por credencial revocable, scopes, rate limiting y almacenamiento seguro de hashes
+- [x] Definir contratos versionados para crear solicitudes, consultar estado, cancelar y recibir eventos según el alcance aprobado
+- [x] Implementar idempotencia para impedir solicitudes duplicadas ante reintentos del software comercial
+- [x] Reutilizar las mismas reglas de validación y creación que el portal de Transfers, sin acceso directo a Supabase
+- [x] Registrar trazabilidad completa de credencial, petición, resultado, IP segura y correlación sin guardar secretos en logs
+- [x] Generar especificación OpenAPI, ejemplos curl/JavaScript/PHP y colección de pruebas
+- [x] Añadir gestión administrativa para crear, rotar, revocar y limitar credenciales comerciales
+- [x] Añadir pruebas de autenticación, organización, scopes, validación, duplicados, estados y regresión del módulo existente
+- [x] Ejecutar TypeScript, suite focal, suite de Transfers y build sin publicar ni desplegar hasta revisión
+- [x] Entregar guía de integración, diff y resultados verificables antes de activar credenciales reales

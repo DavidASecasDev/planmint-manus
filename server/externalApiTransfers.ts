@@ -1,867 +1,345 @@
-/**
- * External API - Transfer Requests
- * 
- * RESTful API for external systems (e.g., Bluebnc BYM) to create and manage
- * transfer requests in PlanMint.
- * 
- * Base path: /api/external/v1/transfers
- * Auth: X-API-Key header
- * 
- * Endpoints:
- *   POST   /                    → Create a new transfer request
- *   GET    /                    → List transfer requests (paginated)
- *   GET    /:id                 → Get transfer request details
- *   GET    /:id/status          → Get current status
- *   POST   /:id/cancel          → Cancel a transfer request
- *   GET    /brokers             → List available brokers
- *   GET    /vehicle-types       → List available vehicle types
- */
-import { Request, Response, Router } from "express";
+/** API externa bidireccional de Transfers v1. */
+import type { Request, Response } from "express";
+import { Router } from "express";
+import { z } from "zod";
 import {
   authenticateExternalApi,
+  createCorrelationId,
   ExternalApiError,
   logExternalApiRequest,
+  type ExternalApiAuth,
 } from "./externalApiAuth";
+import {
+  buildExternalRequestHash,
+  cancelExternalTransferSchema,
+  createExternalTransferSchema,
+  formatZodIssues,
+  idempotencyKeySchema,
+  sha256,
+  TRANSFER_REQUEST_STATUSES,
+} from "./externalTransferApiContract";
 import { getServiceClient } from "./supabaseAdmin";
-import { onTransferCreated } from "./automationEngine";
-import { notifyOwner } from "./_core/notification";
+import { onTransferCreated, onTransferStatusChanged } from "./automationEngine";
 
 const router = Router();
+const uuidSchema = z.string().uuid();
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.enum(TRANSFER_REQUEST_STATUSES).optional(),
+  from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  search: z.string().trim().max(120).regex(/^[A-Za-z0-9À-ÿ\s-]+$/).optional(),
+});
 
-// ─── Validation Helpers ───────────────────────────────────────────────────────
-
-interface TransferItemInput {
-  transfer_date: string; // YYYY-MM-DD
-  pickup_location: string;
-  pickup_time?: string; // HH:MM
-  dropoff_location: string;
-  dropoff_time?: string; // HH:MM
-  pax_count?: number;
-  vehicle_type?: string;
-  flight_number?: string;
-  notes?: string;
-  baby_seats_count?: number;
-  baby_seats?: Array<{ age: number; weight: number }>;
-  direction?: "ida" | "vuelta";
-  has_return?: boolean;
-  return_pickup_location?: string;
-  return_pickup_time?: string;
-  return_dropoff_location?: string;
-  return_dropoff_time?: string;
+function setHeaders(res: Response, requestId: string) {
+  res.setHeader("X-Request-ID", requestId);
+  res.setHeader("X-API-Version", "1.0.0");
+  res.setHeader("Cache-Control", "no-store");
 }
 
-interface CreateTransferInput {
-  client_name: string;
-  client_phone?: string;
-  client_email?: string;
-  client_type?: "external_client" | "villa" | "boat";
-  villa_name?: string;
-  boat_name?: string;
-  berth_number?: string;
-  captain_name?: string;
-  captain_phone?: string;
-  service_type?: "point_to_point" | "hourly" | "daily" | "airport" | "port";
-  notes?: string;
-  broker_reference?: string; // External reference from BYM
-  items: TransferItemInput[];
+function sendError(res: Response, requestId: string, status: number, code: string, message: string, details?: unknown) {
+  setHeaders(res, requestId);
+  return res.status(status).json({
+    success: false,
+    request_id: requestId,
+    error: { code, message, ...(details === undefined ? {} : { details }) },
+  });
 }
 
-function validateDate(dateStr: string): boolean {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!regex.test(dateStr)) return false;
-  const date = new Date(dateStr);
-  return !isNaN(date.getTime());
+function requestIp(req: Request): string | undefined {
+  const forwarded = req.headers["x-forwarded-for"];
+  return typeof forwarded === "string" ? forwarded.split(",")[0]?.trim() : req.ip;
 }
 
-function validateTime(timeStr: string): boolean {
-  const regex = /^\d{2}:\d{2}$/;
-  return regex.test(timeStr);
+async function audit(params: {
+  req: Request;
+  auth: ExternalApiAuth;
+  requestId: string;
+  statusCode: number;
+  startedAt: number;
+  transferRequestId?: string;
+  idempotencyKeyHash?: string;
+  errorCode?: string;
+}) {
+  await logExternalApiRequest({
+    apiKeyId: params.auth.apiKeyId,
+    organizationId: params.auth.organizationId,
+    method: params.req.method,
+    endpoint: params.req.path,
+    statusCode: params.statusCode,
+    ipAddress: requestIp(params.req),
+    userAgent: params.req.headers["user-agent"],
+    durationMs: Date.now() - params.startedAt,
+    correlationId: params.requestId,
+    transferRequestId: params.transferRequestId,
+    idempotencyKeyHash: params.idempotencyKeyHash,
+    errorCode: params.errorCode,
+  });
 }
 
-function validateCreateInput(body: any): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (!body.client_name || typeof body.client_name !== "string" || body.client_name.trim().length === 0) {
-    errors.push("client_name is required and must be a non-empty string");
+function mapRpcError(error: { message?: string } | null | undefined) {
+  const message = error?.message || "";
+  if (message.includes("IDEMPOTENCY_CONFLICT")) {
+    return { status: 409, code: "IDEMPOTENCY_CONFLICT", message: "This Idempotency-Key was already used with a different request body." };
   }
-
-  if (body.client_type && !["external_client", "villa", "boat"].includes(body.client_type)) {
-    errors.push("client_type must be one of: external_client, villa, boat");
+  if (message.includes("IDEMPOTENCY_IN_PROGRESS")) {
+    return { status: 409, code: "IDEMPOTENCY_IN_PROGRESS", message: "A request with this Idempotency-Key is still being processed." };
   }
-
-  if (body.service_type && !["point_to_point", "hourly", "daily", "airport", "port"].includes(body.service_type)) {
-    errors.push("service_type must be one of: point_to_point, hourly, daily, airport, port");
+  if (message.includes("TRANSFER_NOT_FOUND")) {
+    return { status: 404, code: "NOT_FOUND", message: "Transfer request not found." };
   }
-
-  if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-    errors.push("items is required and must be a non-empty array");
-  } else {
-    body.items.forEach((item: any, index: number) => {
-      const prefix = `items[${index}]`;
-
-      if (!item.transfer_date || !validateDate(item.transfer_date)) {
-        errors.push(`${prefix}.transfer_date is required (format: YYYY-MM-DD)`);
-      }
-
-      if (!item.pickup_location || typeof item.pickup_location !== "string") {
-        errors.push(`${prefix}.pickup_location is required`);
-      }
-
-      if (!item.dropoff_location || typeof item.dropoff_location !== "string") {
-        errors.push(`${prefix}.dropoff_location is required`);
-      }
-
-      if (item.pickup_time && !validateTime(item.pickup_time)) {
-        errors.push(`${prefix}.pickup_time must be in HH:MM format`);
-      }
-
-      if (item.dropoff_time && !validateTime(item.dropoff_time)) {
-        errors.push(`${prefix}.dropoff_time must be in HH:MM format`);
-      }
-
-      if (item.pax_count !== undefined && (typeof item.pax_count !== "number" || item.pax_count < 1 || item.pax_count > 50)) {
-        errors.push(`${prefix}.pax_count must be a number between 1 and 50`);
-      }
-
-      if (item.vehicle_type && !["sedan", "v_class", "minibus", "sprinter", "luxury"].includes(item.vehicle_type)) {
-        errors.push(`${prefix}.vehicle_type must be one of: sedan, v_class, minibus, sprinter, luxury`);
-      }
-
-      if (item.direction && !["ida", "vuelta"].includes(item.direction)) {
-        errors.push(`${prefix}.direction must be one of: ida, vuelta`);
-      }
-
-      if (item.has_return) {
-        if (!item.return_pickup_location) {
-          errors.push(`${prefix}.return_pickup_location is required when has_return is true`);
-        }
-        if (!item.return_dropoff_location) {
-          errors.push(`${prefix}.return_dropoff_location is required when has_return is true`);
-        }
-      }
-    });
+  if (message.includes("CANCELLATION_NOT_ALLOWED")) {
+    return { status: 409, code: "CANCELLATION_NOT_ALLOWED", message: "Only pending or accepted transfers can be cancelled through the API." };
   }
-
-  return { valid: errors.length === 0, errors };
+  return { status: 500, code: "INTERNAL_ERROR", message: "The operation could not be completed." };
 }
 
-// ─── Generate next request number ────────────────────────────────────────────
-
-async function getNextRequestNumber(organizationId: string): Promise<string> {
-  const supabase = getServiceClient();
-  const year = new Date().getFullYear();
-
-  const { count, error } = await supabase
-    .from("transfer_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId);
-
-  if (error) {
-    console.error("[ExternalAPI] Error getting request count:", error);
+async function authenticate(
+  req: Request,
+  res: Response,
+  requestId: string,
+  permission: "transfers.create" | "transfers.read" | "transfers.cancel",
+) {
+  try {
+    return await authenticateExternalApi(req, permission);
+  } catch (error) {
+    if (error instanceof ExternalApiError) {
+      sendError(res, requestId, error.status, error.code, error.message);
+      return null;
+    }
+    sendError(res, requestId, 500, "INTERNAL_ERROR", "Authentication failed.");
+    return null;
   }
-
-  const nextNum = (count || 0) + 1;
-  return `TRF-${year}-${String(nextNum).padStart(4, "0")}`;
 }
-
-// ─── POST /api/external/v1/transfers ─────────────────────────────────────────
 
 router.post("/", async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let auth;
+  const startedAt = Date.now();
+  const requestId = createCorrelationId(req.headers["x-request-id"]);
+  const auth = await authenticate(req, res, requestId, "transfers.create");
+  if (!auth) return;
 
-  try {
-    auth = await authenticateExternalApi(req, "transfers.create");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
+  let idempotencyKeyHash: string | undefined;
+  const rawIdempotencyKey = req.headers["idempotency-key"];
+  const idempotency = idempotencyKeySchema.safeParse(rawIdempotencyKey);
+  if (!idempotency.success) {
+    await audit({ req, auth, requestId, statusCode: 400, startedAt, errorCode: "INVALID_IDEMPOTENCY_KEY" });
+    return sendError(res, requestId, 400, "INVALID_IDEMPOTENCY_KEY", "Provide a valid Idempotency-Key header.");
+  }
+  idempotencyKeyHash = sha256(idempotency.data);
+
+  const parsed = createExternalTransferSchema.safeParse(req.body);
+  if (!parsed.success) {
+    await audit({ req, auth, requestId, statusCode: 400, startedAt, idempotencyKeyHash, errorCode: "VALIDATION_ERROR" });
+    return sendError(res, requestId, 400, "VALIDATION_ERROR", "The request body is invalid.", formatZodIssues(parsed.error));
   }
 
   try {
-    const input: CreateTransferInput = req.body;
-
-    // Validate input
-    const validation = validateCreateInput(input);
-    if (!validation.valid) {
-      const response = {
-        success: false,
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Request validation failed",
-          details: validation.errors,
-        },
-      };
-      await logExternalApiRequest({
-        apiKeyId: auth.apiKeyId,
-        organizationId: auth.organizationId,
-        method: "POST",
-        endpoint: "/api/external/v1/transfers",
-        statusCode: 422,
-        requestBody: req.body,
-        responseBody: response,
-        ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        durationMs: Date.now() - startTime,
-      });
-      return res.status(422).json(response);
-    }
-
     const supabase = getServiceClient();
+    const { data, error } = await supabase.rpc("create_external_transfer_v1", {
+      p_api_key_id: auth.apiKeyId,
+      p_organization_id: auth.organizationId,
+      p_idempotency_key_hash: idempotencyKeyHash,
+      p_request_hash: buildExternalRequestHash(parsed.data),
+      p_payload: parsed.data,
+      p_actor_name: `API: ${auth.keyName}`,
+    });
+    if (error || !data) {
+      const mapped = mapRpcError(error);
+      await audit({ req, auth, requestId, statusCode: mapped.status, startedAt, idempotencyKeyHash, errorCode: mapped.code });
+      return sendError(res, requestId, mapped.status, mapped.code, mapped.message);
+    }
 
-    // Generate request number
-    const requestNumber = await getNextRequestNumber(auth.organizationId);
-
-    // Determine broker name from API key metadata or use key name
-    const brokerName = auth.keyName;
-
-    // Create the transfer request
-    const { data: request, error: requestError } = await supabase
-      .from("transfer_requests")
-      .insert({
+    const transferRequestId = data.id as string;
+    const statusCode = data.replayed ? 200 : 201;
+    if (!data.replayed) {
+      void onTransferCreated({
         organization_id: auth.organizationId,
-        request_number: requestNumber,
-        broker_name: brokerName,
-        client_name: input.client_name.trim(),
-        client_phone: input.client_phone || null,
-        client_email: input.client_email || null,
-        client_type: input.client_type || "external_client",
-        villa_name: input.villa_name || null,
-        boat_name: input.boat_name || null,
-        berth_number: input.berth_number || null,
-        captain_name: input.captain_name || null,
-        captain_phone: input.captain_phone || null,
-        service_type: input.service_type || "point_to_point",
-        notes: input.notes || null,
-        client_reference: input.broker_reference || null,
+        request_id: transferRequestId,
         status: "pendiente",
-      })
-      .select("id, request_number, status, created_at")
-      .single();
-
-    if (requestError || !request) {
-      console.error("[ExternalAPI] Error creating transfer request:", requestError);
-      throw new Error("Failed to create transfer request");
+        broker_name: auth.keyName,
+        client_name: parsed.data.client_name,
+        service_type: parsed.data.service_type,
+        request_number: data.request_number,
+        triggered_by_name: `API: ${auth.keyName}`,
+      }).catch((error) => console.error("[ExternalAPI] Transfer automation failed", error));
     }
-
-    // Create transfer items
-    const itemsToInsert = input.items.map((item, index) => ({
-      request_id: request.id,
-      organization_id: auth.organizationId,
-      position: index + 1,
-      transfer_date: item.transfer_date,
-      pickup_enabled: true,
-      pickup_location: item.pickup_location,
-      pickup_time: item.pickup_time ? `${item.pickup_time}:00` : null,
-      dropoff_enabled: true,
-      dropoff_location: item.dropoff_location,
-      dropoff_time: item.dropoff_time ? `${item.dropoff_time}:00` : null,
-      pax_count: item.pax_count || 1,
-      vehicle_type: item.vehicle_type || "v_class",
-      flight_number: item.flight_number || null,
-      notes: item.notes || null,
-      baby_seats_count: item.baby_seats_count || null,
-      baby_seats: item.baby_seats ? JSON.stringify(item.baby_seats) : null,
-      direction: item.direction || "ida",
-      transfer_time: item.pickup_time ? `${item.pickup_time}:00` : null,
-      has_return: item.has_return || false,
-      return_pickup_enabled: item.has_return || false,
-      return_pickup_location: item.return_pickup_location || null,
-      return_pickup_time: item.return_pickup_time ? `${item.return_pickup_time}:00` : null,
-      return_dropoff_enabled: item.has_return || false,
-      return_dropoff_location: item.return_dropoff_location || null,
-      return_dropoff_time: item.return_dropoff_time ? `${item.return_dropoff_time}:00` : null,
-      status: "pendiente",
-      driver_pending: true,
-    }));
-
-    const { data: items, error: itemsError } = await supabase
-      .from("transfer_items")
-      .insert(itemsToInsert)
-      .select("id, position, transfer_date, pickup_location, dropoff_location, vehicle_type, pax_count");
-
-    if (itemsError) {
-      console.error("[ExternalAPI] Error creating transfer items:", itemsError);
-      // Rollback: delete the request
-      await supabase.from("transfer_requests").delete().eq("id", request.id);
-      throw new Error("Failed to create transfer items");
-    }
-
-    // Log status history
-    await supabase.from("transfer_status_history").insert({
-      request_id: request.id,
-      organization_id: auth.organizationId,
-      previous_status: null,
-      new_status: "pendiente",
-      changed_by_type: "api",
-      changed_by_name: `API: ${auth.keyName}`,
-      note: `Solicitud creada vía API externa (${auth.keyName})`,
-    });
-
-    // Notify owner if baby seats are needed (non-blocking) - consolidated with reservations
-    const itemsWithBabySeats = input.items.filter((item) => item.baby_seats_count && item.baby_seats_count > 0);
-    if (itemsWithBabySeats.length > 0) {
-      const totalTransferSeats = itemsWithBabySeats.reduce((sum, item) => sum + (item.baby_seats_count || 0), 0);
-      const getGroup = (w: number) => w < 9 ? 'Grupo 0' : w < 18 ? 'Grupo 1' : w <= 36 ? 'Grupo 2' : 'Grupo 3';
-      const transferSeatDetails = itemsWithBabySeats.map((item) => {
-        if (item.baby_seats) {
-          return item.baby_seats.map((s, i) => `  - Silla ${i + 1}: ${s.age} a\u00f1os, ${s.weight} kg (${getGroup(s.weight)})`).join('\n');
-        }
-        return `  - ${item.baby_seats_count} sillita(s)`;
-      }).join('\n');
-
-      // Consolidated: check reservations + other transfers for the same day
-      const transferDate = input.items[0]?.transfer_date || '';
-      let reservationSeatsTotal = 0;
-      let reservationDetails = '';
-      let otherTransferSeats = 0;
-      if (transferDate) {
-        try {
-          const svcClient = getServiceClient();
-          const SEAT_KEYWORDS = ['silla', 'sillita', 'beb\u00e9', 'bebe', 'baby', 'child', 'booster', 'infant', 'infante', 'elevador', 'grupo 0', 'grupo 1', 'grupo 2', 'grupo 3'];
-          const isBabySeatExtra = (name: string) => SEAT_KEYWORDS.some((kw) => name.toLowerCase().includes(kw));
-
-          const { data: reservations } = await svcClient
-            .from('reservations')
-            .select('id, cliente, extras_contratados')
-            .eq('organization_id', auth.organizationId)
-            .lte('desde', transferDate + 'T23:59:59')
-            .gte('hasta', transferDate + 'T00:00:00')
-            .not('estado', 'in', '("Cancelada","No Show")');
-          if (reservations && reservations.length > 0) {
-            const resWithSeats: string[] = [];
-            (reservations as any[]).forEach((r: any) => {
-              let extras: any[] = [];
-              try { extras = typeof r.extras_contratados === 'string' ? JSON.parse(r.extras_contratados) : (r.extras_contratados || []); } catch { extras = []; }
-              let resSeats = 0;
-              extras.forEach((e: any) => {
-                const name = e.nombre || e.name || '';
-                if (isBabySeatExtra(name)) { resSeats += e.cantidad ?? e.quantity ?? 1; }
-              });
-              if (resSeats > 0) {
-                reservationSeatsTotal += resSeats;
-                resWithSeats.push(`  - ${r.cliente || 'Reserva'}: ${resSeats} sillita(s)`);
-              }
-            });
-            if (resWithSeats.length > 0) reservationDetails = resWithSeats.join('\n');
-          }
-
-          const { data: otherItems } = await svcClient
-            .from('transfer_items')
-            .select('baby_seats_count')
-            .eq('organization_id', auth.organizationId)
-            .eq('transfer_date', transferDate)
-            .gt('baby_seats_count', 0)
-            .neq('request_id', request.id || '');
-          if (otherItems) {
-            otherTransferSeats = (otherItems as any[]).reduce((sum: number, it: any) => sum + (it.baby_seats_count || 0), 0);
-          }
-        } catch (e) { /* non-blocking */ }
-      }
-
-      const grandTotal = totalTransferSeats + reservationSeatsTotal + otherTransferSeats;
-      const dateLabel = transferDate ? ` para el ${transferDate}` : '';
-      let content = `Transfer creado v\u00eda API externa que requiere ${totalTransferSeats} sillita${totalTransferSeats > 1 ? 's' : ''} de beb\u00e9${dateLabel}.\n\n`;
-      content += `\u{1F4CB} RESUMEN DEL D\u00cdA${dateLabel}:\n`;
-      content += `  \u2022 Total sillitas necesarias: ${grandTotal}\n`;
-      content += `  \u2022 Transfers: ${totalTransferSeats + otherTransferSeats} (este: ${totalTransferSeats}${otherTransferSeats > 0 ? `, otros: ${otherTransferSeats}` : ''})\n`;
-      if (reservationSeatsTotal > 0) content += `  \u2022 Reservas: ${reservationSeatsTotal}\n`;
-      content += `\n\u{1F6D2} Detalle de este transfer:\n${transferSeatDetails}`;
-      if (reservationDetails) content += `\n\n\u{1F697} Sillitas en reservas del d\u00eda:\n${reservationDetails}`;
-
-      notifyOwner({
-        title: `\u{1F476} ${grandTotal} sillita${grandTotal > 1 ? 's' : ''} total${grandTotal > 1 ? 'es' : ''} el d\u00eda${dateLabel} - ${input.client_name} (${requestNumber})`,
-        content,
-      }).catch((e) => console.error('[ExternalAPI] Baby seat notification error:', e));
-    }
-
-    // Fire automation (non-blocking)
-    onTransferCreated({
-      request_id: request.id,
-      organization_id: auth.organizationId,
-      status: "pendiente",
-      broker_name: brokerName,
-      client_name: input.client_name,
-      service_type: input.service_type || "point_to_point",
-      request_number: requestNumber,
-      triggered_by_name: `API: ${auth.keyName}`,
-    }).catch((err) => {
-      console.error("[ExternalAPI] Automation error (non-blocking):", err);
-    });
-
-    const response = {
-      success: true,
-      data: {
-        id: request.id,
-        request_number: request.request_number,
-        status: request.status,
-        created_at: request.created_at,
-        items_count: items?.length || 0,
-        items: items?.map((i) => ({
-          id: i.id,
-          position: i.position,
-          transfer_date: i.transfer_date,
-          pickup_location: i.pickup_location,
-          dropoff_location: i.dropoff_location,
-          vehicle_type: i.vehicle_type,
-          pax_count: i.pax_count,
-        })),
-      },
-    };
-
-    await logExternalApiRequest({
-      apiKeyId: auth.apiKeyId,
-      organizationId: auth.organizationId,
-      method: "POST",
-      endpoint: "/api/external/v1/transfers",
-      statusCode: 201,
-      requestBody: req.body,
-      responseBody: { success: true, request_id: request.id },
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
-      durationMs: Date.now() - startTime,
-    });
-
-    return res.status(201).json(response);
-  } catch (err: any) {
-    console.error("[ExternalAPI] POST /transfers error:", err);
-    const response = {
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Failed to create transfer request" },
-    };
-    if (auth) {
-      await logExternalApiRequest({
-        apiKeyId: auth.apiKeyId,
-        organizationId: auth.organizationId,
-        method: "POST",
-        endpoint: "/api/external/v1/transfers",
-        statusCode: 500,
-        requestBody: req.body,
-        responseBody: response,
-        ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        durationMs: Date.now() - startTime,
-      });
-    }
-    return res.status(500).json(response);
+    await audit({ req, auth, requestId, statusCode, startedAt, transferRequestId, idempotencyKeyHash });
+    setHeaders(res, requestId);
+    return res.status(statusCode).json({ success: true, request_id: requestId, data });
+  } catch (error) {
+    console.error("[ExternalAPI] Create transfer failed", error);
+    await audit({ req, auth, requestId, statusCode: 500, startedAt, idempotencyKeyHash, errorCode: "INTERNAL_ERROR" });
+    return sendError(res, requestId, 500, "INTERNAL_ERROR", "Failed to create transfer request.");
   }
 });
 
-// ─── GET /api/external/v1/transfers ──────────────────────────────────────────
-
 router.get("/", async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let auth;
+  const startedAt = Date.now();
+  const requestId = createCorrelationId(req.headers["x-request-id"]);
+  const auth = await authenticate(req, res, requestId, "transfers.read");
+  if (!auth) return;
 
-  try {
-    auth = await authenticateExternalApi(req, "transfers.read");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
+  const parsed = listQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    await audit({ req, auth, requestId, statusCode: 400, startedAt, errorCode: "VALIDATION_ERROR" });
+    return sendError(res, requestId, 400, "VALIDATION_ERROR", "The query parameters are invalid.", formatZodIssues(parsed.error));
   }
 
   try {
-    const supabase = getServiceClient();
-
-    // Pagination
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const { page, limit, status, from_date: fromDate, to_date: toDate, search } = parsed.data;
     const offset = (page - 1) * limit;
-
-    // Filters
-    const status = req.query.status as string;
-    const fromDate = req.query.from_date as string;
-    const toDate = req.query.to_date as string;
-    const search = req.query.search as string;
-
+    const supabase = getServiceClient();
     let query = supabase
       .from("transfer_requests")
-      .select("id, request_number, broker_name, client_name, client_phone, client_email, status, service_type, client_type, notes, client_reference, created_at, updated_at", { count: "exact" })
+      .select(`
+        id, request_number, broker_name, client_type, client_name, client_phone, client_email,
+        villa_name, boat_name, berth_number, captain_name, captain_phone, status, service_type,
+        notes, client_reference, created_at, updated_at,
+        items:transfer_items(
+          id, position, direction, transfer_date, transfer_time, pickup_location, pickup_lat, pickup_lng,
+          pickup_place_id, dropoff_location, dropoff_lat, dropoff_lng, dropoff_place_id, vehicle_type,
+          pax_count, flight_number, status, driver_name, baby_seats_count, baby_seats, luggage_count,
+          vans_needed, linked_item_id, notes
+        )
+      `, { count: "exact" })
       .eq("organization_id", auth.organizationId)
       .is("archived_at", null)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (status) {
-      query = query.eq("status", status);
-    }
-    if (fromDate && validateDate(fromDate)) {
-      query = query.gte("created_at", `${fromDate}T00:00:00Z`);
-    }
-    if (toDate && validateDate(toDate)) {
-      query = query.lte("created_at", `${toDate}T23:59:59Z`);
-    }
-    if (search) {
-      query = query.or(`client_name.ilike.%${search}%,request_number.ilike.%${search}%,client_reference.ilike.%${search}%`);
-    }
+    if (status) query = query.eq("status", status);
+    if (fromDate) query = query.gte("created_at", `${fromDate}T00:00:00Z`);
+    if (toDate) query = query.lte("created_at", `${toDate}T23:59:59Z`);
+    if (search) query = query.or(`client_name.ilike.%${search}%,request_number.ilike.%${search}%,client_reference.ilike.%${search}%`);
 
     const { data, count, error } = await query;
-
-    if (error) {
-      console.error("[ExternalAPI] Error listing transfers:", error);
-      throw new Error("Failed to list transfers");
-    }
-
-    const response = {
-      success: true,
-      data: data || [],
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        total_pages: Math.ceil((count || 0) / limit),
-      },
-    };
-
-    await logExternalApiRequest({
-      apiKeyId: auth.apiKeyId,
-      organizationId: auth.organizationId,
-      method: "GET",
-      endpoint: "/api/external/v1/transfers",
-      statusCode: 200,
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
-      durationMs: Date.now() - startTime,
-    });
-
-    return res.json(response);
-  } catch (err: any) {
-    console.error("[ExternalAPI] GET /transfers error:", err);
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Failed to list transfers" },
-    });
-  }
-});
-
-// ─── GET /api/external/v1/transfers/:id ──────────────────────────────────────
-
-router.get("/:id", async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let auth;
-
-  try {
-    auth = await authenticateExternalApi(req, "transfers.read");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
-  }
-
-  try {
-    const { id } = req.params;
-    const supabase = getServiceClient();
-
-    // Get the request
-    const { data: request, error: reqError } = await supabase
-      .from("transfer_requests")
-      .select("*")
-      .eq("id", id)
-      .eq("organization_id", auth.organizationId)
-      .single();
-
-    if (reqError || !request) {
-      return res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Transfer request not found" },
-      });
-    }
-
-    // Get items
-    const { data: items } = await supabase
-      .from("transfer_items")
-      .select("*")
-      .eq("request_id", id)
-      .order("position", { ascending: true });
-
-    // Get status history
-    const { data: history } = await supabase
-      .from("transfer_status_history")
-      .select("previous_status, new_status, changed_by_type, changed_by_name, note, created_at")
-      .eq("request_id", id)
-      .order("created_at", { ascending: true });
-
-    const response = {
-      success: true,
-      data: {
-        ...request,
-        items: items || [],
-        status_history: history || [],
-      },
-    };
-
-    await logExternalApiRequest({
-      apiKeyId: auth.apiKeyId,
-      organizationId: auth.organizationId,
-      method: "GET",
-      endpoint: `/api/external/v1/transfers/${id}`,
-      statusCode: 200,
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
-      durationMs: Date.now() - startTime,
-    });
-
-    return res.json(response);
-  } catch (err: any) {
-    console.error("[ExternalAPI] GET /transfers/:id error:", err);
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Failed to get transfer details" },
-    });
-  }
-});
-
-// ─── GET /api/external/v1/transfers/:id/status ───────────────────────────────
-
-router.get("/:id/status", async (req: Request, res: Response) => {
-  let auth;
-
-  try {
-    auth = await authenticateExternalApi(req, "transfers.read");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
-  }
-
-  try {
-    const { id } = req.params;
-    const supabase = getServiceClient();
-
-    const { data, error } = await supabase
-      .from("transfer_requests")
-      .select("id, request_number, status, updated_at")
-      .eq("id", id)
-      .eq("organization_id", auth.organizationId)
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Transfer request not found" },
-      });
-    }
-
+    if (error) throw error;
+    await audit({ req, auth, requestId, statusCode: 200, startedAt });
+    setHeaders(res, requestId);
     return res.json({
       success: true,
-      data: {
-        id: data.id,
-        request_number: data.request_number,
-        status: data.status,
-        updated_at: data.updated_at,
-      },
+      request_id: requestId,
+      data: data || [],
+      pagination: { page, limit, total: count || 0, total_pages: Math.ceil((count || 0) / limit) },
     });
-  } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Failed to get status" },
-    });
+  } catch (error) {
+    console.error("[ExternalAPI] List transfers failed", error);
+    await audit({ req, auth, requestId, statusCode: 500, startedAt, errorCode: "INTERNAL_ERROR" });
+    return sendError(res, requestId, 500, "INTERNAL_ERROR", "Failed to list transfer requests.");
   }
 });
 
-// ─── POST /api/external/v1/transfers/:id/cancel ──────────────────────────────
+router.get("/:id/status", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  const requestId = createCorrelationId(req.headers["x-request-id"]);
+  const auth = await authenticate(req, res, requestId, "transfers.read");
+  if (!auth) return;
+  const id = uuidSchema.safeParse(req.params.id);
+  if (!id.success) return sendError(res, requestId, 400, "VALIDATION_ERROR", "The transfer id must be a UUID.");
 
-router.post("/:id/cancel", async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let auth;
-
-  try {
-    auth = await authenticateExternalApi(req, "transfers.cancel");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
+  const { data, error } = await getServiceClient()
+    .from("transfer_requests")
+    .select("id, request_number, status, updated_at")
+    .eq("id", id.data)
+    .eq("organization_id", auth.organizationId)
+    .single();
+  if (error || !data) {
+    await audit({ req, auth, requestId, statusCode: 404, startedAt, errorCode: "NOT_FOUND" });
+    return sendError(res, requestId, 404, "NOT_FOUND", "Transfer request not found.");
   }
+  await audit({ req, auth, requestId, statusCode: 200, startedAt, transferRequestId: id.data });
+  setHeaders(res, requestId);
+  return res.json({ success: true, request_id: requestId, data });
+});
+
+router.get("/:id", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  const requestId = createCorrelationId(req.headers["x-request-id"]);
+  const auth = await authenticate(req, res, requestId, "transfers.read");
+  if (!auth) return;
+  const id = uuidSchema.safeParse(req.params.id);
+  if (!id.success) return sendError(res, requestId, 400, "VALIDATION_ERROR", "The transfer id must be a UUID.");
 
   try {
-    const { id } = req.params;
-    const { reason } = req.body || {};
-    const supabase = getServiceClient();
-
-    // Get current request
-    const { data: request, error: reqError } = await supabase
+    const { data, error } = await getServiceClient()
       .from("transfer_requests")
-      .select("id, status, request_number")
-      .eq("id", id)
+      .select(`
+        id, request_number, broker_name, client_type, client_name, client_phone, client_email,
+        villa_name, boat_name, berth_number, captain_name, captain_phone, status, service_type,
+        notes, client_reference, rejection_reason, accepted_at, created_at, updated_at,
+        items:transfer_items(
+          id, position, direction, transfer_date, transfer_time, pickup_location, pickup_lat, pickup_lng,
+          pickup_place_id, dropoff_location, dropoff_lat, dropoff_lng, dropoff_place_id, vehicle_type,
+          pax_count, flight_number, status, driver_name, driver_phone, baby_seats_count, baby_seats,
+          luggage_count, vans_needed, linked_item_id, notes
+        ),
+        status_history:transfer_status_history(previous_status, new_status, changed_by_type, created_at)
+      `)
+      .eq("id", id.data)
       .eq("organization_id", auth.organizationId)
       .single();
-
-    if (reqError || !request) {
-      return res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Transfer request not found" },
-      });
+    if (error || !data) {
+      await audit({ req, auth, requestId, statusCode: 404, startedAt, errorCode: "NOT_FOUND" });
+      return sendError(res, requestId, 404, "NOT_FOUND", "Transfer request not found.");
     }
+    await audit({ req, auth, requestId, statusCode: 200, startedAt, transferRequestId: id.data });
+    setHeaders(res, requestId);
+    return res.json({ success: true, request_id: requestId, data });
+  } catch (error) {
+    console.error("[ExternalAPI] Get transfer failed", error);
+    await audit({ req, auth, requestId, statusCode: 500, startedAt, transferRequestId: id.data, errorCode: "INTERNAL_ERROR" });
+    return sendError(res, requestId, 500, "INTERNAL_ERROR", "Failed to retrieve transfer request.");
+  }
+});
 
-    // Check if cancellation is possible
-    if (request.status === "cancelado") {
-      return res.status(409).json({
-        success: false,
-        error: { code: "ALREADY_CANCELLED", message: "Transfer is already cancelled" },
-      });
+router.post("/:id/cancel", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  const requestId = createCorrelationId(req.headers["x-request-id"]);
+  const auth = await authenticate(req, res, requestId, "transfers.cancel");
+  if (!auth) return;
+  const id = uuidSchema.safeParse(req.params.id);
+  const body = cancelExternalTransferSchema.safeParse(req.body);
+  if (!id.success || !body.success) {
+    return sendError(
+      res,
+      requestId,
+      400,
+      "VALIDATION_ERROR",
+      "The cancellation request is invalid.",
+      body.success ? undefined : formatZodIssues(body.error),
+    );
+  }
+
+  try {
+    const { data, error } = await getServiceClient().rpc("cancel_external_transfer_v1", {
+      p_organization_id: auth.organizationId,
+      p_transfer_request_id: id.data,
+      p_actor_name: `API: ${auth.keyName}`,
+      p_reason: body.data.reason,
+    });
+    if (error || !data) {
+      const mapped = mapRpcError(error);
+      await audit({ req, auth, requestId, statusCode: mapped.status, startedAt, transferRequestId: id.data, errorCode: mapped.code });
+      return sendError(res, requestId, mapped.status, mapped.code, mapped.message);
     }
-
-    if (request.status === "completado") {
-      return res.status(409).json({
-        success: false,
-        error: { code: "ALREADY_COMPLETED", message: "Cannot cancel a completed transfer" },
-      });
-    }
-
-    // Update status
-    const { error: updateError } = await supabase
-      .from("transfer_requests")
-      .update({
+    if (!data.replayed) {
+      void onTransferStatusChanged({
+        organization_id: auth.organizationId,
+        request_id: id.data,
         status: "cancelado",
-        rejection_reason: reason || "Cancelado vía API externa",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-
-    if (updateError) {
-      throw new Error("Failed to cancel transfer");
+        previous_status: data.previous_status,
+        request_number: data.request_number,
+        triggered_by_name: `API: ${auth.keyName}`,
+      }).catch((error) => console.error("[ExternalAPI] Status automation failed", error));
     }
-
-    // Log status change
-    await supabase.from("transfer_status_history").insert({
-      request_id: id,
-      organization_id: auth.organizationId,
-      previous_status: request.status,
-      new_status: "cancelado",
-      changed_by_type: "api",
-      changed_by_name: `API: ${auth.keyName}`,
-      note: reason || "Cancelado vía API externa",
-    });
-
-    const response = {
-      success: true,
-      data: {
-        id: request.id,
-        request_number: request.request_number,
-        previous_status: request.status,
-        new_status: "cancelado",
-        cancelled_at: new Date().toISOString(),
-      },
-    };
-
-    await logExternalApiRequest({
-      apiKeyId: auth.apiKeyId,
-      organizationId: auth.organizationId,
-      method: "POST",
-      endpoint: `/api/external/v1/transfers/${id}/cancel`,
-      statusCode: 200,
-      requestBody: req.body,
-      responseBody: response,
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
-      durationMs: Date.now() - startTime,
-    });
-
-    return res.json(response);
-  } catch (err: any) {
-    console.error("[ExternalAPI] POST /transfers/:id/cancel error:", err);
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Failed to cancel transfer" },
-    });
+    await audit({ req, auth, requestId, statusCode: 200, startedAt, transferRequestId: id.data });
+    setHeaders(res, requestId);
+    return res.json({ success: true, request_id: requestId, data });
+  } catch (error) {
+    console.error("[ExternalAPI] Cancel transfer failed", error);
+    await audit({ req, auth, requestId, statusCode: 500, startedAt, transferRequestId: id.data, errorCode: "INTERNAL_ERROR" });
+    return sendError(res, requestId, 500, "INTERNAL_ERROR", "Failed to cancel transfer request.");
   }
-});
-
-// ─── GET /api/external/v1/transfers/meta/vehicle-types ───────────────────────
-
-router.get("/meta/vehicle-types", async (req: Request, res: Response) => {
-  try {
-    await authenticateExternalApi(req, "transfers.read");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
-  }
-
-  return res.json({
-    success: true,
-    data: [
-      { id: "sedan", name: "Sedan", description: "Berlina estándar (hasta 3 pasajeros)", max_pax: 3 },
-      { id: "v_class", name: "V-Class", description: "Mercedes V-Class (hasta 6 pasajeros)", max_pax: 6 },
-      { id: "minibus", name: "Minibus", description: "Minibus (hasta 16 pasajeros)", max_pax: 16 },
-      { id: "sprinter", name: "Sprinter", description: "Mercedes Sprinter (hasta 19 pasajeros)", max_pax: 19 },
-      { id: "luxury", name: "Luxury", description: "Vehículo de lujo (hasta 3 pasajeros)", max_pax: 3 },
-    ],
-  });
-});
-
-// ─── GET /api/external/v1/transfers/meta/statuses ────────────────────────────
-
-router.get("/meta/statuses", async (req: Request, res: Response) => {
-  try {
-    await authenticateExternalApi(req, "transfers.read");
-  } catch (err: any) {
-    if (err instanceof ExternalApiError) {
-      return res.status(err.status).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      error: { code: "INTERNAL_ERROR", message: "Authentication failed" },
-    });
-  }
-
-  return res.json({
-    success: true,
-    data: [
-      { id: "pendiente", name: "Pendiente", description: "Solicitud recibida, pendiente de revisión" },
-      { id: "aceptado", name: "Aceptado", description: "Solicitud aceptada y en proceso de asignación" },
-      { id: "confirmado", name: "Confirmado", description: "Transfer confirmado con conductor asignado" },
-      { id: "en_curso", name: "En Curso", description: "Transfer en ejecución" },
-      { id: "completado", name: "Completado", description: "Transfer finalizado" },
-      { id: "cancelado", name: "Cancelado", description: "Solicitud cancelada" },
-    ],
-  });
 });
 
 export default router;
