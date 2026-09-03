@@ -1671,3 +1671,9 @@
 - [x] Corregir `GET /api/external/v1` para abrir la documentación pública en lugar del 404 general
 - [x] Añadir una prueba de regresión que preserve OpenAPI público y autenticación en endpoints operativos
 - [x] Validar la URL raíz localmente, guardar checkpoint y entregar la ruta correcta
+- [x] Revisar íntegramente la documentación oficial de https://developers.rently.com.ar/ y guardar sus URLs relevantes
+- [x] Inventariar autenticación, endpoints, parámetros, paginación y modelos Rently utilizados actualmente por PlanMint
+- [x] Contrastar reservas, clientes, conductores, vehículos, estados, sucursales, pagos y límites documentados frente al código actual
+- [x] Evaluar impacto en Programación, Vehículos, SES.HOSPEDAJES y las protecciones de campos manuales
+- [x] Identificar incompatibilidades, riesgos de datos incompletos y oportunidades de simplificación sin usar credenciales reales
+- [x] Entregar cambios recomendados priorizados, archivos afectados y pruebas necesarias sin modificar ni desplegar código
