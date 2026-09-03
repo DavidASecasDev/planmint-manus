@@ -11,6 +11,7 @@
  * 5. Early termination: stops pagination when all remaining bookings are old and unchanged
  */
 import type { Request, Response } from "express";
+import { getCachedRentlyToken } from './rentlyClient';
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 import { notifyOwner } from "./_core/notification";
 import { releaseParkingSpotByVehicle } from "./parkingEndpoints";
@@ -28,23 +29,33 @@ interface RentlyBooking {
   Id: number;
   CreationDate?: string;
   CurrentStatus: number;
+  CurrentStatusDate?: string;
   // CustomerDescription DTO (subset of full Customer)
   Customer?: {
+    Name?: string;
     Firstname?: string;
     Lastname?: string;
     EmailAddress?: string;
     CellPhone?: string;
     DocumentTypeId?: number;
+    DocumentType?: number | { Id?: number; Name?: string };
     DocumentId?: string;
+    Birthday?: string;
+    Country?: unknown;
   };
   CustomerPrice?: number;
   // CarDescription DTO (subset of full Car)
   Car?: {
     Id?: number;
     Plate?: string;
+    CurrentPlate?: { Id?: string };
+    CurrentPlateId?: string;
     // ModelDescription DTO
     Model?: { Name?: string; Category?: { Name?: string } };
   };
+  Model?: { Name?: string };
+  Category?: { Name?: string };
+  Brand?: { Name?: string };
   FromDate?: string;
   ToDate?: string;
   TotalDays?: number;
@@ -84,14 +95,17 @@ export interface RentlyBookingDetail extends RentlyBooking {
   Car?: {
     Id?: number;
     Plate?: string;
+    CurrentPlate?: { Id?: string };
+    CurrentPlateId?: string;
     Kms?: number;
     CurrentKms?: number;
     FuelLevel?: number;
+    Gasoline?: number;
     Color?: string;
     Year?: number;
     ChassisId?: string;
     ChassisIdentification?: string;
-    FuelType?: { Name?: string };
+    FuelType?: string | { Name?: string };
     Model?: { Name?: string; Brand?: { Name?: string }; Category?: { Name?: string } };
   };
   DeliveryPlace?: { Id?: number; Name?: string; Address?: string; City?: string; Country?: unknown; Latitude?: number; Longitude?: number };
@@ -100,11 +114,13 @@ export interface RentlyBookingDetail extends RentlyBooking {
   DropoffInfo?: { Date?: string; Kms?: number };
   Customer?: {
     Id?: number;
+    Name?: string;
     Firstname?: string;
     Lastname?: string;
     EmailAddress?: string;
     CellPhone?: string;
     DocumentTypeId?: number;
+    DocumentType?: number | { Id?: number; Name?: string };
     DocumentId?: string;
     DocumentIdExpiration?: string;
     DocumentIdIssuanceCountry?: unknown;
@@ -117,6 +133,7 @@ export interface RentlyBookingDetail extends RentlyBooking {
     ZipCode?: string;
     Age?: number;
     BirthDate?: string;
+    Birthday?: string;
     DriverLicenceNumber?: string;
     DriverLicenceCountry?: unknown;
     DriverLicenseNumber?: string;
@@ -163,6 +180,9 @@ interface SyncStatus {
   total_filtered: number;
   status: string;
   started_at: string | null;
+  watermark_updated_at?: string | null;
+  last_full_sync_at?: string | null;
+  sync_mode?: 'full' | 'incremental';
   completed_at: string | null;
   error_message: string | null;
 }
@@ -191,6 +211,28 @@ const DOCUMENT_TYPE_MAP: Record<number, string> = {
   2: "Licencia de Conducir",
   3: "Pasaporte",
 };
+
+async function fetchDocumentTypeMap(host: string, token: string): Promise<Map<number, string>> {
+  const fallback = new Map(Object.entries(DOCUMENT_TYPE_MAP).map(([id, name]) => [Number(id), name]));
+  try {
+    const response = await fetch(`https://${host}/api/configurations/documentTypes`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    if (!response.ok) return fallback;
+    const payload = await response.json() as any;
+    const rows = Array.isArray(payload) ? payload : payload?.Results;
+    if (!Array.isArray(rows)) return fallback;
+    const catalog = new Map<number, string>();
+    for (const row of rows) {
+      const id = Number(row?.Id ?? row?.id);
+      const name = row?.Name ?? row?.name;
+      if (Number.isFinite(id) && typeof name === 'string' && name.trim()) catalog.set(id, name.trim());
+    }
+    return catalog.size ? catalog : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 const EXCLUDED_NEW_STATUSES = [5]; // Cotizado
 const CANCELLATION_STATUS = 4;
@@ -261,36 +303,7 @@ export function deduplicateRentlyBookingsByStableId<T extends { Id: string | num
 // ─── Rently API helpers ──────────────────────────────────────────────────────
 
 export async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
-  console.log(`[sync-rently] Getting Rently token from ${host}...`);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`https://${host}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Auth failed (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("[sync-rently] Rently token obtained successfully");
-    return data.access_token;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error?.name === "AbortError") throw new Error("Timeout obteniendo token de Rently");
-    throw error;
-  }
+  return getCachedRentlyToken({ host, clientId, clientSecret });
 }
 
 // ─── Places cache (resolves DeliveryPlaceId/ReturnPlaceId → Name) ────────────
@@ -343,9 +356,11 @@ export function clearPlacesCache() {
 async function fetchSinglePage(
   host: string,
   token: string,
-  offset: number
+  offset: number,
+  updatedSince?: string | null,
 ): Promise<{ bookings: RentlyBooking[]; nextOffset: number | null; hasMore: boolean }> {
   const params = new URLSearchParams({ offset: String(offset), limit: String(PAGE_SIZE) });
+  if (updatedSince) params.set('updatedSince', updatedSince);
   // Migrated from deprecated /api/bookings → /api/bookings/list (deadline: 2026-07-13)
   const url = `https://${host}/api/bookings/list?${params}`;
 
@@ -470,12 +485,16 @@ export function mapBookingToReservation(
   booking: RentlyBooking,
   organizationId: string,
   userId: string,
-  placesMap?: Map<number, RentlyPlaceEntry>
+  placesMap?: Map<number, RentlyPlaceEntry>,
+  documentTypeMap: Map<number, string> = new Map(Object.entries(DOCUMENT_TYPE_MAP).map(([id, name]) => [Number(id), name])),
 ): Record<string, unknown> {
   const customer = booking.Customer || {};
   const car = booking.Car || {};
   const carModel = car.Model || {};
-  const category = carModel.Category || {};
+  const category = booking.Category || carModel.Category || {};
+  const documentTypeId = customer.DocumentTypeId
+    ?? (typeof customer.DocumentType === 'number' ? customer.DocumentType : customer.DocumentType?.Id);
+  const plate = car.CurrentPlate?.Id || car.CurrentPlateId || car.Plate || null;
 
   // Resolve places: prefer legacy objects (detail endpoint), fall back to ID lookup
   const deliveryPlace = booking.DeliveryPlace || (booking.DeliveryPlaceId && placesMap?.get(booking.DeliveryPlaceId)) || {};
@@ -490,16 +509,17 @@ export function mapBookingToReservation(
     rently_creation_date: booking.CreationDate || null,
     estado: STATUS_MAP[booking.CurrentStatus] || `Status ${booking.CurrentStatus}`,
     rently_status_code: booking.CurrentStatus,
-    cliente_nombre: customer.Firstname || null,
+    cliente_nombre: customer.Name || customer.Firstname || null,
     cliente_apellido: customer.Lastname || null,
     email: customer.EmailAddress || null,
     telefono: customer.CellPhone || null,
-    tipo_documento_cliente: customer.DocumentTypeId
-      ? DOCUMENT_TYPE_MAP[customer.DocumentTypeId] || null
+    tipo_documento_cliente: documentTypeId
+      ? documentTypeMap.get(documentTypeId) || null
       : null,
     documento_cliente: customer.DocumentId || null,
-    modelo: carModel.Name || null,
-    auto: car.Plate || (car.Id ? String(car.Id) : null),
+    modelo: booking.Model?.Name || carModel.Name || null,
+    marca: booking.Brand?.Name || null,
+    auto: plate,
     categoria: category.Name || null,
     desde: booking.FromDate || null,
     hasta: booking.ToDate || null,
@@ -522,7 +542,8 @@ export function mapBookingToReservation(
 export function enrichReservationWithDetail(
   reservation: Record<string, unknown>,
   detail: RentlyBookingDetail,
-  drivers: Array<{ Name?: string; Document?: string; License?: string }>
+  drivers: Array<{ Name?: string; Document?: string; License?: string }>,
+  documentTypeMap: Map<number, string> = new Map(Object.entries(DOCUMENT_TYPE_MAP).map(([id, name]) => [Number(id), name])),
 ): Record<string, unknown> {
   const car = detail.Car || {};
   const customer = detail.Customer || {};
@@ -531,12 +552,12 @@ export function enrichReservationWithDetail(
 
   return {
     ...reservation,
-    cliente_nombre: customer.Firstname || reservation.cliente_nombre || null,
+    cliente_nombre: customer.Name || customer.Firstname || reservation.cliente_nombre || null,
     cliente_apellido: customer.Lastname || reservation.cliente_apellido || null,
     email: customer.EmailAddress || reservation.email || null,
     telefono: customer.CellPhone || reservation.telefono || null,
     tipo_documento_cliente: customer.DocumentTypeId
-      ? DOCUMENT_TYPE_MAP[customer.DocumentTypeId] || reservation.tipo_documento_cliente || null
+      ? documentTypeMap.get(customer.DocumentTypeId) || reservation.tipo_documento_cliente || null
       : reservation.tipo_documento_cliente || null,
     documento_cliente: customer.DocumentId || reservation.documento_cliente || null,
     balance: detail.Balance ?? null,
@@ -547,11 +568,11 @@ export function enrichReservationWithDetail(
     moneda: detail.Currency || null,
     comision_ventas: detail.SalesCommision ?? null,
     vehiculo_kms: car.CurrentKms ?? car.Kms ?? null,
-    vehiculo_combustible: car.FuelLevel ?? null,
+    vehiculo_combustible: car.Gasoline ?? car.FuelLevel ?? null,
     vehiculo_color: car.Color || null,
     vehiculo_anio: car.Year ?? null,
     vehiculo_chasis: car.ChassisIdentification || car.ChassisId || null,
-    vehiculo_tipo_combustible: car.FuelType?.Name || null,
+    vehiculo_tipo_combustible: typeof car.FuelType === 'string' ? car.FuelType : car.FuelType?.Name || null,
     tarifa_diaria: detail.DailyRate ?? null,
     tarifa_hora: detail.HourlyRate ?? null,
     tarifa_dia_extra: detail.ExtraDayRate ?? null,
@@ -560,14 +581,18 @@ export function enrichReservationWithDetail(
     km_max_permitidos: detail.MaxAllowedDistance ?? null,
     km_max_por_dia: detail.MaxAllowedDistanceByDay ?? null,
     rently_status_code: detail.CurrentStatus,
-    rently_status_date: new Date().toISOString(),
+    rently_status_date: detail.CurrentStatusDate || null,
     es_transferencia: detail.IsTransfer ?? false,
     rently_delivery_branch_office_id: typeof detail.DeliveryBranchOffice === 'number'
       ? detail.DeliveryBranchOffice
       : detail.DeliveryBranchOffice?.Id ?? detail.DeliveryBranchOfficeId ?? null,
     rently_delivery_actual_at: detail.DeliveryInfo?.Date || null,
     rently_detail_booking_id: detail.Id,
-    rently_detail_vehicle_plate: car.Plate || null,
+    rently_detail_vehicle_plate: car.CurrentPlate?.Id || car.CurrentPlateId || car.Plate || null,
+    auto: car.CurrentPlate?.Id || car.CurrentPlateId || car.Plate || reservation.auto || null,
+    modelo: detail.Model?.Name || car.Model?.Name || reservation.modelo || null,
+    marca: detail.Brand?.Name || car.Model?.Brand?.Name || reservation.marca || null,
+    categoria: detail.Category?.Name || car.Model?.Category?.Name || reservation.categoria || null,
     es_cotizacion: detail.IsQuotation ?? false,
     rently_version: detail.Version || null,
     lugar_entrega_direccion: deliveryPlace.Address || null,
@@ -582,7 +607,7 @@ export function enrichReservationWithDetail(
     cliente_estado_provincia: customer.State || null,
     cliente_pais: customer.Country || null,
     cliente_edad: customer.Age ?? null,
-    cliente_fecha_nacimiento: customer.BirthDate || null,
+    cliente_fecha_nacimiento: customer.Birthday || customer.BirthDate || null,
     cliente_carnet_numero: customer.DriverLicenceNumber || customer.DriverLicenseNumber || null,
     cliente_carnet_pais: typeof customer.DriverLicenceCountry === 'string'
       ? customer.DriverLicenceCountry
@@ -956,6 +981,14 @@ export async function handleSyncRently(req: Request, res: Response) {
       syncStatus = existingStatus as SyncStatus;
     }
 
+    const previousWatermark = syncStatus?.watermark_updated_at || syncStatus?.completed_at || null;
+    const previousFullSync = syncStatus?.last_full_sync_at || null;
+    const fullSyncDue = !previousFullSync || Date.now() - new Date(previousFullSync).getTime() >= 24 * 60 * 60 * 1000;
+    const syncMode: 'full' | 'incremental' = reset || fullSyncDue ? 'full' : 'incremental';
+    const incrementalSince = syncMode === 'incremental' && previousWatermark
+      ? new Date(new Date(previousWatermark).getTime() - 10 * 60 * 1000).toISOString()
+      : null;
+
     const shouldReset =
       reset || !syncStatus || syncStatus.status === "completed" || syncStatus.status === "error" || syncStatus.status === "idle";
 
@@ -971,6 +1004,7 @@ export async function handleSyncRently(req: Request, res: Response) {
         started_at: new Date().toISOString(),
         completed_at: null,
         error_message: null,
+        sync_mode: syncMode,
       };
 
       if (syncStatus) {
@@ -1001,6 +1035,7 @@ export async function handleSyncRently(req: Request, res: Response) {
 
     // ─── Load places cache for resolving DeliveryPlaceId/ReturnPlaceId ────────
     const placesMap = await getPlacesMap(host, rentlyToken);
+    const documentTypeMap = await fetchDocumentTypeMap(host, rentlyToken);
 
     // ─── MULTI-PAGE LOOP ─────────────────────────────────────────────────────
     // Process up to PAGES_PER_REQUEST pages in a single HTTP request
@@ -1025,7 +1060,7 @@ export async function handleSyncRently(req: Request, res: Response) {
       const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
       console.log(`[sync-rently] Processing page ${currentPage} (offset: ${currentOffset}, batch page ${pageIdx + 1}/${PAGES_PER_REQUEST})`);
 
-      const pageResult = await fetchSinglePage(host, rentlyToken, currentOffset);
+      const pageResult = await fetchSinglePage(host, rentlyToken, currentOffset, incrementalSince);
       const { bookings, nextOffset } = pageResult;
       hasMore = pageResult.hasMore;
 
@@ -1081,7 +1116,7 @@ export async function handleSyncRently(req: Request, res: Response) {
       totalFilteredCount += filteredCount;
 
       // Map to reservations
-      const reservations = validBookings.map((b) => mapBookingToReservation(b, organizationId, userId, placesMap));
+      const reservations = validBookings.map((b) => mapBookingToReservation(b, organizationId, userId, placesMap, documentTypeMap));
 
       // ─── SMART ENRICHMENT ──────────────────────────────────────────────
       // Only enrich bookings that are: new, never enriched, status changed, or active (status <= 2)
@@ -1131,7 +1166,7 @@ export async function handleSyncRently(req: Request, res: Response) {
         const bookingId = parseInt(extId);
         const detailData = detailsMap.get(bookingId);
         if (detailData) {
-          return enrichReservationWithDetail(reservation, detailData.detail, detailData.drivers);
+          return enrichReservationWithDetail(reservation, detailData.detail, detailData.drivers, documentTypeMap);
         }
         return reservation;
       });
@@ -1429,17 +1464,23 @@ export async function handleSyncRently(req: Request, res: Response) {
     const finalStatus = hasMore ? "running" : "completed";
     const completedAt = hasMore ? null : new Date().toISOString();
 
+    const syncStatusUpdate: Record<string, unknown> = {
+      last_offset: currentOffset,
+      total_fetched: newTotalFetched,
+      total_inserted: newTotalInserted,
+      total_duplicates: newTotalDuplicates,
+      total_filtered: newTotalFiltered,
+      status: finalStatus,
+      completed_at: completedAt,
+    };
+    if (!hasMore) {
+      syncStatusUpdate.watermark_updated_at = syncStatus.started_at || completedAt;
+      if (syncMode === 'full') syncStatusUpdate.last_full_sync_at = completedAt;
+    }
+
     await serviceClient
       .from("rently_sync_status")
-      .update({
-        last_offset: currentOffset,
-        total_fetched: newTotalFetched,
-        total_inserted: newTotalInserted,
-        total_duplicates: newTotalDuplicates,
-        total_filtered: newTotalFiltered,
-        status: finalStatus,
-        completed_at: completedAt,
-      })
+      .update(syncStatusUpdate)
       .eq("id", syncStatus.id);
 
     console.log(

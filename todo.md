@@ -1677,3 +1677,19 @@
 - [x] Evaluar impacto en Programación, Vehículos, SES.HOSPEDAJES y las protecciones de campos manuales
 - [x] Identificar incompatibilidades, riesgos de datos incompletos y oportunidades de simplificación sin usar credenciales reales
 - [x] Entregar cambios recomendados priorizados, archivos afectados y pruebas necesarias sin modificar ni desplegar código
+- [x] Guardar fixtures sintéticos derivados del OpenAPI oficial para reservas, clientes, vehículos, pagos y errores Rently
+- [x] Restringir rently-hub a operaciones GET en allowlist y permiso granular, eliminando el proxy HTTP arbitrario
+- [x] Redactar realmente los logs de acciones Rently para no persistir cuerpos, documentos, contactos ni datos de pago
+- [x] Crear un cliente OAuth Rently compartido con caché por tenant, expiración y un único reintento ante 401
+- [x] Parsear ErrorMessage, ErrorCode e Id oficiales sin exponer datos sensibles
+- [x] Separar BookingDescription y BookingDetail y normalizarlos mediante un adaptador canónico
+- [x] Corregir cliente ligero: Name, Lastname, DocumentType, Birthday y Country
+- [x] Corregir vehículo: CurrentPlate.Id, modelo/categoría/Brand de raíz, CurrentPlateId, Gasoline, FuelType y CurrentStatusDate
+- [x] Prohibir que Car.Id se use como matrícula y preservar asignaciones/ubicaciones/horarios manuales
+- [x] Corregir rutas y cuerpos oficiales para reserve, book, pay y cars/{id}
+- [x] Exigir Lastname al confirmar/cancelar y GatewayId al pagar; usar Extra para notas de reserva
+- [x] Sustituir el mapa fijo de documentos por el catálogo /api/configurations/documentTypes con fallback compatible
+- [x] Implementar sincronización incremental con updatedSince, solapamiento y reconciliación completa diaria para legados
+- [x] Añadir pruebas de contrato OpenAPI, seguridad, escritura, incremento, Programación, Vehículos, Reservas y SES
+- [x] Ejecutar suite focal, regresión Rently/SES/Programación, TypeScript y build sin publicar automáticamente
+- [x] Entregar diff, migraciones aditivas y resultados verificables antes de publicación

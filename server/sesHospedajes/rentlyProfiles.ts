@@ -4,11 +4,13 @@ import { buildSesFieldAuditRows, persistSesFieldAudit } from './fieldAudit';
 
 export interface RentlyCustomerForSes {
   Id?: number;
+  Name?: string;
   Firstname?: string;
   Lastname?: string;
   EmailAddress?: string;
   CellPhone?: string;
   DocumentTypeId?: number;
+  DocumentType?: number | { Id?: number; Name?: string };
   DocumentId?: string;
   DocumentIdExpiration?: string;
   DocumentIdIssuanceCountry?: unknown;
@@ -20,6 +22,7 @@ export interface RentlyCustomerForSes {
   Country?: unknown;
   ZipCode?: string;
   BirthDate?: string;
+  Birthday?: string;
   DriverLicenceNumber?: string;
   DriverLicenceCountry?: unknown;
   DriverLicenseExpiration?: string;
@@ -107,9 +110,14 @@ export function normalizeDocumentNumber(value?: string): string | null {
   return normalized || null;
 }
 
-export function mapRentlyDocumentType(value?: number): 'NIF' | 'NIE' | 'PAS' | 'OTRO' {
-  if (value === 1) return 'NIF';
-  if (value === 3) return 'PAS';
+export function mapRentlyDocumentType(value?: number | { Id?: number; Name?: string }): 'NIF' | 'NIE' | 'PAS' | 'OTRO' {
+  const id = typeof value === 'number' ? value : value?.Id;
+  const name = typeof value === 'object' ? normalizedKey(value?.Name || '') : '';
+  if (name.includes('NIE')) return 'NIE';
+  if (name.includes('PASAPORTE') || name.includes('PASSPORT')) return 'PAS';
+  if (name.includes('NIF') || name.includes('DNI')) return 'NIF';
+  if (id === 1) return 'NIF';
+  if (id === 3) return 'PAS';
   return 'OTRO';
 }
 
@@ -119,24 +127,24 @@ export function mapRentlyCustomerToSesProfile(
   userId: string,
 ) {
   const documentNumber = normalizeDocumentNumber(customer.DocumentId);
-  const firstName = customer.Firstname?.trim() || '';
+  const firstName = customer.Name?.trim() || customer.Firstname?.trim() || '';
   const firstSurname = customer.Lastname?.trim() || '';
   if (!documentNumber || !firstName || !firstSurname) return null;
 
   return {
     organization_id: organizationId,
     rently_customer_id: customer.Id ?? null,
-    document_type: mapRentlyDocumentType(customer.DocumentTypeId),
+    document_type: mapRentlyDocumentType(customer.DocumentType ?? customer.DocumentTypeId),
     document_number: documentNumber,
     first_name: firstName,
     first_surname: firstSurname,
-    birth_date: toDateOnly(customer.BirthDate),
+    birth_date: toDateOnly(customer.Birthday || customer.BirthDate),
     address_line: customer.Address?.trim() || null,
     address_number: customer.AddressNumber?.trim() || null,
     address_complement: customer.AddressDepartment?.trim() || null,
     municipality_name: customer.City?.trim() || null,
     postal_code: customer.ZipCode?.trim() || null,
-    country_code: toIsoAlpha3(customer.Country),
+    nationality_code: toIsoAlpha3(customer.Country),
     phone: customer.CellPhone?.trim() || null,
     email: customer.EmailAddress?.trim() || null,
     licence_type: customer.DriverLicenseCategory?.trim().toUpperCase() || null,

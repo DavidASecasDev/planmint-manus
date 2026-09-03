@@ -65,6 +65,7 @@ export function RentlyActionsBar({ reservation, onActionComplete }: RentlyAction
 
   const r = reservation;
   const bookingId = r.external_reservation_id;
+  const customerLastname = r.cliente_apellido?.trim() || "";
   const status = r.estado?.toLowerCase() || "";
 
   // Check if user has the master permission or individual ones
@@ -132,7 +133,7 @@ export function RentlyActionsBar({ reservation, onActionComplete }: RentlyAction
                 openConfirmDialog(
                   "Confirmar reserva en Rently",
                   `¿Confirmar la reserva #${bookingId}? Esto cambiará el estado en Rently a "Confirmada".`,
-                  () => confirmBooking(bookingId).then(() => {}),
+                  () => confirmBooking(bookingId, customerLastname).then(() => {}),
                 )
               }
             >
@@ -189,7 +190,7 @@ export function RentlyActionsBar({ reservation, onActionComplete }: RentlyAction
                 openConfirmDialog(
                   "Cancelar reserva en Rently",
                   `¿Cancelar la reserva #${bookingId}? Esta acción se reflejará inmediatamente en Rently. Podrás reactivarla después si es necesario.`,
-                  () => cancelBooking(bookingId).then(() => {}),
+                  () => cancelBooking(bookingId, customerLastname).then(() => {}),
                   "destructive"
                 )
               }

@@ -98,14 +98,14 @@ export function useRentlyActions() {
   // ─── Convenience methods ──────────────────────────────────────────────────
 
   const confirmBooking = useCallback(
-    (bookingId: string | number) =>
-      callAction("booking.confirm", { BookingId: bookingId }),
+    (bookingId: string | number, lastname: string) =>
+      callAction("booking.confirm", { BookingId: bookingId, Lastname: lastname }),
     [callAction]
   );
 
   const cancelBooking = useCallback(
-    (bookingId: string | number) =>
-      callAction("booking.cancel", { BookingId: bookingId }),
+    (bookingId: string | number, lastname: string) =>
+      callAction("booking.cancel", { BookingId: bookingId, Lastname: lastname }),
     [callAction]
   );
 

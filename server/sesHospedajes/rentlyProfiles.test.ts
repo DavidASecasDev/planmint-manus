@@ -33,7 +33,7 @@ describe('Rently → SES person profile mapping', () => {
       document_type: 'PAS',
       document_number: 'AB123456',
       birth_date: '1988-05-07',
-      country_code: 'ESP',
+      nationality_code: 'ESP',
       address_line: 'Carrer Major',
       address_number: '12',
       address_complement: '2º B',
@@ -43,6 +43,25 @@ describe('Rently → SES person profile mapping', () => {
       licence_country_code: 'ESP',
       licence_valid_until: '2030-09-30',
     });
+  });
+
+  it('usa aliases oficiales de cliente, nacimiento y tipo documental', () => {
+    const profile = mapRentlyCustomerToSesProfile({
+      Id: 43,
+      Name: 'Ana',
+      Lastname: 'Prueba',
+      DocumentType: { Id: 3, Name: 'Pasaporte' },
+      DocumentId: 'AA-123',
+      Birthday: '1990-01-02T00:00:00Z',
+      Country: { Code: 'ES' },
+    }, 'org-1', 'user-1');
+    expect(profile).toMatchObject({
+      first_name: 'Ana',
+      document_type: 'PAS',
+      birth_date: '1990-01-02',
+      nationality_code: 'ESP',
+    });
+    expect(profile).not.toHaveProperty('country_code');
   });
 
   it('rejects incomplete identities instead of creating unusable profiles', () => {

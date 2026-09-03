@@ -27,6 +27,8 @@ import {
   enrichReservationWithDetail,
   STATUS_MAP,
 } from "./syncRently";
+import { getCachedRentlyToken, getRentlyCredentialsForOrganization, RentlyApiError, rentlyRequest } from './rentlyClient';
+import { normalizeRentlyActionBody } from './rentlyActionContract';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -45,7 +47,7 @@ const ACTION_MAP: Record<string, ActionConfig> = {
   "booking.confirm": {
     permissionKey: "rently.booking_confirm",
     rentlyMethod: "POST",
-    rentlyPath: "/api/booking/confirm",
+    rentlyPath: "/api/booking/reserve",
     label: "Confirmar reserva",
     forwardBody: true,
   },
@@ -73,7 +75,7 @@ const ACTION_MAP: Record<string, ActionConfig> = {
   "booking.create": {
     permissionKey: "rently.booking_create",
     rentlyMethod: "POST",
-    rentlyPath: "/api/booking",
+    rentlyPath: "/api/booking/book",
     label: "Crear reserva",
     forwardBody: true,
   },
@@ -135,7 +137,7 @@ const ACTION_MAP: Record<string, ActionConfig> = {
   "booking.add_payment": {
     permissionKey: "rently.booking_update",
     rentlyMethod: "POST",
-    rentlyPath: "/api/booking/payment",
+    rentlyPath: "/api/booking/pay",
     label: "Registrar pago",
     forwardBody: true,
   },
@@ -165,99 +167,11 @@ const ACTION_MAP: Record<string, ActionConfig> = {
 // ─── Rently API helpers ─────────────────────────────────────────────────────
 
 async function getRentlyCredentials(organizationId: string) {
-  const serviceClient = getServiceClient();
-  const { data: settings, error } = await serviceClient
-    .from("integration_settings")
-    .select("rently_api_host, rently_client_id, rently_client_secret")
-    .eq("organization_id", organizationId)
-    .single();
-
-  if (error || !settings?.rently_client_id || !settings?.rently_client_secret) {
-    throw new Error("Rently no está configurado para esta organización");
-  }
-
-  return {
-    host: settings.rently_api_host || "azul.rently.com.ar",
-    clientId: settings.rently_client_id,
-    clientSecret: settings.rently_client_secret,
-  };
+  return getRentlyCredentialsForOrganization(organizationId);
 }
 
 async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`https://${host}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Auth failed (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.access_token;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error?.name === "AbortError") throw new Error("Timeout obteniendo token de Rently");
-    throw error;
-  }
-}
-
-async function callRentlyWriteApi(
-  host: string,
-  token: string,
-  endpoint: string,
-  method: string,
-  body?: unknown
-): Promise<{ status: number; data: unknown }> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    };
-
-    const fetchOptions: RequestInit = {
-      method,
-      headers,
-      signal: controller.signal,
-    };
-
-    if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
-      headers["Content-Type"] = "application/json";
-      fetchOptions.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(`https://${host}${endpoint}`, fetchOptions);
-    clearTimeout(timeoutId);
-
-    let data: unknown;
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
-
-    return { status: response.status, data };
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error?.name === "AbortError") throw new Error("Timeout calling Rently API");
-    throw error;
-  }
+  return getCachedRentlyToken({ host, clientId, clientSecret });
 }
 
 // ─── Audit log helper ───────────────────────────────────────────────────────
@@ -522,7 +436,7 @@ export async function handleRentlyActions(req: Request, res: Response) {
 
     // Get Rently credentials and token
     const creds = await getRentlyCredentials(organizationId);
-    const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+    const normalizedActionData = normalizeRentlyActionBody(action, actionData);
 
     // Resolve endpoint path
     const endpoint = typeof config.rentlyPath === "function"
@@ -531,13 +445,12 @@ export async function handleRentlyActions(req: Request, res: Response) {
 
     // Call Rently API
     const startTime = Date.now();
-    const result = await callRentlyWriteApi(
-      creds.host,
-      token,
-      endpoint,
-      config.rentlyMethod,
-      config.forwardBody ? actionData : undefined
-    );
+    const result = await rentlyRequest<unknown>({
+      credentials: creds,
+      path: endpoint,
+      method: config.rentlyMethod,
+      body: config.forwardBody ? normalizedActionData : undefined,
+    });
     const elapsed = Date.now() - startTime;
 
     const success = result.status >= 200 && result.status < 300;
@@ -546,14 +459,14 @@ export async function handleRentlyActions(req: Request, res: Response) {
     await logRentlyAction(organizationId, userId, action, config.label, success, {
       rentlyStatus: result.status,
       elapsed,
-      requestData: actionData ? { ...actionData, _redacted: true } : undefined,
+      requestAccepted: normalizedActionData !== undefined,
     }, req);
 
     if (!success) {
       return res.status(result.status).json({
         success: false,
         error: `Rently respondió con error ${result.status}`,
-        rentlyResponse: result.data,
+        rentlyError: result.data,
         action,
         elapsed,
       });
@@ -563,7 +476,7 @@ export async function handleRentlyActions(req: Request, res: Response) {
     // After a successful Rently write, re-fetch the booking detail and update PlanMint
     let syncResult: { synced: boolean; newStatus?: string } = { synced: false };
     // For booking.create, the new booking ID comes from the Rently response
-    let bookingId = actionData?.Id || actionData?.BookingId || params?.bookingId;
+    let bookingId = normalizedActionData?.Id || normalizedActionData?.BookingId || params?.bookingId;
     if (!bookingId && action === "booking.create" && result.data) {
       // Rently returns the new booking ID in the response (could be .Id, .BookingId, or the data itself if numeric)
       const rd = result.data as any;
@@ -571,6 +484,7 @@ export async function handleRentlyActions(req: Request, res: Response) {
     }
     if (bookingId) {
       try {
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
         syncResult = await syncSingleBooking(
           creds.host,
           token,
@@ -602,6 +516,10 @@ export async function handleRentlyActions(req: Request, res: Response) {
         error: "No tienes permiso para realizar esta acción en Rently",
         details: error.message,
       });
+    }
+
+    if (error instanceof RentlyApiError) {
+      return res.status(error.status).json({ success: false, error: error.message, rentlyError: error.toSafeJson() });
     }
 
     if (error instanceof AuthError) {

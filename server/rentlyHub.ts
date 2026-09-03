@@ -5,6 +5,7 @@
  */
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
+import { getCachedRentlyToken, getRentlyCredentialsForOrganization } from './rentlyClient';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -29,7 +30,7 @@ const DOMAIN_REGISTRY = [
     syncStrategy: "full",
     endpoints: [
       { method: "list", path: "/api/cars", description: "Listar vehículos", type: "GET" },
-      { method: "get", path: "/api/car/{id}", description: "Detalle de vehículo", type: "GET" },
+      { method: "get", path: "/api/cars/{id}", description: "Detalle de vehículo", type: "GET" },
     ],
   },
   {
@@ -47,53 +48,11 @@ const DOMAIN_REGISTRY = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export async function getRentlyCredentials(organizationId: string) {
-  const serviceClient = getServiceClient();
-  const { data: settings, error } = await serviceClient
-    .from("integration_settings")
-    .select("rently_api_host, rently_client_id, rently_client_secret")
-    .eq("organization_id", organizationId)
-    .single();
-
-  if (error || !settings?.rently_client_id || !settings?.rently_client_secret) {
-    throw new Error("Rently no está configurado");
-  }
-
-  return {
-    host: settings.rently_api_host || "azul.rently.com.ar",
-    clientId: settings.rently_client_id,
-    clientSecret: settings.rently_client_secret,
-  };
+  return getRentlyCredentialsForOrganization(organizationId);
 }
 
 export async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`https://${host}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Auth failed (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.access_token;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error?.name === "AbortError") throw new Error("Timeout obteniendo token de Rently");
-    throw error;
-  }
+  return getCachedRentlyToken({ host, clientId, clientSecret });
 }
 
 async function callRentlyApi(host: string, token: string, endpoint: string, method: string = "GET"): Promise<unknown> {
@@ -171,20 +130,20 @@ export async function handleRentlyHub(req: Request, res: Response) {
           });
         }
 
-        // For list endpoints, auto-paginate to get all results (up to MAX_PAGES pages)
+        // For list endpoints, follow the official cursor and report any safety truncation.
         const isListEndpoint = method === "list";
-        const MAX_PAGES = 10; // Max 10 pages x 100 = 1000 results
+        const MAX_PAGES = 100;
         const PAGE_SIZE = 100;
 
         if (isListEndpoint) {
-          queryParams.set("Limit", String(PAGE_SIZE));
+          queryParams.set("limit", String(PAGE_SIZE));
           let allResults: unknown[] = [];
           let offset = 0;
           let total = 0;
           const startTime = Date.now();
 
           for (let page = 0; page < MAX_PAGES; page++) {
-            queryParams.set("Offset", String(offset));
+            queryParams.set("offset", String(offset));
             const qs = queryParams.toString();
             const fullPath = qs ? `${path}?${qs}` : path;
             const pageData = await callRentlyApi(creds.host, token, fullPath, endpointInfo.type) as any;
@@ -207,9 +166,10 @@ export async function handleRentlyHub(req: Request, res: Response) {
           }
 
           const elapsed = Date.now() - startTime;
+          const truncated = allResults.length < total;
           return res.json({
             success: true,
-            data: { Results: allResults, Total: total, Limit: allResults.length, Offset: 0 },
+            data: { Results: allResults, Total: total, Limit: allResults.length, Offset: 0, truncated },
             domain,
             method,
             elapsed,
@@ -240,6 +200,13 @@ export async function handleRentlyHub(req: Request, res: Response) {
         return res.json({ success: true, data: categories });
       }
 
+      case "payment_gateways": {
+        const creds = await getRentlyCredentials(organizationId);
+        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
+        const gateways = await callRentlyApi(creds.host, token, "/api/configurations/gateways");
+        return res.json({ success: true, data: gateways });
+      }
+
       case "search_availability": {
         const creds = await getRentlyCredentials(organizationId);
         const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
@@ -263,7 +230,7 @@ export async function handleRentlyHub(req: Request, res: Response) {
         const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
         const { query: searchQuery } = params || {};
         if (!searchQuery) return res.json({ success: false, error: "query es requerido" });
-        const data = await callRentlyApi(creds.host, token, `/api/customers?search=${encodeURIComponent(String(searchQuery))}`);
+        const data = await callRentlyApi(creds.host, token, `/api/customers?filter=${encodeURIComponent(String(searchQuery))}&offset=0&limit=100`);
         return res.json({ success: true, data });
       }
 
@@ -303,22 +270,10 @@ export async function handleRentlyHub(req: Request, res: Response) {
       }
 
       case "explore": {
-        const creds = await getRentlyCredentials(organizationId);
-        const token = await getRentlyToken(creds.host, creds.clientId, creds.clientSecret);
-
-        let path = endpoint || "/api/bookings/list";
-        if (params) {
-          const queryParams = new URLSearchParams();
-          Object.entries(params).forEach(([key, value]) => queryParams.set(key, String(value)));
-          const qs = queryParams.toString();
-          if (qs) path += `?${qs}`;
-        }
-
-        const startTime = Date.now();
-        const data = await callRentlyApi(creds.host, token, path, httpMethod || "GET");
-        const elapsed = Date.now() - startTime;
-
-        return res.json({ success: true, data, raw: data, elapsed });
+        return res.status(403).json({
+          success: false,
+          error: "El explorador HTTP arbitrario de Rently está deshabilitado por seguridad",
+        });
       }
 
       default:

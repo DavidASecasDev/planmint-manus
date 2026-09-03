@@ -16,6 +16,7 @@
 import type { Request, Response } from "express";
 import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supabaseAdmin";
 import { logSyncEvent } from "./repairRentlyPoll";
+import { getCachedRentlyToken } from './rentlyClient';
 
 const REQUEST_TIMEOUT_MS = 30000;
 const SERVICE_TYPE_BLOQUEO = 11; // "Bloqueo Disponibilidad"
@@ -50,33 +51,7 @@ async function getRentlyCredentials(organizationId: string) {
 }
 
 async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`https://${host}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Auth failed (${response.status})`);
-    }
-
-    const data = await response.json();
-    return data.access_token;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error?.name === "AbortError") throw new Error("Timeout obteniendo token de Rently");
-    throw error;
-  }
+  return getCachedRentlyToken({ host, clientId, clientSecret });
 }
 
 async function callRentlyApi(

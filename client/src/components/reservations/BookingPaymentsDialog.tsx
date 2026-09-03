@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRentlyActions } from "@/hooks/useRentlyActions";
+import { apiInvoke } from "@/lib/apiClient";
 
 /* ─── helpers ─── */
 function safeStr(v: unknown): string {
@@ -56,7 +57,7 @@ function fmtDate(dateStr: string): string {
 }
 
 /* ─── types ─── */
-type PaymentGateway = "cash" | "card" | "transfer" | "redsys" | "stripe" | "other";
+type PaymentGateway = string;
 
 interface PaymentRecord {
   Date: string;
@@ -103,6 +104,7 @@ export function BookingPaymentsDialog({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [gateway, setGateway] = useState<PaymentGateway | "">("");
+  const [gatewayOptions, setGatewayOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -118,6 +120,19 @@ export function BookingPaymentsDialog({
       setNotes("");
     }
   }, [open, balance]);
+
+  useEffect(() => {
+    if (!open) return;
+    void apiInvoke<any>("rently-hub", { body: { action: "payment_gateways" } }).then(({ data }) => {
+      const raw = data?.data?.Results ?? data?.data ?? [];
+      const rows = Array.isArray(raw) ? raw : [];
+      setGatewayOptions(rows.flatMap((item: any) => {
+        const id = item?.Id ?? item?.id;
+        const name = item?.Name ?? item?.name;
+        return id != null && name ? [{ value: String(id), label: String(name) }] : [];
+      }));
+    });
+  }, [open]);
 
   // ─── Submit ───
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,15 +151,12 @@ export function BookingPaymentsDialog({
     setSubmitting(true);
     try {
       await callAction("booking.add_payment", {
-        reservationId: bookingId,
-        payload: {
-          BookingId: bookingId,
-          Amount: parsedAmount,
-          Date: new Date(date).toISOString(),
-          Gateway: gateway,
-          Reference: reference.trim() || undefined,
-          Notes: notes.trim() || undefined,
-        },
+        BookingId: bookingId,
+        Amount: parsedAmount,
+        Date: new Date(date).toISOString(),
+        GatewayId: Number(gateway),
+        Reference: reference.trim() || undefined,
+        Notes: notes.trim() || undefined,
       });
 
       toast.success(`Pago de ${fmtCurrency(parsedAmount, currency)} registrado correctamente`);
@@ -160,14 +172,7 @@ export function BookingPaymentsDialog({
   const parsedAmount = parseFloat(amount) || 0;
   const newBalance = balance + parsedAmount;
 
-  const GATEWAYS: { value: PaymentGateway; label: string }[] = [
-    { value: "cash", label: "Efectivo" },
-    { value: "card", label: "Tarjeta" },
-    { value: "transfer", label: "Transfer." },
-    { value: "redsys", label: "Redsys" },
-    { value: "stripe", label: "Stripe" },
-    { value: "other", label: "Otro" },
-  ];
+  const GATEWAYS = gatewayOptions;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
