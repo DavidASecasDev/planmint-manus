@@ -1712,3 +1712,11 @@
 - [x] Ejecutar regresión Rently/Programación/Vehículos/SES, TypeScript y build antes del siguiente despliegue
 - [x] Verificar en producción una muestra amplia y el total agregado de matrículas restauradas
 - [x] Entregar causa raíz, alcance, corrección y evidencia verificable
+- [x] Auditar todas las reservas Rently recientes y futuras de Programación, no solo las operaciones del 4 de septiembre
+- [x] Clasificar Auto vacío, alias CurrentPlate y matrícula legal, preservando valores manuales no atribuibles a Rently
+- [x] Ejecutar dry-run completo y obtener cada matrícula legal desde Rently sin inferirla por modelo ni flota
+- [x] Restaurar con precondiciones únicamente Auto vacío o alias oficial verificado, con backup y rollback automático
+- [x] Confirmar que el checkpoint 296c57d1 está desplegado antes de la verificación de estabilidad
+- [x] Esperar al menos un autosync posterior y demostrar que ninguna matrícula restaurada vuelve a desaparecer
+- [x] Verificar en producción el total agregado de reservas futuras con Auto vacío o alias pendiente
+- [x] Entregar conteos antes/después y cualquier ausencia real que Rently no pueda resolver
