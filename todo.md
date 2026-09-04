@@ -1693,3 +1693,12 @@
 - [x] Añadir pruebas de contrato OpenAPI, seguridad, escritura, incremento, Programación, Vehículos, Reservas y SES
 - [x] Ejecutar suite focal, regresión Rently/SES/Programación, TypeScript y build sin publicar automáticamente
 - [x] Entregar diff, migraciones aditivas y resultados verificables antes de publicación
+- [x] Trazar en modo solo lectura las reservas Rently 5494, 5496 y 5507 y sus posibles recreaciones manuales en PlanMint
+- [x] Revisar cursor, watermark, updatedSince, paginación, filtros, corte temprano, errores y heartbeats de la sincronización publicada
+- [x] Comparar el universo reciente de reservas Rently con PlanMint para detectar todas las ausencias, no solo los tres casos reportados
+- [x] Identificar la causa raíz general sin sobrescribir fechas, ubicaciones, vehículos ni reservas creadas manualmente
+- [x] Corregir la sincronización para que ninguna página o reserva válida quede omitida y añadir reparación segura de huecos
+- [x] Añadir observabilidad y alerta cuando Rently y PlanMint diverjan o un ciclo termine de forma incompleta
+- [x] Reconciliar únicamente ausencias verificadas, preservando y vinculando las recreaciones manuales existentes
+- [x] Ejecutar pruebas de regresión Rently/Programación/SES, TypeScript, build y verificaciones agregadas de producción
+- [x] Entregar causa raíz, reservas afectadas, corrección, datos preservados y resultados verificables

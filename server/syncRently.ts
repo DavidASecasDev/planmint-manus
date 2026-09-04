@@ -300,6 +300,17 @@ export function deduplicateRentlyBookingsByStableId<T extends { Id: string | num
   return Array.from(unique.values());
 }
 
+export type RentlySyncWriteFailure = {
+  operation: 'insert' | 'update';
+  externalId: string;
+  code: string;
+};
+
+export function summarizeRentlySyncWriteFailures(failures: RentlySyncWriteFailure[]) {
+  const codes = Array.from(new Set(failures.map((failure) => failure.code || 'UNKNOWN'))).sort();
+  return `${failures.length} escritura(s) de reservas rechazadas (${codes.join(', ')})`;
+}
+
 // ─── Rently API helpers ──────────────────────────────────────────────────────
 
 export async function getRentlyToken(host: string, clientId: string, clientSecret: string): Promise<string> {
@@ -916,17 +927,56 @@ async function syncVehicleStatuses(
 
 // ─── Main handler ────────────────────────────────────────────────────────────
 
-export async function handleSyncRently(req: Request, res: Response) {
+type RentlySyncExecutionOptions = {
+  scheduled?: boolean;
+};
+
+export async function handleSyncRently(
+  req: Request,
+  res: Response,
+  execution: RentlySyncExecutionOptions = {},
+) {
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
   try {
-    const { userId, organizationId } = await authenticateSupabaseRequest(
-      req.headers.authorization
-    );
-
     const serviceClient = getServiceClient();
+    let userId: string;
+    let organizationId: string;
+
+    if (execution.scheduled) {
+      const { sdk } = await import('./_core/sdk');
+      const cronUser = await sdk.authenticateRequest(req) as { isCron?: boolean; taskUid?: string };
+      if (!cronUser.isCron || !cronUser.taskUid) {
+        return res.status(403).json({ success: false, error: 'cron-only' });
+      }
+      const { data: scheduledStatus, error: scheduledStatusError } = await serviceClient
+        .from('rently_sync_status')
+        .select('organization_id')
+        .eq('schedule_cron_task_uid', cronUser.taskUid)
+        .limit(1)
+        .maybeSingle();
+      if (scheduledStatusError) throw scheduledStatusError;
+      if (!scheduledStatus?.organization_id) {
+        return res.json({ success: true, skipped: 'orphan' });
+      }
+      organizationId = scheduledStatus.organization_id;
+      const { data: syncActor, error: syncActorError } = await serviceClient
+        .from('organization_members')
+        .select('user_id')
+        .eq('organization_id', organizationId)
+        .in('role', ['owner', 'admin'])
+        .limit(1)
+        .maybeSingle();
+      if (syncActorError) throw syncActorError;
+      if (!syncActor?.user_id) throw new Error('No hay un actor administrativo activo para la sincronización Rently');
+      userId = syncActor.user_id;
+    } else {
+      const authenticated = await authenticateSupabaseRequest(req.headers.authorization);
+      userId = authenticated.userId;
+      organizationId = authenticated.organizationId;
+    }
 
     // Get Rently credentials
     const { data: settings, error: settingsError } = await serviceClient
@@ -946,7 +996,8 @@ export async function handleSyncRently(req: Request, res: Response) {
     const clientId = settings.rently_client_id;
     const clientSecret = settings.rently_client_secret;
 
-    const { continue_sync, reset, test_only, action, include_all } = req.body || {};
+    let { continue_sync } = req.body || {};
+    const { reset, test_only, action, include_all } = req.body || {};
 
     // Handle sync_vehicles action separately
     if (action === "sync_vehicles") {
@@ -979,6 +1030,10 @@ export async function handleSyncRently(req: Request, res: Response) {
 
     if (existingStatus) {
       syncStatus = existingStatus as SyncStatus;
+    }
+
+    if (execution.scheduled) {
+      continue_sync = syncStatus?.status === 'running';
     }
 
     const previousWatermark = syncStatus?.watermark_updated_at || syncStatus?.completed_at || null;
@@ -1243,6 +1298,7 @@ export async function handleSyncRently(req: Request, res: Response) {
       // Insert new reservations (batch upsert)
       let insertedCount = 0;
       let duplicateCount = 0;
+      const pageWriteFailures: RentlySyncWriteFailure[] = [];
 
       if (newReservations.length > 0) {
         const { data: insertedData, error: insertError } = await serviceClient
@@ -1256,7 +1312,17 @@ export async function handleSyncRently(req: Request, res: Response) {
             const { error: singleError } = await serviceClient.from("reservations").insert(reservation);
             if (singleError) {
               if (singleError.code === "23505") duplicateCount++;
-              else console.error("[sync-rently] Single insert error:", singleError);
+              else {
+                pageWriteFailures.push({
+                  operation: 'insert',
+                  externalId: String(reservation.external_reservation_id ?? 'unknown'),
+                  code: String(singleError.code ?? 'UNKNOWN'),
+                });
+                console.error("[sync-rently] Single insert rejected:", {
+                  externalId: reservation.external_reservation_id,
+                  code: singleError.code ?? 'UNKNOWN',
+                });
+              }
             } else {
               insertedCount++;
             }
@@ -1444,7 +1510,36 @@ export async function handleSyncRently(req: Request, res: Response) {
           }
         }
 
-        await serviceClient.from("reservations").update(updateData).eq("id", update.id);
+        const { error: updateError } = await serviceClient.from("reservations").update(updateData).eq("id", update.id);
+        if (updateError) {
+          pageWriteFailures.push({
+            operation: 'update',
+            externalId: String(update.fullData.external_reservation_id ?? 'unknown'),
+            code: String(updateError.code ?? 'UNKNOWN'),
+          });
+          console.error('[sync-rently] Reservation update rejected:', {
+            externalId: update.fullData.external_reservation_id,
+            code: updateError.code ?? 'UNKNOWN',
+          });
+        }
+      }
+
+      if (pageWriteFailures.length > 0) {
+        const failureSummary = summarizeRentlySyncWriteFailures(pageWriteFailures);
+        await serviceClient.from('rently_sync_status').update({
+          status: 'error',
+          error_message: failureSummary,
+          updated_at: new Date().toISOString(),
+        }).eq('id', syncStatus.id);
+        try {
+          await notifyOwner({
+            title: 'Error crítico en sincronización Rently',
+            content: `${failureSummary}. El cursor y el watermark no han avanzado; revisa la sincronización antes de continuar.`,
+          });
+        } catch (notificationError) {
+          console.error('[sync-rently] Failed to notify owner about write rejection:', notificationError);
+        }
+        throw new Error(failureSummary);
       }
 
       totalInsertedCount += insertedCount;

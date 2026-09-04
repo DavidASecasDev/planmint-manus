@@ -309,7 +309,7 @@ async function startServer() {
 
   // ─── Migrated Edge Function endpoints ──────────────────────────────────────
   app.post("/api/ocr-plate", handleOcrPlate);
-  app.post("/api/sync-rently", handleSyncRently);
+  app.post("/api/sync-rently", (req, res) => handleSyncRently(req, res));
   app.post("/api/ai-assistant", handleAiAssistant);
   app.post("/api/rently-hub", handleRentlyHub);
   app.post("/api/rently-actions", handleRentlyActions);
@@ -618,6 +618,7 @@ async function startServer() {
   // ─── Scheduled (Heartbeat cron) endpoints ─────────────────────────────────
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);
   app.post("/api/scheduled/rently-poll", handleScheduledRentlyPoll);
+  app.post("/api/scheduled/rently-reservations", (req, res) => handleSyncRently(req, res, { scheduled: true }));
   app.post("/api/scheduled/rently-enrich", handleScheduledRentlyEnrich);
   app.post("/api/scheduled/geofence-check", handleScheduledGeofenceCheck);
   app.post("/api/scheduled/xexun-poll", handleScheduledXexunPoll);
