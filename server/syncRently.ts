@@ -46,9 +46,9 @@ interface RentlyBooking {
   CustomerPrice?: number;
   // CarDescription DTO (subset of full Car)
   Car?: {
-    Id?: number;
+    Id?: string | number;
     Plate?: string;
-    CurrentPlate?: { Id?: string };
+    CurrentPlate?: { Id?: string } | string;
     CurrentPlateId?: string;
     // ModelDescription DTO
     Model?: { Name?: string; Category?: { Name?: string } };
@@ -93,9 +93,9 @@ export interface RentlyBookingDetail extends RentlyBooking {
   MaxAllowedDistance?: number;
   MaxAllowedDistanceByDay?: number;
   Car?: {
-    Id?: number;
+    Id?: string | number;
     Plate?: string;
-    CurrentPlate?: { Id?: string };
+    CurrentPlate?: { Id?: string } | string;
     CurrentPlateId?: string;
     Kms?: number;
     CurrentKms?: number;
@@ -257,6 +257,9 @@ const RENTLY_ENRICHMENT_FIELDS = [
   'cliente_carnet_pais',
   'cliente_carnet_expiracion',
   'categoria',
+  'auto',
+  'modelo',
+  'marca',
   'vehiculo_color',
   'vehiculo_chasis',
   'vehiculo_kms',
@@ -492,6 +495,22 @@ async function fetchDetailsInParallel(
 
 // ─── Mapping helpers ─────────────────────────────────────────────────────────
 
+export function resolveRentlyCarPlate(car: RentlyBooking['Car'] | RentlyBookingDetail['Car'] | null | undefined) {
+  if (!car) return null;
+  // En el tenant de Azul Cars, Car.Id contiene la matrícula legal (p. ej. 1892MSD),
+  // mientras que CurrentPlate.Id puede ser un alias operativo (p. ej. MINI1-9).
+  // Los IDs numéricos siguen rechazados porque son identificadores internos opacos.
+  if (typeof car.Id === 'string' && car.Id.trim()) return car.Id.trim();
+  const expandedPlate = typeof car.CurrentPlate === 'string'
+    ? car.CurrentPlate
+    : car.CurrentPlate?.Id;
+  const candidates = [expandedPlate, car.CurrentPlateId, car.Plate];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+  }
+  return null;
+}
+
 export function mapBookingToReservation(
   booking: RentlyBooking,
   organizationId: string,
@@ -505,7 +524,7 @@ export function mapBookingToReservation(
   const category = booking.Category || carModel.Category || {};
   const documentTypeId = customer.DocumentTypeId
     ?? (typeof customer.DocumentType === 'number' ? customer.DocumentType : customer.DocumentType?.Id);
-  const plate = car.CurrentPlate?.Id || car.CurrentPlateId || car.Plate || null;
+  const plate = resolveRentlyCarPlate(car);
 
   // Resolve places: prefer legacy objects (detail endpoint), fall back to ID lookup
   const deliveryPlace = booking.DeliveryPlace || (booking.DeliveryPlaceId && placesMap?.get(booking.DeliveryPlaceId)) || {};
@@ -599,8 +618,8 @@ export function enrichReservationWithDetail(
       : detail.DeliveryBranchOffice?.Id ?? detail.DeliveryBranchOfficeId ?? null,
     rently_delivery_actual_at: detail.DeliveryInfo?.Date || null,
     rently_detail_booking_id: detail.Id,
-    rently_detail_vehicle_plate: car.CurrentPlate?.Id || car.CurrentPlateId || car.Plate || null,
-    auto: car.CurrentPlate?.Id || car.CurrentPlateId || car.Plate || reservation.auto || null,
+    rently_detail_vehicle_plate: resolveRentlyCarPlate(car),
+    auto: resolveRentlyCarPlate(car) || reservation.auto || null,
     modelo: detail.Model?.Name || car.Model?.Name || reservation.modelo || null,
     marca: detail.Brand?.Name || car.Model?.Brand?.Name || reservation.marca || null,
     categoria: detail.Category?.Name || car.Model?.Category?.Name || reservation.categoria || null,

@@ -24,6 +24,21 @@ describe('resolución de vehículo SES', () => {
     expect(result).toMatchObject({ vehicle_brand: 'BMW', vehicle_model: 'X1', vehicle_plate: '1234ABC' });
   });
 
+  it('prioriza la matrícula legal Car.Id frente al alias operativo CurrentPlate', () => {
+    const result = resolveSesVehicleData({
+      reservation: { auto: null, modelo: 'Cooper S Cabrio' },
+      fleetVehicles: [],
+      detail: {
+        Car: {
+          Id: '1892MSD',
+          CurrentPlate: { Id: 'MINI1-9' },
+          Model: { Name: 'Cooper S Cabrio' },
+        },
+      },
+    });
+    expect(result.vehicle_plate).toBe('1892MSD');
+  });
+
   it('prioriza la flota frente al detalle Rently cuando la flota tiene una marca fiable', () => {
     const result = resolveSesVehicleData({
       reservation: { auto: '1234ABC' },

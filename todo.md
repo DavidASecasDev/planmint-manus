@@ -1702,3 +1702,13 @@
 - [x] Reconciliar únicamente ausencias verificadas, preservando y vinculando las recreaciones manuales existentes
 - [x] Ejecutar pruebas de regresión Rently/Programación/SES, TypeScript, build y verificaciones agregadas de producción
 - [x] Entregar causa raíz, reservas afectadas, corrección, datos preservados y resultados verificables
+- [x] Confirmar qué versión se desplegó y cuándo dejaron de mostrarse las matrículas en Programación
+- [x] Comprobar en solo lectura si reservations.auto conserva matrículas o fue sustituido por IDs internos de Rently
+- [x] Trazar el dato de matrícula desde BookingDescription/BookingDetail hasta el endpoint y la columna Auto de Programación
+- [x] Identificar exactamente qué cambio reciente provocó la regresión sin asumir que los datos se perdieron
+- [x] Aplicar una corrección mínima que restaure matrículas sin alterar horarios confirmados, ubicaciones, asignaciones ni estados
+- [x] Reparar únicamente registros afectados si la base contiene IDs de auto en lugar de matrículas, con respaldo y verificación
+- [x] Añadir pruebas de DTO ligero, detalle, persistencia y renderizado de matrícula en Programación
+- [x] Ejecutar regresión Rently/Programación/Vehículos/SES, TypeScript y build antes del siguiente despliegue
+- [x] Verificar en producción una muestra amplia y el total agregado de matrículas restauradas
+- [x] Entregar causa raíz, alcance, corrección y evidencia verificable

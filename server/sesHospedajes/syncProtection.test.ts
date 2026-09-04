@@ -8,6 +8,9 @@ describe('Rently enrichment protection', () => {
       cliente_nombre: '',
       tipo_documento_cliente: null,
       cliente_direccion: undefined,
+      auto: null,
+      modelo: '',
+      marca: undefined,
       cliente_carnet_numero: 'DL123',
       vehiculo_chasis: 'VIN123',
     });
