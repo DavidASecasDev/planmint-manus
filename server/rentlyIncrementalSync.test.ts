@@ -17,6 +17,14 @@ describe('sincronización híbrida Rently', () => {
     expect(source).toContain("syncMode: 'full' | 'incremental'");
   });
 
+  it('persiste cada página de eventos antes del filtro local y separa eventos de detalles', () => {
+    expect(source).toContain("from('rently_booking_events')");
+    expect(source).toContain("onConflict: 'organization_id,external_booking_id'");
+    expect(source.indexOf("from('rently_booking_events')")).toBeLessThan(source.indexOf('// Filter bookings'));
+    expect(source).toContain('detailEnrichmentComplete: false');
+    expect(source).toContain('bookingListEventsComplete: eventCoverageComplete');
+  });
+
   it('propone únicamente columnas aditivas y una restricción de modo', () => {
     expect(migration).toContain('add column if not exists watermark_updated_at');
     expect(migration).not.toMatch(/\b(delete from|truncate table)\b/i);

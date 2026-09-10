@@ -1720,3 +1720,71 @@
 - [x] Esperar al menos un autosync posterior y demostrar que ninguna matrícula restaurada vuelve a desaparecer
 - [x] Verificar en producción el total agregado de reservas futuras con Auto vacío o alias pendiente
 - [x] Entregar conteos antes/después y cualquier ausencia real que Rently no pueda resolver
+- [x] Auditar jobs, rutas, permisos, borradores SES y contratos Rently existentes para reutilizar trabajo sin revertir cambios ajenos
+- [x] Modelar lotes persistentes de revisión por organización y fecha local Europe/Madrid con historial y reanudación
+- [x] Impedir dos lotes activos para la misma organización y periodo mediante garantía de base de datos
+- [x] Distinguir fecha prevista FromDate de entrega real DeliveryInfo.Date y conservar devoluciones posteriores sin borrar la entrega
+- [x] Paginar todas las reservas necesarias y localizar por identificador Rently aunque PlanMint tenga otra fecha prevista
+- [x] Guardar evidencia de justificante Delivery, referencia, fecha de generación y DeliveryInfo.Date sin inventar endpoint de PDF
+- [x] Mantener pendiente de comprobar cualquier ausencia, contradicción o fuente inaccesible sin marcar dato inexistente
+- [x] Permitir una primera carga histórica explícita y acotada, sin descargar toda la cartera
+- [x] Reutilizar sincronización incremental sin declarar cobertura completa cuando queden páginas o eventos pendientes
+- [x] Completar SES solo con datos acreditados, preservando manual_fields y registrando fuente, fecha y cambio
+- [x] Añadir fuentes rently, hubspot, respond y documento con estados pendiente, consultada e inaccesible
+- [x] Crear entrada autenticada para propuestas/evidencias de Azul Office sin conectores simulados ni claves nuevas
+- [x] Mantener aislamiento por organización y permisos SES existentes en todas las rutas
+- [x] Añadir UI «Revisar entregas» con periodo real, progreso, filas, evidencia, estado y próxima acción
+- [x] Corregir textos para que «Comprobar SES» no parezca consultar al Ministerio
+- [x] Separar claramente XML generado, presentado y aceptado en estados y UI
+- [x] Añadir botón «Revisar ahora» y operación reanudable compartida con Heartbeat de las 04:00 sin duplicar el temporizador Codex
+- [x] Registrar referencia de borrador Gmail por lote sin enviar correos ni mensajes desde PlanMint
+- [x] Exponer resumen y detalle autenticados del lote para Azul Office y documentar rutas y contratos
+- [x] Añadir pruebas 5578, 5582, devolución posterior, paginación, contradicción, zona horaria, fuentes, manuales, concurrencia, aislamiento y semántica XML
+- [x] Ejecutar pruebas relevantes y build con fixtures sintéticas, sin modificar reservas reales ni enviar comunicaciones
+- [x] Entregar diff, migración y procedimiento concreto de despliegue para revisión sin publicar
+- [x] Validar coherencia temporal entre generación del justificante y DeliveryInfo.Date, preservando precisión y originales ante conflicto
+- [x] Aplicar automáticamente solo sobre campos SES vacíos; convertir cualquier discrepancia acreditada o propuesta en conflicto revisable
+- [x] Preservar estados, evidencias y propuestas HubSpot/Respond existentes al reprocesar una página o ítem
+- [x] Añadir lease atómico compare-and-swap para impedir dos ejecutores simultáneos sobre el mismo lote
+- [x] Reintentar ítems fallidos o recién acreditados y permitir redescubrimiento cuando la sincronización siga incompleta
+- [x] Mantener cobertura no confirmada mientras no exista garantía de importación completa para sedes, estados y periodo
+- [x] Fusionar applied_changes, proposed_changes y conflicts de forma no destructiva en cada reintento
+- [x] Ejecutar la migración dos veces en PostgreSQL efímero con fixtures sintéticas y probar lease concurrente, unicidad, multi-organización y recuperación reales
+- [x] Preservar literales Rently sin zona y probar ida/vuelta PostgreSQL de 5578, 5582, medianoche y DST sin desplazamiento de día u hora
+- [x] Reutilizar el mismo lote completed para un periodo idéntico sin repetir operaciones ni perder gmail_draft_reference
+- [x] Renovar y verificar el lease antes de cada grupo y bloquear todas las escrituras si el ejecutor pierde la titularidad
+- [x] Impedir ejecutores simultáneos de lotes solapados de una organización, dejando el segundo en cola reanudable
+- [x] Probar expiración, renovación, reclamación y exclusión entre lotes distintos de la misma organización
+- [x] Migrar pickup_at previsto automático a DeliveryInfo.Date real solo con procedencia demostrada, conservar planned_pickup_at separado y auditar; cubrir 5582 existente en fixture
+- [x] Detectar en borradores existentes tipo OTRO, nombre/apellido duplicados y pasaporte copiado en permiso como contradicciones con procedencia, sin inferir licencia desde pasaporte
+- [x] Bloquear ready_for_xml mientras existan conflictos de revisión y mostrar faltantes separados de contradicciones en la UI diaria
+- [x] Proyectar solo columnas persistibles de ses_contract_drafts y excluir relaciones embebidas del upsert diario
+- [x] Normalizar devolución prevista y real con semántica Europe/Madrid, conservando sus literales sin desplazamiento
+- [x] Tipar propuestas por destinatario draft/person/pickup_location/return_location con allowlists, vínculo y organización verificados
+- [x] Conservar todas las contradicciones abiertas hasta resolución explícita, bloquear ready_for_xml y contarlas al finalizar el lote
+- [x] Hacer aplicación, auditoría y resolución de propuestas atómicas o recuperables con fencing CAS/version y token
+- [x] Añadir pruebas funcionales con borrador existente y propuesta sintética de dirección y permiso
+- [x] Contar conflictos abiertos y borradores no listos en readBatchCounts/finalize para impedir completed mientras quede revisión
+- [x] Probar un verified_delivery con fuentes consultadas y contradicciones persistentes que debe finalizar partial
+- [x] Fusionar item.conflicts dentro de la transacción para que dos propuestas concurrentes no pierdan contradicciones previas
+- [x] Rechazar destinos de ubicación no vinculados con comparación NULL-safe y cubrirlo en PostgreSQL efímero
+- [x] Mostrar faltantes reales del expediente y nombres de contradicciones por reserva, no un indicador binario de evidencia
+- [x] Mostrar destinatario y valores actuales/propuestos antes de aceptar o rechazar una propuesta
+- [x] Añadir formulario autenticado «Añadir dato encontrado» por reserva con destinatario, allowlist, valor, fuente, referencia y fecha
+- [x] Exigir alcance, sedes/estados y paginación acreditados para coverage_complete; una fecha reciente no basta
+- [x] Reiniciar descubrimiento cuando cambie la versión de sincronización tras agotar páginas, incluso si la nueva cobertura ya es completa
+- [x] Excluir entregas reales acreditadas fuera del periodo sin contarlas como pendientes ni borrar su referencia
+- [x] Guardar el borrador Rently con CAS updated_at/versión y fencing del lease para preservar ediciones manuales concurrentes
+- [x] Fusionar conflictos abiertos previos del ítem y eligibility_snapshot durante cada revalidación Rently
+- [x] Migrar return_at previsto heredado solo con procedencia automática acreditada; si es manual o incierta, registrar conflicto
+- [x] Probar edición manual concurrente y devolución prevista heredada desplazada sin sobrescritura silenciosa
+- [x] Persistir DeliveryInfo, DropoffInfo, UpdatedOn y CurrentStatus recibidos en cada página de /api/bookings/list
+- [x] Acreditar cobertura de eventos al agotar Offset/NextOffset sin filtros de sede/estado y con alcance temporal suficiente
+- [x] Mantener GET /api/booking/{id} solo para expedientes seleccionados o enriquecimiento necesario, no para descubrir cada entrega
+- [x] Probar listado paginado con 5578/5582, devolución real 5582 y cobertura completa sin detalles por reserva
+- [x] Actualizar documentación para separar cobertura de eventos del enriquecimiento opcional de otros datos
+- [x] Separar contradicciones abiertas y resueltas sin borrar historial, con huella de evidencia y valor relevante
+- [x] Añadir acción autenticada para resolver una contradicción tras corrección manual, validando valor actual, motivo, actor y evidencia
+- [x] Recalcular ready_for_xml al resolver y no reabrir el conflicto sin evidencia o valor nuevos
+- [x] Mostrar la resolución explícita en el panel diario y probar conflicto → corrección manual → resolución auditada → listo
+- [x] Probar en PostgreSQL que reanudación no resucita un conflicto resuelto sin nueva evidencia

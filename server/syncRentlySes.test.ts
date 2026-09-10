@@ -25,7 +25,7 @@ describe('sincronización Rently iniciada desde SES', () => {
 
   it('mantiene la sincronización completa independiente del corte temprano histórico', () => {
     const source = readFileSync(new URL('./syncRently.ts', import.meta.url), 'utf8');
-    expect(source).toContain('include_all !== true && consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES');
+    expect(source).toContain('!includeAllForRun && consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES');
     expect(source).toContain('onConflict: "organization_id,external_reservation_id"');
   });
 });

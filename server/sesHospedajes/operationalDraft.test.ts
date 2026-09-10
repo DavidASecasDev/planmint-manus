@@ -22,6 +22,20 @@ describe('modelo operativo SES simplificado', () => {
     });
   });
 
+  it('separa contradicciones de faltantes y bloquea Listo para XML', () => {
+    expect(deriveSesOperationalState({ validationIssues: [], blockingConflictCount: 1 })).toEqual({
+      status: 'incomplete', readyForXml: false, missingFields: [], invalidFields: [],
+    });
+    const projected = projectSesOperationalDraft({
+      id: 'existing-5582', status: 'ready', validation_errors: [], manual_fields: [],
+      eligibility_snapshot: { daily_review_conflicts: [{ field: 'licence_number', source: 'hubspot' }] },
+    });
+    expect(projected).toMatchObject({
+      operationalStatus: 'incomplete', readyForXml: false, missingFields: [], invalidFields: [],
+      reviewConflicts: [{ field: 'licence_number', source: 'hubspot' }],
+    });
+  });
+
   it('mantiene el historial generado fuera de los tres estados editables', () => {
     expect(deriveSesOperationalState({ validationIssues: [], historicalStatus: 'accepted' })).toMatchObject({
       status: 'xml_generated', readyForXml: true,

@@ -32,6 +32,18 @@ export async function setupVite(app: Express, server: Server) {
     }
   });
 
+  app.get("/__fixtures/ses-daily-review", async (req, res, next) => {
+    try {
+      const fixturePath = path.resolve(import.meta.dirname, "../..", "client", "ses-daily-review-fixture.html");
+      const template = await fs.promises.readFile(fixturePath, "utf-8");
+      const page = await vite.transformIndexHtml(req.originalUrl, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (error) {
+      vite.ssrFixStacktrace(error as Error);
+      next(error);
+    }
+  });
+
   app.get("/__fixtures/external-transfer-api", async (req, res, next) => {
     try {
       const fixturePath = path.resolve(import.meta.dirname, "../..", "client", "external-transfer-api-fixture.html");

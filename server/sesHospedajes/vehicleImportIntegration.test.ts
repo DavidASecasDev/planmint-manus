@@ -6,7 +6,7 @@ const endpointSource = fs.readFileSync(path.join(process.cwd(), 'server/sesHospe
 
 describe('integración del vehículo en todos los recorridos SES', () => {
   it('usa el resolver central en sincronización y preparación', () => {
-    expect((endpointSource.match(/resolveSesVehicleData\(/g) ?? []).length).toBe(2);
+    expect((endpointSource.match(/resolveSesVehicleData\(/g) ?? []).length).toBe(3);
     expect((endpointSource.match(/groupFleetVehiclesByPlate\(/g) ?? []).length).toBe(2);
     expect(endpointSource).not.toContain('fleetMap.get(reservation.auto)');
     expect(endpointSource).not.toContain('normalizeSesVehicleBrand(fleet?.marca)');

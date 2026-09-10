@@ -13,15 +13,15 @@ function draft(status: SesContractDraft['status'], complete = false): SesContrac
 }
 
 describe('acciones operativas por contrato SES', () => {
-  it.each([['incomplete', false], ['pending_sync', false]] as const)('muestra Comprobar SES antes de Completar para %s', (status, complete) => {
+  it.each([['incomplete', false], ['pending_sync', false]] as const)('muestra Registrar evidencia SES antes de Completar para %s', (status, complete) => {
     const html = renderToStaticMarkup(<SesDraftActions draft={draft(status, complete)} canExport schemaMigrationRequired={false} checking={false} onCheck={() => undefined} onComplete={() => undefined} />);
-    expect(html).toContain('Comprobar SES');
-    expect(html.indexOf('Comprobar SES')).toBeLessThan(html.indexOf('Completar'));
+    expect(html).toContain('Registrar evidencia SES');
+    expect(html.indexOf('Registrar evidencia SES')).toBeLessThan(html.indexOf('Completar'));
   });
 
   it('no ofrece una nueva comprobación para un contrato histórico bloqueado', () => {
     const html = renderToStaticMarkup(<SesDraftActions draft={draft('accepted', true)} canExport schemaMigrationRequired={false} checking={false} onCheck={() => undefined} onComplete={() => undefined} />);
-    expect(html).not.toContain('Comprobar SES');
+    expect(html).not.toContain('Registrar evidencia SES');
     expect(html).toContain('Histórico');
   });
 });

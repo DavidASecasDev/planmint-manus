@@ -7,6 +7,7 @@ import type {
   SesEligibilityException,
   SesMunicipality,
   SesPersonProfile,
+  SesReviewBatch,
   SesSettings,
 } from '@/types/sesHospedajes';
 import type { SesDraftFilters } from '@/lib/sesFilterPreferences';
@@ -294,5 +295,127 @@ export function useSesHospedajes(
     exportXml: exportXmlMutation,
     markBatchUploaded: markBatchUploadedMutation, recordBatchResult: recordBatchResultMutation,
     searchMunicipalities,
+  };
+}
+
+export function useSesDailyReview(selectedBatchId: string | null, enabled: boolean) {
+  const queryClient = useQueryClient();
+  const invalidateReviews = () => queryClient.invalidateQueries({ queryKey: ['ses-daily-reviews'] });
+  const invalidateDrafts = () => queryClient.invalidateQueries({ queryKey: ['ses-drafts'] });
+
+  const reviewsQuery = useQuery({
+    queryKey: ['ses-daily-reviews'],
+    queryFn: async () => unwrap(await apiInvoke<ServerEnvelope<{ batches: SesReviewBatch[]; total: number }>>(
+      'ses/reviews/list', { body: { limit: 30, offset: 0 } },
+    )),
+    enabled,
+    staleTime: 15_000,
+    refetchInterval: enabled ? 5 * 60_000 : false,
+  });
+
+  const detailQuery = useQuery({
+    queryKey: ['ses-daily-reviews', selectedBatchId],
+    queryFn: async () => unwrap(await apiInvoke<ServerEnvelope<SesReviewBatch>>(
+      'ses/reviews/detail', { body: { batchId: selectedBatchId! } },
+    )),
+    enabled: enabled && Boolean(selectedBatchId),
+    staleTime: 5_000,
+  });
+
+  const refresh = async () => {
+    await Promise.all([invalidateReviews(), invalidateDrafts()]);
+  };
+
+  const startDaily = useMutation({
+    mutationFn: async (input: { reviewDate?: string; runFirstStep?: boolean }) => unwrap(await apiInvoke<ServerEnvelope<{
+      batch: SesReviewBatch | null; skipped: boolean; busy?: boolean;
+    }>>('ses/reviews/daily/start', { body: { ...input, runFirstStep: input.runFirstStep ?? true }, timeoutMs: 120_000 })),
+    onSuccess: async (result) => {
+      await refresh();
+      toast.success(result.busy ? 'El lote queda en cola porque ya hay otra revisión en curso' : 'Revisión diaria iniciada o reanudada');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const startHistorical = useMutation({
+    mutationFn: async (input: { dateFrom: string; dateTo: string }) => unwrap(await apiInvoke<ServerEnvelope<{
+      batch: SesReviewBatch | null; skipped: boolean; busy?: boolean;
+    }>>('ses/reviews/historical/start', { body: { ...input, runFirstStep: true }, timeoutMs: 120_000 })),
+    onSuccess: async () => { await refresh(); toast.success('Revisión histórica iniciada o reanudada'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const continueReview = useMutation({
+    mutationFn: async (batchId: string) => unwrap(await apiInvoke<ServerEnvelope<{
+      batch: SesReviewBatch | null; skipped: boolean; busy?: boolean;
+    }>>('ses/reviews/continue', { body: { batchId }, timeoutMs: 120_000 })),
+    onSuccess: async (result) => {
+      await refresh();
+      toast.success(result.busy ? 'El lote sigue en cola; otro lote solapado conserva el turno' : 'Paso de revisión completado');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const accreditEvidence = useMutation({
+    mutationFn: async (input: { batchId: string; itemId: string; evidenceReference: string; evidenceGeneratedLiteral: string }) =>
+      unwrap(await apiInvoke<ServerEnvelope<{ itemId: string; retryable: boolean }>>(
+        'ses/reviews/evidence/accredit', { body: input },
+      )),
+    onSuccess: async () => { await refresh(); toast.success('Justificante acreditado; el ítem queda listo para reintentar'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const submitProposal = useMutation({
+    mutationFn: async (input: {
+      batchId: string; itemId: string; source: 'hubspot' | 'respond' | 'document';
+      externalSubmissionId: string; payload: Record<string, string | number | boolean | null>;
+      targetType: 'draft' | 'person' | 'pickup_location' | 'return_location'; targetId: string;
+      evidenceReference?: string; observedAt?: string;
+    }) => unwrap(await apiInvoke<ServerEnvelope<unknown>>('ses/reviews/proposals/submit', { body: input })),
+    onSuccess: async () => { await refresh(); toast.success('Propuesta registrada para revisión'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const decideProposal = useMutation({
+    mutationFn: async (input: { proposalId: string; decision: 'accept' | 'reject'; reason: string }) =>
+      unwrap(await apiInvoke<ServerEnvelope<unknown>>('ses/reviews/proposals/decide', { body: input })),
+    onSuccess: async () => { await refresh(); toast.success('Decisión de propuesta registrada y auditada'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const resolveConflict = useMutation({
+    mutationFn: async (input: { itemId: string; conflictKey: string; reason: string; evidenceReference: string }) =>
+      unwrap(await apiInvoke<ServerEnvelope<{ resolved: boolean; draft_id: string; ready_for_xml: boolean; open_conflict_count: number }>>(
+        'ses/reviews/conflicts/resolve', { body: input },
+      )),
+    onSuccess: async (result) => {
+      await refresh();
+      toast.success(result.ready_for_xml ? 'Contradicción resuelta; el expediente queda listo para XML' : 'Contradicción resuelta y auditada');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const recordGmailDraft = useMutation({
+    mutationFn: async (input: { batchId: string; gmailDraftReference: string }) =>
+      unwrap(await apiInvoke<ServerEnvelope<SesReviewBatch>>('ses/reviews/gmail-draft', { body: input })),
+    onSuccess: async () => { await invalidateReviews(); toast.success('Referencia del borrador de Gmail guardada sin enviar'); },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return {
+    batches: reviewsQuery.data?.batches ?? [],
+    total: reviewsQuery.data?.total ?? 0,
+    batch: detailQuery.data ?? null,
+    isLoading: reviewsQuery.isLoading || detailQuery.isLoading,
+    error: reviewsQuery.error ?? detailQuery.error ?? null,
+    refetch: async () => { await Promise.all([reviewsQuery.refetch(), detailQuery.refetch()]); },
+    startDaily,
+    startHistorical,
+    continueReview,
+    accreditEvidence,
+    submitProposal,
+    decideProposal,
+    resolveConflict,
+    recordGmailDraft,
   };
 }

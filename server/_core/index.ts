@@ -10,6 +10,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleOcrPlate } from "../ocrPlate";
 import { handleSyncRently } from "../syncRently";
+import { handleScheduledSesDailyReview } from "../sesHospedajes/dailyReviewHeartbeat";
 import { handleAiAssistant } from "../aiAssistant";
 import { handleRentlyHub } from "../rentlyHub";
 import { handleRentlyActions } from "../rentlyActions";
@@ -145,10 +146,15 @@ import {
 import { handlePlacesAutocomplete } from "../placesAutocompleteEndpoint";
 import {
   handleSesCreatePerson,
+  handleSesContinueDailyReview,
+  handleSesAccreditReviewEvidence,
+  handleSesDecideReviewProposal,
+  handleSesGetDailyReview,
   handleSesGetFilterPreferences,
   handleSesGetSettings,
   handleSesExportXml,
   handleSesListBatches,
+  handleSesListDailyReviews,
   handleSesListDrafts,
   handleSesListOfficialInventory,
   handleSesImportOfficialInventory,
@@ -160,8 +166,13 @@ import {
   handleSesPrepare,
   handleSesSyncDrafts,
   handleSesRecordBatchResult,
+  handleSesRecordReviewGmailDraft,
   handleSesRevalidate,
+  handleSesResolveReviewConflict,
   handleSesSearchMunicipalities,
+  handleSesStartDailyReview,
+  handleSesStartHistoricalReview,
+  handleSesSubmitReviewProposal,
   handleSesUpdateDraft,
   handleSesUpdateFilterPreferences,
   handleSesUpdateLocation,
@@ -597,6 +608,16 @@ async function startServer() {
   app.post('/api/ses/eligibility-exceptions/revoke', handleSesRevokeEligibilityException);
   app.post('/api/ses/settings/xsd', handleSesUploadOfficialXsd);
   app.post("/api/ses/settings/update", handleSesUpdateSettings);
+  app.post('/api/ses/reviews/daily/start', handleSesStartDailyReview);
+  app.post('/api/ses/reviews/historical/start', handleSesStartHistoricalReview);
+  app.post('/api/ses/reviews/continue', handleSesContinueDailyReview);
+  app.post('/api/ses/reviews/list', handleSesListDailyReviews);
+  app.post('/api/ses/reviews/detail', handleSesGetDailyReview);
+  app.post('/api/ses/reviews/gmail-draft', handleSesRecordReviewGmailDraft);
+  app.post('/api/ses/reviews/evidence/accredit', handleSesAccreditReviewEvidence);
+  app.post('/api/ses/reviews/proposals/submit', handleSesSubmitReviewProposal);
+  app.post('/api/ses/reviews/proposals/decide', handleSesDecideReviewProposal);
+  app.post('/api/ses/reviews/conflicts/resolve', handleSesResolveReviewConflict);
 
   // ─── External API (B2B) ──────────────────────────────────────────────────
   app.get("/api/external/v1", handleExternalTransferRoot);
@@ -619,6 +640,7 @@ async function startServer() {
   app.post("/api/scheduled/lost-found-expiry", handleScheduledLostFoundExpiry);
   app.post("/api/scheduled/rently-poll", handleScheduledRentlyPoll);
   app.post("/api/scheduled/rently-reservations", (req, res) => handleSyncRently(req, res, { scheduled: true }));
+  app.post("/api/scheduled/ses-daily-review", handleScheduledSesDailyReview);
   app.post("/api/scheduled/rently-enrich", handleScheduledRentlyEnrich);
   app.post("/api/scheduled/geofence-check", handleScheduledGeofenceCheck);
   app.post("/api/scheduled/xexun-poll", handleScheduledXexunPoll);

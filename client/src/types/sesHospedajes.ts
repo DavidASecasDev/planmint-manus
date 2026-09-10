@@ -97,6 +97,14 @@ export interface SesContractDraft {
   readyForXml: boolean;
   missingFields: SesValidationIssue[];
   invalidFields: SesValidationIssue[];
+  reviewConflicts?: Array<{
+    field: string;
+    code?: string;
+    currentValue?: unknown;
+    proposedValue?: unknown;
+    source?: 'rently' | 'hubspot' | 'respond' | 'document';
+    protectedManual?: boolean;
+  }>;
   sourceByField: Record<string, 'manual' | 'rently' | 'derived'>;
   syncConflicts: Array<{
     field: string;
@@ -208,4 +216,131 @@ export interface SesMunicipality {
   name: string;
   province_code: string;
   province_name: string;
+}
+
+export type SesReviewBatchStatus = 'queued' | 'running' | 'partial' | 'completed' | 'failed' | 'cancelled';
+export type SesReviewItemStatus = 'pending' | 'verified_delivery' | 'missing_delivery_evidence' | 'outside_period' | 'date_mismatch' | 'evidence_conflict' | 'failed';
+export type SesReviewSourceType = 'rently' | 'hubspot' | 'respond' | 'document';
+
+export interface SesReviewSource {
+  id: string;
+  source: SesReviewSourceType;
+  status: 'pending' | 'consulted' | 'inaccessible';
+  evidence_reference: string | null;
+  observed_at: string | null;
+  proposed_changes?: Record<string, unknown>;
+  error_summary: string | null;
+}
+
+export interface SesReviewProposal {
+  id: string;
+  source: Exclude<SesReviewSourceType, 'rently'>;
+  external_submission_id: string;
+  status: 'proposed' | 'processing' | 'accepted' | 'rejected' | 'superseded';
+  payload: Record<string, unknown>;
+  target_type: 'draft' | 'person' | 'pickup_location' | 'return_location';
+  target_id: string;
+  target_updated_at: string;
+  created_at: string;
+  decided_at: string | null;
+  decision_reason: string | null;
+}
+
+export interface SesReviewConflict {
+  conflictKey: string;
+  status: 'open' | 'resolved';
+  field?: string;
+  code?: string;
+  currentValue?: unknown;
+  proposedValue?: unknown;
+  source?: string;
+  targetType?: 'draft' | 'person' | 'pickup_location' | 'return_location';
+  targetId?: string | null;
+  protectedManual?: boolean;
+  resolvedValue?: unknown;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionReason?: string;
+  resolutionEvidenceReference?: string | null;
+}
+
+export interface SesReviewItem {
+  id: string;
+  external_booking_id: number;
+  reservation_id: string | null;
+  draft_id: string | null;
+  status: SesReviewItemStatus;
+  planned_from_literal: string | null;
+  planned_from_at: string | null;
+  delivery_actual_literal: string | null;
+  delivery_actual_at: string | null;
+  dropoff_actual_literal: string | null;
+  dropoff_actual_at: string | null;
+  evidence_reference: string | null;
+  evidence_generated_literal: string | null;
+  evidence_generated_at: string | null;
+  evidence_observed_at: string | null;
+  rently_status_code: number | null;
+  delivery_branch_office_id: number | null;
+  is_transfer: boolean | null;
+  applied_changes: Record<string, unknown>;
+  proposed_changes: Record<string, unknown>;
+  conflicts: SesReviewConflict[];
+  retry_count: number;
+  last_attempt_at: string | null;
+  next_retry_at: string | null;
+  next_action: string | null;
+  last_error: string | null;
+  draft?: {
+    id: string;
+    validation_errors?: SesValidationIssue[] | null;
+    manual_fields?: string[] | null;
+    eligibility_snapshot?: Record<string, unknown> | null;
+    holder_profile_id?: string | null;
+    primary_driver_profile_id?: string | null;
+    secondary_driver_profile_id?: string | null;
+    pickup_location_id?: string | null;
+    return_location_id?: string | null;
+    holder?: Record<string, unknown> | null;
+    primary_driver?: Record<string, unknown> | null;
+    secondary_driver?: Record<string, unknown> | null;
+    pickup_location?: Record<string, unknown> | null;
+    return_location?: Record<string, unknown> | null;
+  } | null;
+  sources?: SesReviewSource[];
+  proposals: SesReviewProposal[];
+}
+
+export interface SesReviewBatch {
+  id: string;
+  batch_kind: 'daily' | 'historical';
+  review_date: string;
+  historical_from: string | null;
+  historical_to: string | null;
+  period_start: string;
+  period_end: string;
+  status: SesReviewBatchStatus;
+  phase: 'discover_deliveries' | 'fetch_details' | 'upsert_drafts' | 'await_external_sources' | 'completed';
+  progress: {
+    discovered?: number;
+    processed?: number;
+    total?: number | null;
+    coverageComplete?: boolean;
+    coverageReason?: string | null;
+    rediscoveryQueued?: boolean;
+    readyForXml?: number;
+  } | null;
+  pages_complete: boolean;
+  coverage_complete: boolean;
+  candidate_count: number;
+  processed_count: number;
+  verified_count: number;
+  pending_count: number;
+  error_count: number;
+  gmail_draft_reference: string | null;
+  error_summary: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  items?: SesReviewItem[];
 }

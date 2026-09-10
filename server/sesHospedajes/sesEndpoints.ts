@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
@@ -20,11 +21,34 @@ import {
   resolveSesVehicleData,
 } from './vehicleResolver';
 import {
+  buildRentlyDetailUpdateFields,
   enrichReservationsFromRentlyForSes,
   extractRentlyContractVehicleData,
   loadRentlyDeliveredCandidatesForSes,
   type ReservationForSesEnrichment,
 } from './rentlyEnrichment';
+import type { RentlyBookingDetail } from '../syncRently';
+import {
+  evaluateSesReviewFieldUpdate,
+  evaluateSesPickupAtMigration,
+  analyzeSesIdentityLicenceContradictions,
+  assertSesReviewProposalTarget,
+  getMadridDayRange,
+  getMadridPeriodRange,
+  getSesReviewConflictKey,
+  isSesReviewConflictOpen,
+  mergeSesReviewItemHistory,
+  normalizeRentlyDateTimeForStorage,
+  planSesReviewProposalApplication,
+  previousMadridDate,
+  projectSesDraftPersistence,
+} from './dailyReview';
+import {
+  getSesReviewBatchDetail,
+  runSesReviewBatchStep,
+  type PrepareVerifiedSesDraft,
+  type SesReviewReservationRow,
+} from './dailyReviewService';
 import { intersectRentlyPlanMintCandidates } from './candidateIntersection';
 import { calculateSesDraftContentHash, getActualChangedValues } from './draftVersioning';
 import {
@@ -76,6 +100,68 @@ const PrepareSchema = z.object({
 const SyncDraftsSchema = z.object({
   offset: z.number().int().min(0).default(0),
   limit: z.number().int().min(1).max(100).default(50),
+}).strict();
+
+const SesReviewDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+const StartSesDailyReviewSchema = z.object({
+  reviewDate: SesReviewDateSchema.optional(),
+  runFirstStep: z.boolean().default(true),
+}).strict();
+
+const StartSesHistoricalReviewSchema = z.object({
+  dateFrom: SesReviewDateSchema,
+  dateTo: SesReviewDateSchema,
+  runFirstStep: z.boolean().default(true),
+}).strict();
+
+const SesReviewBatchIdSchema = z.object({ batchId: z.string().uuid() }).strict();
+
+const ListSesReviewBatchesSchema = z.object({
+  status: z.enum(['queued','running','partial','completed','failed','cancelled']).optional(),
+  limit: z.number().int().min(1).max(100).default(20),
+  offset: z.number().int().min(0).default(0),
+}).strict();
+
+const RecordSesReviewGmailDraftSchema = z.object({
+  batchId: z.string().uuid(),
+  gmailDraftReference: z.string().trim().min(3).max(250),
+}).strict();
+
+const SesReviewProposalPayloadSchema = z.record(z.string(), z.union([
+  z.string().max(500), z.number(), z.boolean(), z.null(),
+])).refine((value) => Object.keys(value).length <= 50, 'Demasiados campos propuestos');
+
+const SubmitSesReviewProposalSchema = z.object({
+  batchId: z.string().uuid(),
+  itemId: z.string().uuid(),
+  source: z.enum(['hubspot', 'respond', 'document']),
+  externalSubmissionId: z.string().trim().min(1).max(200),
+  targetType: z.enum(['draft', 'person', 'pickup_location', 'return_location']),
+  targetId: z.string().uuid(),
+  payload: SesReviewProposalPayloadSchema,
+  evidenceReference: z.string().trim().min(1).max(250).optional(),
+  observedAt: z.string().datetime({ offset: true }).optional(),
+}).strict();
+
+const DecideSesReviewProposalSchema = z.object({
+  proposalId: z.string().uuid(),
+  decision: z.enum(['accept', 'reject']),
+  reason: z.string().trim().min(3).max(500),
+}).strict();
+
+const AccreditSesReviewEvidenceSchema = z.object({
+  batchId: z.string().uuid(),
+  itemId: z.string().uuid(),
+  evidenceReference: z.string().trim().min(3).max(250),
+  evidenceGeneratedLiteral: z.string().trim().min(19).max(40),
+}).strict();
+
+const ResolveSesReviewConflictSchema = z.object({
+  itemId: z.string().uuid(),
+  conflictKey: z.string().min(3).max(2000),
+  reason: z.string().trim().min(3).max(500),
+  evidenceReference: z.string().trim().min(3).max(250),
 }).strict();
 
 const ListSchema = z.object({
@@ -651,6 +737,321 @@ async function audit(
     metadata,
     performed_by: ctx.userId,
   });
+}
+
+const DAILY_REVIEW_DRAFT_FIELDS = [
+  'reference', 'contract_date', 'pickup_at', 'return_at',
+  'pickup_location_id', 'return_location_id', 'holder_profile_id', 'primary_driver_profile_id',
+  'payment_type', 'vehicle_category', 'vehicle_type', 'vehicle_brand', 'vehicle_model',
+  'vehicle_plate', 'vehicle_vin', 'vehicle_color', 'km_pickup', 'km_return',
+] as const;
+
+export async function prepareSesDraftFromVerifiedReview(
+  ctx: AuthContext,
+  reservationInput: SesReviewReservationRow,
+  detail: RentlyBookingDetail,
+  assertLease: () => Promise<void>,
+  batchId: string,
+  leaseToken: string,
+  existingItemConflicts: Array<Record<string, unknown>> = [],
+  casAttempt = 0,
+) {
+  const reservation = {
+    ...reservationInput,
+    ...buildRentlyDetailUpdateFields(detail, []),
+  } as Record<string, any>;
+  const { data: existing, error: existingError } = await ctx.serviceClient.from('ses_contract_drafts')
+    .select('*,holder:ses_person_profiles!ses_contract_drafts_holder_profile_id_fkey(*)')
+    .eq('organization_id', ctx.organizationId).eq('reservation_id', reservation.id).maybeSingle();
+  if (existingError) throw existingError;
+  if (existing && isSesDraftLocked(existing.status)) {
+    return { draftId: existing.id, appliedChanges: {}, proposedChanges: {}, conflicts: [] };
+  }
+
+  let person = existing?.holder ?? null;
+  if (!person) {
+    await assertLease();
+    person = await ensurePersonFromReservation(ctx, reservation);
+  }
+  const { data: settings } = await ctx.serviceClient.from('ses_settings').select('*')
+    .eq('organization_id', ctx.organizationId).maybeSingle();
+  await assertLease();
+  const pickupLocation = await ensureLocation(
+    ctx,
+    detail.DeliveryPlace?.Name ?? reservation.lugar_entrega,
+    detail.DeliveryPlace?.Address ?? reservation.lugar_entrega_direccion,
+    detail.DeliveryPlace?.City ?? reservation.lugar_entrega_ciudad,
+    settings?.establishment_code,
+  );
+  await assertLease();
+  const returnLocation = await ensureLocation(
+    ctx,
+    detail.ReturnPlace?.Name ?? reservation.lugar_devolucion,
+    detail.ReturnPlace?.Address ?? reservation.lugar_devolucion_direccion,
+    detail.ReturnPlace?.City ?? reservation.lugar_devolucion_ciudad,
+    settings?.establishment_code,
+  );
+  const { data: fleetVehicles, error: fleetError } = await ctx.serviceClient.from('fleet_vehicles').select('*')
+    .eq('organization_id', ctx.organizationId).eq('matricula', reservation.auto ?? '');
+  if (fleetError) throw fleetError;
+  const vehicle = resolveSesVehicleData({ reservation, fleetVehicles: fleetVehicles ?? [], detail });
+  const contractVehicle = extractRentlyContractVehicleData(detail);
+  const plannedPickup = normalizeRentlyDateTimeForStorage(detail.FromDate ?? reservation.desde ?? null);
+  const actualDelivery = normalizeRentlyDateTimeForStorage(detail.DeliveryInfo?.Date ?? null);
+  const plannedReturn = normalizeRentlyDateTimeForStorage(detail.ToDate ?? reservation.hasta ?? null);
+  const actualDropoff = normalizeRentlyDateTimeForStorage(detail.DropoffInfo?.Date ?? null);
+  const automatic: Record<string, unknown> = {
+    reference: String(detail.Id || reservation.external_reservation_id || reservation.id).slice(0, 50),
+    contract_date: detail.CreationDate?.slice(0, 10) ?? reservation.rently_creation_date?.slice(0, 10) ?? null,
+    pickup_at: actualDelivery.normalizedAt,
+    return_at: actualDropoff.normalizedAt ?? plannedReturn.normalizedAt,
+    pickup_location_id: pickupLocation?.id ?? null,
+    return_location_id: returnLocation?.id ?? null,
+    holder_profile_id: person?.id ?? null,
+    primary_driver_profile_id: person?.id ?? null,
+    payment_type: settings?.default_payment_type ?? null,
+    vehicle_category: vehicle.vehicle_category,
+    vehicle_type: settings?.default_vehicle_type ?? 'TURISMO',
+    vehicle_brand: vehicle.vehicle_brand,
+    vehicle_model: vehicle.vehicle_model,
+    vehicle_plate: vehicle.vehicle_plate,
+    vehicle_vin: vehicle.vehicle_vin ?? contractVehicle.vehicleVin,
+    vehicle_color: vehicle.vehicle_color,
+    km_pickup: vehicle.km_pickup ?? contractVehicle.pickupKm,
+    km_return: vehicle.km_return ?? contractVehicle.returnKm,
+  };
+  const manualFields = Array.isArray(existing?.manual_fields) ? existing.manual_fields : [];
+  const values: Record<string, unknown> = projectSesDraftPersistence(existing);
+  const appliedChanges: Record<string, unknown> = {};
+  const proposedChanges: Record<string, unknown> = {};
+  const conflicts: Array<Record<string, unknown>> = [];
+  const rentlyIdentityProposal = {
+    document_type: mapReservationDocumentType(reservation.tipo_documento_cliente),
+    document_number: normalizeDocumentNumber(reservation.documento_cliente),
+    first_name: reservation.cliente_nombre ?? null,
+    first_surname: reservation.cliente_apellido ?? null,
+    licence_number: reservation.cliente_carnet_numero ?? null,
+    licence_valid_until: reservation.cliente_carnet_expiracion ?? null,
+    licence_country_code: reservation.cliente_carnet_pais ?? null,
+  };
+  const identityAnalysis = analyzeSesIdentityLicenceContradictions({
+    current: person ?? {},
+    proposed: rentlyIdentityProposal,
+    source: 'rently',
+    manualFields: person?.manual_fields,
+  });
+  conflicts.push(...identityAnalysis.conflicts.map((conflict) => ({
+    ...conflict,
+    targetType: 'person',
+    targetId: person?.id ?? null,
+    source: 'rently',
+  })));
+  if (identityAnalysis.conflicts.length) proposedChanges.holder = rentlyIdentityProposal;
+  const pickupMigration = evaluateSesPickupAtMigration({
+    currentPickupAt: existing?.pickup_at,
+    reservationPlannedAt: reservation.desde,
+    rentlyPlannedAt: plannedPickup.normalizedAt ?? plannedPickup.literal,
+    actualDeliveryAt: actualDelivery.normalizedAt ?? actualDelivery.literal,
+    manualFields,
+    currentSource: existing?.pickup_at_source,
+  });
+  if (pickupMigration.action === 'apply_actual_delivery') {
+    values.pickup_at = actualDelivery.normalizedAt;
+    values.pickup_at_source = 'rently_actual';
+    appliedChanges.pickup_at = actualDelivery.normalizedAt;
+    appliedChanges.pickup_at_source = 'rently_actual';
+  } else if (pickupMigration.action === 'conflict') {
+    proposedChanges.pickup_at = actualDelivery.normalizedAt ?? actualDelivery.literal;
+    conflicts.push({
+      field: 'pickup_at',
+      currentValue: existing?.pickup_at ?? null,
+      proposedValue: actualDelivery.normalizedAt ?? actualDelivery.literal,
+      protectedManual: pickupMigration.reason === 'manual',
+      reason: pickupMigration.reason,
+      targetType: 'draft',
+      targetId: existing?.id ?? null,
+      source: 'rently',
+    });
+  }
+  if (!existing?.planned_pickup_literal && plannedPickup.literal) {
+    values.planned_pickup_literal = plannedPickup.literal;
+    values.planned_pickup_at = plannedPickup.normalizedAt;
+    appliedChanges.planned_pickup_literal = plannedPickup.literal;
+    appliedChanges.planned_pickup_at = plannedPickup.normalizedAt;
+  }
+  if (!existing?.actual_delivery_literal && actualDelivery.literal) {
+    values.actual_delivery_literal = actualDelivery.literal;
+    values.actual_delivery_at = actualDelivery.normalizedAt;
+    appliedChanges.actual_delivery_literal = actualDelivery.literal;
+    appliedChanges.actual_delivery_at = actualDelivery.normalizedAt;
+  }
+  if (!existing?.planned_return_literal && plannedReturn.literal) {
+    values.planned_return_literal = plannedReturn.literal;
+    values.planned_return_at = plannedReturn.normalizedAt;
+    appliedChanges.planned_return_literal = plannedReturn.literal;
+    appliedChanges.planned_return_at = plannedReturn.normalizedAt;
+  }
+  if (!existing?.actual_dropoff_literal && actualDropoff.literal) {
+    values.actual_dropoff_literal = actualDropoff.literal;
+    values.actual_dropoff_at = actualDropoff.normalizedAt;
+    appliedChanges.actual_dropoff_literal = actualDropoff.literal;
+    appliedChanges.actual_dropoff_at = actualDropoff.normalizedAt;
+  }
+  if (actualDropoff.normalizedAt) {
+    const returnMigration = evaluateSesPickupAtMigration({
+      field: 'return_at',
+      currentPickupAt: existing?.return_at,
+      reservationPlannedAt: reservation.hasta,
+      rentlyPlannedAt: plannedReturn.normalizedAt ?? plannedReturn.literal,
+      actualDeliveryAt: actualDropoff.normalizedAt,
+      manualFields,
+      currentSource: existing?.return_at_source,
+    });
+    if (returnMigration.action === 'apply_actual_delivery') {
+      values.return_at = actualDropoff.normalizedAt;
+      values.return_at_source = 'rently_actual';
+      appliedChanges.return_at = actualDropoff.normalizedAt;
+      appliedChanges.return_at_source = 'rently_actual';
+    } else if (returnMigration.action === 'conflict') {
+      proposedChanges.return_at = actualDropoff.normalizedAt;
+      conflicts.push({
+        field: 'return_at', currentValue: existing?.return_at ?? null,
+        proposedValue: actualDropoff.normalizedAt, protectedManual: returnMigration.reason === 'manual',
+        reason: returnMigration.reason, targetType: 'draft', targetId: existing?.id ?? null, source: 'rently',
+      });
+    }
+  } else if (plannedReturn.normalizedAt) {
+    const plannedReturnMigration = evaluateSesPickupAtMigration({
+      field: 'return_at',
+      currentPickupAt: existing?.return_at,
+      reservationPlannedAt: reservation.hasta,
+      rentlyPlannedAt: plannedReturn.normalizedAt,
+      actualDeliveryAt: plannedReturn.normalizedAt,
+      manualFields,
+      currentSource: existing?.return_at_source,
+    });
+    if (plannedReturnMigration.action === 'apply_actual_delivery') {
+      values.return_at = plannedReturn.normalizedAt;
+      values.return_at_source = 'rently_planned';
+      appliedChanges.return_at = plannedReturn.normalizedAt;
+      appliedChanges.return_at_source = 'rently_planned';
+    } else if (plannedReturnMigration.action === 'conflict') {
+      proposedChanges.return_at = plannedReturn.normalizedAt;
+      conflicts.push({
+        field: 'return_at', currentValue: existing?.return_at ?? null,
+        proposedValue: plannedReturn.normalizedAt, protectedManual: plannedReturnMigration.reason === 'manual',
+        reason: plannedReturnMigration.reason, targetType: 'draft', targetId: existing?.id ?? null, source: 'rently',
+      });
+    }
+  }
+  for (const field of DAILY_REVIEW_DRAFT_FIELDS.filter((candidate) => !['pickup_at', 'return_at'].includes(candidate))) {
+    const decision = evaluateSesReviewFieldUpdate({
+      field,
+      manualFields,
+      currentValue: existing?.[field] ?? null,
+      incomingValue: automatic[field],
+    });
+    if (decision.action === 'apply') {
+      values[field] = automatic[field];
+      appliedChanges[field] = automatic[field];
+    } else if (decision.action === 'conflict' && decision.conflict) {
+      proposedChanges[field] = automatic[field];
+      conflicts.push({ ...decision.conflict, targetType: 'draft', targetId: existing?.id ?? null, source: 'rently' });
+    }
+  }
+  Object.assign(values, {
+    organization_id: ctx.organizationId,
+    reservation_id: reservation.id,
+    external_booking_id: Number(detail.Id) || Number(reservation.external_reservation_id) || null,
+    manual_fields: manualFields,
+    updated_by: ctx.userId,
+    ...(existing ? {} : { created_by: ctx.userId }),
+  });
+  const snapshotConflicts = Array.isArray(existing?.eligibility_snapshot?.daily_review_conflicts)
+    ? existing.eligibility_snapshot.daily_review_conflicts as Array<Record<string, unknown>>
+    : [];
+  const mergedConflicts = mergeSesReviewItemHistory({
+    existingConflicts: [...snapshotConflicts, ...existingItemConflicts],
+    incomingConflicts: conflicts,
+  }).conflicts;
+  conflicts.splice(0, conflicts.length, ...mergedConflicts);
+  const issues = validateSesDraft({
+    ...values,
+    holder: person,
+    primary_driver: person,
+    pickup_location: pickupLocation,
+    return_location: returnLocation,
+  } as SesDraftValidationInput);
+  const openConflicts = conflicts.filter(isSesReviewConflictOpen);
+  const operational = deriveSesOperationalState({ validationIssues: issues, blockingConflictCount: openConflicts.length });
+  values.validation_errors = issues;
+  values.is_complete = operational.readyForXml;
+  values.is_eligible = true;
+  values.eligibility_errors = [];
+  values.ready_for_xml = operational.readyForXml;
+  values.status = operational.status;
+  values.last_prepared_at = new Date().toISOString();
+  values.eligibility_snapshot = {
+    ...(existing?.eligibility_snapshot && typeof existing.eligibility_snapshot === 'object' ? existing.eligibility_snapshot : {}),
+    daily_review_conflicts: conflicts,
+    actual_delivery_at: detail.DeliveryInfo?.Date ?? null,
+    review_source: 'rently_detail',
+  };
+  const nextContentHash = calculateSesDraftContentHash(values);
+  const contentChanged = !existing || existing.content_hash !== nextContentHash;
+  values.draft_version = existing ? existing.draft_version + (contentChanged ? 1 : 0) : 1;
+  values.content_hash = nextContentHash;
+  await assertLease();
+  let saved: { id: string };
+  if (existing) {
+    const { data: casRows, error: casError } = await ctx.serviceClient.rpc('apply_ses_verified_review_draft', {
+      p_organization_id: ctx.organizationId,
+      p_batch_id: batchId,
+      p_lease_token: leaseToken,
+      p_draft_id: existing.id,
+      p_expected_updated_at: existing.updated_at,
+      p_expected_draft_version: existing.draft_version,
+      p_values: projectSesDraftPersistence(values),
+      p_applied_changes: appliedChanges,
+      p_conflict_count: conflicts.length,
+      p_pickup_migration: pickupMigration.action,
+      p_actor_id: ctx.userId,
+    });
+    if (casError) throw casError;
+    const result = Array.isArray(casRows) ? casRows[0] : casRows;
+    if (!result?.applied) {
+      if (casAttempt >= 1) throw new Error('El expediente cambió durante la revisión; vuelve a reintentar el ítem');
+      return prepareSesDraftFromVerifiedReview(ctx, reservationInput, detail, assertLease, batchId, leaseToken, existingItemConflicts, casAttempt + 1);
+    }
+    saved = { id: result.draft_id };
+  } else {
+    const { data: inserted, error: saveError } = await ctx.serviceClient.from('ses_contract_drafts')
+      .insert(projectSesDraftPersistence(values)).select('id').single();
+    if (saveError) throw saveError;
+    saved = inserted;
+    if (Object.keys(appliedChanges).length) {
+      await assertLease();
+      await persistSesFieldAudit(ctx.serviceClient, buildSesFieldAuditRows({
+        organizationId: ctx.organizationId,
+        entityType: 'draft',
+        entityId: saved.id,
+        source: 'rently',
+        actorUserId: ctx.userId,
+        previous: {},
+        changes: appliedChanges,
+        reason: 'Revisión diaria acreditada por detalle contractual Rently',
+      }));
+      await audit(ctx, 'draft', saved.id, 'daily_review_fields_applied', Object.keys(appliedChanges), {
+        conflict_count: conflicts.length,
+        pickup_migration: pickupMigration.action,
+      });
+    }
+  }
+  return { draftId: saved.id, appliedChanges, proposedChanges, conflicts };
+}
+
+export function buildSesReviewDraftPreparer(ctx: AuthContext): PrepareVerifiedSesDraft {
+  return ({ reservation, detail, assertLease, batchId, leaseToken, existingConflicts }) => prepareSesDraftFromVerifiedReview(ctx, reservation, detail, assertLease, batchId, leaseToken, existingConflicts);
 }
 
 export async function handleSesSyncDrafts(req: Request, res: Response) {
@@ -2210,5 +2611,525 @@ export async function handleSesExportXml(req: Request, res: Response) {
       } catch { /* best-effort rollback */ }
     }
     return sendError(res, error, 'export-xml');
+  }
+}
+
+function dayDifference(dateFrom: string, dateTo: string) {
+  return Math.round((Date.parse(`${dateTo}T00:00:00Z`) - Date.parse(`${dateFrom}T00:00:00Z`)) / 86_400_000);
+}
+
+async function assertSesDailyReviewSchema(ctx: AuthContext) {
+  const { error } = await ctx.serviceClient.from('ses_review_batches').select('id').limit(1);
+  if (!error) return;
+  const unavailable = new Error('La revisión diaria SES requiere aplicar primero la migración propuesta 20260910100000') as Error & { status?: number };
+  unavailable.status = 503;
+  throw unavailable;
+}
+
+async function createOrResumeSesReviewBatch(input: {
+  ctx: AuthContext;
+  reviewDate: string;
+  periodStart: string;
+  periodEnd: string;
+  batchKind: 'daily' | 'historical';
+  sourceChannel: 'manual' | 'historical';
+  historicalFrom?: string | null;
+  historicalTo?: string | null;
+}) {
+  const { data, error } = await input.ctx.serviceClient.rpc('create_or_resume_ses_review_batch', {
+    p_organization_id: input.ctx.organizationId,
+    p_review_date: input.reviewDate,
+    p_period_start: input.periodStart,
+    p_period_end: input.periodEnd,
+    p_batch_kind: input.batchKind,
+    p_source_channel: input.sourceChannel,
+    p_created_by: input.ctx.userId,
+    p_historical_from: input.historicalFrom ?? null,
+    p_historical_to: input.historicalTo ?? null,
+    p_schedule_task_uid: null,
+  });
+  if (error) throw error;
+  const batch = Array.isArray(data) ? data[0] : data;
+  if (!batch?.id) throw new Error('No se pudo crear ni reanudar el lote de revisión');
+  return batch;
+}
+
+export async function handleSesStartDailyReview(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = StartSesDailyReviewSchema.parse(req.body ?? {});
+    const reviewDate = input.reviewDate ?? previousMadridDate();
+    const period = getMadridDayRange(reviewDate);
+    const batch = await createOrResumeSesReviewBatch({
+      ctx,
+      reviewDate,
+      periodStart: period.start,
+      periodEnd: period.end,
+      batchKind: 'daily',
+      sourceChannel: 'manual',
+    });
+    await audit(ctx, 'review_batch', batch.id, 'daily_review_started_or_resumed', ['status', 'review_date'], {
+      review_date: reviewDate,
+      source_channel: 'manual',
+    });
+    const result = input.runFirstStep && !['completed', 'cancelled'].includes(batch.status)
+      ? await runSesReviewBatchStep({
+        serviceClient: ctx.serviceClient,
+        organizationId: ctx.organizationId,
+        batchId: batch.id,
+        actorUserId: ctx.userId,
+        prepareVerifiedDraft: buildSesReviewDraftPreparer(ctx),
+      })
+      : { batch, skipped: false };
+    return res.json({ data: result, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-start');
+  }
+}
+
+export async function handleSesStartHistoricalReview(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = StartSesHistoricalReviewSchema.parse(req.body);
+    const difference = dayDifference(input.dateFrom, input.dateTo);
+    if (!Number.isFinite(difference) || difference < 0 || difference > 90) {
+      const invalid = new Error('La revisión histórica debe abarcar entre 1 y 91 días naturales') as Error & { status?: number };
+      invalid.status = 422;
+      throw invalid;
+    }
+    const period = getMadridPeriodRange(input.dateFrom, input.dateTo);
+    const batch = await createOrResumeSesReviewBatch({
+      ctx,
+      reviewDate: input.dateTo,
+      periodStart: period.start,
+      periodEnd: period.end,
+      batchKind: 'historical',
+      sourceChannel: 'historical',
+      historicalFrom: input.dateFrom,
+      historicalTo: input.dateTo,
+    });
+    await audit(ctx, 'review_batch', batch.id, 'historical_review_started_or_resumed', ['status', 'historical_from', 'historical_to'], {
+      date_from: input.dateFrom,
+      date_to: input.dateTo,
+    });
+    const result = input.runFirstStep && !['completed', 'cancelled'].includes(batch.status)
+      ? await runSesReviewBatchStep({
+        serviceClient: ctx.serviceClient,
+        organizationId: ctx.organizationId,
+        batchId: batch.id,
+        actorUserId: ctx.userId,
+        prepareVerifiedDraft: buildSesReviewDraftPreparer(ctx),
+      })
+      : { batch, skipped: false };
+    return res.json({ data: result, error: null });
+  } catch (error) {
+    return sendError(res, error, 'historical-review-start');
+  }
+}
+
+export async function handleSesContinueDailyReview(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = SesReviewBatchIdSchema.parse(req.body);
+    const result = await runSesReviewBatchStep({
+      serviceClient: ctx.serviceClient,
+      organizationId: ctx.organizationId,
+      batchId: input.batchId,
+      actorUserId: ctx.userId,
+      prepareVerifiedDraft: buildSesReviewDraftPreparer(ctx),
+    });
+    await audit(ctx, 'review_batch', input.batchId, 'daily_review_continued', ['status', 'cursor']);
+    return res.json({ data: result, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-continue');
+  }
+}
+
+export async function handleSesListDailyReviews(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.view');
+    await assertSesDailyReviewSchema(ctx);
+    const input = ListSesReviewBatchesSchema.parse(req.body ?? {});
+    let query = ctx.serviceClient.from('ses_review_batches').select('*', { count: 'exact' })
+      .eq('organization_id', ctx.organizationId)
+      .order('created_at', { ascending: false })
+      .range(input.offset, input.offset + input.limit - 1);
+    if (input.status) query = query.eq('status', input.status);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return res.json({ data: { batches: data ?? [], total: count ?? 0 }, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-list');
+  }
+}
+
+export async function handleSesGetDailyReview(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.view');
+    await assertSesDailyReviewSchema(ctx);
+    const input = SesReviewBatchIdSchema.parse(req.body);
+    const data = await getSesReviewBatchDetail(ctx.serviceClient, ctx.organizationId, input.batchId);
+    return res.json({ data, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-detail');
+  }
+}
+
+export async function handleSesRecordReviewGmailDraft(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = RecordSesReviewGmailDraftSchema.parse(req.body);
+    const { data, error } = await ctx.serviceClient.from('ses_review_batches').update({
+      gmail_draft_reference: input.gmailDraftReference,
+      updated_by: ctx.userId,
+    }).eq('id', input.batchId).eq('organization_id', ctx.organizationId).select('*').single();
+    if (error) throw error;
+    await audit(ctx, 'review_batch', input.batchId, 'gmail_draft_reference_recorded', ['gmail_draft_reference']);
+    return res.json({ data, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-gmail-draft');
+  }
+}
+
+function stableReviewPayload(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableReviewPayload);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => [key, stableReviewPayload(nested)]));
+  }
+  return value;
+}
+
+async function updateSesReviewSource(input: {
+  ctx: AuthContext;
+  batchId: string;
+  itemId: string;
+  source: 'hubspot' | 'respond' | 'document';
+  status: 'pending' | 'consulted' | 'inaccessible';
+  proposedChanges?: Record<string, unknown>;
+  evidenceReference?: string | null;
+  observedAt?: string | null;
+}) {
+  const { data: existing, error: readError } = await input.ctx.serviceClient.from('ses_review_item_sources')
+    .select('id,proposed_changes').eq('organization_id', input.ctx.organizationId)
+    .eq('item_id', input.itemId).eq('source', input.source).maybeSingle();
+  if (readError) throw readError;
+  const values = {
+    organization_id: input.ctx.organizationId,
+    batch_id: input.batchId,
+    item_id: input.itemId,
+    source: input.source,
+    status: input.status,
+    proposed_changes: { ...(existing?.proposed_changes ?? {}), ...(input.proposedChanges ?? {}) },
+    evidence_reference: input.evidenceReference,
+    observed_at: input.observedAt,
+    error_summary: null,
+    updated_by: input.ctx.userId,
+  };
+  const query = existing
+    ? input.ctx.serviceClient.from('ses_review_item_sources').update(values).eq('id', existing.id)
+    : input.ctx.serviceClient.from('ses_review_item_sources').insert(values);
+  const { error } = await query;
+  if (error) throw error;
+}
+
+export async function handleSesSubmitReviewProposal(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = SubmitSesReviewProposalSchema.parse(req.body);
+    const { data: item, error: itemError } = await ctx.serviceClient.from('ses_review_items')
+      .select('id,batch_id,draft_id').eq('id', input.itemId).eq('batch_id', input.batchId)
+      .eq('organization_id', ctx.organizationId).single();
+    if (itemError || !item) throw itemError ?? new Error('Ítem de revisión no encontrado');
+    if (!item.draft_id) {
+      const missing = new Error('La propuesta requiere un borrador SES vinculado') as Error & { status?: number };
+      missing.status = 409;
+      throw missing;
+    }
+    const { data: draft, error: draftError } = await ctx.serviceClient.from('ses_contract_drafts')
+      .select('id,holder_profile_id,primary_driver_profile_id,secondary_driver_profile_id,pickup_location_id,return_location_id')
+      .eq('id', item.draft_id).eq('organization_id', ctx.organizationId).single();
+    if (draftError || !draft) throw draftError ?? new Error('Borrador SES no encontrado');
+    const allowedFields = assertSesReviewProposalTarget({ targetType: input.targetType, targetId: input.targetId, draft });
+    const unexpectedFields = Object.keys(input.payload).filter((field) => !allowedFields.includes(field as never));
+    if (unexpectedFields.length) {
+      const invalid = new Error(`Campos no permitidos para ${input.targetType}: ${unexpectedFields.join(', ')}`) as Error & { status?: number };
+      invalid.status = 422;
+      throw invalid;
+    }
+    const targetTable = input.targetType === 'draft' ? 'ses_contract_drafts'
+      : input.targetType === 'person' ? 'ses_person_profiles' : 'ses_locations';
+    const { data: target, error: targetError } = await ctx.serviceClient.from(targetTable)
+      .select('*').eq('id', input.targetId).eq('organization_id', ctx.organizationId).single();
+    if (targetError || !target?.updated_at) throw targetError ?? new Error('Destinatario de propuesta no encontrado');
+    const requestHash = sha256Utf8(JSON.stringify(stableReviewPayload({
+      source: input.source,
+      externalSubmissionId: input.externalSubmissionId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      payload: input.payload,
+      evidenceReference: input.evidenceReference ?? null,
+      observedAt: input.observedAt ?? null,
+    })));
+    const values = {
+      organization_id: ctx.organizationId,
+      batch_id: input.batchId,
+      item_id: input.itemId,
+      source: input.source,
+      external_submission_id: input.externalSubmissionId,
+      request_hash: requestHash,
+      payload: input.payload,
+      target_type: input.targetType,
+      target_id: input.targetId,
+      target_updated_at: target.updated_at,
+      submitted_by: ctx.userId,
+    };
+    let proposal: Record<string, any> | null = null;
+    const inserted = await ctx.serviceClient.from('ses_review_evidence_proposals').insert(values).select('*').single();
+    if (inserted.error?.code === '23505') {
+      const { data: existing, error: existingError } = await ctx.serviceClient.from('ses_review_evidence_proposals')
+        .select('*').eq('organization_id', ctx.organizationId).eq('source', input.source)
+        .eq('external_submission_id', input.externalSubmissionId).single();
+      if (existingError) throw existingError;
+      if (existing.request_hash !== requestHash || existing.item_id !== input.itemId) {
+        const conflict = new Error('El identificador externo ya existe con contenido o ítem distinto') as Error & { status?: number };
+        conflict.status = 409;
+        throw conflict;
+      }
+      proposal = existing;
+    } else if (inserted.error) {
+      throw inserted.error;
+    } else {
+      proposal = inserted.data;
+    }
+    await updateSesReviewSource({
+      ctx,
+      batchId: input.batchId,
+      itemId: input.itemId,
+      source: input.source,
+      status: 'consulted',
+      proposedChanges: input.payload,
+      evidenceReference: input.evidenceReference,
+      observedAt: input.observedAt,
+    });
+    await audit(ctx, 'review_proposal', proposal!.id, 'external_evidence_proposed', Object.keys(input.payload), {
+      source: input.source,
+      request_hash: requestHash,
+    });
+    return res.json({ data: proposal, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-proposal-submit');
+  }
+}
+
+export async function handleSesAccreditReviewEvidence(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = AccreditSesReviewEvidenceSchema.parse(req.body);
+    const normalized = normalizeRentlyDateTimeForStorage(input.evidenceGeneratedLiteral);
+    if (!['madrid_local', 'explicit_instant'].includes(normalized.status) || !normalized.normalizedAt) {
+      const invalid = new Error('La fecha de generación es inválida, ambigua o inexistente en Europe/Madrid') as Error & { status?: number };
+      invalid.status = 422;
+      throw invalid;
+    }
+    const { data: item, error } = await ctx.serviceClient.from('ses_review_items').update({
+      evidence_reference: input.evidenceReference,
+      evidence_generated_literal: normalized.literal,
+      evidence_generated_at: normalized.normalizedAt,
+      next_retry_at: new Date().toISOString(),
+      next_action: 'Reintentar la validación de entrega y justificante',
+      last_error: null,
+    }).eq('id', input.itemId).eq('batch_id', input.batchId).eq('organization_id', ctx.organizationId)
+      .select('id').single();
+    if (error) throw error;
+    await updateSesReviewSource({
+      ctx,
+      batchId: input.batchId,
+      itemId: item.id,
+      source: 'document',
+      status: 'consulted',
+      evidenceReference: input.evidenceReference,
+      observedAt: normalized.normalizedAt,
+    });
+    await audit(ctx, 'review_item', item.id, 'delivery_evidence_accredited', ['evidence_reference', 'evidence_generated_literal']);
+    return res.json({ data: { itemId: item.id, retryable: true }, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-evidence-accredit');
+  }
+}
+
+export async function handleSesDecideReviewProposal(req: Request, res: Response) {
+  let decisionToken: string | null = null;
+  let claimedId: string | null = null;
+  let claimedOrganizationId: string | null = null;
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    claimedOrganizationId = ctx.organizationId;
+    await assertSesDailyReviewSchema(ctx);
+    const input = DecideSesReviewProposalSchema.parse(req.body);
+    decisionToken = randomUUID();
+    const { data: claimData, error: claimError } = await ctx.serviceClient.rpc('claim_ses_review_proposal', {
+      p_organization_id: ctx.organizationId,
+      p_proposal_id: input.proposalId,
+      p_decision_token: decisionToken,
+    });
+    if (claimError) throw claimError;
+    const claimed = Array.isArray(claimData) ? claimData[0] : claimData;
+    if (!claimed?.id) {
+      const { data: existing, error: existingError } = await ctx.serviceClient.from('ses_review_evidence_proposals')
+        .select('*').eq('id', input.proposalId).eq('organization_id', ctx.organizationId).single();
+      if (existingError) throw existingError;
+      return res.json({ data: { ...existing, alreadyDecided: existing.status !== 'proposed' }, error: null });
+    }
+    claimedId = claimed.id;
+    const { data: item, error: itemError } = await ctx.serviceClient.from('ses_review_items')
+      .select('id,batch_id,draft_id,applied_changes,proposed_changes,conflicts')
+      .eq('id', claimed.item_id).eq('organization_id', ctx.organizationId).single();
+    if (itemError || !item?.draft_id) {
+      const missing = new Error('La propuesta no puede aceptarse hasta que exista el borrador SES vinculado') as Error & { status?: number };
+      missing.status = 409;
+      throw missing;
+    }
+    const { data: draft, error: draftError } = await ctx.serviceClient.from('ses_contract_drafts')
+      .select(DRAFT_RELATIONS).eq('id', item.draft_id).eq('organization_id', ctx.organizationId).single();
+    if (draftError) throw draftError;
+    if (isSesDraftLocked(draft.status)) {
+      const locked = new Error('El borrador está bloqueado por historial XML y no admite propuestas') as Error & { status?: number };
+      locked.status = 409;
+      throw locked;
+    }
+    if (input.decision === 'reject') {
+      const { data, error } = await ctx.serviceClient.rpc('apply_ses_review_proposal_decision', {
+        p_organization_id: ctx.organizationId,
+        p_proposal_id: claimed.id,
+        p_decision_token: decisionToken,
+        p_decision: 'reject',
+        p_reason: input.reason,
+        p_actor_id: ctx.userId,
+        p_applied_changes: {},
+        p_open_conflicts: Array.isArray(item.conflicts) ? item.conflicts : [],
+        p_ignored_fields: [],
+      });
+      if (error) throw error;
+      return res.json({ data, error: null });
+    }
+
+    const targetType = claimed.target_type as 'draft' | 'person' | 'pickup_location' | 'return_location';
+    const allowedFields = assertSesReviewProposalTarget({ targetType, targetId: claimed.target_id, draft });
+    const targetTable = targetType === 'draft' ? 'ses_contract_drafts'
+      : targetType === 'person' ? 'ses_person_profiles' : 'ses_locations';
+    const { data: target, error: targetError } = await ctx.serviceClient.from(targetTable)
+      .select('*').eq('id', claimed.target_id).eq('organization_id', ctx.organizationId).single();
+    if (targetError || !target) throw targetError ?? new Error('Destinatario de propuesta no encontrado');
+    const plan = planSesReviewProposalApplication({
+      currentValues: target,
+      proposedValues: claimed.payload,
+      manualFields: target.manual_fields,
+      allowedFields,
+    });
+    const identityAnalysis = targetType === 'person' ? analyzeSesIdentityLicenceContradictions({
+      current: target,
+      proposed: claimed.payload,
+      source: claimed.source,
+      manualFields: target.manual_fields,
+    }) : { conflicts: [] };
+    const proposalConflicts = [
+      ...plan.conflicts.map((conflict) => ({ ...conflict, source: claimed.source, targetType, targetId: claimed.target_id })),
+      ...identityAnalysis.conflicts.map((conflict) => ({ ...conflict, targetType, targetId: claimed.target_id })),
+    ];
+    const history = mergeSesReviewItemHistory({
+      existingApplied: item.applied_changes,
+      existingProposed: item.proposed_changes,
+      existingConflicts: item.conflicts,
+      incomingApplied: plan.appliedChanges,
+      incomingProposed: claimed.payload,
+      incomingConflicts: proposalConflicts,
+    });
+    const { data, error } = await ctx.serviceClient.rpc('apply_ses_review_proposal_decision', {
+      p_organization_id: ctx.organizationId,
+      p_proposal_id: claimed.id,
+      p_decision_token: decisionToken,
+      p_decision: 'accept',
+      p_reason: input.reason,
+      p_actor_id: ctx.userId,
+      p_applied_changes: plan.appliedChanges,
+      p_open_conflicts: history.conflicts,
+      p_ignored_fields: plan.ignoredFields,
+    });
+    if (error) throw error;
+    return res.json({ data: { proposal: data, ...plan, conflicts: history.conflicts }, error: null });
+  } catch (error) {
+    if (decisionToken && claimedId && claimedOrganizationId) {
+      try {
+        await getServiceClient().from('ses_review_evidence_proposals').update({
+          status: 'proposed', decision_token: null, processing_started_at: null,
+        }).eq('id', claimedId).eq('organization_id', claimedOrganizationId).eq('decision_token', decisionToken);
+      } catch { /* best effort: a processing row remains visibly recoverable */ }
+    }
+    return sendError(res, error, 'daily-review-proposal-decision');
+  }
+}
+
+export async function handleSesResolveReviewConflict(req: Request, res: Response) {
+  try {
+    const ctx = await authorize(req, 'ses_hospedajes.edit');
+    await assertSesDailyReviewSchema(ctx);
+    const input = ResolveSesReviewConflictSchema.parse(req.body);
+    const { data: item, error: itemError } = await ctx.serviceClient.from('ses_review_items')
+      .select('id,draft_id,updated_at,conflicts').eq('id', input.itemId)
+      .eq('organization_id', ctx.organizationId).single();
+    if (itemError || !item) throw itemError ?? new Error('Ítem de revisión no encontrado');
+    const conflicts = Array.isArray(item.conflicts) ? item.conflicts as Array<Record<string, unknown>> : [];
+    const conflict = conflicts.find((candidate) => getSesReviewConflictKey(candidate) === input.conflictKey
+      && isSesReviewConflictOpen(candidate));
+    if (!conflict) {
+      const missing = new Error('La contradicción abierta no existe o ya fue resuelta') as Error & { status?: number };
+      missing.status = 409;
+      throw missing;
+    }
+    let expectedItemUpdatedAt = item.updated_at;
+    if (conflicts.some((candidate) => !candidate.conflictKey || !candidate.status)) {
+      const normalizedConflicts = conflicts.map((candidate) => ({
+        ...candidate,
+        conflictKey: getSesReviewConflictKey(candidate),
+        status: candidate.status ?? 'open',
+      }));
+      const { data: normalized, error: normalizeError } = await ctx.serviceClient.from('ses_review_items')
+        .update({ conflicts: normalizedConflicts }).eq('id', item.id).eq('organization_id', ctx.organizationId)
+        .eq('updated_at', item.updated_at).select('updated_at').maybeSingle();
+      if (normalizeError) throw normalizeError;
+      if (!normalized?.updated_at) {
+        const stale = new Error('La revisión cambió mientras se preparaba la resolución; vuelve a intentarlo') as Error & { status?: number };
+        stale.status = 409;
+        throw stale;
+      }
+      expectedItemUpdatedAt = normalized.updated_at;
+    }
+    const { data, error } = await ctx.serviceClient.rpc('resolve_ses_review_item_conflict', {
+      p_organization_id: ctx.organizationId,
+      p_item_id: item.id,
+      p_conflict_key: input.conflictKey,
+      p_expected_item_updated_at: expectedItemUpdatedAt,
+      p_reason: input.reason,
+      p_evidence_reference: input.evidenceReference,
+      p_actor_id: ctx.userId,
+    });
+    if (error) throw error;
+    const result = Array.isArray(data) ? data[0] : data;
+    if (!result?.resolved) {
+      const stale = new Error('La revisión cambió mientras se resolvía; vuelve a comprobar el valor actual') as Error & { status?: number };
+      stale.status = 409;
+      throw stale;
+    }
+    return res.json({ data: result, error: null });
+  } catch (error) {
+    return sendError(res, error, 'daily-review-conflict-resolve');
   }
 }

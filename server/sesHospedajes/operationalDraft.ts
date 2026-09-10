@@ -42,9 +42,10 @@ export function dedupeSharedPersonIssues(issues: SesValidationIssue[], sharedPro
 export function deriveSesOperationalState(input: {
   validationIssues: SesValidationIssue[];
   historicalStatus?: unknown;
+  blockingConflictCount?: number;
 }) {
   const { missingFields, invalidFields } = splitSesValidationIssues(input.validationIssues);
-  const readyForXml = missingFields.length === 0 && invalidFields.length === 0;
+  const readyForXml = missingFields.length === 0 && invalidFields.length === 0 && (input.blockingConflictCount ?? 0) === 0;
   const status: SesOperationalStatus = isSesDraftLocked(input.historicalStatus)
     ? 'xml_generated'
     : readyForXml ? 'ready' : 'incomplete';
@@ -117,12 +118,14 @@ export function projectSesOperationalDraft(draft: Record<string, any>) {
     rawValidationIssues,
     Boolean(draft.holder?.id && draft.holder.id === draft.primary_driver?.id),
   );
+  const snapshot = draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object'
+    ? draft.eligibility_snapshot : {};
+  const reviewConflicts = Array.isArray(snapshot.daily_review_conflicts) ? snapshot.daily_review_conflicts : [];
   const operational = deriveSesOperationalState({
     validationIssues,
     historicalStatus: draft.status,
+    blockingConflictCount: reviewConflicts.length,
   });
-  const snapshot = draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object'
-    ? draft.eligibility_snapshot : {};
   const sourceByField: Record<string, SesFieldSource> = {
     ...(snapshot.source_by_field && typeof snapshot.source_by_field === 'object' ? snapshot.source_by_field : {}),
   };
@@ -149,6 +152,7 @@ export function projectSesOperationalDraft(draft: Record<string, any>) {
     readyForXml: operational.readyForXml,
     missingFields: operational.missingFields,
     invalidFields: operational.invalidFields,
+    reviewConflicts,
     sourceByField,
     syncConflicts: Array.isArray(snapshot.sync_conflicts) ? snapshot.sync_conflicts : [],
     sesDuplicateWarning: buildSesDuplicateWarning(draft.official_check_status, snapshot.official_reasons),

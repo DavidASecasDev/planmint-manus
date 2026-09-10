@@ -17,7 +17,7 @@ export function SesDraftActions({
 }) {
   const locked = draft.operationalStatus === 'xml_generated' || LOCKED_STATUSES.has(draft.status);
   return <div className="flex flex-wrap justify-end gap-1">
-    {canExport && !locked && <Button size="sm" variant="outline" disabled={schemaMigrationRequired || checking} onClick={(event) => { event.stopPropagation(); onCheck(); }}><SearchCheck className="mr-1 h-4 w-4" />Comprobar SES</Button>}
+    {canExport && !locked && <Button size="sm" variant="outline" disabled={schemaMigrationRequired || checking} onClick={(event) => { event.stopPropagation(); onCheck(); }}><SearchCheck className="mr-1 h-4 w-4" />Registrar evidencia SES</Button>}
     <Button size="sm" variant="outline" disabled={schemaMigrationRequired || locked} onClick={(event) => { event.stopPropagation(); onComplete(); }}>{schemaMigrationRequired ? 'Solo lectura' : locked ? 'Histórico' : draft.operationalStatus === 'ready' ? 'Revisar' : 'Completar'}</Button>
   </div>;
 }

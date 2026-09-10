@@ -52,7 +52,7 @@ export function SesComplianceDialog({
 
           <section className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
             <div className="flex items-start justify-between gap-3">
-              <div><h3 className="font-semibold">2. Comprobación SES por contrato</h3><p className="text-sm text-slate-600">La evidencia oficial solo se registra desde «Comprobar SES» en la fila del contrato. La consulta queda ligada a su referencia, tipo, fecha y matrícula exactas.</p></div>
+              <div><h3 className="font-semibold">2. Evidencia SES por contrato</h3><p className="text-sm text-slate-600">PlanMint no consulta el portal oficial. La evidencia observada por el operador se registra desde «Registrar evidencia SES» y queda ligada a referencia, tipo, fecha y matrícula exactas.</p></div>
               <SearchCheck className="h-5 w-5 text-blue-700" />
             </div>
             <Alert className="border-blue-200 bg-white"><ShieldCheck className="h-4 w-4" /><AlertTitle>Sin cargas masivas</AlertTitle><AlertDescription>No se ofrecen campos JSON ni importaciones de inventario en la interfaz operativa. Cada resultado debe reproducir una consulta concreta del portal.</AlertDescription></Alert>

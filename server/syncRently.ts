@@ -16,6 +16,7 @@ import { getServiceClient, authenticateSupabaseRequest, AuthError } from "./supa
 import { notifyOwner } from "./_core/notification";
 import { releaseParkingSpotByVehicle } from "./parkingEndpoints";
 import { syncSesPersonProfiles } from "./sesHospedajes/rentlyProfiles";
+import { normalizeRentlyDateTimeForStorage } from './sesHospedajes/dailyReview';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ interface RentlyBooking {
   Brand?: { Name?: string };
   FromDate?: string;
   ToDate?: string;
+  UpdatedOn?: string;
   TotalDays?: number;
   // New: Place IDs instead of objects (post /api/bookings/list migration)
   DeliveryPlaceId?: number | null;
@@ -65,7 +67,8 @@ interface RentlyBooking {
   // Legacy fields kept for backwards-compat with detail endpoint
   DeliveryPlace?: { Name?: string; Address?: string };
   ReturnPlace?: { Name?: string; Address?: string };
-  DropoffInfo?: { Date?: string };
+  DeliveryInfo?: { Date?: string; Kms?: number };
+  DropoffInfo?: { Date?: string; Kms?: number };
   Origin?: { Name?: string };
   // New fields added in /api/bookings/list
   IsFullBonus?: boolean;
@@ -170,6 +173,71 @@ interface RentlyBookingsResponse {
   NextOffset?: number | null;
 }
 
+export function mapBookingToRentlyEvent(
+  booking: RentlyBooking,
+  organizationId: string,
+  reservationId: string | null = null,
+) {
+  const updated = normalizeRentlyDateTimeForStorage(booking.UpdatedOn ?? null);
+  const plannedFrom = normalizeRentlyDateTimeForStorage(booking.FromDate ?? null);
+  const plannedTo = normalizeRentlyDateTimeForStorage(booking.ToDate ?? null);
+  const delivery = normalizeRentlyDateTimeForStorage(booking.DeliveryInfo?.Date ?? null);
+  const dropoff = normalizeRentlyDateTimeForStorage(booking.DropoffInfo?.Date ?? null);
+  return {
+    organization_id: organizationId,
+    external_booking_id: booking.Id,
+    ...(reservationId ? { reservation_id: reservationId } : {}),
+    current_status: booking.CurrentStatus,
+    updated_literal: updated.literal,
+    updated_at: updated.normalizedAt,
+    planned_from_literal: plannedFrom.literal,
+    planned_from_at: plannedFrom.normalizedAt,
+    planned_to_literal: plannedTo.literal,
+    planned_to_at: plannedTo.normalizedAt,
+    delivery_actual_literal: delivery.literal,
+    delivery_actual_at: delivery.normalizedAt,
+    dropoff_actual_literal: dropoff.literal,
+    dropoff_actual_at: dropoff.normalizedAt,
+    raw_event_fields: {
+      hasDelivery: Boolean(delivery.literal),
+      hasDropoff: Boolean(dropoff.literal),
+      status: booking.CurrentStatus,
+    },
+  };
+}
+
+export function buildRentlyEventCoverageScope(input: {
+  syncMode: 'full' | 'incremental';
+  startedAt: string;
+  completedAt: string;
+  paginationStartOffset: number;
+  paginationEndOffset: number;
+  localReservationImportIncludesAllStatuses: boolean;
+}) {
+  const eventCoverageComplete = input.syncMode === 'full' && input.paginationStartOffset === 0;
+  return {
+    sourceEndpoint: '/api/bookings/list',
+    allBranches: true,
+    allStatuses: true,
+    paginationComplete: true,
+    paginationStartOffset: input.paginationStartOffset,
+    paginationEndOffset: input.paginationEndOffset,
+    nextOffset: null,
+    unfilteredDateWindow: input.syncMode === 'full',
+    bookingListEventsComplete: eventCoverageComplete,
+    deliveryEventsComplete: eventCoverageComplete,
+    dropoffEventsComplete: eventCoverageComplete,
+    detailEnrichmentComplete: false,
+    localReservationImportIncludesAllStatuses: input.localReservationImportIncludesAllStatuses,
+    eventFields: ['DeliveryInfo.Date', 'DropoffInfo.Date', 'UpdatedOn', 'CurrentStatus'],
+    coveredThrough: input.completedAt,
+    runStartedAt: input.startedAt,
+    reason: eventCoverageComplete ? null
+      : input.syncMode !== 'full' ? 'El barrido incremental no acredita todo el histórico de eventos'
+        : 'El barrido no comenzó en el offset cero',
+  };
+}
+
 interface SyncStatus {
   id: string;
   organization_id: string;
@@ -182,6 +250,8 @@ interface SyncStatus {
   started_at: string | null;
   watermark_updated_at?: string | null;
   last_full_sync_at?: string | null;
+  coverage_version?: string | null;
+  coverage_scope?: Record<string, unknown> | null;
   sync_mode?: 'full' | 'incremental';
   completed_at: string | null;
   error_message: string | null;
@@ -530,7 +600,11 @@ export function mapBookingToReservation(
   const deliveryPlace = booking.DeliveryPlace || (booking.DeliveryPlaceId && placesMap?.get(booking.DeliveryPlaceId)) || {};
   const returnPlace = booking.ReturnPlace || (booking.ReturnPlaceId && placesMap?.get(booking.ReturnPlaceId)) || {};
   const dropoffInfo = booking.DropoffInfo || {};
+  const deliveryInfo = booking.DeliveryInfo || {};
   const origin = booking.Origin || {};
+  const deliveryEvent = normalizeRentlyDateTimeForStorage(deliveryInfo.Date ?? null);
+  const dropoffEvent = normalizeRentlyDateTimeForStorage(dropoffInfo.Date ?? null);
+  const listUpdatedOn = normalizeRentlyDateTimeForStorage(booking.UpdatedOn ?? null);
 
   return {
     organization_id: organizationId,
@@ -539,6 +613,13 @@ export function mapBookingToReservation(
     rently_creation_date: booking.CreationDate || null,
     estado: STATUS_MAP[booking.CurrentStatus] || `Status ${booking.CurrentStatus}`,
     rently_status_code: booking.CurrentStatus,
+    rently_status_date: booking.CurrentStatusDate || null,
+    rently_list_updated_literal: listUpdatedOn.literal,
+    rently_list_updated_at: listUpdatedOn.normalizedAt,
+    rently_delivery_actual_literal: deliveryEvent.literal,
+    rently_delivery_actual_at: deliveryEvent.normalizedAt,
+    rently_dropoff_actual_literal: dropoffEvent.literal,
+    rently_dropoff_actual_at: dropoffEvent.normalizedAt,
     cliente_nombre: customer.Name || customer.Firstname || null,
     cliente_apellido: customer.Lastname || null,
     email: customer.EmailAddress || null,
@@ -1067,6 +1148,7 @@ export async function handleSyncRently(
       reset || !syncStatus || syncStatus.status === "completed" || syncStatus.status === "error" || syncStatus.status === "idle";
 
     if (shouldReset) {
+      const startedAt = new Date().toISOString();
       const newStatus = {
         organization_id: organizationId,
         last_offset: 0,
@@ -1075,10 +1157,17 @@ export async function handleSyncRently(
         total_duplicates: 0,
         total_filtered: 0,
         status: "running",
-        started_at: new Date().toISOString(),
+        started_at: startedAt,
         completed_at: null,
         error_message: null,
         sync_mode: syncMode,
+        coverage_version: null,
+        coverage_scope: {
+          runStartedAt: startedAt,
+          paginationStartOffset: 0,
+          runAllStatuses: include_all === true,
+          sourceEndpoint: '/api/bookings/list',
+        },
       };
 
       if (syncStatus) {
@@ -1106,6 +1195,8 @@ export async function handleSyncRently(
     }
 
     if (!syncStatus) throw new Error("Failed to initialize sync status");
+    const includeAllForRun = include_all === true
+      || (continue_sync === true && syncStatus.coverage_scope?.runAllStatuses === true);
 
     // ─── Load places cache for resolving DeliveryPlaceId/ReturnPlaceId ────────
     const placesMap = await getPlacesMap(host, rentlyToken);
@@ -1146,6 +1237,14 @@ export async function handleSyncRently(
       totalBookingsFetched += bookings.length;
       lastPage = currentPage;
 
+      const eventRows = deduplicateRentlyBookingsByStableId(bookings)
+        .map((booking) => mapBookingToRentlyEvent(booking, organizationId));
+      const { error: eventWriteError } = await serviceClient.from('rently_booking_events')
+        .upsert(eventRows, { onConflict: 'organization_id,external_booking_id' });
+      if (eventWriteError) {
+        throw new Error(`No se pudieron conservar los eventos del listado Rently (${eventWriteError.code ?? 'UNKNOWN'})`);
+      }
+
       // Track date range
       const pageDates = bookings.map(b => b.FromDate).filter(Boolean).map(d => new Date(d!).getTime());
       if (pageDates.length > 0) {
@@ -1183,7 +1282,7 @@ export async function handleSyncRently(
         return shouldIncludeRentlyBookingInSync({
           currentStatus: b.CurrentStatus,
           existsInPlanMint: existingIdsSet.has(extId),
-          includeAll: include_all === true,
+          includeAll: includeAllForRun,
         });
       });
       const filteredCount = bookings.length - validBookings.length;
@@ -1304,7 +1403,7 @@ export async function handleSyncRently(
 
       if (!pageHadChanges && detailsMap.size === 0) {
         consecutiveUnchangedPages++;
-        if (include_all !== true && consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES && hasMore) {
+        if (!includeAllForRun && consecutiveUnchangedPages >= EARLY_TERM_UNCHANGED_PAGES && hasMore) {
           console.log(`[sync-rently] Early termination: ${consecutiveUnchangedPages} consecutive unchanged pages, skipping remaining old bookings`);
           // Don't set hasMore = false — we still want to mark sync as running
           // but we break out of the multi-page loop to return faster
@@ -1590,6 +1689,16 @@ export async function handleSyncRently(
     if (!hasMore) {
       syncStatusUpdate.watermark_updated_at = syncStatus.started_at || completedAt;
       if (syncMode === 'full') syncStatusUpdate.last_full_sync_at = completedAt;
+      const startedAt = syncStatus.started_at || completedAt;
+      syncStatusUpdate.coverage_version = `${startedAt}:${completedAt}:${currentOffset}`;
+      syncStatusUpdate.coverage_scope = buildRentlyEventCoverageScope({
+        syncMode,
+        startedAt: startedAt!,
+        completedAt: completedAt!,
+        paginationStartOffset: Number(syncStatus.coverage_scope?.paginationStartOffset ?? 0),
+        paginationEndOffset: currentOffset,
+        localReservationImportIncludesAllStatuses: includeAllForRun,
+      });
     }
 
     await serviceClient
@@ -1604,7 +1713,7 @@ export async function handleSyncRently(
     // Archive and sync vehicles if complete
     let archivedCount = 0;
     let vehicleSyncResult = { released: 0, rented: 0, errors: 0 };
-    if (!hasMore && include_all !== true) {
+    if (!hasMore && !includeAllForRun) {
       try {
         console.log("[sync-rently] Sync complete, archiving old reservations...");
         const { data: archiveResult, error: archiveError } = await serviceClient.rpc(

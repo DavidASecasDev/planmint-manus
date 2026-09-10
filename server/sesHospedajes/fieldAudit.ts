@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type SesAuditSource = 'rently' | 'respond' | 'manual';
+export type SesAuditSource = 'rently' | 'hubspot' | 'respond' | 'document' | 'manual';
 
 export function buildSesFieldAuditRows(input: {
   organizationId: string;
@@ -35,4 +35,3 @@ export async function persistSesFieldAudit(
   const { error } = await serviceClient.from('ses_field_audit_events').insert(rows);
   if (error) throw error;
 }
-

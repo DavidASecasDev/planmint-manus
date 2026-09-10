@@ -64,8 +64,8 @@ export function SesOfficialCheckDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><SearchCheck className="h-5 w-5 text-blue-700" />Comprobación oficial · #{draft.reference}</DialogTitle>
-          <DialogDescription>Registra el resultado de consultar este contrato concreto en el portal SES.HOSPEDAJES. No introduzcas credenciales ni inventes valores.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><SearchCheck className="h-5 w-5 text-blue-700" />Registro de evidencia SES · #{draft.reference}</DialogTitle>
+          <DialogDescription>PlanMint no consulta el portal oficial. Registra aquí el resultado que tú hayas comprobado fuera de PlanMint para este contrato concreto, sin introducir credenciales ni inventar valores.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -76,7 +76,7 @@ export function SesOfficialCheckDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Resultado de la consulta exacta</Label>
+            <Label>Resultado observado por el operador</Label>
             <Select value={outcome} onValueChange={(value: 'not_found' | 'found') => { setOutcome(value); setConfirmed(false); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -105,7 +105,7 @@ export function SesOfficialCheckDialog({
 
           <label className="flex items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm">
             <Checkbox checked={confirmed} onCheckedChange={(value) => setConfirmed(value === true)} />
-            <span>Confirmo que he consultado el portal oficial por referencia, tipo, fecha y matrícula, y que los datos registrados reproducen el resultado mostrado.</span>
+            <span>Confirmo que yo he comprobado fuera de PlanMint la referencia, tipo, fecha y matrícula, y que los datos registrados reproducen el resultado observado.</span>
           </label>
         </div>
 
@@ -115,7 +115,7 @@ export function SesOfficialCheckDialog({
             await onCheck({ draftId: draft.id, outcome, ...(outcome === 'found' ? { communication: form } : {}) });
             onOpenChange(false);
           }}>
-            {checking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Registrar comprobación
+            {checking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar evidencia
           </Button>
         </DialogFooter>
       </DialogContent>
