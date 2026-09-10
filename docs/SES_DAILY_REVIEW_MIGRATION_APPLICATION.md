@@ -1,5 +1,7 @@
 # Aplicación de migración SES Daily Review
 
+> **Actualización posterior:** el usuario publicó el checkpoint `6939afcb`. La verificación pública de dominios y rutas está documentada en `docs/SES_DAILY_REVIEW_PUBLICATION_DOMAIN_CHECK.md`.
+
 **Fecha:** 10 de septiembre de 2026  
 **Proyecto Supabase:** `exayzwdudssyegxjiyrk` (`planmint`)  
 **Migración:** `ses_daily_review_batches_20260910`  

@@ -1801,3 +1801,8 @@
 - [x] Contrastar firmas RPC de pg_proc con SQL y servicio; corregir solo verificación y rollback si la suposición era incorrecta
 - [x] Confirmar que no se publicó, no se activó Heartbeat y el respaldo continúa no verificado
 - [x] Guardar checkpoint y entregar el resultado real de aplicación y verificación
+- [x] Confirmar en solo lectura los dominios configurados y el checkpoint exacto publicado
+- [x] Comprobar DNS, TLS, HTTP y redirecciones de plan-mint.com y www.plan-mint.com para `/ses-hospedajes`
+- [x] Distinguir propagación/transitorio de dominio raíz desconectado sin cambiar DNS ni volver a publicar
+- [x] Documentar migración `20260910173524`, publicación completada y sesión pendiente de reautenticación
+- [x] Entregar diagnóstico y checkpoint sin activar temporizadores ni enviar comunicaciones
