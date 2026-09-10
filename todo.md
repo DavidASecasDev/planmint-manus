@@ -1788,3 +1788,9 @@
 - [x] Recalcular ready_for_xml al resolver y no reabrir el conflicto sin evidencia o valor nuevos
 - [x] Mostrar la resolución explícita en el panel diario y probar conflicto → corrección manual → resolución auditada → listo
 - [x] Probar en PostgreSQL que reanudación no resucita un conflicto resuelto sin nueva evidencia
+- [x] Verificar en solo lectura el acceso administrativo Supabase disponible sin mostrar secretos
+- [x] Contrastar tablas, columnas, tipos, funciones y objetos nuevos contra la migración SES final
+- [ ] Verificar un respaldo recuperable identificable y su fecha sin crear costes ni recursos
+- [x] Identificar el método exacto disponible para aplicar la migración sin ejecutarlo
+- [x] Entregar checkpoint, SHA-256 final y resultado de compatibilidad sin publicar ni activar Heartbeat
+- [x] Cerrar el informe con la evidencia ya obtenida y separar respaldo no verificado de acceso SQL y compatibilidad
