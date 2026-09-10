@@ -1794,3 +1794,10 @@
 - [x] Identificar el método exacto disponible para aplicar la migración sin ejecutarlo
 - [x] Entregar checkpoint, SHA-256 final y resultado de compatibilidad sin publicar ni activar Heartbeat
 - [x] Cerrar el informe con la evidencia ya obtenida y separar respaldo no verificado de acceso SQL y compatibilidad
+- [x] Reconfirmar SHA-256 exacto y que el SQL autorizado no borra tablas/datos ni modifica filas de clientes o reservas
+- [x] Crear y conservar un script de reversión separado para los objetos/columnas nuevos, sin ejecutarlo
+- [x] Aplicar `ses_daily_review_batches_20260910` una sola vez al proyecto `exayzwdudssyegxjiyrk`
+- [x] Verificar registro de migración, tablas, columnas, firmas RPC, RLS, grants y compatibilidad del código
+- [x] Contrastar firmas RPC de pg_proc con SQL y servicio; corregir solo verificación y rollback si la suposición era incorrecta
+- [x] Confirmar que no se publicó, no se activó Heartbeat y el respaldo continúa no verificado
+- [x] Guardar checkpoint y entregar el resultado real de aplicación y verificación

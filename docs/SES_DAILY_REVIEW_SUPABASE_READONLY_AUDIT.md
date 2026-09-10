@@ -1,5 +1,7 @@
 # Auditoría Supabase de solo lectura — SES Daily Review
 
+> **Actualización posterior:** la migración fue autorizada y aplicada el 10 de septiembre de 2026 mediante `apply_migration`. El resultado y la verificación postmigración están en `docs/SES_DAILY_REVIEW_MIGRATION_APPLICATION.md`. Este documento conserva la fotografía previa a la aplicación.
+
 ## Alcance
 
 Comprobación administrativa y de compatibilidad realizada el 10/09/2026 sin ejecutar DDL, DML, migraciones, reservas, publicación ni Heartbeats.
