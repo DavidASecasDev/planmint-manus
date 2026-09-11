@@ -27,8 +27,9 @@ export function CalendarRangeView({ dateFrom, dateTo, tasks, onTaskClick }: Cale
     });
 
     tasks.forEach(task => {
-      if (!task.due_date) return;
-      const taskDate = parseISO(task.due_date);
+      const displayDate = task.calendar_display_date || task.due_date;
+      if (!displayDate) return;
+      const taskDate = parseISO(displayDate);
       const dayKey = format(taskDate, 'yyyy-MM-dd');
       
       if (map.has(dayKey)) {
@@ -86,7 +87,7 @@ export function CalendarRangeView({ dateFrom, dateTo, tasks, onTaskClick }: Cale
                 ) : (
                   dayTasks.map(task => (
                     <CalendarTaskCard
-                      key={task.id}
+                      key={`${task.id}-${task.calendar_event_kind || 'due'}`}
                       task={task}
                       onClick={() => onTaskClick(task)}
                     />

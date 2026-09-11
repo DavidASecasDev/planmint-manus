@@ -1,5 +1,6 @@
 import { Target, ListTodo, TrendingUp, GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Clock3 } from 'lucide-react';
 import { TaskWithRelations, TaskType, TaskPriority } from '@/types/tasks';
 import { cn } from '@/lib/utils';
 
@@ -73,8 +74,9 @@ export function CalendarTaskCard({
           "flex items-center gap-1.5 hover:shadow-sm"
         )}
       >
-        {getTypeIcon(task.type)}
+        {task.calendar_event_kind === 'follow_up' ? <Clock3 className="h-3 w-3" /> : getTypeIcon(task.type)}
         <span className="truncate font-medium">{task.title}</span>
+        {task.calendar_event_kind === 'follow_up' && <span className="ml-auto text-[10px] text-primary">Seguimiento</span>}
       </div>
     );
   }
@@ -114,6 +116,9 @@ export function CalendarTaskCard({
           )}
           
           <div className="flex flex-wrap items-center gap-1.5">
+            {task.calendar_event_kind === 'follow_up' && (
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">Seguimiento</Badge>
+            )}
             <Badge 
               variant="outline" 
               className={cn("text-xs px-2 py-0.5 font-medium border", getPriorityStyles(task.priority))}

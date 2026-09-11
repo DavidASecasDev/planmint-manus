@@ -153,6 +153,8 @@ async function fetchTasksWithRelations(
     taskTagsResult,
     subtasksResult,
     taskAssigneesResult,
+    remindersResult,
+    updatesResult,
   ] = await Promise.all([
     supabase.from('task_areas').select('task_id, area_id, areas(id, name, color, icon)').in('task_id', taskIds),
     supabase.from('task_tags').select('task_id, tag_id, tags(id, name, color, icon)').in('task_id', taskIds),
@@ -162,6 +164,8 @@ async function fetchTasksWithRelations(
       user:profiles!task_assignees_user_id_fkey(id, name, avatar_url),
       team:teams!task_assignees_team_id_fkey(id, name, color)
     `).in('task_id', taskIds),
+    supabase.from('reminders').select('task_id, remind_at').in('task_id', taskIds).eq('is_active', true).order('remind_at', { ascending: true }),
+    supabase.from('task_updates').select('task_id, text, created_at').in('task_id', taskIds).order('created_at', { ascending: false }),
   ]);
 
   if (taskAreasResult.error) throw taskAreasResult.error;
@@ -207,6 +211,8 @@ async function fetchTasksWithRelations(
   filteredTasksData.forEach(t => {
     profileIds.add(t.created_by);
     if (t.assigned_to) profileIds.add(t.assigned_to);
+    const supervisorId = (t as any).supervisor_id as string | null | undefined;
+    if (supervisorId) profileIds.add(supervisorId);
   });
   const { data: profilesData, error: profilesError } = await supabase
     .from('profiles')
@@ -244,6 +250,18 @@ async function fetchTasksWithRelations(
     if (ta.team) assignees.teams.push(ta.team);
   });
 
+  const nextReminderMap = new Map<string, string>();
+  remindersResult.data?.forEach((reminder: { task_id: string; remind_at: string }) => {
+    if (!nextReminderMap.has(reminder.task_id)) nextReminderMap.set(reminder.task_id, reminder.remind_at);
+  });
+
+  const latestUpdateMap = new Map<string, { text: string | null; created_at: string }>();
+  updatesResult.data?.forEach((update: { task_id: string; text: string | null; created_at: string }) => {
+    if (!latestUpdateMap.has(update.task_id)) {
+      latestUpdateMap.set(update.task_id, { text: update.text, created_at: update.created_at });
+    }
+  });
+
   // Filter by area if needed
   let finalTasks = filteredTasksData;
   if (filters.areaIds.length > 0) {
@@ -277,7 +295,10 @@ async function fetchTasksWithRelations(
       tags: taskTagsMap.get(task.id) || [],
       creator: profilesMap.get(task.created_by),
       assignee: task.assigned_to ? profilesMap.get(task.assigned_to) : null,
+      supervisor: (task as any).supervisor_id ? profilesMap.get((task as any).supervisor_id) : null,
       assignees: assigneesData,
+      nextReminderAt: nextReminderMap.get(task.id) || null,
+      latestUpdate: latestUpdateMap.get(task.id) || null,
       subtaskCount: subtaskCounts?.total || 0,
       subtaskCompleted: subtaskCounts?.completed || 0,
       goalCurrentValue: goalTotalsMap.get(task.id) || 0,

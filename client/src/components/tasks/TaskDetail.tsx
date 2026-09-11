@@ -45,6 +45,10 @@ import { TimelineSection } from '@/components/timeline/TimelineSection';
 import { RemindersSection } from '@/components/reminders/RemindersSection';
 import { TaskSummaryCard } from '@/components/ai/TaskSummaryCard';
 import { OperationDetailPanel } from '@/components/operations/OperationDetailPanel';
+import { TaskSubtasksPanel } from '@/features/tasks/TaskSubtasksPanel';
+import { TaskDependenciesPanel } from '@/features/tasks/TaskDependenciesPanel';
+import { getTaskDisplayStatus } from '@/features/tasks/taskWorkspaceDomain';
+import { TaskWorkflowPanel, type TaskWorkflowEditValues } from '@/features/tasks/TaskWorkflowPanel';
 
 interface TaskDetailProps {
   open: boolean;
@@ -58,6 +62,9 @@ interface TaskDetailProps {
   canDelete: boolean;
   canChangeStatus?: boolean;
   onMilestoneChange?: () => void;
+  workflowAvailable?: boolean;
+  workflowMembers?: { id: string; name: string }[];
+  onWorkflowUpdate?: (values: TaskWorkflowEditValues) => Promise<void>;
 }
 
 export function TaskDetail({
@@ -72,6 +79,9 @@ export function TaskDetail({
   canDelete,
   canChangeStatus = false,
   onMilestoneChange,
+  workflowAvailable = false,
+  workflowMembers = [],
+  onWorkflowUpdate,
 }: TaskDetailProps) {
   if (!task) return null;
 
@@ -143,6 +153,66 @@ export function TaskDetail({
         </div>
 
         <div className="px-6 pb-6 space-y-5">
+          {!isOperation && (
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Estado operativo</p>
+                    <p className="mt-1 text-sm font-medium">{getTaskDisplayStatus(task)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Responsable principal</p>
+                    <p className="mt-1 text-sm font-medium">{task.assignee?.name || 'Sin asignar'}</p>
+                  </div>
+                  {task.supervisor && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Supervisor</p>
+                      <p className="mt-1 text-sm font-medium">{task.supervisor.name || 'Sin nombre'}</p>
+                    </div>
+                  )}
+                  {task.project_name && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Proyecto</p>
+                      <p className="mt-1 text-sm font-medium">{task.project_name}</p>
+                    </div>
+                  )}
+                  {task.commissioned_at && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Encargada el</p>
+                      <p className="mt-1 text-sm font-medium">{format(new Date(task.commissioned_at), "d MMM yyyy · HH:mm", { locale: es })}</p>
+                    </div>
+                  )}
+                  {task.next_follow_up_at && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Próximo seguimiento</p>
+                      <p className="mt-1 text-sm font-medium">{format(new Date(task.next_follow_up_at), "d MMM yyyy · HH:mm", { locale: es })}</p>
+                    </div>
+                  )}
+                </div>
+                {task.review_state === 'returned' && task.review_return_reason && (
+                  <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+                    <p className="font-medium">Devuelta para corregir</p>
+                    <p className="mt-0.5">{task.review_return_reason}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {!isOperation && onWorkflowUpdate && (
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="p-4">
+                <TaskWorkflowPanel
+                  task={task}
+                  members={workflowMembers}
+                  canEdit={canEdit}
+                  workflowAvailable={workflowAvailable}
+                  onSave={onWorkflowUpdate}
+                />
+              </CardContent>
+            </Card>
+          )}
           {/* Operation Detail Panel */}
           {isOperation && (
             <OperationDetailPanel task={task} />
@@ -350,6 +420,17 @@ export function TaskDetail({
             </Accordion>
           )}
 
+          {!isOperation && (
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="space-y-5 p-4">
+                <TaskSubtasksPanel taskId={task.id} canEdit={canEdit} />
+                <div className="border-t pt-4">
+                  <TaskDependenciesPanel taskId={task.id} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* AI Summary Section - hide for operations */}
           {!isOperation && <TaskSummaryCard taskId={task.id} />}
 
@@ -362,7 +443,7 @@ export function TaskDetail({
             </Card>
           )}
 
-          {/* Timeline Section */}
+          {/* Timeline and attachments Section */}
           <Card className="border-border/50 shadow-sm">
             <CardContent className="p-4">
               <TimelineSection 

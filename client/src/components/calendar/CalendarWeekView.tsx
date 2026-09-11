@@ -29,8 +29,9 @@ export function CalendarWeekView({ currentDate, tasks, onTaskClick }: CalendarWe
     const map = new Map<string, TaskWithRelations[]>();
     
     tasks.forEach((task) => {
-      if (task.due_date) {
-        const dateKey = format(new Date(task.due_date), 'yyyy-MM-dd');
+      const displayDate = task.calendar_display_date || task.due_date;
+      if (displayDate) {
+        const dateKey = format(new Date(displayDate), 'yyyy-MM-dd');
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
         }
@@ -80,7 +81,7 @@ export function CalendarWeekView({ currentDate, tasks, onTaskClick }: CalendarWe
                 {dayTasks.length > 0 ? (
                   dayTasks.map((task) => (
                     <CalendarTaskCard
-                      key={task.id}
+                      key={`${task.id}-${task.calendar_event_kind || 'due'}`}
                       task={task}
                       onClick={() => onTaskClick(task)}
                     />

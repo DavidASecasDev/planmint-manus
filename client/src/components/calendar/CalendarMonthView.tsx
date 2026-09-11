@@ -45,8 +45,9 @@ export function CalendarMonthView({ currentDate, tasks, onTaskClick }: CalendarM
     const map = new Map<string, TaskWithRelations[]>();
     
     tasks.forEach((task) => {
-      if (task.due_date) {
-        const dateKey = format(new Date(task.due_date), 'yyyy-MM-dd');
+      const displayDate = task.calendar_display_date || task.due_date;
+      if (displayDate) {
+        const dateKey = format(new Date(displayDate), 'yyyy-MM-dd');
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
         }
@@ -101,7 +102,7 @@ export function CalendarMonthView({ currentDate, tasks, onTaskClick }: CalendarM
               <div className="space-y-1">
                 {dayTasks.slice(0, MAX_VISIBLE_TASKS).map((task) => (
                   <CalendarTaskCard
-                    key={task.id}
+                    key={`${task.id}-${task.calendar_event_kind || 'due'}`}
                     task={task}
                     compact
                     onClick={() => onTaskClick(task)}
@@ -127,7 +128,7 @@ export function CalendarMonthView({ currentDate, tasks, onTaskClick }: CalendarM
                         <div className="space-y-2">
                           {dayTasks.map((task) => (
                             <CalendarTaskCard
-                              key={task.id}
+                              key={`${task.id}-${task.calendar_event_kind || 'due'}`}
                               task={task}
                               onClick={() => onTaskClick(task)}
                             />

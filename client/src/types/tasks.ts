@@ -18,6 +18,18 @@ export interface Task {
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  commissioned_at?: string | null;
+  next_follow_up_at?: string | null;
+  supervisor_id?: string | null;
+  review_required?: boolean | null;
+  review_state?: 'not_required' | 'pending_review' | 'returned' | 'approved' | null;
+  review_requested_at?: string | null;
+  reviewed_at?: string | null;
+  reviewed_by?: string | null;
+  review_return_reason?: string | null;
+  project_name?: string | null;
   goal_target_value: number | null;
   goal_unit: string | null;
   // Operation fields
@@ -58,6 +70,18 @@ export interface TaskWithRelations extends Task {
     name: string | null;
     avatar_url?: string | null;
   } | null;
+  supervisor?: {
+    id: string;
+    name: string | null;
+    avatar_url?: string | null;
+  } | null;
+  nextReminderAt?: string | null;
+  latestUpdate?: {
+    text: string | null;
+    created_at: string;
+  } | null;
+  calendar_display_date?: string | null;
+  calendar_event_kind?: 'due' | 'follow_up';
   assignees?: {
     users: { id: string; name: string | null; avatar_url?: string | null }[];
     teams: { id: string; name: string; color: string }[];
@@ -91,6 +115,11 @@ export interface CreateTaskData {
   priority?: TaskPriority;
   assigned_to?: string | null;
   due_date?: string | null;
+  commissioned_at?: string | null;
+  next_follow_up_at?: string | null;
+  supervisor_id?: string | null;
+  review_required?: boolean;
+  project_name?: string | null;
   area_ids: string[];
   tag_ids?: string[];
   goal_target_value?: number | null;
@@ -118,6 +147,11 @@ export interface UpdateTaskData {
   priority?: TaskPriority;
   assigned_to?: string | null;
   due_date?: string | null;
+  commissioned_at?: string | null;
+  next_follow_up_at?: string | null;
+  supervisor_id?: string | null;
+  review_required?: boolean;
+  project_name?: string | null;
   is_archived?: boolean;
   area_ids?: string[];
   tag_ids?: string[];

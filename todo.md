@@ -1806,3 +1806,24 @@
 - [x] Distinguir propagación/transitorio de dominio raíz desconectado sin cambiar DNS ni volver a publicar
 - [x] Documentar migración `20260910173524`, publicación completada y sesión pendiente de reautenticación
 - [x] Entregar diagnóstico y checkpoint sin activar temporizadores ni enviar comunicaciones
+- [x] Auditar el modelo, permisos, rutas y UI actuales de tareas, asignaciones, hitos, actualizaciones, recordatorios, calendario, Kanban y rutinas
+- [x] Diseñar una proyección compatible que preserve estados y datos antiguos sin reinterpretarlos
+- [x] Preparar una migración aditiva y validarla en PostgreSQL aislado solo si el esquema actual no cubre revisión, seguimiento o colaboración
+- [x] Implementar la entrada Hoy sin duplicar atrasadas, tareas del día, seguimientos y rutinas
+- [x] Implementar Mis tareas, Delegadas, Calendario y Hechas con acceso a Todas, Kanban y filtros por persona, área y proyecto
+- [x] Mantener tareas sin fecha visibles y fuera de cualquier estado implícito de resolución
+- [x] Implementar filas compactas con título, responsable, plazo, estado y próximo seguimiento
+- [x] Implementar creación rápida con título, responsable y fecha, y detalles de prioridad, área, colaboradores, subtareas y documentos
+- [x] Diferenciar responsable principal, colaboradores y supervisor sin inventar personas
+- [x] Implementar encargos con solicitante, destinatario, fecha, vencimiento, seguimiento, última novedad e historial sin inventar fechas antiguas
+- [x] Implementar revisión opcional: Terminada → Pendiente de revisar → Validar o devolver con motivo, respetando roles y organización
+- [x] Mantener cierre directo sin revisión y proteger estados antiguos sin reinterpretarlos
+- [x] Mostrar dependencias sin cerrar pasos relacionados al completar una tarea
+- [x] Implementar panel de detalle con subtareas, adjuntos, actualizaciones y recordatorios reutilizados
+- [x] Integrar calendario mes/semana/día con vencimientos y seguimientos diferenciados en Europe/Madrid
+- [x] Garantizar responsive, teclado, foco, contraste, botones con nombre y deshacer donde proceda
+- [x] Crear fixture aislada sin PII para limpieza con verificación e ITV con documentos
+- [x] Probar crear, asignar, actualizar, seguir, terminar, revisar, devolver, cambiar fecha, quitar fecha, vencidas y permisos
+- [x] Verificar que reservas, SES y flota no cambian y que no se activan envíos ni notificaciones externas
+- [x] Ejecutar pruebas focales, TypeScript, build y verificación visual escritorio/móvil
+- [x] Documentar decisiones, limitaciones y entregar checkpoint/preview sin publicar ni aplicar SQL en producción

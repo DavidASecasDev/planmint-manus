@@ -104,23 +104,35 @@ export default function Calendar() {
   const [formOpen, setFormOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Filter tasks based on criteria
+  const calendarEvents = useMemo(() => tasks.flatMap((task) => {
+    const events: TaskWithRelations[] = [];
+    if (task.due_date) {
+      events.push({ ...task, calendar_display_date: task.due_date, calendar_event_kind: 'due' });
+    }
+    const followUp = task.next_follow_up_at || task.nextReminderAt;
+    if (followUp) {
+      events.push({ ...task, calendar_display_date: followUp, calendar_event_kind: 'follow_up' });
+    }
+    return events;
+  }), [tasks]);
+
+  // Filter calendar events while preserving one task as the source of truth.
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      // Only tasks with due_date
-      if (!task.due_date) return false;
+    return calendarEvents.filter((task) => {
+      const displayDate = task.calendar_display_date;
+      if (!displayDate) return false;
 
       // Date range filter (if set)
       if (filters.dateFrom && filters.dateTo) {
-        const taskDate = parseISO(task.due_date);
+        const taskDate = parseISO(displayDate);
         if (!isWithinInterval(taskDate, { start: filters.dateFrom, end: filters.dateTo })) {
           return false;
         }
       } else if (filters.dateFrom) {
-        const taskDate = parseISO(task.due_date);
+        const taskDate = parseISO(displayDate);
         if (taskDate < filters.dateFrom) return false;
       } else if (filters.dateTo) {
-        const taskDate = parseISO(task.due_date);
+        const taskDate = parseISO(displayDate);
         if (taskDate > filters.dateTo) return false;
       }
 
@@ -155,7 +167,7 @@ export default function Calendar() {
 
       return true;
     });
-  }, [tasks, filters, profile?.id]);
+  }, [calendarEvents, filters, profile?.id]);
 
   // Check if we should show range view
   const showRangeView = filters.dateFrom !== null && filters.dateTo !== null;

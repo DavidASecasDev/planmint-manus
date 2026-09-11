@@ -17,8 +17,9 @@ export function CalendarDayView({ currentDate, tasks, onTaskClick }: CalendarDay
     const dateKey = format(currentDate, 'yyyy-MM-dd');
     
     return tasks.filter((task) => {
-      if (!task.due_date) return false;
-      return format(new Date(task.due_date), 'yyyy-MM-dd') === dateKey;
+      const displayDate = task.calendar_display_date || task.due_date;
+      if (!displayDate) return false;
+      return format(new Date(displayDate), 'yyyy-MM-dd') === dateKey;
     });
   }, [currentDate, tasks]);
 
@@ -53,7 +54,7 @@ export function CalendarDayView({ currentDate, tasks, onTaskClick }: CalendarDay
           <div className="space-y-3 max-w-2xl mx-auto">
             {dayTasks.map((task) => (
               <CalendarTaskCard
-                key={task.id}
+                key={`${task.id}-${task.calendar_event_kind || 'due'}`}
                 task={task}
                 showDetails
                 onClick={() => onTaskClick(task)}
@@ -63,7 +64,7 @@ export function CalendarDayView({ currentDate, tasks, onTaskClick }: CalendarDay
         ) : (
           <div className="text-center text-muted-foreground py-12">
             <p className="text-lg">No hay tareas para este día</p>
-            <p className="text-sm">Las tareas con fecha de vencimiento aparecerán aquí</p>
+            <p className="text-sm">Los vencimientos y seguimientos aparecerán aquí</p>
           </div>
         )}
       </ScrollArea>
