@@ -4,6 +4,8 @@ import {
   createSesReviewLeaseGuard,
   deriveSesReviewBatchCounts,
   executeWithSesReviewLease,
+  overlaySesReviewPersistedEvent,
+  shouldPrioritizeSesReviewRetry,
 } from './dailyReviewService';
 
 describe('SES daily review service contract', () => {
@@ -100,5 +102,23 @@ describe('SES daily review service contract', () => {
       { status: 'outside_period', draft_id: null, conflicts: [] },
     ], []);
     expect(outsidePeriod).toMatchObject({ pendingCount: 0, unresolvedCount: 0, draftNotReadyCount: 0 });
+  });
+
+  it('prioritizes a newly accredited item before advancing the already traversed cursor', () => {
+    expect(shouldPrioritizeSesReviewRetry(1)).toBe(true);
+    expect(shouldPrioritizeSesReviewRetry(10)).toBe(true);
+    expect(shouldPrioritizeSesReviewRetry(0)).toBe(false);
+    expect(overlaySesReviewPersistedEvent({
+      id: 'reservation-5578', rently_delivery_actual_literal: null,
+    }, {
+      delivery_actual_literal: '2026-09-09T17:56:39.05',
+      dropoff_actual_literal: '2026-09-10T18:00:00',
+      rently_status_code: 2,
+    })).toMatchObject({
+      id: 'reservation-5578',
+      rently_delivery_actual_literal: '2026-09-09T17:56:39.05',
+      rently_dropoff_actual_literal: '2026-09-10T18:00:00',
+      rently_status_code: 2,
+    });
   });
 });

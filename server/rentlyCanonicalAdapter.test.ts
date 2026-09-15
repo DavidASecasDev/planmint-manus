@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRentlyEventCoverageScope,
   enrichReservationWithDetail,
+  getAccreditedRentlyFullCoverageScope,
   mapBookingToRentlyEvent,
   mapBookingToReservation,
 } from './syncRently';
@@ -71,11 +72,12 @@ describe('adaptador canónico Rently oficial', () => {
   });
 
   it('acredita eventos con un barrido full desde offset cero aunque los detalles sean opcionales', () => {
-    expect(buildRentlyEventCoverageScope({
+    const fullCoverage = buildRentlyEventCoverageScope({
       syncMode: 'full', startedAt: '2026-09-10T03:00:00Z', completedAt: '2026-09-10T04:00:00Z',
       paginationStartOffset: 0, paginationEndOffset: 5587,
       localReservationImportIncludesAllStatuses: false,
-    })).toMatchObject({
+    });
+    expect(fullCoverage).toMatchObject({
       sourceEndpoint: '/api/bookings/list', allBranches: true, allStatuses: true,
       paginationComplete: true, nextOffset: null, unfilteredDateWindow: true,
       bookingListEventsComplete: true, deliveryEventsComplete: true, dropoffEventsComplete: true,
@@ -86,6 +88,14 @@ describe('adaptador canónico Rently oficial', () => {
       paginationStartOffset: 0, paginationEndOffset: 30,
       localReservationImportIncludesAllStatuses: true,
     }).bookingListEventsComplete).toBe(false);
+    expect(getAccreditedRentlyFullCoverageScope({
+      ...buildRentlyEventCoverageScope({
+        syncMode: 'incremental', startedAt: '2026-09-11T03:00:00Z', completedAt: '2026-09-11T03:05:00Z',
+        paginationStartOffset: 0, paginationEndOffset: 30,
+        localReservationImportIncludesAllStatuses: true,
+      }),
+      lastFullCoverage: { ...fullCoverage, coverageVersion: 'full-v1' },
+    })).toMatchObject({ coverageVersion: 'full-v1', unfilteredDateWindow: true, paginationEndOffset: 5587 });
   });
 
   it('mapea combustible y fecha oficial de cambio de estado desde detalle', () => {

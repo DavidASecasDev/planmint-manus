@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, subDays } from 'date-fns';
 import {
   AlertTriangle, CalendarRange, CheckCircle2, Clock3, ExternalLink, FileCheck2,
@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getSesProposalTargets, getSesReviewIssueLabels, sesDisplayValue, sesFieldLabel, SesFoundDataDialog } from './SesFoundDataDialog';
+import { getSesReviewCoveragePercentage, resolveSesReviewSubmittedRange } from './sesDailyReviewUi';
 
 const STATUS_LABELS: Record<string, string> = {
   queued: 'En cola', running: 'En curso', partial: 'Pendiente de revisión', completed: 'Completado', failed: 'Interrumpido', cancelled: 'Cancelado',
@@ -166,6 +167,9 @@ export function SesDailyReviewPanel({ open, onOpenChange, canEdit, onOpenDraft }
   const [reviewDate, setReviewDate] = useState(() => dateInput(subDays(new Date(), 1)));
   const [historicalFrom, setHistoricalFrom] = useState(() => dateInput(subDays(new Date(), 7)));
   const [historicalTo, setHistoricalTo] = useState(() => dateInput(subDays(new Date(), 1)));
+  const reviewDateRef = useRef<HTMLInputElement>(null);
+  const historicalFromRef = useRef<HTMLInputElement>(null);
+  const historicalToRef = useRef<HTMLInputElement>(null);
   const [evidenceItem, setEvidenceItem] = useState<SesReviewItem | null>(null);
   const [proposalContext, setProposalContext] = useState<{ proposal: SesReviewProposal; item: SesReviewItem } | null>(null);
   const [foundDataItem, setFoundDataItem] = useState<SesReviewItem | null>(null);
@@ -177,11 +181,10 @@ export function SesDailyReviewPanel({ open, onOpenChange, canEdit, onOpenDraft }
   }, [review.batches, selectedBatchId]);
   useEffect(() => setGmailReference(review.batch?.gmail_draft_reference ?? ''), [review.batch?.gmail_draft_reference]);
 
-  const progressValue = useMemo(() => {
-    const processed = review.batch?.processed_count ?? 0;
-    const total = review.batch?.candidate_count ?? 0;
-    return total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
-  }, [review.batch]);
+  const coveragePercentage = getSesReviewCoveragePercentage(review.batch?.coverage_complete === true);
+  const knownCandidatesLabel = review.batch
+    ? `${review.batch.processed_count}/${review.batch.candidate_count} candidatas conocidas procesadas`
+    : '0 candidatas conocidas procesadas';
 
   return (
     <>
@@ -194,10 +197,10 @@ export function SesDailyReviewPanel({ open, onOpenChange, canEdit, onOpenDraft }
           <ScrollArea className="max-h-[calc(92vh-104px)]">
             <div className="space-y-5 p-5">
               <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr_auto]">
-                <div className="space-y-2"><Label>Revisión diaria</Label><Input type="date" value={reviewDate} onChange={(event) => setReviewDate(event.target.value)} /></div>
-                <Button className="self-end" disabled={!canEdit || review.startDaily.isPending} onClick={() => review.startDaily.mutate({ reviewDate })}>{review.startDaily.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}Revisar ahora</Button>
-                <div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label>Histórico desde</Label><Input type="date" value={historicalFrom} onChange={(event) => setHistoricalFrom(event.target.value)} /></div><div className="space-y-2"><Label>Hasta</Label><Input type="date" value={historicalTo} onChange={(event) => setHistoricalTo(event.target.value)} /></div></div>
-                <Button variant="outline" className="self-end" disabled={!canEdit || review.startHistorical.isPending || historicalTo < historicalFrom} onClick={() => review.startHistorical.mutate({ dateFrom: historicalFrom, dateTo: historicalTo })}><CalendarRange className="mr-2 h-4 w-4" />Iniciar histórico</Button>
+                <div className="space-y-2"><Label>Revisión diaria</Label><Input ref={reviewDateRef} type="date" value={reviewDate} onChange={(event) => setReviewDate(event.currentTarget.value)} onInput={(event) => setReviewDate(event.currentTarget.value)} onBlur={(event) => setReviewDate(event.currentTarget.value)} /></div>
+                <Button className="self-end" disabled={!canEdit || review.startDaily.isPending} onClick={() => review.startDaily.mutate({ reviewDate: reviewDateRef.current?.value || reviewDate })}>{review.startDaily.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}Revisar ahora</Button>
+                <div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label>Histórico desde</Label><Input ref={historicalFromRef} type="date" value={historicalFrom} onChange={(event) => setHistoricalFrom(event.currentTarget.value)} onInput={(event) => setHistoricalFrom(event.currentTarget.value)} onBlur={(event) => setHistoricalFrom(event.currentTarget.value)} /></div><div className="space-y-2"><Label>Hasta</Label><Input ref={historicalToRef} type="date" value={historicalTo} onChange={(event) => setHistoricalTo(event.currentTarget.value)} onInput={(event) => setHistoricalTo(event.currentTarget.value)} onBlur={(event) => setHistoricalTo(event.currentTarget.value)} /></div></div>
+                <Button variant="outline" className="self-end" disabled={!canEdit || review.startHistorical.isPending || historicalTo < historicalFrom} onClick={() => review.startHistorical.mutate(resolveSesReviewSubmittedRange({ dateFromState: historicalFrom, dateToState: historicalTo, dateFromVisible: historicalFromRef.current?.value, dateToVisible: historicalToRef.current?.value }))}><CalendarRange className="mr-2 h-4 w-4" />Iniciar histórico</Button>
               </div>
 
               {review.error && <Alert variant="destructive"><ShieldAlert className="h-4 w-4" /><AlertTitle>No se pudo cargar la revisión diaria</AlertTitle><AlertDescription>{review.error instanceof Error ? review.error.message : 'Error de lectura'}</AlertDescription></Alert>}
@@ -208,9 +211,9 @@ export function SesDailyReviewPanel({ open, onOpenChange, canEdit, onOpenDraft }
                   {review.isLoading && <div className="flex h-48 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-amber-600" /></div>}
                   {!review.isLoading && review.batch && (
                     <>
-                      <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="flex items-center gap-2"><h3 className="text-lg font-semibold">Periodo {review.batch.batch_kind === 'daily' ? review.batch.review_date : `${review.batch.historical_from} → ${review.batch.historical_to}`}</h3>{statusBadge(review.batch.status)}</div><p className="text-xs text-slate-500">Hora de negocio: Europe/Madrid · los literales originales no se redondean</p></div><Button disabled={!canEdit || review.continueReview.isPending || review.batch.status === 'completed'} onClick={() => review.continueReview.mutate(review.batch!.id)}>{review.continueReview.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Continuar / reintentar</Button></div>
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="flex items-center gap-2"><h3 className="text-lg font-semibold">Periodo {review.batch.batch_kind === 'daily' ? review.batch.review_date : `${review.batch.historical_from} → ${review.batch.historical_to}`}</h3>{statusBadge(review.batch.status)}</div><p className="text-xs text-slate-500">Hora de negocio: Europe/Madrid · los literales originales no se redondean</p><p className="mt-1 break-all font-mono text-[11px] text-slate-600"><span className="font-sans font-medium">ID de lote:</span> {review.batch.id}</p></div><Button disabled={!canEdit || review.continueReview.isPending || review.batch.status === 'completed'} onClick={() => review.continueReview.mutate(review.batch!.id)}>{review.continueReview.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Continuar / reintentar</Button></div>
                       <div className="grid gap-3 sm:grid-cols-4"><Card><CardContent className="p-4"><p className="text-xs text-slate-500">Candidatas</p><p className="text-2xl font-bold">{review.batch.candidate_count}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-emerald-700">Entrega acreditada</p><p className="text-2xl font-bold text-emerald-800">{review.batch.verified_count}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-amber-700">Pendientes</p><p className="text-2xl font-bold text-amber-800">{review.batch.pending_count}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-rose-700">Errores</p><p className="text-2xl font-bold text-rose-800">{review.batch.error_count}</p></CardContent></Card></div>
-                      <div className="space-y-2"><div className="flex justify-between text-xs text-slate-500"><span>Progreso persistido</span><span>{progressValue}%</span></div><Progress value={progressValue} /></div>
+                      <div className="space-y-2"><div className="flex justify-between gap-3 text-xs text-slate-500"><span>Cobertura global confirmada</span><span>{coveragePercentage}%</span></div><Progress value={coveragePercentage} /><p className="text-xs text-slate-500">{knownCandidatesLabel}. Este recuento no representa el total global hasta confirmar todas las páginas, sedes y estados.</p></div>
                       {!review.batch.coverage_complete && <Alert className="border-amber-200 bg-amber-50 text-amber-950"><AlertTriangle className="h-4 w-4" /><AlertTitle>Cobertura todavía no confirmada</AlertTitle><AlertDescription>{review.batch.progress?.coverageReason ?? 'Quedan páginas, fuentes o una sincronización Rently completa posterior al periodo.'} No se interpreta como ausencia de datos.</AlertDescription></Alert>}
                       <div className="overflow-hidden rounded-xl border"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead>Reserva</TableHead><TableHead>Fechas</TableHead><TableHead>Evidencia</TableHead><TableHead>Faltantes / contradicciones</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader><TableBody>
                         {(review.batch.items ?? []).map((item) => {

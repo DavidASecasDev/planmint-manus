@@ -1827,3 +1827,13 @@
 - [x] Verificar que reservas, SES y flota no cambian y que no se activan envíos ni notificaciones externas
 - [x] Ejecutar pruebas focales, TypeScript, build y verificación visual escritorio/móvil
 - [x] Documentar decisiones, limitaciones y entregar checkpoint/preview sin publicar ni aplicar SQL en producción
+- [x] Auditar exclusivamente SES.HOSPEDAJES y preservar íntegros Tareas, reservas, flota y demás módulos
+- [x] Reproducir el rango histórico con teclado+blur y con fill nativo durante un refresco; corregir solo si el estado React enviado difiere por causa del componente
+- [x] Auditar la cobertura del lote histórico 08/09–14/09 sin crear otro lote real y corregir metadatos solo si no acreditan paginación completa y todos los estados/sedes
+- [x] Evitar que el porcentaje muestre 100% de revisión cuando la cobertura sigue sin confirmar
+- [x] Reproducir 5578 con `DeliveryInfo.Date=2026-09-09T17:56:39.05` y documento visible a segundos, conservando ambos literales
+- [x] Reanudar y revalidar un caso acreditado después de haber agotado el cursor, sin duplicar ítems ni perder correcciones manuales o auditoría
+- [x] Mantener 5582 en el día real de entrega aunque la fecha prevista sea posterior y excluirla del periodo incorrecto sin conflicto falso
+- [x] Mostrar en la interfaz el identificador exacto del lote para vincularlo con Azul Office
+- [x] Validar ejecución repetida, cobertura, precisión documental, cursor/cola, UI sintética, TypeScript, build y regresiones SES
+- [x] Documentar causa real, diff, pruebas y pendientes; entregar checkpoint/preview sin publicar, aplicar SQL ni enviar comunicaciones

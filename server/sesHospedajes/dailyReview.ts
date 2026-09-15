@@ -642,7 +642,14 @@ export function evaluateSesReviewCoverageGuarantee(input: {
   if (input.syncStatus !== 'completed') {
     return { complete: false, token: input.coverageVersion ?? 'no-coverage-version', reason: 'La sincronización Rently no ha terminado' };
   }
-  const scope = input.coverageScope ?? {};
+  const latestScope = input.coverageScope ?? {};
+  const nestedFullCoverage = latestScope.lastFullCoverage;
+  const scope = nestedFullCoverage && typeof nestedFullCoverage === 'object' && !Array.isArray(nestedFullCoverage)
+    ? nestedFullCoverage as Record<string, unknown>
+    : latestScope;
+  const coverageToken = typeof scope.coverageVersion === 'string'
+    ? scope.coverageVersion
+    : input.coverageVersion ?? 'no-coverage-version';
   const guarantees = [
     ['sourceEndpoint', 'La cobertura no procede del listado oficial de reservas Rently'],
     ['allBranches', 'No se han acreditado todas las sedes'],
@@ -651,22 +658,22 @@ export function evaluateSesReviewCoverageGuarantee(input: {
   ] as const;
   for (const [key, reason] of guarantees) {
     const expected = key === 'sourceEndpoint' ? '/api/bookings/list' : true;
-    if (scope[key] !== expected) return { complete: false, token: input.coverageVersion ?? 'no-coverage-version', reason };
+    if (scope[key] !== expected) return { complete: false, token: coverageToken, reason };
   }
   if (scope.unfilteredDateWindow !== true) {
-    return { complete: false, token: input.coverageVersion ?? 'no-coverage-version', reason: 'La ventana temporal del listado estaba filtrada' };
+    return { complete: false, token: coverageToken, reason: 'La ventana temporal del listado estaba filtrada' };
   }
   if (scope.bookingListEventsComplete !== true || scope.deliveryEventsComplete !== true || scope.dropoffEventsComplete !== true) {
-    return { complete: false, token: input.coverageVersion ?? 'no-coverage-version', reason: 'No se han acreditado todos los eventos de entrega y devolución del listado' };
+    return { complete: false, token: coverageToken, reason: 'No se han acreditado todos los eventos de entrega y devolución del listado' };
   }
   if (Number(scope.paginationStartOffset) !== 0 || scope.nextOffset !== null) {
-    return { complete: false, token: input.coverageVersion ?? 'no-coverage-version', reason: 'La paginación acreditada no recorre el listado completo desde el offset cero' };
+    return { complete: false, token: coverageToken, reason: 'La paginación acreditada no recorre el listado completo desde el offset cero' };
   }
   const coveredThrough = typeof scope.coveredThrough === 'string' ? Date.parse(scope.coveredThrough) : Number.NaN;
   if (!Number.isFinite(coveredThrough) || coveredThrough < Date.parse(input.periodEnd)) {
-    return { complete: false, token: input.coverageVersion ?? 'no-coverage-version', reason: 'El alcance acreditado no cubre el final del periodo revisado' };
+    return { complete: false, token: coverageToken, reason: 'El alcance acreditado no cubre el final del periodo revisado' };
   }
-  return { complete: true, token: input.coverageVersion ?? 'coverage-without-version', reason: null };
+  return { complete: true, token: coverageToken, reason: null };
 }
 
 export function shouldRediscoverSesReview(input: {
@@ -691,7 +698,10 @@ export function isSesReviewItemRetryable(input: {
     const retryAt = new Date(input.nextRetryAt).getTime();
     return Number.isFinite(retryAt) && retryAt <= (input.now ?? Date.now());
   }
-  return ['missing_delivery_evidence', 'evidence_conflict'].includes(input.status)
+  const retryAt = input.nextRetryAt ? new Date(input.nextRetryAt).getTime() : Number.NaN;
+  return Number.isFinite(retryAt)
+    && retryAt <= (input.now ?? Date.now())
+    && ['missing_delivery_evidence', 'evidence_conflict'].includes(input.status)
     && Boolean(input.evidenceReference?.trim())
     && Boolean(input.evidenceGeneratedLiteral?.trim());
 }

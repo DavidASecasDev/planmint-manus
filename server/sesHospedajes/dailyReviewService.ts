@@ -546,6 +546,19 @@ export function deriveSesReviewBatchCounts(
   };
 }
 
+export function shouldPrioritizeSesReviewRetry(retriedCount: number) {
+  return Number.isSafeInteger(retriedCount) && retriedCount > 0;
+}
+
+export function overlaySesReviewPersistedEvent<T extends Record<string, unknown>>(reservation: T, item: Record<string, unknown>) {
+  return {
+    ...reservation,
+    rently_delivery_actual_literal: reservation.rently_delivery_actual_literal ?? item.delivery_actual_literal ?? null,
+    rently_dropoff_actual_literal: reservation.rently_dropoff_actual_literal ?? item.dropoff_actual_literal ?? null,
+    rently_status_code: reservation.rently_status_code ?? item.rently_status_code ?? null,
+  } as T;
+}
+
 async function readSourceStates(serviceClient: SupabaseClient, batchId: string) {
   const { data, error } = await serviceClient.from('ses_review_item_sources').select('status').eq('batch_id', batchId);
   if (error) throw error;
@@ -560,7 +573,7 @@ async function retryReadySesReviewItems(input: {
   assertLease: () => Promise<void>;
   leaseToken: string;
 }) {
-  const fields = 'id,reservation_id,status,next_retry_at,evidence_reference,evidence_generated_literal';
+  const fields = 'id,reservation_id,status,next_retry_at,evidence_reference,evidence_generated_literal,delivery_actual_literal,dropoff_actual_literal,rently_status_code';
   const [failedResult, accreditedResult] = await Promise.all([
     input.serviceClient.from('ses_review_items').select(fields).eq('batch_id', input.batch.id)
       .eq('status', 'failed').order('last_attempt_at', { ascending: true }).limit(10),
@@ -585,11 +598,13 @@ async function retryReadySesReviewItems(input: {
     .eq('organization_id', input.batch.organization_id).in('id', reservationIds);
   if (error) throw error;
   if (!reservations?.length) return 0;
+  const retryByReservationId = new Map(retryRows.map((row) => [row.reservation_id, row]));
   const credentials = await loadRentlyCredentials(input.serviceClient, input.batch.organization_id);
   const token = await getRentlyToken(credentials.host, credentials.clientId, credentials.clientSecret);
   for (let index = 0; index < reservations.length; index += 5) {
     await input.assertLease();
-    const chunk = (reservations as unknown as SesReviewReservationRow[]).slice(index, index + 5);
+    const chunk = (reservations as unknown as SesReviewReservationRow[]).slice(index, index + 5).map((reservation) =>
+      overlaySesReviewPersistedEvent(reservation, retryByReservationId.get(reservation.id) ?? {}));
     await Promise.all(chunk.map((reservation) => processCandidate({
       ...input,
       reservation,
@@ -626,9 +641,13 @@ export async function runSesReviewBatchStep(input: {
       await assertLease();
       const startedAt = batch.started_at ?? new Date().toISOString();
       const cursor = parseCursor(batch.cursor);
+      const retried = await retryReadySesReviewItems({ ...input, batch, assertLease, leaseToken });
+      if (shouldPrioritizeSesReviewRetry(retried)) {
+        const pagesComplete = !SES_REVIEW_CANDIDATE_SOURCES[cursor.sourceIndex];
+        return finalizeSesReviewBatch(input.serviceClient, batch, cursor, pagesComplete, leaseToken);
+      }
       const source = SES_REVIEW_CANDIDATE_SOURCES[cursor.sourceIndex];
       if (!source) {
-        await retryReadySesReviewItems({ ...input, batch, assertLease, leaseToken });
         return finalizeSesReviewBatch(input.serviceClient, batch, cursor, true, leaseToken);
       }
       try {
