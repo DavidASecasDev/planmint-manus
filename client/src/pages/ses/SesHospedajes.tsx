@@ -49,6 +49,9 @@ function displayDate(value: string | null) {
 function StatusBadge({ draft }: { draft: SesContractDraft }) {
   if (draft.status === 'accepted') return <Badge className="border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Aceptado por SES</Badge>;
   if (draft.status === 'uploaded_pending_result') return <Badge className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50">Presentado · pendiente</Badge>;
+  if (draft.operationalStatus === 'cancelled_not_applicable') return <Badge className="border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-100">Cancelada · no aplicable</Badge>;
+  if (draft.operationalStatus === 'cancellation_review') return <Badge className="border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-50">Cancelada · revisar</Badge>;
+  if (draft.operationalStatus === 'source_check_required') return <Badge className="border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-50">Estado Rently pendiente</Badge>;
   if (draft.operationalStatus === 'ready') return <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Listo para XML</Badge>;
   if (draft.operationalStatus === 'incomplete') return <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">Incompleta</Badge>;
   return <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">XML generado · no presentado</Badge>;
@@ -208,6 +211,7 @@ export default function SesHospedajes() {
   const ready = ses.summary.ready ?? 0;
   const incomplete = ses.summary.incomplete ?? 0;
   const xmlGenerated = ses.summary.xml_generated ?? 0;
+  const cancelled = (ses.summary.cancelled_not_applicable ?? 0) + (ses.summary.cancellation_review ?? 0);
   const schemaMigrationRequired = ses.schemaMigrationRequired;
   const selectedSaving = ses.updateDraft.isPending || ses.updatePerson.isPending || ses.createPerson.isPending || ses.updateLocation.isPending;
   const readyDrafts = ses.drafts.filter(canSelectSesDraftForXml);
@@ -296,10 +300,11 @@ export default function SesHospedajes() {
           </Alert>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-emerald-700">Listos · filtro</p><p className="mt-1 text-2xl font-bold text-emerald-900">{ready}</p></div><CheckCircle2 className="h-8 w-8 text-emerald-400" /></CardContent></Card>
           <Card className="border-amber-200 bg-amber-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-amber-700">Incompletos · filtro</p><p className="mt-1 text-2xl font-bold text-amber-900">{incomplete}</p></div><AlertCircle className="h-8 w-8 text-amber-400" /></CardContent></Card>
           <Card className="border-blue-200 bg-blue-50/50 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-blue-700">XML generado · no implica presentación</p><p className="mt-1 text-2xl font-bold text-blue-900">{xmlGenerated}</p></div><History className="h-8 w-8 text-blue-400" /></CardContent></Card>
+          <Card className="border-slate-200 bg-slate-50/70 shadow-sm"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs font-medium text-slate-600">Canceladas · filtro</p><p className="mt-1 text-2xl font-bold text-slate-900">{cancelled}</p></div><ShieldAlert className="h-8 w-8 text-slate-400" /></CardContent></Card>
         </div>
 
         {missingFieldCounts.length > 0 && <p className="text-sm text-slate-500"><strong>Campos pendientes más frecuentes:</strong> {missingFieldCounts.map(([path, count]) => `${path} (${count})`).join(' · ')}</p>}
@@ -350,8 +355,8 @@ export default function SesHospedajes() {
                     <TableCell><div className="max-w-44 truncate font-medium">{client}</div><div className="text-xs text-slate-400">{draft.holder?.document_number || 'Sin documento'}</div></TableCell>
                     <TableCell><div className="whitespace-nowrap text-sm">{displayDate(draft.pickup_at)}</div><div className="max-w-52 truncate text-xs text-slate-400">{draft.pickup_location?.name || 'Sin lugar'}</div></TableCell>
                     <TableCell><div className="font-medium">{draft.vehicle_plate || '—'}</div><div className="max-w-40 truncate text-xs text-slate-400">{[draft.vehicle_brand, draft.vehicle_model].filter(Boolean).join(' ') || 'Sin modelo'}</div></TableCell>
-                    <TableCell><StatusBadge draft={draft} />{draft.sesDuplicateWarning && <p className="mt-1 max-w-56 text-xs text-amber-700">Aviso SES: {draft.sesDuplicateWarning.message}</p>}{draft.syncConflicts.length > 0 && <p className="mt-1 max-w-56 text-xs text-blue-700">{draft.syncConflicts.length} corrección(es) manual(es) preservada(s)</p>}{reviewConflicts.length > 0 && <p className="mt-1 max-w-56 text-xs font-medium text-rose-700">{reviewConflicts.length} contradicción(es) por resolver</p>}</TableCell>
-                    <TableCell>{actionableIssues.length > 0 || reviewConflicts.length > 0 ? <div className="max-w-64 space-y-1"><div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />Faltantes: {actionableIssues.length}</div>{actionableIssues.length > 0 && <p className="text-xs leading-4 text-amber-700">{actionableIssues.map((issue) => issue.label).join(' · ')}</p>}<p className={reviewConflicts.length ? 'text-sm font-medium text-rose-700' : 'text-xs text-slate-400'}>Contradicciones: {reviewConflicts.length}</p></div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
+                    <TableCell><StatusBadge draft={draft} />{draft.cancellationDisposition?.requiresReview && <p className="mt-1 max-w-56 text-xs font-medium text-rose-700">{draft.cancellationDisposition.label}</p>}{draft.sesDuplicateWarning && <p className="mt-1 max-w-56 text-xs text-amber-700">Aviso SES: {draft.sesDuplicateWarning.message}</p>}{draft.syncConflicts.length > 0 && <p className="mt-1 max-w-56 text-xs text-blue-700">{draft.syncConflicts.length} corrección(es) manual(es) preservada(s)</p>}{reviewConflicts.length > 0 && <p className="mt-1 max-w-56 text-xs font-medium text-rose-700">{reviewConflicts.length} contradicción(es) por resolver</p>}</TableCell>
+                    <TableCell>{draft.cancellationDisposition?.notApplicableToDelivery ? <p className="max-w-56 text-sm font-medium text-slate-600">No aplicable a entrega</p> : draft.cancellationDisposition?.requiresReview ? <p className="max-w-56 text-sm font-medium text-rose-700">Revisar cancelación y hechos históricos</p> : actionableIssues.length > 0 || reviewConflicts.length > 0 ? <div className="max-w-64 space-y-1"><div className="flex items-center gap-1.5 text-sm font-medium text-amber-700"><AlertCircle className="h-4 w-4" />Faltantes: {actionableIssues.length}</div>{actionableIssues.length > 0 && <p className="text-xs leading-4 text-amber-700">{actionableIssues.map((issue) => issue.label).join(' · ')}</p>}<p className={reviewConflicts.length ? 'text-sm font-medium text-rose-700' : 'text-xs text-slate-400'}>Contradicciones: {reviewConflicts.length}</p></div> : <CheckCircle2 className="h-5 w-5 text-emerald-500" />}</TableCell>
                     <TableCell className="sticky right-0 z-10 bg-white text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]"><SesDraftActions draft={draft} canExport={canExport} schemaMigrationRequired={schemaMigrationRequired} checking={ses.checkOfficialCommunication.isPending} onCheck={() => setOfficialCheckDraft(draft)} onComplete={() => setSelected(draft)} /></TableCell>
                   </TableRow>
                 );

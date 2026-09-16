@@ -82,6 +82,7 @@ import {
   validateSesXmlAgainstOfficialContract,
 } from './officialStructuralContract';
 import { deriveSesOperationalState, mergeSesRentlyFields, projectSesOperationalDraft } from './operationalDraft';
+import { buildSesCancellationReconciliation, deriveSesCancellationDisposition, findSesCancellationXmlBlocks, mergeSesCancellationSnapshot } from './cancellation';
 import { mapStoredRentlyDriverToCustomer, parseStoredRentlyDrivers } from './additionalDrivers';
 import {
   assertSesHardeningSchema,
@@ -655,7 +656,9 @@ const DRAFT_RELATIONS = `
   reservation:reservations!ses_contract_drafts_reservation_id_fkey(
     id,external_reservation_id,cliente_nombre,cliente_apellido,estado,auto,
     rently_status_code,es_transferencia,rently_delivery_branch_office_id,
-    rently_delivery_actual_at,rently_detail_booking_id,rently_detail_vehicle_plate
+    rently_delivery_actual_literal,rently_delivery_actual_at,
+    rently_dropoff_actual_literal,rently_dropoff_actual_at,
+    rently_detail_booking_id,rently_detail_vehicle_plate
   ),
   holder:ses_person_profiles!ses_contract_drafts_holder_profile_id_fkey(*),
   primary_driver:ses_person_profiles!ses_contract_drafts_primary_driver_profile_id_fkey(*),
@@ -676,8 +679,58 @@ const LEGACY_DRAFT_RELATIONS = `
   return_location:ses_locations!ses_contract_drafts_return_location_id_fkey(*)
 `;
 
+type SesCancellationFacts = {
+  officialByReference: Map<string, number>;
+  batchItemsByDraftId: Map<string, number>;
+};
+
+async function loadSesCancellationFacts(
+  serviceClient: SupabaseClient,
+  organizationId: string,
+  drafts: Array<Record<string, any>>,
+): Promise<SesCancellationFacts> {
+  const references = Array.from(new Set(drafts.map((draft) => String(draft.reference ?? '').trim()).filter(Boolean)));
+  const draftIds = Array.from(new Set(drafts.map((draft) => String(draft.id ?? '')).filter(Boolean)));
+  const officialByReference = new Map<string, number>();
+  const batchItemsByDraftId = new Map<string, number>();
+  for (let index = 0; index < references.length; index += 250) {
+    const { data, error } = await serviceClient.from('ses_official_communications').select('reference')
+      .eq('organization_id', organizationId).in('reference', references.slice(index, index + 250));
+    if (error) throw error;
+    for (const row of data ?? []) officialByReference.set(row.reference, (officialByReference.get(row.reference) ?? 0) + 1);
+  }
+  for (let index = 0; index < draftIds.length; index += 250) {
+    const { data, error } = await serviceClient.from('ses_batch_items').select('draft_id')
+      .eq('organization_id', organizationId).in('draft_id', draftIds.slice(index, index + 250));
+    if (error) throw error;
+    for (const row of data ?? []) batchItemsByDraftId.set(row.draft_id, (batchItemsByDraftId.get(row.draft_id) ?? 0) + 1);
+  }
+  return { officialByReference, batchItemsByDraftId };
+}
+
+function withSesCancellationFacts(draft: Record<string, any>, facts: SesCancellationFacts): Record<string, any> {
+  return {
+    ...draft,
+    __official_communication_count: facts.officialByReference.get(String(draft.reference ?? '')) ?? 0,
+    __historical_batch_item_count: facts.batchItemsByDraftId.get(String(draft.id ?? '')) ?? 0,
+  };
+}
+
 async function calculateCurrentDraftGates(ctx: AuthContext, draft: Record<string, any>) {
   const issues = validateSesDraft(buildValidationInput(draft));
+  const facts = await loadSesCancellationFacts(ctx.serviceClient, ctx.organizationId, [draft]);
+  const enrichedDraft = withSesCancellationFacts(draft, facts);
+  const reservation = Array.isArray(enrichedDraft.reservation) ? enrichedDraft.reservation[0] : enrichedDraft.reservation;
+  const snapshot = enrichedDraft.eligibility_snapshot && typeof enrichedDraft.eligibility_snapshot === 'object'
+    ? enrichedDraft.eligibility_snapshot : {};
+  const disposition = reservation && Object.prototype.hasOwnProperty.call(reservation, 'rently_status_code')
+    ? deriveSesCancellationDisposition({
+      rentlyStatusCode: reservation.rently_status_code,
+      actualDeliveryAt: reservation.rently_delivery_actual_literal ?? reservation.rently_delivery_actual_at,
+      deliveryEvidenceReference: snapshot.delivery_evidence_reference,
+      officialCommunicationCount: enrichedDraft.__official_communication_count,
+      hasHistoricalBatchItem: enrichedDraft.__historical_batch_item_count > 0 || isSesDraftLocked(enrichedDraft.status),
+    }) : null;
   const officialStatus: SesOfficialClearance['status'] = ['clear', 'blocked', 'review'].includes(draft.official_check_status)
     ? draft.official_check_status
     : 'not_checked';
@@ -693,7 +746,10 @@ async function calculateCurrentDraftGates(ctx: AuthContext, draft: Record<string
     gates: deriveSesGateState({
       validationIssueCount: issues.length,
       officialClearance,
+      cancellationBlocksXml: disposition?.blocksXml,
+      cancellationRequiresReview: disposition?.requiresReview,
     }),
+    disposition,
   };
 }
 
@@ -703,7 +759,14 @@ async function validateAndPersistDraft(ctx: AuthContext, draftId: string) {
   if (error) throw error;
   const locked = isSesDraftLocked(draft.status);
   if (locked) return { draft, issues: draft.validation_errors ?? [] };
-  const { issues, officialClearance, gates } = await calculateCurrentDraftGates(ctx, draft);
+  const { issues, gates, disposition } = await calculateCurrentDraftGates(ctx, draft);
+  const eligibilitySnapshot = disposition
+    ? mergeSesCancellationSnapshot(
+      draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object' ? draft.eligibility_snapshot : {},
+      disposition,
+      new Date().toISOString(),
+    )
+    : draft.eligibility_snapshot;
   const { data: updated, error: updateError } = await ctx.serviceClient.from('ses_contract_drafts')
     .update({
       validation_errors: issues,
@@ -713,6 +776,7 @@ async function validateAndPersistDraft(ctx: AuthContext, draftId: string) {
       is_officially_clear: gates.isOfficiallyClear,
       ready_for_xml: gates.readyForXml,
       status: gates.status,
+      eligibility_snapshot: eligibilitySnapshot,
       last_prepared_at: new Date().toISOString(),
     })
     .eq('id', draftId).eq('organization_id', ctx.organizationId).select('*').single();
@@ -1066,7 +1130,9 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
       cliente_carnet_numero,cliente_carnet_pais,cliente_carnet_expiracion,
       lugar_entrega,lugar_entrega_direccion,lugar_entrega_ciudad,
       lugar_devolucion,lugar_devolucion_direccion,lugar_devolucion_ciudad,
-      modelo,auto,categoria,vehiculo_color,vehiculo_chasis,vehiculo_kms,conductores_adicionales,imported_by
+      modelo,auto,categoria,vehiculo_color,vehiculo_chasis,vehiculo_kms,conductores_adicionales,imported_by,
+      rently_status_code,rently_delivery_actual_literal,rently_delivery_actual_at,
+      rently_dropoff_actual_literal,rently_dropoff_actual_at
     `, { count: 'exact' })
       .eq('organization_id', ctx.organizationId)
       .order('external_reservation_id', { ascending: true })
@@ -1083,6 +1149,21 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
       .eq('organization_id', ctx.organizationId).in('reservation_id', reservationIds);
     if (existingError) throw existingError;
     const existingMap = new Map((existingDrafts ?? []).map((draft) => [draft.reservation_id, draft]));
+    const cancellationFacts = await loadSesCancellationFacts(ctx.serviceClient, ctx.organizationId, reservations.map((reservation) => {
+      const existing = existingMap.get(reservation.id);
+      return { id: existing?.id ?? '', reference: String(reservation.external_reservation_id || reservation.id) };
+    }));
+    const cancellationByReservation = new Map(reservations.map((reservation) => {
+      const existing = existingMap.get(reservation.id);
+      const reference = String(reservation.external_reservation_id || reservation.id);
+      return [reservation.id, deriveSesCancellationDisposition({
+        rentlyStatusCode: reservation.rently_status_code,
+        actualDeliveryAt: reservation.rently_delivery_actual_literal ?? reservation.rently_delivery_actual_at,
+        deliveryEvidenceReference: existing?.eligibility_snapshot?.delivery_evidence_reference,
+        officialCommunicationCount: cancellationFacts.officialByReference.get(reference) ?? 0,
+        hasHistoricalBatchItem: Boolean(existing?.id && cancellationFacts.batchItemsByDraftId.get(existing.id)),
+      })] as const;
+    }));
     const { data: fleetVehicles, error: fleetError } = await ctx.serviceClient.from('fleet_vehicles').select('*')
       .eq('organization_id', ctx.organizationId);
     if (fleetError) throw fleetError;
@@ -1090,7 +1171,7 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
     const { data: settings } = await ctx.serviceClient.from('ses_settings').select('*')
       .eq('organization_id', ctx.organizationId).maybeSingle();
     const additionalCustomers = reservations.flatMap((reservation) =>
-      parseStoredRentlyDrivers(reservation.conductores_adicionales)
+      cancellationByReservation.get(reservation.id)?.kind !== 'active_or_reactivated' ? [] : parseStoredRentlyDrivers(reservation.conductores_adicionales)
         .map(mapStoredRentlyDriverToCustomer)
         .filter((customer): customer is RentlyCustomerForSes => Boolean(customer)),
     );
@@ -1109,7 +1190,8 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
     );
     const reservationsNeedingVehicleDetail = reservations.filter((reservation) => {
       const existing = existingMap.get(reservation.id) as Record<string, any> | undefined;
-      return !isSesDraftLocked(existing?.status) && needsRentlyVehicleDetail({
+      return cancellationByReservation.get(reservation.id)?.kind === 'active_or_reactivated'
+        && !isSesDraftLocked(existing?.status) && needsRentlyVehicleDetail({
         existingDraft: existing,
         fleetVehicles: getFleetVehicleCandidates(fleetByPlate, reservation.auto),
       });
@@ -1131,6 +1213,62 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
       const existing = existingMap.get(reservation.id) as Record<string, any> | undefined;
       if (existing && isSesDraftLocked(existing.status)) {
         skippedLocked++;
+        continue;
+      }
+      const cancellationDisposition = cancellationByReservation.get(reservation.id);
+      if (cancellationDisposition && cancellationDisposition.kind !== 'active_or_reactivated') {
+        const checkedAt = new Date().toISOString();
+        const reconciliation = buildSesCancellationReconciliation({
+          existing,
+          rentlyStatusCode: reservation.rently_status_code,
+          actualDeliveryAt: reservation.rently_delivery_actual_literal ?? reservation.rently_delivery_actual_at,
+          deliveryEvidenceReference: existing?.eligibility_snapshot?.delivery_evidence_reference,
+          officialCommunicationCount: cancellationFacts.officialByReference.get(String(reservation.external_reservation_id || reservation.id)) ?? 0,
+          hasHistoricalBatchItem: Boolean(existing?.id && cancellationFacts.batchItemsByDraftId.get(existing.id)),
+          checkedAt,
+        });
+        if (!reconciliation.changed || !reconciliation.values) {
+          unchanged++;
+          continue;
+        }
+        const eligibilityIssue: SesEligibilityIssue = {
+          code: cancellationDisposition.reasonCode === 'unknown_source_status'
+            ? 'source_status_unknown'
+            : cancellationDisposition.reasonCode === 'cancelled_with_official_history'
+            ? 'cancelled_with_official_history'
+            : cancellationDisposition.reasonCode === 'cancelled_with_delivery'
+              ? 'cancelled_with_delivery' : 'cancelled_not_applicable',
+          message: cancellationDisposition.label,
+          reviewRequired: cancellationDisposition.requiresReview,
+        };
+        const classificationValues: Record<string, unknown> = {
+          organization_id: ctx.organizationId,
+          reservation_id: reservation.id,
+          external_booking_id: Number(reservation.external_reservation_id) || null,
+          reference: String(reservation.external_reservation_id || reservation.id).slice(0, 50),
+          contract_date: reservation.rently_creation_date?.slice(0, 10) || existing?.contract_date || null,
+          pickup_at: existing?.manual_fields?.includes('pickup_at') ? existing.pickup_at : reservation.desde,
+          return_at: existing?.manual_fields?.includes('return_at') ? existing.return_at : reservation.hasta,
+          ...reconciliation.values,
+          eligibility_errors: [eligibilityIssue],
+          is_officially_clear: existing?.is_officially_clear ?? false,
+          updated_by: ctx.userId,
+          ...(existing ? {} : { created_by: ctx.userId, draft_version: 1 }),
+        };
+        const nextContentHash = calculateSesDraftContentHash({ ...existing, ...classificationValues });
+        classificationValues.content_hash = nextContentHash;
+        classificationValues.draft_version = existing ? existing.draft_version + 1 : 1;
+        const { data: savedCancellation, error: cancellationError } = await ctx.serviceClient.from('ses_contract_drafts')
+          .upsert(classificationValues, { onConflict: 'organization_id,reservation_id' }).select('id').single();
+        if (cancellationError) throw cancellationError;
+        await audit(ctx, 'draft', savedCancellation.id,
+          cancellationDisposition.cancelled ? 'rently_cancellation_reconciled' : 'rently_status_pending_reconciled',
+          ['status', 'is_eligible', 'ready_for_xml'], {
+          disposition: cancellationDisposition.kind,
+          reason_code: cancellationDisposition.reasonCode,
+          preserved_manual_fields: existing?.manual_fields ?? [],
+        });
+        existing ? updated++ : created++;
         continue;
       }
       const person = await ensurePersonFromReservation(ctx, reservation);
@@ -1200,6 +1338,7 @@ export async function handleSesSyncDrafts(req: Request, res: Response) {
       merged.status = operational.status;
       merged.eligibility_snapshot = {
         ...previousSnapshot,
+        ...(cancellationDisposition ? mergeSesCancellationSnapshot({}, cancellationDisposition, new Date().toISOString()) : {}),
         source_by_field: mergedRently.sourceByField,
         sync_conflicts: mergedRently.syncConflicts,
         rently_synced_at: new Date().toISOString(),
@@ -1554,15 +1693,10 @@ export async function handleSesListDrafts(req: Request, res: Response) {
         throw invalidRange;
       }
     }
-    const applyFilters = (query: any): any => {
+    const applyBaseFilters = (query: any): any => {
       let filtered = query;
       if (input.dateFrom) filtered = filtered.gte('pickup_at', `${input.dateFrom}T00:00:00`);
       if (input.dateTo) filtered = filtered.lte('pickup_at', `${input.dateTo}T23:59:59`);
-      if (input.status && input.status !== 'all') {
-        filtered = input.status === 'xml_generated'
-          ? filtered.in('status', ['batched', 'uploaded_pending_result', 'accepted'])
-          : filtered.eq('status', input.status);
-      }
       if (input.search?.trim()) {
         const search = input.search.trim().replace(/[%_,]/g, '');
         const plate = search.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1572,46 +1706,48 @@ export async function handleSesListDrafts(req: Request, res: Response) {
       }
       return filtered;
     };
-    const runDraftQuery = async (relations: string) => {
-      let query = ctx.serviceClient.from('ses_contract_drafts').select(relations, { count: 'exact' })
-        .eq('organization_id', ctx.organizationId).order('pickup_at', { ascending: true })
-        .range(input.offset, input.offset + input.limit - 1);
-      query = applyFilters(query);
-      return query;
-    };
-    let { data, error, count } = await runDraftQuery(DRAFT_RELATIONS);
-    let schemaMigrationRequired = false;
-    if (error && isSesSchemaCompatibilityError(error)) {
-      const legacyResult = await runDraftQuery(LEGACY_DRAFT_RELATIONS);
-      data = legacyResult.data;
-      error = legacyResult.error;
-      count = legacyResult.count;
-      schemaMigrationRequired = true;
-    }
-    if (error) throw error;
-    const statusRows = await collectAllPages<{ status: string; validation_errors: unknown[] | null }>(async (from, to) => {
-      let statusQuery = ctx.serviceClient.from('ses_contract_drafts').select('status,validation_errors')
+    const collectDraftRows = async (relations: string) => collectAllPages<Record<string, any>>(async (from, to) => {
+      let query = ctx.serviceClient.from('ses_contract_drafts').select(relations)
         .eq('organization_id', ctx.organizationId).order('pickup_at', { ascending: true }).range(from, to);
-      statusQuery = applyFilters(statusQuery);
-      const { data: page, error: pageError } = await statusQuery;
+      query = applyBaseFilters(query);
+      const { data: page, error: pageError } = await query;
       if (pageError) throw pageError;
       return page ?? [];
     });
-    const summary = statusRows.reduce((acc: Record<string, number>, draft) => {
-      const operational = deriveSesOperationalState({
-        historicalStatus: draft.status,
-        validationIssues: Array.isArray(draft.validation_errors) ? draft.validation_errors as SesValidationIssue[] : [],
-      });
-      acc[operational.status] = (acc[operational.status] ?? 0) + 1;
+    let rawDrafts: Array<Record<string, any>> = [];
+    let schemaMigrationRequired = false;
+    try {
+      rawDrafts = await collectDraftRows(DRAFT_RELATIONS);
+    } catch (error) {
+      if (!isSesSchemaCompatibilityError(error)) throw error;
+      rawDrafts = await collectDraftRows(LEGACY_DRAFT_RELATIONS);
+      schemaMigrationRequired = true;
+    }
+    const compatibleDrafts = schemaMigrationRequired
+      ? rawDrafts.map((draft) => withLegacyDraftGates(draft))
+      : rawDrafts;
+    const cancellationFacts = schemaMigrationRequired
+      ? { officialByReference: new Map<string, number>(), batchItemsByDraftId: new Map<string, number>() }
+      : await loadSesCancellationFacts(ctx.serviceClient, ctx.organizationId, compatibleDrafts);
+    const projected = compatibleDrafts.map((draft) => projectSesOperationalDraft(
+      schemaMigrationRequired ? draft : withSesCancellationFacts(draft, cancellationFacts),
+    ));
+    const summary = projected.reduce((acc: Record<string, number>, draft) => {
+      acc[draft.operationalStatus] = (acc[draft.operationalStatus] ?? 0) + 1;
       return acc;
     }, {});
-    const compatibleDrafts = schemaMigrationRequired
-      ? (data ?? []).map((draft) => withLegacyDraftGates(draft as Record<string, any>))
-      : (data ?? []);
-    const normalizedDrafts = compatibleDrafts.map((draft) => projectSesOperationalDraft(draft as Record<string, any>));
+    const statusMatches = (draft: ReturnType<typeof projectSesOperationalDraft>) => {
+      if (!input.status || input.status === 'all') return true;
+      if (input.status === 'cancelled') {
+        return draft.cancellationDisposition?.cancelled === true;
+      }
+      return draft.operationalStatus === input.status;
+    };
+    const filteredDrafts = projected.filter(statusMatches);
+    const normalizedDrafts = filteredDrafts.slice(input.offset, input.offset + input.limit);
     return res.json({
       data: {
-        drafts: normalizedDrafts, summary, total: count ?? statusRows.length,
+        drafts: normalizedDrafts, summary, total: filteredDrafts.length,
         pageCount: normalizedDrafts.length, limit: input.limit, offset: input.offset,
         schemaMigrationRequired,
       },
@@ -2470,6 +2606,26 @@ export async function handleSesExportXml(req: Request, res: Response) {
       const notFound = new Error('Alguno de los contratos no existe o no pertenece a tu organización') as Error & { status?: number };
       notFound.status = 404;
       throw notFound;
+    }
+    const cancellationFacts = await loadSesCancellationFacts(
+      ctx.serviceClient,
+      ctx.organizationId,
+      drafts as Array<Record<string, any>>,
+    );
+    const projectedCancellationDrafts = (drafts as Array<Record<string, any>>).map((draft) => {
+      const projected = projectSesOperationalDraft(withSesCancellationFacts(draft, cancellationFacts));
+      return {
+        id: draft.id,
+        reference: draft.reference,
+        cancellationDisposition: projected.cancellationDisposition,
+      };
+    });
+    const cancellationBlocked = findSesCancellationXmlBlocks(projectedCancellationDrafts);
+    if (cancellationBlocked.length) {
+      return res.status(422).json({
+        data: { blocked: cancellationBlocked },
+        error: 'La selección contiene reservas canceladas o con estado Rently pendiente de comprobar',
+      });
     }
     const alreadyGenerated = drafts.filter((draft) => isSesDraftLocked(draft.status));
     if (alreadyGenerated.length) {

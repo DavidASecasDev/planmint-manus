@@ -17,12 +17,14 @@ export function deriveSesGateState(input: {
   eligible?: boolean;
   eligibilityRequiresReview?: boolean;
   officialClearance?: SesOfficialClearance;
+  cancellationBlocksXml?: boolean;
+  cancellationRequiresReview?: boolean;
 }): SesGateState {
   const isComplete = input.validationIssueCount === 0;
-  const isEligible = true;
+  const isEligible = input.cancellationBlocksXml !== true;
   const isOfficiallyClear = input.officialClearance?.clear ?? false;
-  const readyForXml = isComplete;
-  const status = readyForXml ? 'ready' : 'incomplete';
+  const readyForXml = isComplete && isEligible;
+  const status = input.cancellationRequiresReview ? 'needs_revision' : readyForXml ? 'ready' : 'incomplete';
   return { isComplete, isEligible, isOfficiallyClear, readyForXml, status };
 }
 

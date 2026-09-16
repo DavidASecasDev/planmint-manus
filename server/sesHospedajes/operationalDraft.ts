@@ -1,7 +1,10 @@
 import type { SesValidationIssue } from './validation';
 import { isSesDraftLocked } from './readiness';
+import { deriveSesCancellationDisposition, type SesCancellationDisposition } from './cancellation';
 
-export type SesOperationalStatus = 'incomplete' | 'ready' | 'xml_generated';
+export type SesOperationalStatus =
+  | 'incomplete' | 'ready' | 'xml_generated'
+  | 'cancelled_not_applicable' | 'cancellation_review' | 'source_check_required';
 export type SesFieldSource = 'manual' | 'rently' | 'derived';
 
 export type SesSyncConflict = {
@@ -43,9 +46,22 @@ export function deriveSesOperationalState(input: {
   validationIssues: SesValidationIssue[];
   historicalStatus?: unknown;
   blockingConflictCount?: number;
+  cancellationDisposition?: SesCancellationDisposition | null;
 }) {
   const { missingFields, invalidFields } = splitSesValidationIssues(input.validationIssues);
-  const readyForXml = missingFields.length === 0 && invalidFields.length === 0 && (input.blockingConflictCount ?? 0) === 0;
+  const disposition = input.cancellationDisposition;
+  const locked = isSesDraftLocked(input.historicalStatus);
+  if (!locked && disposition?.kind === 'cancelled_not_applicable') {
+    return { status: 'cancelled_not_applicable' as const, readyForXml: false, missingFields: [], invalidFields: [] };
+  }
+  if (!locked && disposition?.kind === 'cancelled_requires_review') {
+    return { status: 'cancellation_review' as const, readyForXml: false, missingFields: [], invalidFields: [] };
+  }
+  if (!locked && disposition?.kind === 'source_status_unknown') {
+    return { status: 'source_check_required' as const, readyForXml: false, missingFields, invalidFields };
+  }
+  const readyForXml = missingFields.length === 0 && invalidFields.length === 0
+    && (input.blockingConflictCount ?? 0) === 0 && !disposition?.blocksXml;
   const status: SesOperationalStatus = isSesDraftLocked(input.historicalStatus)
     ? 'xml_generated'
     : readyForXml ? 'ready' : 'incomplete';
@@ -120,11 +136,23 @@ export function projectSesOperationalDraft(draft: Record<string, any>) {
   );
   const snapshot = draft.eligibility_snapshot && typeof draft.eligibility_snapshot === 'object'
     ? draft.eligibility_snapshot : {};
+  const reservation = Array.isArray(draft.reservation) ? draft.reservation[0] : draft.reservation;
+  const hasAccreditedStatus = Boolean(reservation && Object.prototype.hasOwnProperty.call(reservation, 'rently_status_code'));
+  const cancellationDisposition = hasAccreditedStatus
+    ? deriveSesCancellationDisposition({
+      rentlyStatusCode: reservation?.rently_status_code,
+      actualDeliveryAt: reservation?.rently_delivery_actual_literal ?? reservation?.rently_delivery_actual_at,
+      deliveryEvidenceReference: snapshot.delivery_evidence_reference,
+      officialCommunicationCount: Number(draft.__official_communication_count ?? 0),
+      hasHistoricalBatchItem: Number(draft.__historical_batch_item_count ?? 0) > 0 || isSesDraftLocked(draft.status),
+    })
+    : null;
   const reviewConflicts = Array.isArray(snapshot.daily_review_conflicts) ? snapshot.daily_review_conflicts : [];
   const operational = deriveSesOperationalState({
     validationIssues,
     historicalStatus: draft.status,
     blockingConflictCount: reviewConflicts.length,
+    cancellationDisposition,
   });
   const sourceByField: Record<string, SesFieldSource> = {
     ...(snapshot.source_by_field && typeof snapshot.source_by_field === 'object' ? snapshot.source_by_field : {}),
@@ -153,6 +181,7 @@ export function projectSesOperationalDraft(draft: Record<string, any>) {
     missingFields: operational.missingFields,
     invalidFields: operational.invalidFields,
     reviewConflicts,
+    cancellationDisposition,
     sourceByField,
     syncConflicts: Array.isArray(snapshot.sync_conflicts) ? snapshot.sync_conflicts : [],
     sesDuplicateWarning: buildSesDuplicateWarning(draft.official_check_status, snapshot.official_reasons),

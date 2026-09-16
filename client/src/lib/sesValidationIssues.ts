@@ -76,6 +76,7 @@ export function getSesFieldLabel(path: string, holderIsDriver = false) {
 }
 
 export function getActionableSesIssues(draft: SesContractDraft): SesActionableIssue[] {
+  if (draft.cancellationDisposition?.suppressMissingFields) return [];
   const holderIsDriver = Boolean(draft.holder?.id && draft.holder.id === draft.primary_driver?.id);
   const deduplicated = new Map<string, SesActionableIssue>();
 

@@ -1837,3 +1837,16 @@
 - [x] Mostrar en la interfaz el identificador exacto del lote para vincularlo con Azul Office
 - [x] Validar ejecución repetida, cobertura, precisión documental, cursor/cola, UI sintética, TypeScript, build y regresiones SES
 - [x] Documentar causa real, diff, pruebas y pendientes; entregar checkpoint/preview sin publicar, aplicar SQL ni enviar comunicaciones
+- [x] Auditar exclusivamente SES la sincronización, clasificación, contadores, filtros, revisión diaria y XML de reservas canceladas Rently
+- [x] Reproducir 5592 cancelada sin entrega (`CurrentStatus=4`, DeliveryInfo/DropoffInfo nulos) sin modificar la reserva real
+- [x] Clasificar cancelada sin entrega ni comunicación oficial como Cancelada / No aplicable a entrega, fuera de pendientes y XML, pero localizable en historial/búsqueda exacta
+- [x] Conservar cancelada con entrega real/evidencia o comunicación oficial previa y marcar revisión específica de cancelación/resultado oficial
+- [x] Mantener estado origen desconocido o sesión Rently fallida como pendiente de comprobar, nunca cancelado por suposición
+- [x] Permitir que una reserva reactivada recupere elegibilidad sin duplicar expediente ni perder datos, solo cuando vuelva a proceder el flujo de entrega
+- [x] Implementar reconciliación idempotente para expedientes ya importados sin borrar documentos, correcciones manuales, auditoría ni comunicaciones históricas
+- [x] Aplicar la regla en backend, contadores, filtros, revisión diaria, búsqueda exacta y generación XML, no solo como filtro visual
+- [x] Validar fixtures de 5592, cancelación posterior, cancelada con entrega, comunicación previa, reactivada, desconocida, repetición, conservación manual y contador/XML
+- [x] Demostrar funcionalmente clasificación, contador, bloqueo XML previo a efectos, reactivación e idempotencia; usar pruebas de cadenas solo como contrato auxiliar y declarar límites de handlers
+- [x] Comprobar aislamiento por organización y permisos sin cambiar las políticas existentes
+- [x] Verificar UI sintética, pruebas SES, TypeScript, build y preservación de Tareas/otros módulos
+- [x] Documentar causa, cambios exactos, reconciliación prevista y entregar checkpoint/preview sin publicar ni aplicar SQL/backfill real

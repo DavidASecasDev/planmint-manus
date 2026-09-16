@@ -93,7 +93,17 @@ export interface SesContractDraft {
   manual_fields: string[];
   draft_version: number;
   updated_at: string;
-  operationalStatus: 'incomplete' | 'ready' | 'xml_generated';
+  operationalStatus: 'incomplete' | 'ready' | 'xml_generated' | 'cancelled_not_applicable' | 'cancellation_review' | 'source_check_required';
+  cancellationDisposition?: {
+    kind: 'active_or_reactivated' | 'cancelled_not_applicable' | 'cancelled_requires_review' | 'source_status_unknown';
+    cancelled: boolean;
+    notApplicableToDelivery: boolean;
+    requiresReview: boolean;
+    blocksXml: boolean;
+    suppressMissingFields: boolean;
+    reasonCode: string;
+    label: string;
+  } | null;
   readyForXml: boolean;
   missingFields: SesValidationIssue[];
   invalidFields: SesValidationIssue[];
@@ -119,6 +129,10 @@ export interface SesContractDraft {
     external_reservation_id: string | null;
     cliente_nombre: string | null;
     cliente_apellido: string | null;
+    estado?: string | null;
+    rently_status_code?: number | null;
+    rently_delivery_actual_at?: string | null;
+    rently_delivery_actual_literal?: string | null;
   } | null;
   holder: SesPersonProfile | null;
   primary_driver: SesPersonProfile | null;

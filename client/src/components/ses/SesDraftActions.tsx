@@ -16,8 +16,10 @@ export function SesDraftActions({
   onComplete: () => void;
 }) {
   const locked = draft.operationalStatus === 'xml_generated' || LOCKED_STATUSES.has(draft.status);
+  const notApplicable = draft.operationalStatus === 'cancelled_not_applicable';
+  const cancellationReview = draft.operationalStatus === 'cancellation_review';
   return <div className="flex flex-wrap justify-end gap-1">
-    {canExport && !locked && <Button size="sm" variant="outline" disabled={schemaMigrationRequired || checking} onClick={(event) => { event.stopPropagation(); onCheck(); }}><SearchCheck className="mr-1 h-4 w-4" />Registrar evidencia SES</Button>}
-    <Button size="sm" variant="outline" disabled={schemaMigrationRequired || locked} onClick={(event) => { event.stopPropagation(); onComplete(); }}>{schemaMigrationRequired ? 'Solo lectura' : locked ? 'Histórico' : draft.operationalStatus === 'ready' ? 'Revisar' : 'Completar'}</Button>
+    {canExport && !locked && !draft.cancellationDisposition?.cancelled && <Button size="sm" variant="outline" disabled={schemaMigrationRequired || checking} onClick={(event) => { event.stopPropagation(); onCheck(); }}><SearchCheck className="mr-1 h-4 w-4" />Registrar evidencia SES</Button>}
+    <Button size="sm" variant="outline" disabled={schemaMigrationRequired} onClick={(event) => { event.stopPropagation(); onComplete(); }}>{schemaMigrationRequired ? 'Solo lectura' : locked ? 'Histórico' : notApplicable ? 'Ver historial' : cancellationReview ? 'Revisar cancelación' : draft.operationalStatus === 'ready' ? 'Revisar' : 'Completar'}</Button>
   </div>;
 }
