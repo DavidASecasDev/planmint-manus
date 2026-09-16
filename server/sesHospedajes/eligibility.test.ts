@@ -28,6 +28,21 @@ describe('SES eligibility', () => {
     expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Completada', rentlyStatusCode: 3 }).requiresReview).toBe(true);
   });
 
+  it('classifies cancellation, prior facts, reactivation and unknown source without guessing', () => {
+    expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Cancelada', rentlyStatusCode: 4, actualDeliveryAt: null })).toMatchObject({
+      eligible: false, requiresReview: false,
+      cancellationDisposition: { kind: 'cancelled_not_applicable' },
+    });
+    expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Cancelada', rentlyStatusCode: 4 }).issues.map((issue) => issue.code))
+      .toEqual(['cancelled_with_delivery']);
+    expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Cancelada', rentlyStatusCode: 4, actualDeliveryAt: null, officialCommunicationCount: 1 }))
+      .toMatchObject({ eligible: false, requiresReview: true, cancellationDisposition: { reasonCode: 'cancelled_with_official_history' } });
+    expect(evaluateSesEligibility({ ...eligible, visibleStatus: 'Entregado', rentlyStatusCode: 2 })).toMatchObject({ eligible: true });
+    expect(evaluateSesEligibility({ ...eligible, visibleStatus: null, rentlyStatusCode: null })).toMatchObject({
+      eligible: false, requiresReview: true, cancellationDisposition: { kind: 'source_status_unknown' },
+    });
+  });
+
   it('allows only a current, attributable protocol exception for a terminated unreported booking', () => {
     const exception = {
       kind: 'terminated_not_reported' as const,

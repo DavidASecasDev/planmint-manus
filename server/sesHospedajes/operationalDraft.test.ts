@@ -7,6 +7,7 @@ import {
   projectSesOperationalDraft,
   splitSesValidationIssues,
 } from './operationalDraft';
+import { deriveSesCancellationDisposition } from './cancellation';
 
 const required = { path: 'vehicle_vin', code: 'required' as const, message: 'Falta bastidor' };
 const invalid = { path: 'holder.postal_code', code: 'invalid' as const, message: 'Código postal no válido' };
@@ -40,6 +41,47 @@ describe('modelo operativo SES simplificado', () => {
     expect(deriveSesOperationalState({ validationIssues: [], historicalStatus: 'accepted' })).toMatchObject({
       status: 'xml_generated', readyForXml: true,
     });
+  });
+
+  it('proyecta 5592 como cancelada no aplicable sin faltantes ni XML', () => {
+    const projected = projectSesOperationalDraft({
+      id: 'draft-5592', reference: '5592', status: 'incomplete', ready_for_xml: false,
+      validation_errors: [required, invalid], manual_fields: [], eligibility_snapshot: {},
+      reservation: { rently_status_code: 4, rently_delivery_actual_at: null },
+      __official_communication_count: 0,
+      __historical_batch_item_count: 0,
+    });
+    expect(projected).toMatchObject({
+      operationalStatus: 'cancelled_not_applicable', readyForXml: false,
+      missingFields: [], invalidFields: [],
+      cancellationDisposition: { kind: 'cancelled_not_applicable' },
+    });
+  });
+
+  it('conserva cancelaciones con entrega o comunicación para revisión específica', () => {
+    expect(deriveSesOperationalState({
+      validationIssues: [required],
+      cancellationDisposition: deriveSesCancellationDisposition({ rentlyStatusCode: 4, actualDeliveryAt: '2026-09-10T10:00:00' }),
+    })).toMatchObject({ status: 'cancellation_review', readyForXml: false, missingFields: [], invalidFields: [] });
+    const accepted = projectSesOperationalDraft({
+      id: 'accepted-cancelled', status: 'accepted', validation_errors: [], eligibility_snapshot: {},
+      reservation: { rently_status_code: 4, rently_delivery_actual_at: null },
+      __official_communication_count: 1,
+    });
+    expect(accepted).toMatchObject({
+      operationalStatus: 'xml_generated', readyForXml: false,
+      cancellationDisposition: { kind: 'cancelled_requires_review', reasonCode: 'cancelled_with_official_history' },
+    });
+  });
+
+  it('recupera la proyección normal al reactivarse con un estado Rently acreditado', () => {
+    const reactivated = projectSesOperationalDraft({
+      id: 'reactivated', status: 'incomplete', validation_errors: [],
+      eligibility_snapshot: { cancellation: { kind: 'cancelled_not_applicable' } },
+      reservation: { rently_status_code: 2, rently_delivery_actual_at: '2026-09-16T09:00:00' },
+    });
+    expect(reactivated).toMatchObject({ operationalStatus: 'ready', readyForXml: true,
+      cancellationDisposition: { kind: 'active_or_reactivated' } });
   });
 
   it('separa campos ausentes de formatos o incoherencias', () => {

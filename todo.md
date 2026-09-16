@@ -1,5 +1,12 @@
 # Project TODO
 
+- [x] Partir del checkpoint publicado 6939afcb sin reset destructivo
+- [x] Preservar los checkpoints recuperables 4f619ac6 y 5677996e
+- [x] Aplicar exclusivamente archivos SES seleccionados desde 4f619ac6
+- [x] Verificar ausencia de Tareas, Horarios y migraciones ajenas en el diff contra 6939afcb
+- [x] Ejecutar suite SES, TypeScript y build en este worktree aislado
+- [x] Guardar un checkpoint publicable separado sin publicar
+
 - [x] Upgrade project to full-stack (db, server, user) via webdev_add_feature
 - [x] Resolve conflicts between original architecture (Supabase + react-router-dom) and new Manus backend
 - [x] Restore main.tsx to original (without tRPC wrapper, keeping Supabase auth)

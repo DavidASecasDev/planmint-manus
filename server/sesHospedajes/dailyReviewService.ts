@@ -21,6 +21,7 @@ import {
   type SesReviewCursor,
   type SesReviewSourceStatus,
 } from './dailyReview';
+import { deriveSesCancellationDisposition } from './cancellation';
 
 export const SES_REVIEW_PAGE_SIZE = 50;
 
@@ -309,6 +310,37 @@ async function existingEvidence(serviceClient: SupabaseClient, batchId: string, 
   return data as unknown as ExistingReviewItem | null;
 }
 
+async function loadDailyReviewCancellationFacts(
+  serviceClient: SupabaseClient,
+  organizationId: string,
+  reservationId: string | null,
+  bookingId: number,
+) {
+  const reference = String(bookingId);
+  const { data: draft, error: draftError } = reservationId
+    ? await serviceClient.from('ses_contract_drafts').select('id,reference')
+      .eq('organization_id', organizationId).eq('reservation_id', reservationId).maybeSingle()
+    : { data: null, error: null };
+  if (draftError) throw draftError;
+  const officialReference = String(draft?.reference ?? reference);
+  const { count: officialCommunicationCount, error: officialError } = await serviceClient
+    .from('ses_official_communications').select('id', { count: 'exact', head: true })
+    .eq('organization_id', organizationId).eq('reference', officialReference);
+  if (officialError) throw officialError;
+  let hasHistoricalBatchItem = false;
+  if (draft?.id) {
+    const { count, error } = await serviceClient.from('ses_batch_items').select('id', { count: 'exact', head: true })
+      .eq('organization_id', organizationId).eq('draft_id', draft.id);
+    if (error) throw error;
+    hasHistoricalBatchItem = Number(count ?? 0) > 0;
+  }
+  return {
+    draftId: draft?.id ?? null,
+    officialCommunicationCount: officialCommunicationCount ?? 0,
+    hasHistoricalBatchItem,
+  };
+}
+
 async function saveReviewItem(
   serviceClient: SupabaseClient,
   existing: ExistingReviewItem | null,
@@ -346,6 +378,60 @@ async function processCandidate(input: {
   const dropoff = normalizeRentlyDateTimeForStorage(
     input.reservation.rently_dropoff_actual_literal ?? input.reservation.rently_dropoff_actual_at ?? null,
   );
+  const cancellationFacts = Number(input.reservation.rently_status_code) === 4
+    ? await loadDailyReviewCancellationFacts(
+      input.serviceClient,
+      input.batch.organization_id,
+      input.reservation.id,
+      bookingId,
+    )
+    : { draftId: null, officialCommunicationCount: 0, hasHistoricalBatchItem: false };
+  const cancellationDisposition = deriveSesCancellationDisposition({
+    rentlyStatusCode: input.reservation.rently_status_code,
+    actualDeliveryAt: delivery.literal,
+    deliveryEvidenceReference: existing?.evidence_reference,
+    officialCommunicationCount: cancellationFacts.officialCommunicationCount,
+    hasHistoricalBatchItem: cancellationFacts.hasHistoricalBatchItem,
+  });
+  if (cancellationDisposition.kind === 'cancelled_not_applicable') {
+    await input.assertLease();
+    const item = await saveReviewItem(input.serviceClient, existing, {
+      organization_id: input.batch.organization_id,
+      batch_id: input.batch.id,
+      external_booking_id: bookingId,
+      reservation_id: input.reservation.id,
+      draft_id: existing?.draft_id ?? cancellationFacts.draftId,
+      status: 'outside_period',
+      planned_from_literal: planned.literal,
+      planned_from_at: planned.normalizedAt,
+      delivery_actual_literal: delivery.literal,
+      delivery_actual_at: delivery.normalizedAt,
+      dropoff_actual_literal: dropoff.literal,
+      dropoff_actual_at: dropoff.normalizedAt,
+      rently_status_code: input.reservation.rently_status_code,
+      proposed_changes: existing?.proposed_changes ?? {},
+      applied_changes: existing?.applied_changes ?? {},
+      conflicts: existing?.conflicts ?? [],
+      next_action: cancellationDisposition.label,
+      last_error: null,
+      last_attempt_at: observedAt,
+      next_retry_at: null,
+    });
+    await input.assertLease();
+    await writeSource({
+      ...input,
+      organizationId: input.batch.organization_id,
+      batchId: input.batch.id,
+      itemId: item.id,
+      source: 'rently',
+      status: 'consulted',
+      observedAt,
+      evidenceReference: `booking-list:${bookingId}:status-4`,
+      errorSummary: null,
+      updatedBy: input.actorUserId,
+    });
+    return { processed: true, verified: false };
+  }
   const evidence = classifyDeliveryForPeriod({
     bookingId,
     plannedFromAt: planned.literal,
@@ -400,7 +486,11 @@ async function processCandidate(input: {
 
   const detailBookingId = detail ? Number(detail.Id) : bookingId;
   const identityMatches = !detail || (Number.isSafeInteger(detailBookingId) && detailBookingId === bookingId);
-  const itemStatus = missingReservation && evidence.status === 'verified_delivery'
+  const itemStatus = cancellationDisposition.kind === 'cancelled_requires_review'
+    ? 'evidence_conflict'
+    : cancellationDisposition.kind === 'source_status_unknown'
+      ? 'failed'
+    : missingReservation && evidence.status === 'verified_delivery'
     ? 'failed'
     : identityMatches ? (deliveryNormalizationConflict ? 'evidence_conflict' : evidence.status) : 'failed';
   let draftResult: SesReviewDraftResult = {
@@ -409,7 +499,7 @@ async function processCandidate(input: {
     proposedChanges: {},
     conflicts: [],
   };
-  if (!missingReservation && identityMatches && detail && evidence.status === 'verified_delivery' && input.prepareVerifiedDraft) {
+  if (!cancellationDisposition.cancelled && !missingReservation && identityMatches && detail && evidence.status === 'verified_delivery' && input.prepareVerifiedDraft) {
     await input.assertLease();
     draftResult = await input.prepareVerifiedDraft({
       reservation: input.reservation,
@@ -421,7 +511,11 @@ async function processCandidate(input: {
     });
   }
 
-  const nextAction = missingReservation
+  const nextAction = cancellationDisposition.kind === 'cancelled_requires_review'
+    ? cancellationDisposition.label
+    : cancellationDisposition.kind === 'source_status_unknown'
+      ? 'Comprobar el estado actual de la reserva en Rently'
+    : missingReservation
     ? 'Sincronizar la reserva en PlanMint antes de completar el expediente SES'
     : !identityMatches
     ? 'Revisar la identidad contractual devuelta por Rently'
@@ -478,7 +572,7 @@ async function processCandidate(input: {
   });
 
   await input.assertLease();
-  if (itemStatus !== 'outside_period') {
+  if (itemStatus !== 'outside_period' && cancellationDisposition.kind === 'active_or_reactivated') {
     await initializeMissingSources({
       serviceClient: input.serviceClient,
       organizationId: input.batch.organization_id,
@@ -546,6 +640,19 @@ export function deriveSesReviewBatchCounts(
   };
 }
 
+export function shouldPrioritizeSesReviewRetry(retriedCount: number) {
+  return Number.isSafeInteger(retriedCount) && retriedCount > 0;
+}
+
+export function overlaySesReviewPersistedEvent<T extends Record<string, unknown>>(reservation: T, item: Record<string, unknown>) {
+  return {
+    ...reservation,
+    rently_delivery_actual_literal: reservation.rently_delivery_actual_literal ?? item.delivery_actual_literal ?? null,
+    rently_dropoff_actual_literal: reservation.rently_dropoff_actual_literal ?? item.dropoff_actual_literal ?? null,
+    rently_status_code: reservation.rently_status_code ?? item.rently_status_code ?? null,
+  } as T;
+}
+
 async function readSourceStates(serviceClient: SupabaseClient, batchId: string) {
   const { data, error } = await serviceClient.from('ses_review_item_sources').select('status').eq('batch_id', batchId);
   if (error) throw error;
@@ -560,7 +667,7 @@ async function retryReadySesReviewItems(input: {
   assertLease: () => Promise<void>;
   leaseToken: string;
 }) {
-  const fields = 'id,reservation_id,status,next_retry_at,evidence_reference,evidence_generated_literal';
+  const fields = 'id,reservation_id,status,next_retry_at,evidence_reference,evidence_generated_literal,delivery_actual_literal,dropoff_actual_literal,rently_status_code';
   const [failedResult, accreditedResult] = await Promise.all([
     input.serviceClient.from('ses_review_items').select(fields).eq('batch_id', input.batch.id)
       .eq('status', 'failed').order('last_attempt_at', { ascending: true }).limit(10),
@@ -585,11 +692,13 @@ async function retryReadySesReviewItems(input: {
     .eq('organization_id', input.batch.organization_id).in('id', reservationIds);
   if (error) throw error;
   if (!reservations?.length) return 0;
+  const retryByReservationId = new Map(retryRows.map((row) => [row.reservation_id, row]));
   const credentials = await loadRentlyCredentials(input.serviceClient, input.batch.organization_id);
   const token = await getRentlyToken(credentials.host, credentials.clientId, credentials.clientSecret);
   for (let index = 0; index < reservations.length; index += 5) {
     await input.assertLease();
-    const chunk = (reservations as unknown as SesReviewReservationRow[]).slice(index, index + 5);
+    const chunk = (reservations as unknown as SesReviewReservationRow[]).slice(index, index + 5).map((reservation) =>
+      overlaySesReviewPersistedEvent(reservation, retryByReservationId.get(reservation.id) ?? {}));
     await Promise.all(chunk.map((reservation) => processCandidate({
       ...input,
       reservation,
@@ -626,9 +735,13 @@ export async function runSesReviewBatchStep(input: {
       await assertLease();
       const startedAt = batch.started_at ?? new Date().toISOString();
       const cursor = parseCursor(batch.cursor);
+      const retried = await retryReadySesReviewItems({ ...input, batch, assertLease, leaseToken });
+      if (shouldPrioritizeSesReviewRetry(retried)) {
+        const pagesComplete = !SES_REVIEW_CANDIDATE_SOURCES[cursor.sourceIndex];
+        return finalizeSesReviewBatch(input.serviceClient, batch, cursor, pagesComplete, leaseToken);
+      }
       const source = SES_REVIEW_CANDIDATE_SOURCES[cursor.sourceIndex];
       if (!source) {
-        await retryReadySesReviewItems({ ...input, batch, assertLease, leaseToken });
         return finalizeSesReviewBatch(input.serviceClient, batch, cursor, true, leaseToken);
       }
       try {

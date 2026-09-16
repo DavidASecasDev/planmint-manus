@@ -257,6 +257,26 @@ interface SyncStatus {
   error_message: string | null;
 }
 
+export function getAccreditedRentlyFullCoverageScope(scope?: Record<string, unknown> | null) {
+  if (!scope) return null;
+  const nested = scope.lastFullCoverage;
+  const candidate = nested && typeof nested === 'object' && !Array.isArray(nested)
+    ? nested as Record<string, unknown>
+    : scope;
+  const accredited = candidate.sourceEndpoint === '/api/bookings/list'
+    && candidate.allBranches === true
+    && candidate.allStatuses === true
+    && candidate.paginationComplete === true
+    && Number(candidate.paginationStartOffset) === 0
+    && candidate.nextOffset === null
+    && candidate.unfilteredDateWindow === true
+    && candidate.bookingListEventsComplete === true
+    && candidate.deliveryEventsComplete === true
+    && candidate.dropoffEventsComplete === true
+    && typeof candidate.coveredThrough === 'string';
+  return accredited ? candidate : null;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 export const STATUS_MAP: Record<number, string> = {
@@ -1138,6 +1158,7 @@ export async function handleSyncRently(
 
     const previousWatermark = syncStatus?.watermark_updated_at || syncStatus?.completed_at || null;
     const previousFullSync = syncStatus?.last_full_sync_at || null;
+    const previousFullCoverageScope = getAccreditedRentlyFullCoverageScope(syncStatus?.coverage_scope);
     const fullSyncDue = !previousFullSync || Date.now() - new Date(previousFullSync).getTime() >= 24 * 60 * 60 * 1000;
     const syncMode: 'full' | 'incremental' = reset || fullSyncDue ? 'full' : 'incremental';
     const incrementalSince = syncMode === 'incremental' && previousWatermark
@@ -1167,6 +1188,7 @@ export async function handleSyncRently(
           paginationStartOffset: 0,
           runAllStatuses: include_all === true,
           sourceEndpoint: '/api/bookings/list',
+          ...(previousFullCoverageScope ? { lastFullCoverage: previousFullCoverageScope } : {}),
         },
       };
 
@@ -1690,8 +1712,8 @@ export async function handleSyncRently(
       syncStatusUpdate.watermark_updated_at = syncStatus.started_at || completedAt;
       if (syncMode === 'full') syncStatusUpdate.last_full_sync_at = completedAt;
       const startedAt = syncStatus.started_at || completedAt;
-      syncStatusUpdate.coverage_version = `${startedAt}:${completedAt}:${currentOffset}`;
-      syncStatusUpdate.coverage_scope = buildRentlyEventCoverageScope({
+      const coverageVersion = `${startedAt}:${completedAt}:${currentOffset}`;
+      const latestCoverageScope = buildRentlyEventCoverageScope({
         syncMode,
         startedAt: startedAt!,
         completedAt: completedAt!,
@@ -1699,6 +1721,14 @@ export async function handleSyncRently(
         paginationEndOffset: currentOffset,
         localReservationImportIncludesAllStatuses: includeAllForRun,
       });
+      const lastFullCoverage = syncMode === 'full'
+        ? { ...latestCoverageScope, coverageVersion }
+        : getAccreditedRentlyFullCoverageScope(syncStatus.coverage_scope);
+      syncStatusUpdate.coverage_version = coverageVersion;
+      syncStatusUpdate.coverage_scope = {
+        ...latestCoverageScope,
+        ...(lastFullCoverage ? { lastFullCoverage } : {}),
+      };
     }
 
     await serviceClient

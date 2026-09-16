@@ -1,4 +1,6 @@
 export const SES_MAX_DATE_RANGE_DAYS = 93;
+import { deriveSesCancellationDisposition } from './cancellation';
+
 export const SES_RENTLY_DELIVERED_STATUS = 2;
 export const SES_RENTLY_TERMINATED_STATUS = 3;
 export const SES_DELIVERY_BRANCH_OFFICE_ID = 1;
@@ -13,7 +15,11 @@ export type SesEligibilityReasonCode =
   | 'booking_mismatch'
   | 'plate_mismatch'
   | 'missing_rently_detail'
-  | 'not_in_rently_intersection';
+  | 'not_in_rently_intersection'
+  | 'cancelled_not_applicable'
+  | 'cancelled_with_delivery'
+  | 'cancelled_with_official_history'
+  | 'source_status_unknown';
 
 export type SesEligibilityIssue = {
   code: SesEligibilityReasonCode;
@@ -33,6 +39,9 @@ export type SesEligibilityInput = {
   detailVehiclePlate?: string | null;
   inExactRentlyIntersection?: boolean;
   manualException?: SesManualEligibilityException | null;
+  deliveryEvidenceReference?: string | null;
+  officialCommunicationCount?: number | null;
+  hasHistoricalBatchItem?: boolean;
 };
 
 export type SesManualEligibilityException = {
@@ -86,6 +95,39 @@ export async function collectAllPages<T>(
 
 export function evaluateSesEligibility(input: SesEligibilityInput, now = new Date()) {
   const issues: SesEligibilityIssue[] = [];
+  const statusWasProvided = Object.prototype.hasOwnProperty.call(input, 'rentlyStatusCode');
+  const cancellationDisposition = statusWasProvided ? deriveSesCancellationDisposition({
+    rentlyStatusCode: input.rentlyStatusCode,
+    actualDeliveryAt: input.actualDeliveryAt,
+    deliveryEvidenceReference: input.deliveryEvidenceReference,
+    officialCommunicationCount: input.officialCommunicationCount,
+    hasHistoricalBatchItem: input.hasHistoricalBatchItem,
+  }) : null;
+  if (cancellationDisposition?.kind === 'cancelled_not_applicable') {
+    issues.push({
+      code: 'cancelled_not_applicable',
+      message: 'La reserva está cancelada en Rently y no contiene una entrega real acreditada',
+      reviewRequired: false,
+    });
+    return { eligible: false, requiresReview: false, manualExceptionApplied: false, issues, cancellationDisposition };
+  }
+  if (cancellationDisposition?.kind === 'cancelled_requires_review') {
+    issues.push({
+      code: cancellationDisposition.reasonCode === 'cancelled_with_official_history'
+        ? 'cancelled_with_official_history' : 'cancelled_with_delivery',
+      message: cancellationDisposition.label,
+      reviewRequired: true,
+    });
+    return { eligible: false, requiresReview: true, manualExceptionApplied: false, issues, cancellationDisposition };
+  }
+  if (cancellationDisposition?.kind === 'source_status_unknown') {
+    issues.push({
+      code: 'source_status_unknown',
+      message: 'No se pudo acreditar el estado actual de la reserva en Rently',
+      reviewRequired: true,
+    });
+    return { eligible: false, requiresReview: true, manualExceptionApplied: false, issues, cancellationDisposition };
+  }
   const statusLabel = normalizeText(input.visibleStatus);
   const delivered = ['entregado', 'en curso'].includes(statusLabel) && input.rentlyStatusCode === SES_RENTLY_DELIVERED_STATUS;
   const terminated = ['terminada', 'completada'].includes(statusLabel) || input.rentlyStatusCode === SES_RENTLY_TERMINATED_STATUS;
@@ -155,5 +197,6 @@ export function evaluateSesEligibility(input: SesEligibilityInput, now = new Dat
     requiresReview: issues.some((issue) => issue.reviewRequired),
     manualExceptionApplied: validTerminatedException,
     issues,
+    cancellationDisposition,
   };
 }

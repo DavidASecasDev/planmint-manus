@@ -114,6 +114,10 @@ describe('SES daily review domain', () => {
       evidenceGeneratedAt: '2026-09-10T17:56:39',
       evidenceDriftMs: 86_399_950,
     });
+    expect(compareSesDeliveryEvidenceTimestamps(
+      '2026-09-09T17:56:40',
+      '2026-09-09T17:56:39',
+    )).toEqual({ consistent: false, comparable: true, driftMs: 1_000 });
   });
 
   it('computes Europe/Madrid day bounds correctly across daylight saving changes', () => {
@@ -393,6 +397,21 @@ describe('SES daily review domain', () => {
         coveredThrough: '2026-09-10T04:00:00Z',
       }, periodEnd: '2026-09-09T22:00:00Z',
     })).toMatchObject({ complete: false, reason: expect.stringContaining('eventos') });
+    expect(evaluateSesReviewCoverageGuarantee({
+      syncStatus: 'completed', coverageVersion: 'incremental-v3', coverageScope: {
+        sourceEndpoint: '/api/bookings/list', allBranches: true, allStatuses: true,
+        paginationComplete: true, paginationStartOffset: 0, nextOffset: null,
+        unfilteredDateWindow: false, bookingListEventsComplete: false,
+        deliveryEventsComplete: false, dropoffEventsComplete: false,
+        lastFullCoverage: {
+          coverageVersion: 'full-v2', sourceEndpoint: '/api/bookings/list', allBranches: true, allStatuses: true,
+          paginationComplete: true, paginationStartOffset: 0, nextOffset: null,
+          unfilteredDateWindow: true, bookingListEventsComplete: true,
+          deliveryEventsComplete: true, dropoffEventsComplete: true,
+          coveredThrough: '2026-09-10T04:00:00Z',
+        },
+      }, periodEnd: '2026-09-09T22:00:00Z',
+    })).toEqual({ complete: true, token: 'full-v2', reason: null });
   });
 
   it('retries expired failures and newly accredited evidence without requiring cursor reset', () => {
@@ -404,7 +423,12 @@ describe('SES daily review domain', () => {
     })).toBe(false);
     expect(isSesReviewItemRetryable({
       status: 'missing_delivery_evidence', evidenceReference: 'Delivery 5582.pdf', evidenceGeneratedLiteral: '2026-09-09T23:05:19',
+      nextRetryAt: '2026-09-10T03:59:59Z', now: Date.parse('2026-09-10T04:00:00Z'),
     })).toBe(true);
+    expect(isSesReviewItemRetryable({
+      status: 'missing_delivery_evidence', evidenceReference: 'Delivery 5578.pdf', evidenceGeneratedLiteral: '2026-09-09T17:56:39',
+      nextRetryAt: null, now: Date.parse('2026-09-10T04:00:00Z'),
+    })).toBe(false);
     expect(isSesReviewItemRetryable({ status: 'missing_delivery_evidence' })).toBe(false);
   });
 });

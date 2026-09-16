@@ -33,6 +33,9 @@ export function SesFiltersBar({ filters, onChange, saving }: SesFiltersBarProps)
             <SelectItem value="incomplete">Incompletos</SelectItem>
             <SelectItem value="ready">Listos</SelectItem>
             <SelectItem value="xml_generated">XML generado</SelectItem>
+            <SelectItem value="cancelled">Canceladas</SelectItem>
+            <SelectItem value="cancellation_review">Canceladas para revisar</SelectItem>
+            <SelectItem value="source_check_required">Estado Rently pendiente</SelectItem>
           </SelectContent>
         </Select>
       </div>
