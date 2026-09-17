@@ -1,4 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const schedulesSource = fs.readFileSync(
+  path.resolve(process.cwd(), 'client/src/pages/Schedules.tsx'),
+  'utf8',
+);
 
 /**
  * Tests for the decoupled name reorder and shift swap feature.
@@ -133,6 +140,24 @@ describe('Decoupled Name Reorder and Shift Swap', () => {
   });
 
   describe('Independence of operations', () => {
+    it('the real reorder handlers never call swap or rotate schedule mutations', () => {
+      const buttonReorder = schedulesSource.slice(
+        schedulesSource.indexOf('const handleReorderMember'),
+        schedulesSource.indexOf('const handleDragReorder'),
+      );
+      const dragReorder = schedulesSource.slice(
+        schedulesSource.indexOf('const handleDragReorder'),
+        schedulesSource.indexOf('const swapShiftsMutation'),
+      );
+
+      expect(buttonReorder).toContain('reorderMutation.mutate');
+      expect(buttonReorder).not.toContain('swapShiftsMutation.mutate');
+      expect(buttonReorder).not.toContain('rotateShiftsMutation.mutate');
+      expect(dragReorder).toContain('reorderMutation.mutate');
+      expect(dragReorder).not.toContain('swapShiftsMutation.mutate');
+      expect(dragReorder).not.toContain('rotateShiftsMutation.mutate');
+    });
+
     it('name reorder and shift swap are completely independent', () => {
       // This test verifies the architecture: 
       // - handleReorderMember calls ONLY reorderMutation (changes visual order)

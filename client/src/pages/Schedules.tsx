@@ -251,6 +251,11 @@ export default function Schedules() {
           schedules: ScheduleEntry[];
           dailyCounts: Record<string, { entregas: number; devoluciones: number; transfers: number }>;
           teamsWithCustomOrder?: string[];
+          memberOrderValidation?: Record<string, {
+            member_count: number;
+            displayed_count: number;
+            sequence_valid: boolean;
+          }>;
           weekPublished?: boolean;
         };
       }>('get-weekly-schedule', {
@@ -287,13 +292,17 @@ export default function Schedules() {
         }
       }
 
-      // Convert to TeamGroup[], sorted by sort_order then name
+      const customOrderTeamIds = new Set(raw.teamsWithCustomOrder || []);
+
+      // Convert to TeamGroup[]. A weekly custom order is authoritative and
+      // never falls back to alphabetic/global/creation order.
       const teams: TeamGroup[] = Array.from(teamMap.values()).map(t => ({
         team_id: t.team_id,
         team_name: t.team_name,
         members: t.members
           .sort((a, b) => {
             if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+            if (customOrderTeamIds.has(t.team_id)) return 0;
             const nameA = profileMap.get(a.user_id)?.name || '';
             const nameB = profileMap.get(b.user_id)?.name || '';
             return nameA.localeCompare(nameB);
@@ -307,6 +316,18 @@ export default function Schedules() {
             };
           }),
       }));
+
+      for (const team of teams) {
+        const validation = raw.memberOrderValidation?.[team.team_id];
+        if (
+          validation &&
+          (!validation.sequence_valid ||
+            validation.member_count !== team.members.length ||
+            validation.displayed_count !== team.members.length)
+        ) {
+          throw new Error(`El orden semanal de ${team.team_name} no coincide con sus miembros`);
+        }
+      }
 
       // Convert dailyCounts to dayStats
       const dayStats: Record<string, DayStats> = {};
@@ -424,62 +445,15 @@ export default function Schedules() {
     const newMembers = [...members];
     const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
     if (targetIndex < 0 || targetIndex >= newMembers.length) return;
-    // Swap the two users' shifts so shifts stay in their original row position
-    const userA = members[memberIndex];
-    const userB = members[targetIndex];
-    swapShiftsMutation.mutate({ user_a_id: userA.id, user_b_id: userB.id });
-    // Also update the visual name order
+    // Reorder identities only. Every staff_schedules row remains attached to
+    // its original user_id; shift exchange is a separate explicit action.
     [newMembers[memberIndex], newMembers[targetIndex]] = [newMembers[targetIndex], newMembers[memberIndex]];
     const ordered_user_ids = newMembers.map(m => m.id);
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids, week_start: weekStart });
   };
 
-  // Mutation to rotate shifts among multiple users (for multi-position drag)
-  const rotateShiftsMutation = useMutation({
-    mutationFn: async (params: { user_ids: string[] }) => {
-      const res = await apiInvoke('rotate-user-schedules', {
-        body: {
-          user_ids: params.user_ids,
-          start_date: weekStart,
-          end_date: weekEnd,
-        },
-      });
-      if (res.error) throw new Error(res.error.message || 'Error al rotar horarios');
-      return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['weekly-schedule', orgId] });
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
-  });
-
-  const handleDragReorder = (teamId: string, orderedUserIds: string[], oldMembers: StaffMember[]) => {
-    // Find which users changed position and rotate their shifts
-    // so shifts stay in their original row positions
-    const oldOrder = oldMembers.map(m => m.id);
-    const newOrder = orderedUserIds;
-
-    // Find the contiguous range of users that were affected by the drag
-    let startIdx = -1;
-    let endIdx = -1;
-    for (let i = 0; i < oldOrder.length; i++) {
-      if (oldOrder[i] !== newOrder[i]) {
-        if (startIdx === -1) startIdx = i;
-        endIdx = i;
-      }
-    }
-
-    if (startIdx !== -1 && endIdx !== -1) {
-      // Get the affected users in their ORIGINAL order for the rotation
-      const affectedOriginalOrder = oldOrder.slice(startIdx, endIdx + 1);
-      if (affectedOriginalOrder.length >= 2) {
-        rotateShiftsMutation.mutate({ user_ids: affectedOriginalOrder });
-      }
-    }
-
-    // Update the visual name order
+  const handleDragReorder = (teamId: string, orderedUserIds: string[], _oldMembers: StaffMember[]) => {
+    // Dragging changes only the persisted weekly row order.
     reorderMutation.mutate({ team_id: teamId, ordered_user_ids: orderedUserIds, week_start: weekStart });
   };
 
