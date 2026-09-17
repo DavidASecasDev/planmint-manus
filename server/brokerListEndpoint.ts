@@ -89,6 +89,9 @@ export async function handleGetTransferBrokers(req: Request, res: Response) {
           brokerProfile?.organization_id === broker.organization_id &&
           brokerProfile?.broker_id === broker.id;
         const brokerProfileActive = brokerProfile?.is_active === true;
+        const profileCompatible = !profile?.organization_id || profileMatches;
+        const brokerProfileCompatible =
+          !brokerProfile || (brokerProfileMatches && brokerProfileActive);
         profileHealthMap[broker.id] = {
           has_profile: !!profile,
           has_org: !!profile?.organization_id,
@@ -97,9 +100,9 @@ export async function handleGetTransferBrokers(req: Request, res: Response) {
           broker_profile_active: brokerProfileActive,
           can_link_company:
             broker.is_active &&
-            brokerProfileMatches &&
-            brokerProfileActive &&
-            (!profile || !profile.organization_id),
+            profileCompatible &&
+            brokerProfileCompatible &&
+            (!profileMatches || !brokerProfileMatches),
           is_linked: profileMatches && brokerProfileMatches,
         };
       }

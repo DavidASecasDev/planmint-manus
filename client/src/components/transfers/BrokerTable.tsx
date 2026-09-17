@@ -305,7 +305,7 @@ export function BrokerTable({
                 </TableCell>
                 <TableCell>
                 {broker.user_id ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Badge
                         variant="secondary"
                         className={!isBrokerCompanyLinked(profileHealth[broker.id]) ? 'bg-amber-100 text-amber-800' : undefined}
@@ -317,6 +317,17 @@ export function BrokerTable({
                         <span title={getBrokerCompanyLinkHint(profileHealth[broker.id])}>
                           <AlertTriangle className="h-4 w-4 text-amber-500" />
                         </span>
+                      )}
+                      {profileHealth[broker.id]?.can_link_company && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 border-amber-300 bg-amber-50 px-2 text-xs text-amber-900 hover:bg-amber-100"
+                          onClick={() => handleLinkCompanyClick(broker)}
+                        >
+                          <Building2 className="mr-1 h-3.5 w-3.5" />
+                          Vincular a empresa
+                        </Button>
                       )}
                     </div>
                   ) : (

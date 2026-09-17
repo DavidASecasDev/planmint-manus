@@ -156,6 +156,36 @@ describe("handleGetTransferBrokers", () => {
     });
   });
 
+  it("offers the repair when the broker has a user but broker_profiles is missing", async () => {
+    const broker = {
+      id: "broker-1",
+      organization_id: "org-1",
+      user_id: "broker-user",
+      name: "Broker Example",
+      is_active: true,
+    };
+    const from = vi.fn((table: string) => {
+      if (table === "transfer_brokers") return queryResult({ data: [broker] });
+      if (table === "profiles") {
+        return queryResult({ data: [{ id: "broker-user", organization_id: null }] });
+      }
+      if (table === "broker_profiles") return queryResult({ data: [] });
+      throw new Error(`Unexpected table ${table}`);
+    });
+    vi.mocked(getServiceClient).mockReturnValue({ from } as any);
+    const res = mockRes();
+
+    await handleGetTransferBrokers(mockReq() as Request, res as Response);
+
+    expect(res._json.data.profileHealth["broker-1"]).toMatchObject({
+      has_profile: true,
+      has_org: false,
+      has_broker_profile: false,
+      can_link_company: true,
+      is_linked: false,
+    });
+  });
+
   it("does not hide profile-query failures as an incomplete user", async () => {
     const broker = {
       id: "broker-1",

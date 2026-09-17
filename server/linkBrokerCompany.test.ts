@@ -164,13 +164,20 @@ describe("handleLinkBrokerCompany", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("requires an existing active portal profile for the same broker and company", async () => {
+  it("repairs a missing broker_profiles row through the transactional RPC", async () => {
     const missing = createScriptedClient({
       transfer_brokers: [{ data: broker }],
       broker_profiles: [{ data: null }],
     });
-    expect((await invoke({ brokerId: broker.id }, missing.client))._status).toBe(409);
+    const result = await invoke({ brokerId: broker.id }, missing.client);
+    expect(result._status).toBe(200);
+    expect(missing.rpc).toHaveBeenCalledWith(
+      "link_broker_profile_to_company",
+      expect.objectContaining({ p_user_id: "broker-user", p_broker_id: "broker-1" })
+    );
+  });
 
+  it("rejects conflicting or inactive portal profiles", async () => {
     const crossed = createScriptedClient({
       transfer_brokers: [{ data: broker }],
       broker_profiles: [{ data: { ...brokerProfile, organization_id: "org-other" } }],

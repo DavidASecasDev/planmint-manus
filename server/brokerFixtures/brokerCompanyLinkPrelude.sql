@@ -49,6 +49,8 @@ CREATE TABLE public.broker_profiles (
   broker_id uuid REFERENCES public.transfer_brokers(id),
   organization_id uuid NOT NULL REFERENCES public.organizations(id),
   name text NOT NULL,
+  email text,
+  organization_name text,
   is_active boolean DEFAULT true
 );
 

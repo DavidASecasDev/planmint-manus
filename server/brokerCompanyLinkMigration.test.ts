@@ -29,8 +29,9 @@ describe("broker company link migration contract", () => {
   it("locks and revalidates the portal profile and broker before writing", () => {
     expect(migration).toContain("FROM public.broker_profiles bp");
     expect(migration).toContain("FROM public.transfer_brokers tb");
-    expect((migration.match(/FOR UPDATE/g) || [])).toHaveLength(4);
+    expect((migration.match(/FOR UPDATE/g) || []).length).toBeGreaterThanOrEqual(5);
     expect(migration).toContain("broker_link_changed");
+    expect(migration).toContain("broker_profile_created");
   });
 
   it("is service-role only with a fixed search path", () => {

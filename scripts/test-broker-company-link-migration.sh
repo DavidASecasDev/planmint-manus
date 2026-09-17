@@ -54,7 +54,14 @@ fi
 test -z "$(sudo -u postgres psql -At -d "$DB" -c "select organization_id from public.profiles where id='$USER';")"
 
 sudo -u postgres psql -d "$DB" -c "
-  update public.broker_profiles set is_active=true where id='$BROKER_PROFILE';
+  delete from public.broker_profiles where user_id='$USER';
+" >/dev/null
+repaired_portal="$(sudo -u postgres psql -At -F/ -d "$DB" -c "$call_sql")"
+test "$repaired_portal" = "f/f/Empresa sintética"
+test "$(sudo -u postgres psql -At -d "$DB" -c "select count(*) from public.broker_profiles where user_id='$USER' and broker_id='$BROKER' and organization_id='$ORG' and is_active is true;")" = "1"
+test "$(sudo -u postgres psql -At -d "$DB" -c "select count(*) from public.audit_logs where action='broker.link_company';")" = "2"
+
+sudo -u postgres psql -d "$DB" -c "
   delete from public.profiles where id='$USER';
 " >/dev/null
 created="$(sudo -u postgres psql -At -F/ -d "$DB" -c "$call_sql")"
@@ -66,10 +73,10 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB" -c "update public.profiles set
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB" -c "BEGIN; $call_sql select pg_sleep(2); COMMIT;" >/tmp/broker-link-rpc.log 2>&1 &
 rpc_pid=$!
 sleep 0.4
-sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB" -c "BEGIN; delete from public.broker_profiles where id='$BROKER_PROFILE'; update public.transfer_brokers set user_id=null where id='$BROKER'; COMMIT;" >/tmp/broker-unlink-after.log 2>&1
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB" -c "BEGIN; delete from public.broker_profiles where user_id='$USER'; update public.transfer_brokers set user_id=null where id='$BROKER'; COMMIT;" >/tmp/broker-unlink-after.log 2>&1
 wait "$rpc_pid"
 test "$(sudo -u postgres psql -At -d "$DB" -c "select organization_id from public.profiles where id='$USER';")" = "$ORG"
-test "$(sudo -u postgres psql -At -d "$DB" -c "select count(*) from public.broker_profiles where id='$BROKER_PROFILE';")" = "0"
+test "$(sudo -u postgres psql -At -d "$DB" -c "select count(*) from public.broker_profiles where user_id='$USER';")" = "0"
 test -z "$(sudo -u postgres psql -At -d "$DB" -c "select user_id from public.transfer_brokers where id='$BROKER';")"
 
 # The unlink commits first; a waiting RPC fails closed and leaves the profile unlinked.

@@ -119,20 +119,15 @@ export async function handleLinkBrokerCompany(req: Request, res: Response) {
       console.error("[link-broker-company] Broker profile lookup failed:", brokerProfileError.message);
       return res.status(500).json({ error: "No se pudo comprobar el acceso al portal" });
     }
-    if (!brokerProfile) {
-      return res.status(409).json({
-        error: "El perfil del portal está incompleto. Reconfigura primero el acceso al portal.",
-      });
-    }
-    if (
+    if (brokerProfile && (
       brokerProfile.organization_id !== organizationId ||
       brokerProfile.broker_id !== broker.id
-    ) {
+    )) {
       return res.status(409).json({
         error: "Este acceso al portal pertenece a otra empresa o broker. No se ha modificado.",
       });
     }
-    if (brokerProfile.is_active !== true) {
+    if (brokerProfile && brokerProfile.is_active !== true) {
       return res.status(409).json({
         error: "El acceso al portal está desactivado. Reactívalo antes de vincular la empresa.",
       });

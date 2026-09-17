@@ -23,6 +23,8 @@ describe("broker company link UI and route contract", () => {
   it("shows a Vincular a empresa action for configured but incomplete portal users", () => {
     expect(tableSource).toContain("Vincular a empresa");
     expect(tableSource).toContain("broker.user_id && profileHealth[broker.id]?.can_link_company");
+    expect(tableSource).toContain("profileHealth[broker.id]?.can_link_company &&");
+    expect(tableSource).toContain("border-amber-300 bg-amber-50");
     expect(tableSource).toContain("link-broker-company");
   });
 

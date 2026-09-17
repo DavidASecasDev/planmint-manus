@@ -23,6 +23,7 @@ DECLARE
   v_organization_name text;
   v_already_linked boolean := false;
   v_profile_created boolean := false;
+  v_broker_profile_created boolean := false;
 BEGIN
   IF p_organization_id IS NULL
      OR p_broker_id IS NULL
@@ -38,17 +39,15 @@ BEGIN
    WHERE bp.user_id = p_user_id
    FOR UPDATE;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'broker_profile_missing' USING ERRCODE = 'P0002';
-  END IF;
+  IF FOUND THEN
+    IF v_broker_profile.organization_id IS DISTINCT FROM p_organization_id
+       OR v_broker_profile.broker_id IS DISTINCT FROM p_broker_id THEN
+      RAISE EXCEPTION 'broker_profile_mismatch' USING ERRCODE = 'P0001';
+    END IF;
 
-  IF v_broker_profile.organization_id IS DISTINCT FROM p_organization_id
-     OR v_broker_profile.broker_id IS DISTINCT FROM p_broker_id THEN
-    RAISE EXCEPTION 'broker_profile_mismatch' USING ERRCODE = 'P0001';
-  END IF;
-
-  IF v_broker_profile.is_active IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'broker_profile_inactive' USING ERRCODE = 'P0001';
+    IF v_broker_profile.is_active IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'broker_profile_inactive' USING ERRCODE = 'P0001';
+    END IF;
   END IF;
 
   SELECT tb.*
@@ -79,6 +78,44 @@ BEGIN
     RAISE EXCEPTION 'organization_not_found' USING ERRCODE = 'P0002';
   END IF;
 
+  IF v_broker_profile.id IS NULL THEN
+    BEGIN
+      INSERT INTO public.broker_profiles (
+        user_id,
+        broker_id,
+        organization_id,
+        name,
+        email,
+        organization_name,
+        is_active
+      ) VALUES (
+        p_user_id,
+        p_broker_id,
+        p_organization_id,
+        v_broker.name,
+        v_broker.email,
+        v_organization_name,
+        true
+      )
+      RETURNING * INTO v_broker_profile;
+      v_broker_profile_created := true;
+    EXCEPTION
+      WHEN unique_violation THEN
+        SELECT bp.*
+          INTO v_broker_profile
+          FROM public.broker_profiles bp
+         WHERE bp.user_id = p_user_id
+         FOR UPDATE;
+
+        IF NOT FOUND
+           OR v_broker_profile.organization_id IS DISTINCT FROM p_organization_id
+           OR v_broker_profile.broker_id IS DISTINCT FROM p_broker_id
+           OR v_broker_profile.is_active IS DISTINCT FROM true THEN
+          RAISE EXCEPTION 'broker_profile_conflict' USING ERRCODE = '40001';
+        END IF;
+    END;
+  END IF;
+
   SELECT p.*
     INTO v_profile
     FROM public.profiles p
@@ -92,7 +129,7 @@ BEGIN
     END IF;
 
     IF v_profile.organization_id = p_organization_id THEN
-      v_already_linked := true;
+      v_already_linked := NOT v_broker_profile_created;
     ELSE
       UPDATE public.profiles
          SET organization_id = p_organization_id
@@ -120,7 +157,7 @@ BEGIN
            OR v_profile.organization_id IS DISTINCT FROM p_organization_id THEN
           RAISE EXCEPTION 'profile_changed' USING ERRCODE = '40001';
         END IF;
-        v_already_linked := true;
+        v_already_linked := NOT v_broker_profile_created;
     END;
   END IF;
 
@@ -161,7 +198,8 @@ BEGIN
       jsonb_build_object(
         'broker_id', p_broker_id,
         'linked_user_id', p_user_id,
-        'profile_created', v_profile_created
+        'profile_created', v_profile_created,
+        'broker_profile_created', v_broker_profile_created
       )
     );
   END IF;
@@ -177,6 +215,6 @@ GRANT EXECUTE ON FUNCTION public.link_broker_profile_to_company(uuid, uuid, uuid
   TO service_role;
 
 COMMENT ON FUNCTION public.link_broker_profile_to_company(uuid, uuid, uuid, uuid, text)
-  IS 'Atomically links an existing active broker portal identity to its current organization profile. Service role only.';
+  IS 'Atomically repairs and links a configured broker portal identity to its current organization profile. Service role only.';
 
 COMMIT;
