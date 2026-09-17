@@ -150,3 +150,40 @@ export async function requirePermission(
 
   return { role: role! };
 }
+
+/**
+ * Require at least one permission from a small set of equivalent capabilities.
+ * Every permission is resolved through the same membership/role/override chain.
+ */
+export async function requireAnyPermission(
+  serviceClient: SupabaseClient,
+  organizationId: string,
+  userId: string,
+  permissionKeys: string[]
+): Promise<{ role: string; permission: string }> {
+  let lastRole: string | null = null;
+  let lastMemberStatus: string | null = null;
+
+  for (const permissionKey of permissionKeys) {
+    const { allowed, role, memberStatus } = await checkUserPermission(
+      serviceClient,
+      organizationId,
+      userId,
+      permissionKey
+    );
+    lastRole = role;
+    lastMemberStatus = memberStatus;
+
+    if (allowed) {
+      return { role: role!, permission: permissionKey };
+    }
+  }
+
+  const error: any = new Error(
+    `Permission denied: one of [${permissionKeys.join(", ")}] ` +
+      `(role: ${lastRole}, status: ${lastMemberStatus})`
+  );
+  error.status = 403;
+  error.code = "PERMISSION_DENIED";
+  throw error;
+}

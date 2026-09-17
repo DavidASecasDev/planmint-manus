@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { TransferBroker, useTransferBrokers } from '@/hooks/useTransferBrokers';
+import { BrokerProfileHealth, TransferBroker, useTransferBrokers } from '@/hooks/useTransferBrokers';
 import { usePermissions } from '@/hooks/usePermissions';
 import { MoreHorizontal, Pencil, Trash2, KeyRound, Mail, Phone, Building2, UserMinus, RefreshCw, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { apiInvoke } from '@/lib/apiClient';
@@ -50,10 +50,38 @@ interface BrokerTableProps {
   brokers: TransferBroker[];
   isLoading: boolean;
   onEdit: (broker: TransferBroker) => void;
-  profileHealth?: Record<string, { has_profile: boolean; has_org: boolean }>;
+  profileHealth?: Record<string, BrokerProfileHealth>;
+  organizationName: string;
 }
 
-export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: BrokerTableProps) {
+export function isBrokerCompanyLinked(health?: BrokerProfileHealth): boolean {
+  return health?.is_linked === true;
+}
+
+export function getBrokerCompanyLinkIssue(health?: BrokerProfileHealth): string {
+  if (!health) return 'No se pudo comprobar la vinculación del perfil.';
+  if (!health.has_broker_profile) return 'Falta el perfil del portal de brokers.';
+  if (!health.broker_profile_matches) return 'El acceso del portal pertenece a otra empresa o broker.';
+  if (!health.broker_profile_active) return 'El acceso del portal está desactivado.';
+  if (!health.has_profile) return 'Falta el perfil de acceso del usuario.';
+  if (!health.has_org) return 'El perfil no está vinculado a ninguna empresa.';
+  return 'El perfil está vinculado a otra empresa o a otro broker.';
+}
+
+export function getBrokerCompanyLinkHint(health?: BrokerProfileHealth): string {
+  const issue = getBrokerCompanyLinkIssue(health);
+  return health?.can_link_company
+    ? `${issue} Usa «Vincular a empresa» en el menú de acciones.`
+    : `${issue} Revisa o reconfigura primero el acceso al portal.`;
+}
+
+export function BrokerTable({
+  brokers,
+  isLoading,
+  onEdit,
+  profileHealth = {},
+  organizationName,
+}: BrokerTableProps) {
   const { hasPermission } = usePermissions();
   const { toggleActive, deleteBroker } = useTransferBrokers();
   const queryClient = useQueryClient();
@@ -64,6 +92,8 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [linkCompanyDialogOpen, setLinkCompanyDialogOpen] = useState(false);
+  const [isLinkingCompany, setIsLinkingCompany] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(true);
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [selectedBroker, setSelectedBroker] = useState<TransferBroker | null>(null);
@@ -144,6 +174,54 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
       setIsResettingPassword(false);
       setResetPasswordDialogOpen(false);
       setSelectedBroker(null);
+    }
+  };
+
+  const handleLinkCompanyClick = (broker: TransferBroker) => {
+    setSelectedBroker(broker);
+    setLinkCompanyDialogOpen(true);
+  };
+
+  const handleConfirmLinkCompany = async () => {
+    if (!selectedBroker) return;
+
+    setIsLinkingCompany(true);
+    try {
+      const result = await apiInvoke<{
+        success: boolean;
+        already_linked?: boolean;
+        organization_name?: string;
+      }>('link-broker-company', {
+        body: { brokerId: selectedBroker.id },
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: ['transfer-brokers'],
+        refetchType: 'active',
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['transfer-brokers-all'],
+        refetchType: 'active',
+      });
+
+      toast.success(
+        result.data?.already_linked ? 'La vinculación ya estaba correcta' : 'Empresa vinculada correctamente',
+        {
+          description: `${selectedBroker.name} puede operar en ${result.data?.organization_name || organizationName}.`,
+        }
+      );
+      setLinkCompanyDialogOpen(false);
+      setSelectedBroker(null);
+    } catch (err: any) {
+      toast.error('No se pudo vincular la empresa', {
+        description: err?.message || 'Inténtalo de nuevo.',
+      });
+    } finally {
+      setIsLinkingCompany(false);
     }
   };
 
@@ -228,12 +306,15 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
                 <TableCell>
                 {broker.user_id ? (
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="secondary">
+                      <Badge
+                        variant="secondary"
+                        className={!isBrokerCompanyLinked(profileHealth[broker.id]) ? 'bg-amber-100 text-amber-800' : undefined}
+                      >
                         <KeyRound className="h-3 w-3 mr-1" />
-                        Configurado
+                        {isBrokerCompanyLinked(profileHealth[broker.id]) ? 'Configurado' : 'Sin vincular'}
                       </Badge>
-                      {profileHealth[broker.id] && !profileHealth[broker.id].has_org && (
-                        <span title="Perfil incompleto: falta vinculación a organización. El broker no podrá enviar solicitudes.">
+                      {!isBrokerCompanyLinked(profileHealth[broker.id]) && (
+                        <span title={getBrokerCompanyLinkHint(profileHealth[broker.id])}>
                           <AlertTriangle className="h-4 w-4 text-amber-500" />
                         </span>
                       )}
@@ -263,6 +344,14 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
                         <Pencil className="h-4 w-4 mr-2" />
                         Editar
                       </DropdownMenuItem>
+                      {broker.user_id && profileHealth[broker.id]?.can_link_company && (
+                        <DropdownMenuItem
+                          onClick={() => handleLinkCompanyClick(broker)}
+                        >
+                          <Building2 className="h-4 w-4 mr-2" />
+                          Vincular a empresa
+                        </DropdownMenuItem>
+                      )}
                       {!broker.user_id && (
                         <DropdownMenuItem onClick={() => handlePortalClick(broker)}>
                           <KeyRound className="h-4 w-4 mr-2" />
@@ -332,6 +421,36 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Link Broker Profile to Current Company */}
+      <AlertDialog open={linkCompanyDialogOpen} onOpenChange={setLinkCompanyDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Vincular a {organizationName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se vinculará el acceso de <strong>{selectedBroker?.name}</strong> a la empresa activa
+              de PlanMint. Esto corrige el perfil incompleto y le permitirá enviar solicitudes desde
+              el portal. El texto del campo «Empresa» no se modificará.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLinkingCompany}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isLinkingCompany}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmLinkCompany();
+              }}
+            >
+              {isLinkingCompany ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Vinculando...</>
+              ) : (
+                'Vincular a empresa'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Unlink Broker Portal Confirmation */}
       <AlertDialog open={unlinkDialogOpen} onOpenChange={setUnlinkDialogOpen}>
         <AlertDialogContent>
@@ -351,9 +470,12 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
                 setIsUnlinking(true);
                 try {
                   const { apiInvoke } = await import('@/lib/apiClient');
-                  await apiInvoke('unlink-employee-as-broker', {
+                  const result = await apiInvoke('unlink-employee-as-broker', {
                     body: { memberId: selectedBroker.user_id },
                   });
+                  if (result.error) {
+                    throw new Error(result.error.message);
+                  }
                   // Invalidate broker queries for seamless UI update
                   await queryClient.invalidateQueries({ queryKey: ['transfer-brokers'], refetchType: 'active' });
                   await queryClient.invalidateQueries({ queryKey: ['transfer-brokers-all'], refetchType: 'active' });
@@ -363,7 +485,7 @@ export function BrokerTable({ brokers, isLoading, onEdit, profileHealth = {} }: 
                 } catch (err) {
                   console.error('Error unlinking broker:', err);
                   toast.error('Error al desvincular', {
-                    description: 'No se pudo revocar el acceso. Inténtalo de nuevo.',
+                    description: err instanceof Error ? err.message : 'No se pudo revocar el acceso. Inténtalo de nuevo.',
                   });
                 } finally {
                   setIsUnlinking(false);

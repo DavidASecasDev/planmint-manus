@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { authenticateSupabaseRequest, AuthError, getServiceClient } from "./supabaseAdmin";
+import { requireAnyPermission } from "./permissionHelper";
 
 /**
  * POST /api/unlink-employee-as-broker
@@ -23,6 +24,12 @@ export async function handleUnlinkEmployeeAsBroker(req: Request, res: Response) 
     }
 
     const sb = getServiceClient();
+    const { role: actorRole } = await requireAnyPermission(
+      sb,
+      organizationId,
+      userId,
+      ["transfers.manage_brokers", "transfers.manage"]
+    );
 
     // 1. Find the broker_profiles row for this user
     const { data: brokerProfile, error: profileError } = await sb
@@ -60,7 +67,8 @@ export async function handleUnlinkEmployeeAsBroker(req: Request, res: Response) 
         .from("transfer_brokers")
         .update({ is_active: false, user_id: null })
         .eq("id", brokerProfile.broker_id)
-        .eq("organization_id", organizationId);
+        .eq("organization_id", organizationId)
+        .eq("user_id", memberId);
 
       if (deactivateError) {
         console.error("[unlink-employee-as-broker] Deactivate broker entity error:", deactivateError);
@@ -68,11 +76,17 @@ export async function handleUnlinkEmployeeAsBroker(req: Request, res: Response) 
       }
     } else if (brokerProfile.broker_id) {
       // Just clear the user_id from the broker entity so it can be re-linked later
-      await sb
+      const { error: clearUserError } = await sb
         .from("transfer_brokers")
         .update({ user_id: null })
         .eq("id", brokerProfile.broker_id)
-        .eq("organization_id", organizationId);
+        .eq("organization_id", organizationId)
+        .eq("user_id", memberId);
+
+      if (clearUserError) {
+        console.error("[unlink-employee-as-broker] Clear broker user error:", clearUserError);
+        return res.status(500).json({ error: "El acceso se revocó, pero no se pudo liberar la entidad broker" });
+      }
     }
 
     console.log(`[unlink-employee-as-broker] Revoked broker access for user ${memberId} (profile ${brokerProfile.id})`);
@@ -82,7 +96,7 @@ export async function handleUnlinkEmployeeAsBroker(req: Request, res: Response) 
       await sb.from("audit_logs").insert({
         organization_id: organizationId,
         actor_user_id: userId,
-        actor_role: "admin",
+        actor_role: actorRole,
         action: "broker.unlink_employee",
         entity_type: "broker_profiles",
         entity_id: brokerProfile.broker_id || brokerProfile.id,
@@ -106,6 +120,9 @@ export async function handleUnlinkEmployeeAsBroker(req: Request, res: Response) 
   } catch (err: any) {
     if (err instanceof AuthError) {
       return res.status(err.status).json({ error: err.message });
+    }
+    if (typeof err?.status === "number") {
+      return res.status(err.status).json({ error: err.message || "Acceso denegado" });
     }
     console.error("[unlink-employee-as-broker] Error:", err);
     return res.status(500).json({ error: err.message || "Internal error" });

@@ -59,6 +59,7 @@ import { handleResetBrokerPassword } from "../resetBrokerPassword";
 import { handleTransferPdf } from "../transferPdf";
 import { handleLinkEmployeeAsBroker } from "../linkEmployeeAsBroker";
 import { handleUnlinkEmployeeAsBroker } from "../unlinkEmployeeAsBroker";
+import { handleLinkBrokerCompany } from "../linkBrokerCompany";
 import { handleCheckBrokerAccess } from "../checkBrokerAccess";
 import { handleSupabaseQuery } from "../supabaseProxy";
 import { handleGetOperationalDashboard } from "../dashboardEndpoint";
@@ -379,6 +380,7 @@ async function startServer() {
   app.get("/api/transfer-pdf/:requestId", handleTransferPdf);
   app.post("/api/link-employee-as-broker", handleLinkEmployeeAsBroker);
   app.post("/api/unlink-employee-as-broker", handleUnlinkEmployeeAsBroker);
+  app.post("/api/link-broker-company", handleLinkBrokerCompany);
   app.post("/api/check-broker-access", handleCheckBrokerAccess);
   app.post("/api/supabase-query", handleSupabaseQuery);
 

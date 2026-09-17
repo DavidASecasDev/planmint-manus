@@ -14,8 +14,10 @@ import { BrokerRegistrationList } from '@/components/transfers/BrokerRegistratio
 import { BrokerInviteDialog } from '@/components/transfers/BrokerInviteDialog';
 import { LinkEmployeeAsBrokerDialog } from '@/components/transfers/LinkEmployeeAsBrokerDialog';
 import { Users, UserCheck, KeyRound, Plus, Search, ShieldAlert, Clock, Link2, UserPlus } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function BrokerManagement() {
+  const { organization } = useAuth();
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
   const { allBrokers, isLoadingAll, profileHealth } = useTransferBrokers();
   const { 
@@ -46,7 +48,10 @@ export default function BrokerManagement() {
   }
 
   // Check permission
-  if (!hasPermission('transfers.manage')) {
+  const canManageBrokers =
+    hasPermission('transfers.manage_brokers') || hasPermission('transfers.manage');
+
+  if (!canManageBrokers) {
     return (
       <AppLayout title="Gestión de Brokers">
         <div className="flex flex-col items-center justify-center h-64 gap-4">
@@ -61,7 +66,7 @@ export default function BrokerManagement() {
   const totalBrokers = allBrokers.length;
   const activeBrokers = allBrokers.filter(b => b.is_active).length;
   const brokersWithPortal = allBrokers.filter(b => b.user_id).length;
-  const incompleteProfiles = Object.values(profileHealth).filter(h => !h.has_org).length;
+  const incompleteProfiles = Object.values(profileHealth).filter(h => !h.is_linked).length;
 
   const filteredBrokers = allBrokers.filter(broker => {
     const query = searchQuery.toLowerCase();
@@ -212,6 +217,7 @@ export default function BrokerManagement() {
                   isLoading={isLoadingAll}
                   onEdit={handleEdit}
                   profileHealth={profileHealth}
+                  organizationName={organization?.name || 'esta empresa'}
                 />
               </CardContent>
             </Card>

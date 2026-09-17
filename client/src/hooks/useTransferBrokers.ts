@@ -43,6 +43,16 @@ interface SetupPortalResponse {
   error?: string;
 }
 
+export interface BrokerProfileHealth {
+  has_profile: boolean;
+  has_org: boolean;
+  has_broker_profile: boolean;
+  broker_profile_matches: boolean;
+  broker_profile_active: boolean;
+  can_link_company: boolean;
+  is_linked: boolean;
+}
+
 export function useTransferBrokers() {
   const { organization } = useAuth();
   const queryClient = useQueryClient();
@@ -83,7 +93,7 @@ export function useTransferBrokers() {
   const { data: brokerData, isLoading } = useQuery({
     queryKey: ['transfer-brokers', organization?.id],
     queryFn: async () => {
-      const result = await apiInvoke<{ data: { brokers: TransferBroker[]; allBrokers: TransferBroker[]; profileHealth?: Record<string, { has_profile: boolean; has_org: boolean }> }; error: string | null }>('get-transfer-brokers');
+      const result = await apiInvoke<{ data: { brokers: TransferBroker[]; allBrokers: TransferBroker[]; profileHealth?: Record<string, BrokerProfileHealth> }; error: string | null }>('get-transfer-brokers');
       if (result.error) {
         console.error('[useTransferBrokers] Backend error:', result.error);
         throw new Error(result.error.message);

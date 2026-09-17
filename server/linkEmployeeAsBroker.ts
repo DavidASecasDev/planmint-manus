@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { authenticateSupabaseRequest, AuthError, getServiceClient } from "./supabaseAdmin";
+import { requireAnyPermission } from "./permissionHelper";
 
 /**
  * POST /api/link-employee-as-broker
@@ -23,6 +24,12 @@ export async function handleLinkEmployeeAsBroker(req: Request, res: Response) {
     }
 
     const sb = getServiceClient();
+    const { role: actorRole } = await requireAnyPermission(
+      sb,
+      organizationId,
+      userId,
+      ["transfers.manage_brokers", "transfers.manage"]
+    );
 
     // 1. Verify the member exists in this organization
     const { data: member, error: memberError } = await sb
@@ -62,7 +69,7 @@ export async function handleLinkEmployeeAsBroker(req: Request, res: Response) {
       // Verify the broker belongs to this organization
       const { data: broker, error: brokerError } = await sb
         .from("transfer_brokers")
-        .select("id, user_id")
+        .select("id, user_id, is_active")
         .eq("id", brokerId)
         .eq("organization_id", organizationId)
         .single();
@@ -70,13 +77,33 @@ export async function handleLinkEmployeeAsBroker(req: Request, res: Response) {
       if (brokerError || !broker) {
         return res.status(404).json({ error: "Broker no encontrado en esta organización" });
       }
+      if (!broker.is_active) {
+        return res.status(409).json({ error: "Activa primero el broker antes de vincular el acceso" });
+      }
+      if (broker.user_id && broker.user_id !== memberId) {
+        return res.status(409).json({ error: "Este broker ya está vinculado a otro usuario" });
+      }
 
       // Update the broker's user_id if not already set
       if (!broker.user_id) {
-        await sb
+        const { data: updatedBroker, error: brokerUpdateError } = await sb
           .from("transfer_brokers")
           .update({ user_id: memberId, email: memberEmail })
-          .eq("id", brokerId);
+          .eq("id", brokerId)
+          .eq("organization_id", organizationId)
+          .is("user_id", null)
+          .select("id")
+          .maybeSingle();
+
+        if (brokerUpdateError) {
+          console.error("[link-employee-as-broker] Broker update error:", brokerUpdateError);
+          return res.status(500).json({ error: "Error al vincular la entidad broker" });
+        }
+        if (!updatedBroker) {
+          return res.status(409).json({
+            error: "El broker cambió durante la operación. Actualiza la página y vuelve a intentarlo.",
+          });
+        }
       }
     } else {
       // Create a new broker entity for this employee
@@ -132,7 +159,7 @@ export async function handleLinkEmployeeAsBroker(req: Request, res: Response) {
       await sb.from("audit_logs").insert({
         organization_id: organizationId,
         actor_user_id: userId,
-        actor_role: "admin",
+        actor_role: actorRole,
         action: "broker.link_employee",
         entity_type: "broker_profiles",
         entity_id: resolvedBrokerId,
@@ -157,6 +184,9 @@ export async function handleLinkEmployeeAsBroker(req: Request, res: Response) {
   } catch (err: any) {
     if (err instanceof AuthError) {
       return res.status(err.status).json({ error: err.message });
+    }
+    if (typeof err?.status === "number") {
+      return res.status(err.status).json({ error: err.message || "Acceso denegado" });
     }
     console.error("[link-employee-as-broker] Error:", err);
     return res.status(500).json({ error: err.message || "Internal error" });
