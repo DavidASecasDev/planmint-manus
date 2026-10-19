@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Car, Loader2, ShieldAlert } from 'lucide-react';
 import type { VehicleFilters as VehicleFiltersType, VehicleStatus, VehicleWithTasks } from '@/types/vehicles';
+import { normalizeVehiclePlate } from '@shared/vehiclePlate';
 
 export default function VehicleStatus() {
   const { 
@@ -60,8 +61,10 @@ export default function VehicleStatus() {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
+        const searchPlateKey = normalizeVehiclePlate(filters.search);
         const matchesSearch = 
           vehicle.matricula.toLowerCase().includes(searchLower) ||
+          (searchPlateKey !== '' && normalizeVehiclePlate(vehicle.matricula).includes(searchPlateKey)) ||
           (vehicle.modelo?.toLowerCase().includes(searchLower));
         if (!matchesSearch) return false;
       }

@@ -3,6 +3,8 @@ import { supabaseQuery } from '@/lib/supabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { VehicleImportRow, ParsedVehicleImport } from '@/lib/vehicleImportTemplate';
+import { planVehicleImport, buildVehicleImportUpdate } from '@/lib/vehicleImportPlan';
+import type { PlateCandidate } from '@shared/vehiclePlate';
 
 interface VehicleInsertData {
   organization_id: string;
@@ -18,23 +20,16 @@ export function useVehicleImport() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
 
-  // Check which vehicles already exist
-  const checkExistingVehicles = async (matriculas: string[]): Promise<Map<string, string>> => {
-    if (!profile?.organization_id || matriculas.length === 0) {
-      return new Map();
-    }
-
+  // Load every vehicle of the organization (active and archived) so identity
+  // is resolved by normalized plate, not by the exact stored literal.
+  const loadOrganizationVehicles = async (): Promise<PlateCandidate[]> => {
+    if (!profile?.organization_id) return [];
     const { data, error } = await supabaseQuery
       .from('vehicles')
-      .select('id, matricula')
-      .eq('organization_id', profile.organization_id)
-      .in('matricula', matriculas);
-
+      .select('id, matricula, is_archived')
+      .eq('organization_id', profile.organization_id);
     if (error) throw error;
-
-    const existingMap = new Map<string, string>();
-    data?.forEach((v: any) => existingMap.set(v.matricula.toUpperCase(), v.id));
-    return existingMap;
+    return (data || []) as PlateCandidate[];
   };
 
   // Resolve location names to IDs
@@ -62,57 +57,14 @@ export function useVehicleImport() {
 
   // Validate and prepare import data
   const validateImport = async (rows: VehicleImportRow[]): Promise<ParsedVehicleImport[]> => {
-    const matriculas = rows.map(r => r.matricula.toUpperCase());
     const locationNames = rows.map(r => r.ubicacion || '').filter(Boolean);
 
     const [existingVehicles, locationMap] = await Promise.all([
-      checkExistingVehicles(matriculas),
+      loadOrganizationVehicles(),
       resolveLocations(locationNames),
     ]);
 
-    return rows.map(row => {
-      const matricula = row.matricula.toUpperCase();
-      
-      // Validate matricula
-      if (!matricula) {
-        return {
-          ...row,
-          matricula,
-          status: 'error' as const,
-          errorMessage: 'Matrícula requerida',
-        };
-      }
-
-      // Check if valid format (basic validation)
-      if (!/^[A-Z0-9]{4,10}$/.test(matricula)) {
-        return {
-          ...row,
-          matricula,
-          status: 'error' as const,
-          errorMessage: 'Formato de matrícula inválido',
-        };
-      }
-
-      // Check if exists
-      const existingId = existingVehicles.get(matricula);
-
-      // Validate location if provided
-      if (row.ubicacion && !locationMap.has(row.ubicacion.toLowerCase())) {
-        return {
-          ...row,
-          matricula,
-          status: 'error' as const,
-          errorMessage: `Ubicación "${row.ubicacion}" no encontrada`,
-        };
-      }
-
-      return {
-        ...row,
-        matricula,
-        status: existingId ? 'update' as const : 'new' as const,
-        existingVehicleId: existingId,
-      };
-    });
+    return planVehicleImport(rows, existingVehicles, new Set(locationMap.keys()));
   };
 
   // Import vehicles mutation
@@ -126,39 +78,64 @@ export function useVehicleImport() {
       const locationNames = parsedRows.map(r => r.ubicacion || '').filter(Boolean);
       const locationMap = await resolveLocations(locationNames);
 
-      // Filter out errors
-      const validRows = parsedRows.filter(r => r.status !== 'error');
+      // Re-plan against fresh data right before writing: protects against a
+      // repeated import or a concurrent sync that created the unit meanwhile.
+      const fresh = planVehicleImport(
+        parsedRows.filter(r => r.status !== 'error'),
+        await loadOrganizationVehicles(),
+        new Set(locationMap.keys()),
+      );
 
-      // Prepare insert/update data
-      const vehiclesData: VehicleInsertData[] = validRows.map(row => ({
-        organization_id: profile.organization_id!,
-        matricula: row.matricula,
-        modelo: row.modelo || null,
-        categoria: row.categoria || null,
-        location_id: row.ubicacion ? locationMap.get(row.ubicacion.toLowerCase()) || null : null,
-        status: 'sucio',
-        is_archived: false,
-      }));
+      let inserted = 0;
+      let updated = 0;
+      let skipped = 0;
+      for (const row of fresh) {
+        const locationId = row.ubicacion ? locationMap.get(row.ubicacion.toLowerCase()) || null : null;
+        if (row.status === 'update' && row.existingVehicleId) {
+          // Existing unit: never touch status, archive flags or the stored
+          // plate literal; only fill values provided in the file.
+          const update = buildVehicleImportUpdate(row, locationId);
+          if (Object.keys(update).length > 0) {
+            const { error } = await supabaseQuery
+              .from('vehicles')
+              .update(update)
+              .eq('id', row.existingVehicleId)
+              .eq('organization_id', profile.organization_id);
+            if (error) throw error;
+          }
+          updated++;
+        } else if (row.status === 'new') {
+          const insertData: VehicleInsertData = {
+            organization_id: profile.organization_id,
+            matricula: row.matricula,
+            modelo: row.modelo || null,
+            categoria: row.categoria || null,
+            location_id: locationId,
+            status: 'sucio',
+            is_archived: false,
+          };
+          const { error } = await supabaseQuery.from('vehicles').insert(insertData);
+          if (error) {
+            // 23505: another import/sync created the same plate key first.
+            if ((error as { code?: string }).code === '23505') {
+              skipped++;
+              continue;
+            }
+            throw error;
+          }
+          inserted++;
+        } else {
+          skipped++;
+        }
+      }
 
-      // Upsert vehicles (update on conflict with matricula)
-      const { error } = await supabaseQuery
-        .from('vehicles')
-        .upsert(vehiclesData, {
-          onConflict: 'organization_id,matricula',
-          ignoreDuplicates: false,
-        });
-
-      if (error) throw error;
-
-      return {
-        inserted: validRows.filter(r => r.status === 'new').length,
-        updated: validRows.filter(r => r.status === 'update').length,
-      };
+      return { inserted, updated, skipped };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       toast.success(
-        `Importación completada: ${result.inserted} nuevos, ${result.updated} actualizados`
+        `Importación completada: ${result.inserted} nuevos, ${result.updated} actualizados` +
+          (result.skipped ? `, ${result.skipped} omitidos por duplicado` : '')
       );
     },
     onError: (error) => {

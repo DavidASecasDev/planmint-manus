@@ -17,6 +17,7 @@ import { notifyOwner } from "./_core/notification";
 import { releaseParkingSpotByVehicle } from "./parkingEndpoints";
 import { syncSesPersonProfiles } from "./sesHospedajes/rentlyProfiles";
 import { normalizeRentlyDateTimeForStorage } from './sesHospedajes/dailyReview';
+import { normalizeVehiclePlate, resolveVehicleByPlate, isUniqueViolation } from "../shared/vehiclePlate";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -769,7 +770,7 @@ export function enrichReservationWithDetail(
 
 // ─── Vehicle Status Sync ────────────────────────────────────────────────────
 
-async function syncVehicleStatuses(
+export async function syncVehicleStatuses(
   serviceClient: ReturnType<typeof getServiceClient>,
   organizationId: string
 ): Promise<{ released: number; rented: number; errors: number }> {
@@ -841,6 +842,9 @@ async function syncVehicleStatuses(
 
     // 2. Set vehicles to alquilado for active reservations
     //    Also handles: unarchiving archived vehicles and creating missing vehicles
+    //    Identity is the normalized plate within the organization, so "9772 NNS"
+    //    and "9772NNS" resolve to the same operational vehicle. Ambiguous
+    //    matches are never guessed: no update, no creation.
     const { data: activeReservations } = await serviceClient
       .from("reservations")
       .select("id, auto, modelo, categoria, cliente_nombre, cliente_apellido")
@@ -849,17 +853,57 @@ async function syncVehicleStatuses(
       .not("auto", "is", null);
 
     if (activeReservations && activeReservations.length > 0) {
+      type PlateVehicle = {
+        id: string;
+        matricula: string;
+        status: string;
+        current_reservation_id: string | null;
+        is_archived: boolean | null;
+      };
+      const loadOrgVehicles = async (): Promise<PlateVehicle[] | null> => {
+        const { data, error } = await serviceClient
+          .from("vehicles")
+          .select("id, matricula, status, current_reservation_id, is_archived")
+          .eq("organization_id", organizationId);
+        if (error) {
+          console.error("[sync-vehicles] Error loading vehicles for plate resolution:", error);
+          return null;
+        }
+        return (data || []) as PlateVehicle[];
+      };
+      // Consolidated aliases must never be restored. If the private alias
+      // registry cannot be read, archived records are not restored at all.
+      let aliasIds = new Set<string>();
+      let aliasRegistryReadable = true;
+      {
+        const { data: aliasRows, error: aliasErr } = await serviceClient
+          .from("vehicle_identity_aliases")
+          .select("alias_vehicle_id")
+          .eq("organization_id", organizationId)
+          .eq("status", "active");
+        if (aliasErr) {
+          aliasRegistryReadable = false;
+        } else {
+          aliasIds = new Set((aliasRows || []).map((r: { alias_vehicle_id: string }) => r.alias_vehicle_id));
+        }
+      }
+      let orgVehicles = await loadOrgVehicles();
+      if (!orgVehicles) {
+        return { released, rented, errors: errors + 1 };
+      }
+
       for (const res of activeReservations) {
         if (!res.auto) continue;
 
-        // First try to find a non-archived vehicle
-        const { data: vehicle } = await serviceClient
-          .from("vehicles")
-          .select("id, status, current_reservation_id, is_archived")
-          .eq("organization_id", organizationId)
-          .eq("matricula", res.auto)
-          .eq("is_archived", false)
-          .single();
+        const resolution = resolveVehicleByPlate(res.auto, orgVehicles, aliasIds);
+        if (resolution.kind === "ambiguous") {
+          console.error(
+            `[sync-vehicles] Ambiguous vehicle identity for plate key ${normalizeVehiclePlate(res.auto)} (${resolution.reason}); skipped without creating`,
+          );
+          errors++;
+          continue;
+        }
+        const vehicle = resolution.kind === "active" ? resolution.vehicle : null;
 
         if (vehicle && vehicle.status !== "alquilado" && vehicle.status !== "en_servicio") {
           const { error: updateErr } = await serviceClient
@@ -871,6 +915,8 @@ async function syncVehicleStatuses(
             })
             .eq("id", vehicle.id);
           if (!updateErr) {
+            vehicle.status = "alquilado";
+            vehicle.current_reservation_id = res.id;
             console.log(`[sync-vehicles] Set ${res.auto} to alquilado (reservation ${res.id})`);
             rented++;
             // Auto-release parking spot when vehicle goes to alquilado
@@ -885,15 +931,18 @@ async function syncVehicleStatuses(
             .from("vehicles")
             .update({ current_reservation_id: res.id })
             .eq("id", vehicle.id);
+          vehicle.current_reservation_id = res.id;
         } else if (!vehicle) {
-          // Vehicle not found as non-archived. Check if it exists but is archived.
-          const { data: archivedVehicle } = await serviceClient
-            .from("vehicles")
-            .select("id, status")
-            .eq("organization_id", organizationId)
-            .eq("matricula", res.auto)
-            .eq("is_archived", true)
-            .single();
+          // Vehicle not found as non-archived. Check if it exists but is archived
+          // (never a consolidated alias).
+          const archivedVehicle = resolution.kind === "archived" ? resolution.vehicle : null;
+          if (archivedVehicle && !aliasRegistryReadable) {
+            console.error(
+              `[sync-vehicles] Alias registry unavailable; not restoring archived vehicle for plate key ${normalizeVehiclePlate(res.auto)}`,
+            );
+            errors++;
+            continue;
+          }
 
           if (archivedVehicle) {
             // Unarchive and set to alquilado
@@ -907,8 +956,12 @@ async function syncVehicleStatuses(
                 current_reservation_id: res.id,
                 last_status_change: new Date().toISOString(),
               })
-              .eq("id", archivedVehicle.id);
+              .eq("id", archivedVehicle.id)
+              .eq("is_archived", true);
             if (!unarchiveErr) {
+              archivedVehicle.is_archived = false;
+              archivedVehicle.status = "alquilado";
+              archivedVehicle.current_reservation_id = res.id;
               console.log(`[sync-vehicles] Unarchived and set ${res.auto} to alquilado (reservation ${res.id})`);
               rented++;
             } else {
@@ -917,7 +970,7 @@ async function syncVehicleStatuses(
             }
           } else {
             // Vehicle doesn't exist at all — create it
-            const { error: createErr } = await serviceClient
+            const { data: created, error: createErr } = await serviceClient
               .from("vehicles")
               .insert({
                 organization_id: organizationId,
@@ -928,10 +981,39 @@ async function syncVehicleStatuses(
                 current_reservation_id: res.id,
                 is_archived: false,
                 last_status_change: new Date().toISOString(),
-              });
-            if (!createErr) {
+              })
+              .select("id, matricula, status, current_reservation_id, is_archived")
+              .single();
+            if (!createErr && created) {
+              orgVehicles.push(created as PlateVehicle);
               console.log(`[sync-vehicles] Created vehicle ${res.auto} and set to alquilado (reservation ${res.id})`);
               rented++;
+            } else if (isUniqueViolation(createErr)) {
+              // A concurrent sync/import created the same unit first. Re-read
+              // and link to it instead of creating a second record.
+              const refreshed = await loadOrgVehicles();
+              const retry = refreshed ? resolveVehicleByPlate(res.auto, refreshed, aliasIds) : null;
+              if (refreshed) orgVehicles = refreshed;
+              if (retry && retry.kind === "active" && retry.vehicle.status !== "en_servicio") {
+                const { error: retryErr } = await serviceClient
+                  .from("vehicles")
+                  .update({
+                    status: "alquilado",
+                    current_reservation_id: res.id,
+                    last_status_change: new Date().toISOString(),
+                  })
+                  .eq("id", retry.vehicle.id);
+                if (!retryErr) {
+                  retry.vehicle.status = "alquilado";
+                  retry.vehicle.current_reservation_id = res.id;
+                  rented++;
+                } else {
+                  errors++;
+                }
+              } else {
+                console.error(`[sync-vehicles] Concurrent create for ${res.auto} could not be resolved safely`);
+                errors++;
+              }
             } else {
               console.error(`[sync-vehicles] Error creating vehicle ${res.auto}:`, createErr);
               errors++;
@@ -965,7 +1047,7 @@ async function syncVehicleStatuses(
       for (const vehicle of allRentedVehicles) {
         const linkedRes = linkedResMap.get(vehicle.current_reservation_id!);
         if (!linkedRes) continue;
-        if (linkedRes.auto && linkedRes.auto !== vehicle.matricula) {
+        if (linkedRes.auto && normalizeVehiclePlate(linkedRes.auto) !== normalizeVehiclePlate(vehicle.matricula)) {
           try {
             await serviceClient
               .from("vehicle_cleaning_tasks")
@@ -1009,15 +1091,30 @@ async function syncVehicleStatuses(
     if (orphanedVehicles && orphanedVehicles.length > 0) {
       const { data: existingFleet } = await serviceClient
         .from("fleet_vehicles")
-        .select("id, matricula")
+        .select("id, matricula, numero_bastidor")
         .eq("organization_id", organizationId);
-      const fleetByPlate = new Map<string, string>();
-      (existingFleet || []).forEach(f => fleetByPlate.set(f.matricula.toUpperCase(), f.id));
+      // Group by normalized plate. Several fleet rows for one key are allowed
+      // historically; link only when they do not carry contradictory VINs.
+      const fleetByPlate = new Map<string, { id: string; vins: Set<string> }>();
+      (existingFleet || []).forEach((f: { id: string; matricula: string; numero_bastidor: string | null }) => {
+        const key = normalizeVehiclePlate(f.matricula);
+        if (!key) return;
+        const entry = fleetByPlate.get(key) || { id: f.id, vins: new Set<string>() };
+        const vin = normalizeVehiclePlate(f.numero_bastidor);
+        if (vin) {
+          if (entry.vins.size === 0) entry.id = f.id;
+          entry.vins.add(vin);
+        }
+        fleetByPlate.set(key, entry);
+      });
 
       for (const v of orphanedVehicles) {
-        const existingFleetId = fleetByPlate.get(v.matricula.toUpperCase());
-        if (existingFleetId) {
-          await serviceClient.from("vehicles").update({ fleet_vehicle_id: existingFleetId }).eq("id", v.id);
+        const fleetEntry = fleetByPlate.get(normalizeVehiclePlate(v.matricula));
+        if (fleetEntry && fleetEntry.vins.size > 1) {
+          console.error(`[sync-vehicles] Contradictory VINs for plate key ${normalizeVehiclePlate(v.matricula)}; fleet link skipped`);
+          errors++;
+        } else if (fleetEntry) {
+          await serviceClient.from("vehicles").update({ fleet_vehicle_id: fleetEntry.id }).eq("id", v.id).is("fleet_vehicle_id", null);
         } else {
           const { data: newFleet } = await serviceClient
             .from("fleet_vehicles")
